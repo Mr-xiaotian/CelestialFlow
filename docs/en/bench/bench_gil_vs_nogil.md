@@ -1,6 +1,6 @@
-# bench_gil_vs_nogil.py Benchmark Guide
+# bench/bench_gil_vs_nogil.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -19,16 +19,15 @@ Script file: `bench/bench_gil_vs_nogil.py`
 |------|------|
 | `executor_cpu_serial` | `TaskExecutor` serial execution of CPU-intensive tasks |
 | `executor_cpu_thread` | `TaskExecutor` threaded execution of CPU-intensive tasks |
-| `graph_cpu_pipeline_serial` | 3-stage `TaskGraph` serial CPU pipeline |
-| `graph_cpu_pipeline_thread` | 3-stage `TaskGraph` threaded CPU pipeline |
-| `graph_io_pipeline_thread` | 3-stage `TaskGraph` threaded I/O pipeline |
+| `graph_cpu_pipeline_serial` | 3-node `TaskGraph` serial CPU pipeline |
+| `graph_cpu_pipeline_thread` | 3-node `TaskGraph` threaded CPU pipeline |
+| `graph_io_pipeline_thread` | 3-node `TaskGraph` threaded I/O pipeline |
 
 ### Workload Design
 
 - **CPU tasks**: Execute pure Python integer loops and hash-based mixed operations, aiming to stress Python bytecode execution overhead
 - **I/O tasks**: `time.sleep()` to simulate blocking waits
-- **Graph structure**: Fixed as a simple 3-stage series pipeline to avoid topology differences confounding results
-- **Persistence / duplicate check disabled**: `TaskExecutor` is explicitly constructed with `enable_duplicate_check=False`, so the benchmark does not trigger duplicate-check logic
+- **Graph structure**: Fixed as a simple 3-node series pipeline to avoid topology differences confounding results
 - **Repetitions**: Each workload runs 3 times by default, with average / min / max statistics
 
 ## Key Configuration
@@ -105,6 +104,8 @@ python bench/bench_gil_vs_nogil.py --cpu-loops 200000 --pipeline-loops 100000
 4. **CPU frequency fluctuations may affect results**: Under Windows, background load, thermal management, and power policies can cause jitter in individual runs, hence the default of 3 repetitions with averaging.
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### 2026/06/18 - Windows 11 / Python 3.14.3 / 8 workers
 

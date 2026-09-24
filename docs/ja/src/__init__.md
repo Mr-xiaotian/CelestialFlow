@@ -1,6 +1,6 @@
-# CelestialFlow パッケージエントリ
+# src/celestialflow/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 概要
 
@@ -60,6 +60,7 @@
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `BaseObserver` | オブザーバー基底クラス。on_start / on_success / on_failure などのインターフェースを定義 |
+| `PrintObserver` | print ベースのコンソール進捗オブザーバー。タスク実行カウントをスレッドセーフに出力 |
 | `TaskReporter` | タスクレポーター。HTTP 経由でタスク実行イベントをレポート |
 
 ---
@@ -93,7 +94,6 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `format_table` | テーブル出力のフォーマット。コンソールでの比較データ表示に使用 |
-| `make_hashable` | ハッシュ不可オブジェクト（dict、list など）をハッシュ可能形式に変換 |
 | `TerminationSignal` | 終了シグナル。グラフ実行フローの終了を制御 |
 
 ---
@@ -107,6 +107,7 @@ __all__ = [
     "BaseInlet",
     "BaseObserver",
     "BaseSpout",
+    "PrintObserver",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
@@ -124,7 +125,6 @@ __all__ = [
     "format_table",
     "load_records",
     "load_tasks_grouped_by_stage",
-    "make_hashable",
 ]
 ```
 
@@ -146,16 +146,16 @@ def add_one(x: int) -> int:
 
 
 # 2. TaskExecutor ノードを作成
-node_a = TaskExecutor("NodeA", func=double, execution_mode="serial")
-node_b = TaskExecutor("NodeB", func=add_one, execution_mode="serial")
+stage_a = TaskExecutor("StageA", func=double, execution_mode="serial")
+stage_b = TaskExecutor("StageB", func=add_one, execution_mode="serial")
 
 # 3. DAG グラフを構築
 graph = TaskGraph(name="DemoGraph")
-graph.set_nodes([node_a, node_b])
-graph.connect([node_a], [node_b])
+graph.set_nodes([stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
 
 # 4. グラフを実行
-init_tasks = {node_a.get_name(): [1, 2, 3, 4, 5]}
+init_tasks = {stage_a.get_name(): [1, 2, 3, 4, 5]}
 graph.run(init_tasks)
 
 # 5. 実行結果サマリーを表示
@@ -190,9 +190,9 @@ print("Counts:", counts)
 from celestialflow import TaskChain, TaskExecutor
 
 nodes = [
-    TaskExecutor("N1", func=lambda x: x * 2),
-    TaskExecutor("N2", func=lambda x: x + 1),
-    TaskExecutor("N3", func=lambda x: x**2),
+    TaskExecutor("S1", func=lambda x: x * 2),
+    TaskExecutor("S2", func=lambda x: x + 1),
+    TaskExecutor("S3", func=lambda x: x**2),
 ]
 
 chain = TaskChain(name="DemoChain", nodes=nodes)
@@ -222,7 +222,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskReporter"]
+        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
     end
 
     subgraph benchmark
@@ -234,7 +234,7 @@ graph TD
     end
 
     subgraph runtime
-        R["format_table<br/>make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>TerminationSignal"]
     end
 
     Init --> F

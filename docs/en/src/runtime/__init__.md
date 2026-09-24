@@ -1,8 +1,8 @@
-# Runtime Module
+# src/celestialflow/runtime/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
-The Runtime module provides the core infrastructure for CelestialFlow task execution, including task envelopes (`Envelope`), queues (`Queue`), and metrics (`Metrics`).
+The Runtime module provides the core infrastructure for CelestialFlow task execution, including task envelopes (`Envelope`), queues (`Queue`), metrics (`Metrics`), and other components.
 
 ## Module Overview
 
@@ -19,7 +19,7 @@ from celestialflow.runtime import (
 )
 ```
 
-> **Note**: Symbols from utility modules such as `util_constant`, `util_errors`, `util_estimators`, `util_event`, `util_hash`, `util_types`, `util_config`, `util_format` are **not** in `runtime/__init__.py`'s `__all__` and must be imported via their full paths (e.g., `from celestialflow.runtime.util_errors import ConfigurationError`).
+> **Note**: Symbols from utility modules such as `util_constant`, `util_errors`, `util_event`, `util_types`, `util_config`, `util_format` are **not** in `runtime/__init__.py`'s `__all__` and must be imported via their full paths (e.g., `from celestialflow.runtime.util_errors import ConfigurationError`).
 
 ## File Descriptions
 
@@ -33,13 +33,13 @@ from celestialflow.runtime import (
    - **Key Features**: Termination signal merging, source name management, dynamic queue channel addition
 
 2. **core_envelope.py** (`TaskEnvelope`)
-   - **Purpose**: Task data wrapper, encapsulating raw tasks with their hash, ID, and other metadata
-   - **Contained Information**: Task data, SHA1 hash value (lazy computation), task ID
-   - **Key Features**: Data encapsulation, lazy hash computation, fallback for unhashable tasks
+   - **Purpose**: Task data wrapper, encapsulating the raw task and its ID
+   - **Contained Information**: Task data (`_task`), task ID (`_id`)
+   - **Key Features**: Data encapsulation and access
 
 3. **core_metrics.py** (`TaskMetrics`)
-   - **Purpose**: Task execution metrics, managing success/failure/duplicate counts and deduplication logic
-   - **Key Features**: Thread-safe counters, duplicate task checking, retryable exception configuration, task completion determination
+   - **Purpose**: Task execution metrics, managing external injection / upstream reception / success / failure / duplicate counts
+   - **Key Features**: Thread-safe counters, per-node upstream/downstream counting, observer callbacks, retryable exception configuration, task completion determination, measured busy duration
 
 ### Utility Modules
 
@@ -50,35 +50,26 @@ from celestialflow.runtime import (
 
 5. **util_types.py**
    - **Purpose**: Runtime type definitions and data structures
-   - **Contained types**: `TerminationSignal`, `TerminationIdPool`, `ValueWrapper`, `SumCounter`, `NoOpContext`, `StageStatus`, `CTreeEvent`
+   - **Contained types**: `TerminationSignal`, `TERMINATION_SIGNAL`, `TerminationIdPool`, `NoOpContext`, `ValueWrapper`, `StageStatus`, `CTreeEvent`
 
-6. **util_hash.py**
-   - **Purpose**: Object hash computation for task deduplication
-   - **Key Functions**: `make_hashable()`, `object_to_hash()`
-
-7. **util_estimators.py**
-   - **Purpose**: Execution time estimation and progress calculation
-   - **Key Functions**: `calc_remaining()`, `calc_elapsed()`, `format_avg_time()`
-
-8. **util_event.py**
+6. **util_event.py**
    - **Purpose**: Event client abstract interface and local implementation
    - **Key Classes**: `EventClient` (Protocol), `LocalEventClient`, `clone_event_client()`
 
-9. **util_constant.py**
+7. **util_constant.py**
    - **Purpose**: Runtime constant definitions (e.g., log level mapping)
 
-10. **util_config.py**
-    - **Purpose**: Runtime configuration loading (e.g., reading log level from `pyproject.toml`)
+8. **util_config.py**
+   - **Purpose**: Runtime configuration loading (e.g., reading log level from `pyproject.toml`)
 
-11. **util_format.py**
-    - **Purpose**: General formatting utilities (string truncation, table rendering, time formatting, etc.)
+9. **util_format.py**
+   - **Purpose**: General formatting utilities (string truncation, table rendering, clustering by value)
 
 ## Module Relationships
 
 ### Internal Relationships
-- `TaskEnvelope` uses `util_hash` to compute task hashes
 - `TaskInQueue`/`TaskOutQueue` use `TerminationSignal`/`TerminationIdPool` from `util_types`
-- `TaskMetrics` uses `ValueWrapper`/`SumCounter` from `util_types`
+- `TaskMetrics` uses `ValueWrapper` from `util_types`, and expresses lifecycle states via `StageStatus`
 - All errors are uniformly handled via `CelestialFlowError` and its subclasses
 
 ### External Relationships
@@ -92,60 +83,63 @@ The following examples demonstrate the usage of basic components in the runtime 
 ```python
 from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
 
-# 1. TaskEnvelope: create and manipulate task envelopes
+# 1. TaskEnvelope：创建和访问任务信封
 envelope = TaskEnvelope(task={"data": 42}, id=1)
-print(f"Task data: {envelope.get_task()}")
-print(f"Task hash: {envelope.get_hash().hex()[:8]}...")
-print(f"Task ID: {envelope.get_id()}")
+print(f"任务数据: {envelope.get_task()}")
+print(f"任务ID: {envelope.get_id()}")
 ```
 
 ```python
-# 2. TaskMetrics: metrics tracking
-metrics = TaskMetrics(enable_duplicate_check=True)
+from celestialflow.runtime import TaskMetrics
+from celestialflow.runtime.util_types import ValueWrapper
 
-# Simulate task processing
-metrics.add_task_count(5)
+# 2. TaskMetrics：指标统计
+metrics = TaskMetrics()
+
+# 模拟任务处理过程：外部注入 3 个 + 上游接收 2 个
+metrics.add_external_input_count(3)
+metrics.set_upstream_counter("upstream", ValueWrapper(value=2))
 metrics.add_success_count(3)
 metrics.add_fail_count(1)
 metrics.add_duplicate_count(1)
 
-# Query counts
-print(f"Input: {metrics.get_task_count()}")
-print(f"Success: {metrics.get_success_count()}")
-print(f"Failed: {metrics.get_fail_count()}")
-print(f"Duplicate: {metrics.get_duplicate_count()}")
-print(f"All complete: {metrics.is_tasks_finished()}")
+# 查询各项计数
+print(f"输入: {metrics.get_input_count()}")  # 5
+print(f"成功: {metrics.get_success_count()}")  # 3
+print(f"失败: {metrics.get_fail_count()}")  # 1
+print(f"重复: {metrics.get_duplicate_count()}")  # 1
+print(f"全部完成: {metrics.is_tasks_finished()}")
 
-# Get snapshot dict
+# 获取快照字典
 counts = metrics.get_counts()
-print(f"Pending: {counts['tasks_pending']}")
+print(f"待处理: {counts['tasks_pending']}")
 ```
 
 ```python
-# 3. TaskInQueue / TaskOutQueue: queue communication
+# 3. TaskInQueue / TaskOutQueue：队列通信
 from queue import Queue as ThreadQueue
 
-# Create input queue
+# 创建输入队列
 in_queue = TaskInQueue(out_name="processor")
 in_queue.add_source_name("producer")
 
-# Create output queue
+# 创建输出队列
 out_queue = TaskOutQueue(in_name="processor")
 consumer_queue = ThreadQueue()
-out_queue.add_queue(consumer_queue, "consumer")
+out_queue.add_queue("consumer", consumer_queue)
 
-# Produce tasks
+# 生产任务
 envelope_a = TaskEnvelope(task="hello", id=1)
 in_queue.put(envelope_a)
 out_queue.put(envelope_a)
 
-# Consume tasks
+# 消费任务
 retrieved = in_queue.get()
-print(f"Dequeued task: {retrieved.get_task()}")
+print(f"出队任务: {retrieved.get_task()}")
 ```
 
 ## Best Practices
 
-1. **Critical tasks**: Configure appropriate `set_retry_exceptions`
-2. **Duplicate-sensitive scenarios**: Enable `enable_duplicate_check=True`
+1. **Critical tasks**: Configure retryable exception types via `set_retry_exceptions()`
+2. **Per-node statistics**: Use `set_upstream_counter()` / `set_downstream_counter()` to track inter-node traffic
 3. **Queue communication**: Properly set `maxsize` to avoid memory overflow

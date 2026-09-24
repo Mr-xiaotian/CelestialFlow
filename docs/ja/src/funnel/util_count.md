@@ -1,6 +1,6 @@
-# PendingCounter
+# src/celestialflow/funnel/util_count.py
 
-> 📅 最終更新日: 2026/06/22
+> 📅 最終更新日: 2026/09/24
 
 `funnel/util_count.py` は、スレッドセーフな待処理カウンター `PendingCounter` を提供します。これは、ある `BaseSpout` に対応するレコードのうち、まだ処理が完了していない数を統計するために使用されます。
 
@@ -26,7 +26,7 @@ class PendingCounter:
 | `decrement()` | `int` | 待処理数を 1 減らし、減少後の値を返す |
 | `get_count()` | `int` | 現在の待処理数を読み取る |
 
-## 使用方式
+## 使用方法
 
 `PendingCounter` は通常、`BaseSpout` の初期化時に自動的に作成され、ユーザーが直接操作する必要はありません。`BaseSpout.get_counter()` と `BaseSpout.get_pending_count()` が外部からのアクセス入口を提供します：
 

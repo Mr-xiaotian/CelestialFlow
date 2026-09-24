@@ -1,8 +1,8 @@
-# ReporterTaskGraph
+# src/celestialflow/observability/util_types.py
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/09/24
 
-`observability/util_types.py` は、`TaskReporter` が依存するタスクグラフプロトコルインターフェース `ReporterTaskGraph` とノードプロトコルインターフェース `ReporterTaskNode` を定義します。これらは `Protocol` クラスであり、`TaskReporter` が具体的な `TaskGraph` / `BaseTaskNode` 型をインポートせずに依存関係を宣言できるようにします。
+`observability/util_types.py` は、`TaskReporter` が依存する最小限のタスクグラフプロトコルインターフェース `ReporterTaskGraph` と最小限のノードプロトコルインターフェース `ReporterTaskNode` を定義します。これらは `Protocol` クラスであり、`TaskReporter` が具体的な `TaskGraph` / `BaseTaskNode` 型をインポートせずに依存関係を宣言できるようにします。
 
 ## コア型
 
@@ -23,6 +23,8 @@ class ReporterTaskGraph(Protocol):
 
     def get_nodes(self) -> list[str]: ...
 
+    def get_node_meta(self) -> dict[str, dict[str, Any]]: ...
+
     def get_edges(self) -> dict[str, list[str]]: ...
 
     def get_source_nodes(self) -> list[str]: ...
@@ -30,8 +32,6 @@ class ReporterTaskGraph(Protocol):
     def get_lifecycle_path(self) -> Path: ...
 
     def get_graph_analysis(self) -> dict[str, Any]: ...
-
-    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 ```
 
 | メソッド | 戻り値 | 説明 |
@@ -39,11 +39,11 @@ class ReporterTaskGraph(Protocol):
 | `node_dict` | `Mapping[str, ReporterTaskNode]` | 名前でインデックスされる読み取り専用ノードマッピングを返す（property） |
 | `get_graph_id()` | `str` | 現在のタスクグラフの一意な識別子を取得 |
 | `get_nodes()` | `list[str]` | すべてのノード名のリストを返す |
+| `get_node_meta()` | `dict[str, dict[str, Any]]` | 各ノードの構築期メタ情報（`class_name` / `execution_mode` / `max_workers`）を返す。図元情報とともに一度にレポートされる |
 | `get_edges()` | `dict[str, list[str]]` | グラフ構造内の辺集合を返す（`{from_name: [to_name, ...]}`） |
 | `get_source_nodes()` | `list[str]` | 上流入力のないソースノード名のリストを返す |
 | `get_lifecycle_path()` | `Path` | ライフサイクル永続化ファイルのパスを取得 |
 | `get_graph_analysis()` | `dict[str, Any]` | グラフ分析データ（トポロジ情報など）を取得 |
-| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | 最新のランタイムスナップショットを収集（ノード別に集計された状態辞書 + 収集タイムスタンプ） |
 
 ### ReporterTaskNode
 
@@ -56,12 +56,18 @@ class ReporterTaskNode(Protocol):
     def put_task(self, task: Any) -> None: ...
 
     def put_signal(self) -> None: ...
+
+    def get_meta(self) -> dict[str, Any]: ...
+
+    def get_snapshot(self) -> dict[str, Any]: ...
 ```
 
 | メソッド | 戻り値 | 説明 |
 |------|--------|------|
 | `put_task(task)` | `None` | 単一のタスクをノードの入力キューに注入（動的タスク注入用） |
 | `put_signal()` | `None` | ノードの入力キューに終了シグナルを入れる |
+| `get_meta()` | `dict[str, Any]` | ノードの構築期メタ情報（`class_name` / `execution_mode` / `max_workers`）を返す |
+| `get_snapshot()` | `dict[str, Any]` | ノードのランタイムスナップショット（状態、カウント、経過時間、上流下流カウント）を返す |
 
 ## 使用例
 

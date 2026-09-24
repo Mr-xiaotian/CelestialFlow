@@ -1,6 +1,6 @@
-# funnel_scope
+# src/celestialflow/persistence/core_scope.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 `persistence/core_scope.py` provides the context manager `funnel_scope` for managing the global funnel lifecycle, used to uniformly start and stop `LifecycleSpout` and `LogSpout`.
 

@@ -1,6 +1,6 @@
-# Graph Module
+# src/celestialflow/graph/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction, analysis, and serialization capabilities.
 
@@ -31,7 +31,7 @@ from celestialflow.graph import (
    - **Key Features**:
      - Establish inter-node dependencies (`set_nodes` / `connect`)
      - Execute task graphs (`start` / `start_async`, runs in serial/thread/async according to `graph_mode`)
-     - Runtime monitoring snapshots and global remaining time estimation (`collect_runtime_snapshot`)
+     - Build-time node metadata and graph analysis info export (`get_node_meta` / `get_graph_analysis` / `get_structure_list`)
      - Initial task and persisted task injection (`run` / `run_async` / `restore_db`)
      - Error persistence and unconsumed task handling (`drain_task_queue`)
 
@@ -53,12 +53,13 @@ from celestialflow.graph import (
      - `OrderGraph`: Minimal ordered directed graph, maintaining stable node order, in-edge and out-edge adjacency lists
      - `is_dag()` / `topo_sort()`: DAG detection and topological sorting
      - `tarjan_scc()` / `get_condensation()`: Strongly connected component analysis and condensation graph construction
+     - `source_sccs()` / `source_nodes()`: Locate source SCCs and extract representative source nodes
      - `compute_node_levels()`: Compute node levels based on SCC condensation graph
 
 4. **util_render.py**
    - **Purpose**: Renders graph structures as tree-style text with borders
    - **Key Functions**:
-     - `render_structure_list()`: Generates bordered tree-style text from a node dictionary, adjacency table, and source nodes
+     - `render_structure_list()`: Generates bordered tree-style text from a node name list, adjacency table, and source nodes
 
 ## Module Relationships
 
@@ -81,7 +82,7 @@ from celestialflow.graph import (
 2. **Choose Structure**: For common patterns, directly use predefined structures like `TaskChain`/`TaskCross`
 3. **Configure**: Integrate external services via `set_reporter()` / `set_ctree()`
 4. **Execute**: Call `run()` or `run_async()`
-5. **Monitor**: Use `collect_runtime_snapshot()` to obtain state snapshots
+5. **Monitor**: `TaskReporter` periodically calls each node's `get_snapshot()` to collect runtime state
 
 ## Usage Examples
 
@@ -140,10 +141,10 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# Monitor: collect one runtime snapshot via collect_runtime_snapshot
-snapshot, ts = chain.collect_runtime_snapshot()
-print(f"Snapshot timestamp: {ts}")
-print(f"Node 0 snapshot: {snapshot[nodes[0].get_name()]}")
+# Graph analysis: view DAG detection and layer structure
+analysis = chain.get_graph_analysis()
+print(f"Is DAG: {analysis['isDAG']}")
+print(f"Layers: {analysis['layersDict']}")
 ```
 
 ### TaskCross Cross Layers
@@ -163,7 +164,7 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.collect_runtime_snapshot())
+print(cross.get_structure_list())
 ```
 
 ### TaskGrid Grid
@@ -178,7 +179,7 @@ s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.collect_runtime_snapshot())
+print(grid.get_structure_list())
 ```
 
 ### TaskLoop Cyclic Graph

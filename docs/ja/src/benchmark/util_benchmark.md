@@ -1,6 +1,6 @@
-# benchmark/util_benchmark.py
+# src/celestialflow/benchmark/util_benchmark.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `benchmark/util_benchmark.py` は実行器とタスクグラフのパフォーマンスベンチマークテスト機能を提供し、異なる実行モードのパフォーマンス差異を比較します。
 
@@ -67,10 +67,14 @@ async def benchmark_graph(
     execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    タスクグラフのベンチマークテストを行います。
+    タスクグラフのベンチマークテストを行います。``graph_mode × execution_mode`` の全ての組み合わせをカバーします。
 
-    :param sync_graph: 同期タスクグラフレプレート（serial/thread execution_mode で使用）
-    :param async_graph: 非同期タスクグラフレプレート（async execution_mode で使用）
+    - ``sync_graph`` は ``execution_mode in {"serial", "thread"}`` のセルに使用；
+    - ``async_graph`` は ``execution_mode == "async"`` のセルに使用；
+    - ``graph_mode`` は現在のセルを ``run()`` で起動するか ``run_async()`` で起動するかを決定します。
+
+    :param sync_graph: 同期タスクグラフテンプレート（serial/thread execution_mode で使用）
+    :param async_graph: 非同期タスクグラフテンプレート（async execution_mode で使用）
     :param init_tasks_dict: 初期タスク辞書、キーはタスクラベル、値はタスクリスト
     :param graph_modes: グラフ実行モードのリスト、デフォルト ["serial", "thread", "async"]
     :param execution_modes: 実行モードのリスト、デフォルト ["serial", "thread", "async"]
@@ -157,29 +161,29 @@ async def async_process_b(x: int) -> int:
 
 
 # 同期ノードを作成
-node_a = TaskExecutor("A", process_a)
-node_b = TaskExecutor("B", process_b)
+stage_a = TaskExecutor("A", process_a)
+stage_b = TaskExecutor("B", process_b)
 
 # 非同期ノードを作成
-async_node_a = TaskExecutor("A", async_process_a)
-async_node_b = TaskExecutor("B", async_process_b)
+async_stage_a = TaskExecutor("A", async_process_a)
+async_stage_b = TaskExecutor("B", async_process_b)
 
 # 同期グラフを構築
 sync_graph = TaskGraph(name="SyncGraph")
-sync_graph.set_nodes(nodes=[node_a, node_b])
-sync_graph.connect([node_a], [node_b])
+sync_graph.set_nodes(nodes=[stage_a, stage_b])
+sync_graph.connect([stage_a], [stage_b])
 
 # 非同期グラフを構築
 async_graph = TaskGraph(name="AsyncGraph")
-async_graph.set_nodes(nodes=[async_node_a, async_node_b])
-async_graph.connect([async_node_a], [async_node_b])
+async_graph.set_nodes(nodes=[async_stage_a, async_stage_b])
+async_graph.connect([async_stage_a], [async_stage_b])
 
 # ベンチマークテストを実行（benchmark_graph は async 関数なので await が必要）
 asyncio.run(
     benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={node_a.get_name(): range(100)},
+        init_tasks_dict={stage_a.get_name(): range(100)},
     )
 )
 ```

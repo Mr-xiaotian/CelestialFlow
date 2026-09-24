@@ -1,6 +1,6 @@
-# bench_hash.py Benchmark Guide
+# bench/bench_hash.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -37,6 +37,8 @@ Covers 11 typical data forms: `int`, `short_str`, `long_str_4k`, `bytes_4k`, `sm
 4. **Large object memory pressure**: `long_str_4k`, `bytes_4k` may briefly consume significant memory during 10,000 repeated tests.
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows hash method comparison (date not recorded)
 

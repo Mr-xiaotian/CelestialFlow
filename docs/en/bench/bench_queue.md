@@ -1,6 +1,6 @@
-# bench_queue.py Benchmark Guide
+# bench/bench_queue.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -27,6 +27,8 @@ In a single-process environment, compare the put/get/qsize/empty operation perfo
 4. **Redis `flushdb`**: `flushdb` is executed before the test starts; if connected to a production Redis instance, this will cause data loss.
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows local queues and Redis (date not recorded)
 
@@ -101,11 +103,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     COUNT = 10_000
 
-    # test_threadqueue_perf(COUNT)        # Comment out thread queue
-    test_mpqueue_perf(COUNT)              # Test MPQueue only
-    # test_manager_queue_perf(COUNT)      # Skip Manager queue
-    # test_redis_list_perf(COUNT)         # Skip Redis
-    # test_redis_stream_perf(COUNT)
+    # test_threadqueue_perf(COUNT)           # 注释掉线程队列
+    test_mpqueue_perf(COUNT)                 # 仅测试 MPQueue
+    # test_manager_queue_perf(COUNT)         # 跳过 Manager 队列
+    # test_redis_list_perf(redis_client, COUNT)   # 跳过 Redis（注意需传入已连接的 redis_client）
+    # test_redis_stream_perf(redis_client, COUNT)
 ```
 
 Run after modification:

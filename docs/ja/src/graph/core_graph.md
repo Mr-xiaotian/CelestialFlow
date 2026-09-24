@@ -1,14 +1,23 @@
-# TaskGraph
+# src/celestialflow/graph/core_graph.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `TaskGraph` は CelestialFlow のコアスケジューラであり、一連のタスクノード（`BaseTaskNode` 派生オブジェクト、パブリック API は `TaskExecutor`、`TaskSplitter`、`TaskRouter`）の依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
 
-> 注意: `TaskGraph` は単一回使用のオブジェクトです。一度 `run()` が完了した後、現在のインスタンスが安全にリセットされて再起動できることは保証されません。同じフローを繰り返し実行する必要がある場合は、新しい `TaskGraph` と関連するタスクノードを再作成してください。
+> 注意: `TaskGraph` は単一回使用のオブジェクトです。一度 `start()` / `start_async()` / `run()` が完了した後、現在のインスタンスが安全にリセットされて再起動できることは保証されません。同じフローを繰り返し実行する必要がある場合は、新しい `TaskGraph` と関連するタスクノードを再作成してください。
 
 ## 主要データ構造
 
-`TaskGraph` は内部で `node_dict: dict[str, AnyTaskNode]` を使用して全ノードのマッピングを保持し、キュー接続は `connect()` フェーズで直接確立されます。グラフ分析は内部で維持される `OrderGraph` インスタンス（`self.order_graph`）に基づき、その `out_edges` / `in_edges` は入辺・出辺隣接テーブルの参照ビューです。
+`TaskGraph` は内部で `node_dict: dict[str, AnyTaskNode]` を使用して全ノードのマッピングを保持し、キュー接続は `connect()` フェーズでノードの `connect_to()` を通じて確立されます。グラフ分析は内部で維持される `OrderGraph` インスタンス（`self.order_graph`）に基づき、その `out_edges` / `in_edges` は入辺・出辺隣接テーブルの参照ビューです。
+
+インスタンス上のグラフ分析結果フィールド：
+
+| フィールド | 型 | 説明 |
+|------|------|------|
+| `source_names` | `list[str]` | ソースノードリスト（`_build_analysis` によって計算） |
+| `is_dag` | `bool` | 有向非巡回グラフかどうか |
+| `layers_dict` | `dict[int, list[str]]` | 階層 → ノード名リスト |
+| `_analysis_dirty` | `bool` | 分析キャッシュを再構築する必要があるか |
 
 ## 初期化
 
@@ -25,6 +34,8 @@ class TaskGraph:
   - `thread`: スレッド並行実行。各ノードが独立スレッドで起動
   - `async`: 非同期並行実行。実行中のイベントループコンテキストでの呼び出しが必要（[`start_async`](#start_async) 参照）
 
+`__init__` は `_set_name`、`set_graph_mode`、`set_reporter(NullTaskReporter())`、`set_ctree(LocalEventClient())`、`_init_state()` を順に呼び出します。
+
 ## グラフ構築
 
 ### set_nodes
@@ -32,12 +43,14 @@ class TaskGraph:
 ```python
 def set_nodes(self, nodes: list[AnyTaskNode]) -> None:
     """
-    ノードをタスクグラフに追加します。ノードを登録し、グラフレベルのイベントクライアントを注入します。
+    ノードをタスクグラフに追加します。ノードを登録し、OrderGraph に書き込み、グラフレベルのイベントクライアントを注入します。
 
-    :param nodes: ノードリスト
+    :param nodes: 追加するノードのリスト
     :raises DuplicateNodeError: ノード名が重複している場合
     """
 ```
+
+登録後、`_analysis_dirty` は `True` に設定されます。
 
 ### connect
 
@@ -49,11 +62,43 @@ def connect[R](
 ) -> None:
     """
     ハイパーエッジ接続を確立します: from_nodes の各ノードが to_nodes の各ノードに接続されます。
-    self.order_graph の out_edges / in_edges 辞書を操作し、キュー接続は connect() 内で直接完了します。
+    内部で from_node.connect_to(to_node) を呼び出してキュー接続を完了し、order_graph に辺を追加します。
+
+    :param from_nodes: 上流ノードリスト
+    :param to_nodes: 下流ノードリスト
+    :raises NodeNotFoundError: いずれかの端点ノードが未登録
     """
 ```
 
 ## 設定メソッド
+
+### _set_name
+
+```python
+def _set_name(self, name: str) -> None:
+    """タスクグラフ名を設定し、graph_id = f"{name}@{int(time.time() * 1000)}" を生成します。"""
+```
+
+### set_graph_mode
+
+```python
+def set_graph_mode(self, graph_mode: str) -> None:
+    """
+    グラフ実行モードを設定します。指定可能な値は 'serial'、'thread'、'async' です。
+
+    :raises InvalidOptionError: graph_mode が有効な集合に含まれない場合
+    """
+```
+
+### set_node_execution_mode
+
+```python
+def set_node_execution_mode(self, execution_mode: str) -> None:
+    """
+    全ノードの execution_mode を一括設定します（'serial'、'thread'、'async'）。
+    _build_analysis() をトリガーして分析データを再構築します。
+    """
+```
 
 ### set_reporter
 
@@ -80,23 +125,33 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 >
 > イベントを CelestialTree に報告したい場合は、まず `celestialtree` を追加インストールし、対応するクライアントインスタンスを自身で構築して `set_ctree()` に渡す必要があります。
 
-### set_graph_mode
+## グラフ分析
+
+### _ensure_analysis
 
 ```python
-def set_graph_mode(self, graph_mode: str) -> None:
+def _ensure_analysis(self) -> None:
+    """オンデマンドでグラフ分析キャッシュを再構築します: _analysis_dirty が True の場合のみ _build_analysis() を呼び出します。"""
+```
+
+### _build_analysis
+
+```python
+def _build_analysis(self) -> None:
     """
-    グラフ実行モードを設定します。指定可能な値は 'serial'、'thread'、'async' です。
+    タスクグラフを分析し、ソースノード、DAG かどうか、階層情報を計算します。
+
+    :raises ConfigurationError: serial モードでグラフに環（非 DAG）が含まれる場合に発生
     """
 ```
 
-### set_node_execution_mode
+分析プロセス：`source_nodes()` → `is_dag()` → `compute_node_levels()` → `cluster_by_value_sorted()` で `layers_dict` を取得；その後、グラフに環が含まれかつ `graph_mode == "serial"` の場合、`ConfigurationError` を送出し、`thread` または `async` への切り替えを促します。
+
+### put_source_signal
 
 ```python
-def set_node_execution_mode(self, execution_mode: str) -> None:
-    """
-    全ノードの execution_mode を一括設定します（'serial'、'thread'、'async'）。
-    _build_analysis() をトリガーして分析データを再構築します。
-    """
+def put_source_signal(self) -> None:
+    """すべてのソースノードのキューに終了シグナルを入れます。"""
 ```
 
 ## 起動実行
@@ -112,9 +167,10 @@ def run(
 ) -> None:
     """
     タスクグラフを実行します。フロー：
-    1. 初期タスクを各ノードに注入
-    2. if_put_signal=True の場合、ソースノードに自動的に終了シグナルを注入
-    3. start() を呼び出して実行を起動
+    1. _build_analysis() を呼び出してグラフ分析を構築
+    2. funnel_scope() の下で、init_tasks_dict 内の各タスクを対応するノードに注入（node.put_task）
+    3. if_put_signal=True の場合、ソースノードに自動的に終了シグナルを注入
+    4. start() を呼び出して実行を起動
     """
 ```
 
@@ -127,7 +183,7 @@ async def run_async(
     *,
     if_put_signal: bool = True,
 ) -> None:
-    """run() の非同期バージョン。"""
+    """run() の非同期バージョン。注入後に start_async() を呼び出します。"""
 ```
 
 ### restore_db
@@ -142,18 +198,18 @@ def restore_db(
     if_put_signal: bool = True,
 ) -> None:
     """
-    sqlite 永続化ライブラリからタスクを読み込み、ノード別にグループ化してタスクグラフを起動します。
+    sqlite 永続化ライブラリからタスクを読み込み、永続化レコード内のノード名でグループ化してタスクグラフを起動します。
 
     :param db_path: sqlite データベースファイルパス
     :param statuses: レコードステータスフィルタリスト。デフォルト ``["failed", "pending"]``
     :param filter_by_error_type: 各ノードの ``retry_exceptions`` で ``error_type`` をフィルタリングするかどうか。デフォルト ``False``
-    :param if_put_signal: 終了シグナルを注入するかどうか。デフォルト True
+    :param if_put_signal: 復元タスクの注入後にすべてのソースノードへ終了シグナルを再送するかどうか。デフォルト True
     """
 ```
 
-このメソッドは内部で `load_tasks_grouped_by_node()` を呼び出して永続化タスクレコードを読み込み、
-`node.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし、
-最終的に `start()` を再利用して実行します。
+このメソッドは内部で `load_tasks_grouped_by_stage()` を呼び出して永続化タスクレコードを読み込み、
+`node.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし（`pending` レコードは常に保持）、
+最終的に `run()` を再利用して実行します。
 
 ### ライフサイクル制約
 
@@ -175,6 +231,7 @@ def start(self) -> None:
     """
     タスクグラフを起動します（同期エントリ）。
     graph_mode に応じて _execute_nodes_serial() または _execute_nodes_thread() を選択します。
+    起動と終了処理の段階で発生した例外は ExceptionGroup として集約されて送出されます。
     """
 ```
 
@@ -184,14 +241,36 @@ def start(self) -> None:
 async def start_async(self) -> None:
     """
     タスクグラフを非同期で起動します。graph_mode='async' が必要。そうでない場合は InvalidOptionError を送出します。
+    同期 start() との違い：
+    - async 実行モードのノードはコルーチン（node.start_async()）を通り、ノード内部で asyncio.run を再度呼び出しません；
+    - serial / thread 実行モードのノードは asyncio.to_thread により独立したスレッドで実行されます。
     """
 ```
+
+### _prepare_start / _finish_start
+
+```python
+def _prepare_start(self) -> None:
+    """
+    起動前準備：グラフ起動ログ（get_log_inlet().graph_start）を記録し、reporter.start() を呼び出します。
+    本メソッドはスレッドやファイルハンドルなどの実行時リソースを作成します。
+    """
+
+
+def _finish_start(self, start_perf: float) -> list[Exception]:
+    """
+    起動後の終了処理：全ノードを走査して drain_task_queue() を呼び出し未消費タスクを収集し、
+    reporter を停止し、グラフ終了ログを記録し、スレッド参照をクリーンアップして、収集した例外リストを返します。
+    """
+```
+
+`lifecycle` / `log` spout の起動と停止は外側の `funnel_scope()` によって統一的に管理されます。
 
 ### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
 ```python
 def _execute_nodes_serial(self) -> None:
-    """階層（layers_dict）のトポロジカル順に従い、層ごとに各ノードを逐次直列実行。"""
+    """階層（layers_dict）のトポロジカル順に従い、層ごとに、ノードごとに直列実行（層内は登録順）。"""
 
 
 def _execute_nodes_thread(self) -> None:
@@ -199,7 +278,7 @@ def _execute_nodes_thread(self) -> None:
 
 
 async def _execute_nodes_async(self) -> None:
-    """グラフ全体を並行実行。"""
+    """グラフ全体を並行実行（asyncio.gather）。"""
 ```
 
 ### _execute_node / _execute_node_async
@@ -215,46 +294,9 @@ def _execute_node(self, node: AnyTaskNode) -> None:
 
 async def _execute_node_async(self, node: AnyTaskNode) -> None:
     """
-    単一ノードを非同期実行：async はそのまま、それ以外は asyncio.to_thread(node.start)。
+    単一ノードを非同期実行：async はコルーチン、それ以外は asyncio.to_thread(node.start)。
     """
 ```
-
-## 実行時監視
-
-### collect_runtime_snapshot
-
-```python
-def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
-    """
-    全ノードのランタイムスナップショットを収集し、DAG 認識のグローバル pending 推定値を計算して各ノードのスナップショット（total_tasks_pending / total_remaining_time）に追記します。
-
-    :return: (status_dict, status_timestamp) — 各ノードのスナップショット辞書と統一収集タイムスタンプ
-    """
-```
-
-このメソッドは全ノードを反復して `node.snapshot(interval)` を呼び出し各ノードのスナップショットを収集し、DAG 認識のグローバル pending 推定値を計算して各ノードのスナップショットに追記します。
-
-以下の表は完全なスナップショットに含まれる全フィールドを示します：
-
-| フィールド | 型 | 説明 |
-|------|------|------|
-| `name` | `str` | ノード名 |
-| `func_name` | `str` | 関数名 |
-| `execution_mode` | `str` | 実行モード |
-| `max_workers` | `int` | 最大並行ワーカー数 |
-| `status` | `StageStatus` | 実行状態 |
-| `tasks_input` | `int` | 入力タスク数 |
-| `tasks_succeeded` | `int` | 成功数 |
-| `tasks_failed` | `int` | 失敗数 |
-| `tasks_duplicated` | `int` | 重複数 |
-| `tasks_processed` | `int` | 処理済み数 |
-| `tasks_pending` | `int` | 保留中数 |
-| `total_tasks_pending` | `int` | グローバル推定保留中数 |
-| `elapsed_time` | `float` | 経過時間 |
-| `remaining_time` | `float` | 推定残り時間 |
-| `total_remaining_time` | `float` | グローバル推定残り時間 |
-| `task_avg_time` | `str` | 平均時間（フォーマット済み） |
-| `start_time` | `float` | 起動タイムスタンプ |
 
 ## 照会インターフェース
 
@@ -263,11 +305,26 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 | `get_graph_id()` | `str` | 現在のタスクグラフインスタンスの一意識別子を取得 |
 | `get_nodes()` | `list[str]` | 登録順に全ノード名を返す |
 | `get_edges()` | `dict[str, list[str]]` | 出辺隣接テーブル（内部 `OrderGraph` との共有参照。呼び出し側は読み取り専用とすべき） |
-| `get_source_nodes()` | `list[str]` | ソースノード名のリスト |
+| `get_node_meta()` | `dict[str, dict[str, Any]]` | 各ノードの構築期メタ情報 |
+| `get_source_nodes()` | `list[str]` | ソースノード名のリスト（オンデマンドでグラフ分析をトリガー） |
 | `get_graph_analysis()` | `dict` | グラフ分析情報（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
 | `get_structure_list()` | `list[str]` | 枠線付きのフォーマット済みツリーテキスト |
 | `get_order_graph()` | `OrderGraph` | 内部の順序付き有向グラフインスタンス |
 | `get_lifecycle_path()` | `Path` | タスクライフサイクル永続化 sqlite ファイルの絶対パス。未設定時は空 Path を返す |
+
+### get_node_meta の説明
+
+各ノードの構築期メタ情報を返します。これらのフィールドは reporter の起動前に凍結されるため、グラフ構造とともに一度だけ報告され、毎回の状態プッシュには含まれません：
+
+```python
+{
+    node_name: {
+        "class_name": ...,      # ノードクラス名
+        "execution_mode": ...,  # 実行モード
+        "max_workers": ...,     # 最大並行ワーカー数
+    }
+}
+```
 
 ### get_graph_analysis の説明
 
@@ -285,6 +342,12 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 }
 ```
 
+### 実行時状態の収集
+
+`TaskGraph` 自体は実行時スナップショットを集約しません。各ノードは `BaseTaskNode.get_snapshot()` を通じて自身の状態を収集し、
+`TaskReporter` が状態プッシュ周期でノードを走査してこれを呼び出します；グローバルな `total_*` などの派生指標はフロントエンド
+（`celestialflow-web`）が集約して計算します。
+
 ## ライフサイクル図
 
 ```mermaid
@@ -300,10 +363,7 @@ flowchart TD
     THR --> FINISH
     ASY --> FINISH
     FINISH -->|drain_task_queue| DRAIN[未消費タスクの収集]
-    DRAIN --> SNAP[collect_runtime_snapshot]
-    SNAP --> END[グラフ実行完了]
-
-    SNAP --> STATUS[collect_runtime_snapshot]
+    DRAIN --> END[グラフ実行完了]
 
     RUN[run / run_async] -->|初期タスク注入| PUT[node.put_task]
     RUN -->|終了シグナル注入| SIGNAL[put_source_signal]

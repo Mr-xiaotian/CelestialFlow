@@ -1,21 +1,22 @@
-# Task Dispatch Core Tests (test_dispatch.py)
+# tests/node/test_dispatch.py
 
-> 📅 Last Updated: 2026/09/10
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 
-Verifies the core behavior of `celestialflow.node.core_dispatch.TaskDispatch` across three scheduling modes — `serial`, `thread`, and `async`: normal task execution, exception retry, duplicate task deduplication, termination signal merge exit, and fallback logic when the worker itself crashes.
+Verifies the core behavior of `celestialflow.node.core_dispatch.TaskDispatch` across the three scheduling modes `serial` / `thread` / `async`: normal task execution, exception retry (success / exhaustion), termination signal merge exit, and fallback logic when the fail / retry handling chain itself crashes.
 
 ## Core Test Objects
 
 | Class / Function | Role | Description |
 |-----------|------|-------------|
-| `TaskDispatch` | Class under test | Task dispatcher, pulls `TaskEnvelope` / termination signals from the input queue, executes them by mode, and writes results back to the result queue |
-| `TaskExecutor` | Host | Constructs the minimal runnable `BaseTaskNode` subclass used as the dispatch host |
-| `_CtreeStub` | Mock | Replaces `ctree_client.emit` with an incrementing integer to avoid conflicts with the sqlite unique constraint |
-| `MockSpout` / `LogSpout` / `LifecycleSpout` | Global handles | `start()` / `stop()` on demand in the `autouse` fixture to avoid background threads and persistence state cross-contamination |
-| `_RecordingLogInlet` / `_CrashRetryLogInlet` | Mock LogInlet | Records or raises exceptions to trigger the worker crash fallback |
-| `_CrashOnFailObserver` | Mock Observer | Raises inside the failure callback to verify the `observer_error` fallback |
+| `TaskDispatch` | Class under test | Task dispatcher, pulls `TaskEnvelope` / `TerminationIdPool` from `task_queue`, executes them by mode, and writes the termination signal back to `yield_queue` |
+| `TaskExecutor` | Host | Constructs the minimal runnable executor used as the dispatch host |
+| `_CtreeStub` / `_SequentialCtreeStub` | Mock | Replaces `ctree_client.emit` with an incrementing integer to avoid conflicts with the sqlite unique constraint |
+| `get_log_spout()` / `get_lifecycle_spout()` | Global handles | `stop()`-ed before and after each case in the `autouse` fixture `_cleanup_global_spouts` to avoid background thread and persistence state cross-contamination |
+| `_RecordingLogInlet` / `_CrashRetryLogInlet` | Mock LogInlet | Records `worker_crash` or makes `task_retry` raise, to trigger handling-chain crash fallback |
+| `_CrashOnFailObserver` | Mock Observer | Raises inside `on_task_fail` to verify the `observer_error` fallback |
+| `_make_executor` / `_put` / `_put_termination` / `_collect_results` / `_run_dispatch` | Utility functions | Construct the executor, inject tasks / termination signals, collect results, and run the dispatcher by mode |
 
 ## Key Test Scenarios
 
@@ -36,7 +37,6 @@ Verifies the core behavior of `celestialflow.node.core_dispatch.TaskDispatch` ac
 | Case | Coverage Goal |
 |------|----------|
 | `test_basic_parallel` | 10 tasks, 4 threads in parallel, result count = 10 |
-| `test_thread_duplicate` | When the same task is enqueued twice, `metrics.get_duplicate_count() == 1`, and at least 1 result is preserved |
 
 ### `TestDispatchAsync` — Async Dispatch
 
@@ -49,41 +49,38 @@ Verifies the core behavior of `celestialflow.node.core_dispatch.TaskDispatch` ac
 
 | Case | Coverage Goal |
 |------|----------|
-| `test_fail_handler_crash_keeps_termination` | Observer's failure callback raises `RuntimeError`, caught by the `observer_error` fallback, `worker_crash` is **not** triggered, the termination signal is still emitted |
-| `test_retry_handler_crash_keeps_termination` | When `LogInlet.task_retry` raises, scheduling is not interrupted, the termination signal is still emitted, and `worker_crash` records the exception |
+| `test_fail_handler_crash_keeps_termination` | The observer's failure callback raises `RuntimeError`, caught by the `observer_error` fallback, `worker_crash` is **not** triggered, and the termination signal is emitted as usual |
+| `test_retry_handler_crash_keeps_termination` | When `LogInlet.task_retry` raises, scheduling is not interrupted, the termination signal is emitted as usual, and `worker_crash` records the exception |
 
 ### `TestDispatchCoreBehavior` — Cross-Mode Parameterized
 
 | Case | Coverage Goal |
 |------|----------|
 | `test_empty_queue_with_termination` | All three modes exit correctly with empty queue + termination signal |
-| `test_result_count` | 5-task result count: all three modes produce 5 results + a termination signal |
+| `test_result_count` | The result count for 5 tasks is 5 in all three modes (excluding the termination signal) |
 
 ## Key Data Flow
 
 ```mermaid
 flowchart LR
-    In[TaskInQueue] --> Get[task_queue.get]
-    Get --> Sig{is TerminationIdPool?}
+    In[task_queue.get] --> Sig{is TerminationIdPool?}
     Sig -- yes --> Merge[_process_termination_signal]
     Merge --> Break[break loop]
-    Sig -- no --> Dup{metrics.is_duplicate?}
-    Dup -- yes --> DupDeal[deal_duplicate]
-    Dup -- no --> Worker[_worker / _async_worker]
-    Worker --> Out[TaskOutQueue]
-    Break --> Put[result_queue.put signal]
+    Sig -- no --> Worker[_worker / _async_worker]
+    Worker --> Out[yield_queue]
+    Break --> Put[yield_queue.put signal]
 ```
 
 ## Test Coverage Matrix
 
 | Test Class | Case Count | Coverage Goals |
-|-----------|------------|----------------|
+|--------|--------|---------|
 | `TestDispatchSerial` | 7 | Single/multi task, retry success, retry exhaustion, single/multi ID termination signal, success fanout with independent downstream IDs |
-| `TestDispatchThread` | 2 | 10-task concurrency, duplicate task dedup count |
-| `TestDispatchAsync` | 2 | 10-task coroutine concurrency, async retry success |
-| `TestWorkerCrashKeepsTerminationSignal` | 2 | Failure handling chain crash, retry log crash (parameterized over 3 modes) |
-| `TestDispatchCoreBehavior` | 2 | Empty queue + termination signal (parameterized over 3 modes), 5-task result count (parameterized over 3 modes) |
-| **Total** | **15** | |
+| `TestDispatchThread` | 1 | 10-task concurrency |
+| `TestDispatchAsync` | 2 | 10-task concurrency, async retry success |
+| `TestWorkerCrashKeepsTerminationSignal` | 2 | Failure handling chain crash, retry log crash (parameterized over 3 modes → 6 cases) |
+| `TestDispatchCoreBehavior` | 2 | Empty queue exit, 5-task result count (parameterized over 3 modes → 6 cases) |
+| **Total** | **14** (22 after parameter expansion) | |
 
 ## How to Run
 
@@ -119,9 +116,9 @@ pytest tests/node/test_dispatch.py -k "CoreBehavior" -v
 
 ## Notes
 
-- Each case has an `autouse` fixture `_cleanup_global_spouts` that ensures `LogSpout` / `LifecycleSpout` are `stop()`-ed before and after the case, avoiding background thread leaks or persistence state cross-contamination.
-- `_CtreeStub` starts with a default ID of 42, avoiding conflicts with the sqlite unique constraint; if you need `ctree_client` to start at 0, instantiate it yourself.
-- Test fixtures are injected through the public API (`task_queue.put` / `result_queue.add_queue`), avoiding direct modification of `executor` internal state.
-- `_RecordingLogInlet._log` is a no-op, avoiding dependency on the real spout queue.
+- Each case has an `autouse` fixture `_cleanup_global_spouts` that ensures `LogSpout` / `LifecycleSpout` are `stop()`-ed once before and after the case, avoiding background thread leaks or persistence state cross-contamination.
+- `_CtreeStub` starts with a default ID of 42, avoiding conflicts with the sqlite unique constraint; `test_success_fanout_creates_distinct_downstream_ids` additionally uses `_SequentialCtreeStub` (starting at 100) to distinguish each downstream's ID.
+- Test fixtures are injected through the public API (`task_queue.put` / `yield_queue.add_queue`), avoiding direct modification of `executor` internal state; `metrics.set_downstream_counter` is bound in pairs with `yield_queue.add_queue`, simulating the behavior of `connect_to`.
+- `_RecordingLogInlet`'s `_log` is a no-op, avoiding dependency on the real spout queue.
 - When using `monkeypatch.setattr` to replace `get_log_inlet`, you must cover both `celestialflow.node.core_node` and `celestialflow.node.core_dispatch` because both call it.
 - The related implementation is at `src/celestialflow/node/core_dispatch.py` and `src/celestialflow/node/core_node.py`.

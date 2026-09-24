@@ -1,6 +1,6 @@
 # チュートリアル（Tutorial）：画像クローラーの構築
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 本チュートリアルでは、完全な実践プロジェクト——**Baidu 画像クローラー**を通じて、CelestialFlow の使用方法をゼロから学びます。
 
@@ -10,7 +10,7 @@ Baidu 画像検索結果をクロールし、指定したキーワードの画�
 1. タスクフローの分析と分解
 2. 各段階の処理関数の作成
 3. タスクグラフの組み立てと実行
-4. ログ、進捗バー、状態スナップショットによる実行状態の監視
+4. ログ、オブザーバー、状態スナップショットによる実行状態の監視
 
 ---
 
@@ -208,27 +208,24 @@ if __name__ == "__main__":
 ```python
 from celestialflow import TaskExecutor, TaskSplitter
 
+
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """HTML を複数の画像 URL タスクに解析する。"""
+    urls = parse_image_urls(html)
+    print(f"{len(urls)} 個の画像 URL を解析しました")
+    return tuple(urls)
+
+
 # 検索ステージ：キーワードを入力、HTML を出力
 stage_search = TaskExecutor(
     "ページを検索",
     func=search_images,
-    execution_mode="serial",  # キーワードは1つだけ、シリアルで十分
+    execution_mode="serial",  # キーワードは 1 つだけ、シリアルで十分
     max_retries=2,
 )
 
-
-# 解析ステージ：HTML を入力、複数の画像 URL を出力（分割が必要）
-# URL リストを個別タスクに分割するためにカスタム Splitter が必要
-class URLSplitter(TaskSplitter):
-    """URL リストを複数の独立タスクに分割する。"""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"{len(urls)} 個の画像 URL を解析しました")
-        return tuple(urls)
-
-
-stage_parse = URLSplitter("画像を解析")
+# 解析ステージ：HTML を入力、複数の画像 URL を出力（TaskSplitter がイテラブルな結果を 1 つずつ下流に配信する）
+stage_parse = TaskSplitter("画像を解析", split_image_urls)
 
 # ダウンロードステージ：URL を入力、画像データを出力
 stage_download = TaskExecutor(
@@ -244,7 +241,6 @@ stage_save = TaskExecutor(
     "ファイルを保存",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
-    enable_duplicate_check=False,  # 重複データの保存を許可（リトライ用）
 )
 ```
 
@@ -254,10 +250,10 @@ stage_save = TaskExecutor(
 from celestialflow import TaskGraph
 
 # タスクグラフを作成
-graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
 
 # ノードを設定
-graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
 
 # ノード間の接続関係を設定
 graph.connect([stage_search], [stage_parse])
@@ -355,16 +351,14 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
     return file_path
 
 
-# ========== カスタムノード ==========
+# ========== 分割関数 ==========
 
 
-class URLSplitter(TaskSplitter):
-    """URL リスト分割器。"""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"{len(urls)} 個の画像 URL を解析しました")
-        return tuple(urls)
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """HTML を複数の画像 URL タスクに解析する。"""
+    urls = parse_image_urls(html)
+    print(f"{len(urls)} 個の画像 URL を解析しました")
+    return tuple(urls)
 
 
 # ========== タスクグラフの構築 ==========
@@ -381,7 +375,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_retries=2,
     )
 
-    stage_parse = URLSplitter("画像を解析")
+    stage_parse = TaskSplitter("画像を解析", split_image_urls)
 
     stage_download = TaskExecutor(
         "画像をダウンロード",
@@ -396,12 +390,11 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         "ファイルを保存",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
 
     # 接続を設定
-    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
-    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
+    graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -441,10 +434,10 @@ python crawler.py
 
 ### 5.2 実行状態の確認
 
-実行中は、ログ、進捗バー、またはノードの `snapshot()` スナップショットで確認できます：
+実行中は、ログ、オブザーバー、またはノードの `get_snapshot()` スナップショットで確認できます：
 
-1. **ノード処理進捗**：各段階の成功、失敗、待処理統計（`get_counts()` または `snapshot()` で取得）
-2. **グラフ構造情報**：`graph.get_structure_list()` または `graph.get_structure_graph()` で確認
+1. **ノード処理進捗**：各段階の成功、失敗、待処理統計（`get_counts()` または `get_snapshot()` で取得）
+2. **グラフ構造情報**：`graph.get_structure_list()` または `graph.get_order_graph()` で確認
 3. **エラー情報**：ダウンロードに失敗した画像 URL と例外ログ
 4. **タスク注入**：`node.put_task()` で新しいキーワードを注入、`node.put_signal()` で終了信号を注入
 
@@ -494,7 +487,7 @@ stage_search.put_signal()
 | `TaskExecutor` | タスクノード、処理関数をラップ |
 | `TaskSplitter` | 分割器、1 つのタスクを複数に分割 |
 | `TaskGraph` | タスクグラフ、ノード関係と実行フローを整理 |
-| `graph_mode` | グラフ実行モード（serial/thread） |
+| `graph_mode` | グラフ実行モード（serial/thread/async） |
 | `execution_mode` | ノード内部実行モード（serial/thread/async） |
 
 ### 次のステップ

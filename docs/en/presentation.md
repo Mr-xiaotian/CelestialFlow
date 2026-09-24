@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ---
 
@@ -11,7 +11,7 @@
 **Next-Generation Python Task Orchestration Engine**
 
 - Lightweight · Graph-Driven · High-Performance · Observable
-- Version 3.1.4 | Python 3.12+
+- Version 3.3.1 | Python 3.12+
 - Supports DAG / Cyclic Graphs / Distributed Execution / Observable Execution Chain
 
 ---
@@ -40,7 +40,7 @@ Starting from real engineering scenarios — need a task orchestration tool that
 ### Core Features
 
 - **Rich Graph Topologies**: Chain / Cross / Grid / Loop / Wheel / Complete — six preset structures
-- **Multi-Dimensional Execution Model**: Stage-level (serial/thread) × Task-level (serial/thread/async) combinations
+- **Multi-Dimensional Execution Model**: Graph-level (serial/thread/async) × Node-level (serial/thread/async) combinations
 - **External Collaboration Examples**: A regular `TaskExecutor` can interface with Redis / Go Worker and other external systems
 - **Event Provenance**: Integrates CelestialTree, full task lifecycle traceability
 - **Status Reporting Chain**: Exchanges status and control instructions with `celestialflow-web` service via `TaskReporter`
@@ -57,15 +57,15 @@ Starting from real engineering scenarios — need a task orchestration tool that
   - Orchestration logic completely separated from business logic
 
 - **Envelope Pattern**
-  - `TaskEnvelope` encapsulates task + hash + event ID + source information
-  - Transparently provides deduplication, provenance, and routing capabilities
+  - `TaskEnvelope` encapsulates the original task + CelestialTree event ID
+  - Transparently provides provenance and routing capabilities
 
 - **Termination Protocol**
   - `TerminationSignal` → `TerminationIdPool` progressive merging
   - Ensures correct termination for both DAG and cyclic graphs
 
-- **Metrics as First-Class Citizens**
-  - Each Stage has built-in `TaskMetrics`, thread-safe real-time counting
+- **Metrics as First-Class**
+  - Each node has built-in `TaskMetrics`, thread-safe real-time counting
 
 ---
 
@@ -81,11 +81,11 @@ graph TB
     end
 
     subgraph CelestialFlow Core
-        C --> D[init_resources<br/>Create queues/connections]
-        D --> E[init_analysis<br/>DAG detection/layering]
+        C --> D[_build_analysis<br/>DAG detection/graph analysis]
+        D --> E[_prepare_start<br/>Start reporting and resources]
         E --> F{graph_mode}
-        F -->|eager| G[Launch all nodes concurrently]
-        F -->|staged| H[Sequential layer-by-layer execution]
+        F -->|serial| G[Launch nodes serially]
+        F -->|thread/async| H[Launch nodes concurrently]
         G --> I[TaskDispatch executes tasks]
         H --> I
     end
@@ -118,16 +118,16 @@ Top to bottom: User defines graph structure → Framework initializes resources 
 
 ```python
 TaskGraph(
-    graph_mode: str = "eager",   # "eager" | "staged"
-    log_level: str = "SUCCESS"
+    name: str,
+    graph_mode: str = "serial",   # "serial" | "thread" | "async"
 )
 ```
 
-- **Initialization**: After construction, set nodes via `graph.set_nodes(stages=[...])` and establish connections via `graph.connect(...)`. Source nodes are automatically computed via SCC condensation
+- **Initialization**: After construction, set nodes via `graph.set_nodes(nodes=[...])` and establish connections via `graph.connect(...)`. Source nodes are automatically computed via SCC condensation
 - **Schedule Modes**:
-  - `eager`: All nodes launch concurrently, dependencies naturally guaranteed by queues
-  - `staged`: DAG only, layer-by-layer execution with synchronous blocking between layers
-- **State Management**: `node_dict` (node object collection), `status_dict` (runtime state), `snapshot()` (last 20 snapshots)
+  - `serial`: Nodes launch serially, dependencies naturally guaranteed by queues
+  - `thread` / `async`: Nodes launch concurrently, executed in parallel via threads or coroutines
+- **State Management**: `node_dict` (node object collection), `node.get_snapshot()` (node runtime state snapshot), `get_node_meta()` (node meta information)
 - **Graph Analysis**: Builds directed graph based on NetworkX, detects DAG properties, computes topological layers
 
 ---
@@ -139,16 +139,16 @@ TaskGraph(
 ```mermaid
 classDiagram
     BaseTaskNode <|-- TaskExecutor
-    TaskExecutor <|-- TaskSplitter
-    TaskExecutor <|-- TaskRouter
+    BaseTaskNode <|-- TaskSplitter
+    BaseTaskNode <|-- TaskRouter
     class BaseTaskNode {
         +func: Callable
         +execution_mode: str
         +max_workers: int
         +max_retries: int
         +metrics: TaskMetrics
-        +start(task_source)
-        +start_async(task_source)
+        +run(init_tasks_dict)
+        +run_async(init_tasks_dict)
     }
 
     class TaskExecutor {
@@ -157,8 +157,8 @@ classDiagram
 ```
 
 - **BaseTaskNode**: Base class for all running nodes, defines common skeleton (queues, metrics, lifecycle)
-- **TaskExecutor**: General-purpose task executor, manages retry, deduplication, caching, concurrency strategy; users construct and use directly
-- **TaskSplitter / TaskRouter**: Graph-structure-specialized nodes that change downstream dispatch semantics
+- **TaskExecutor**: General-purpose task executor, manages retry, caching, concurrency strategy; users construct and use directly
+- **TaskSplitter / TaskRouter**: Graph-structure-specialized nodes, both directly inheriting `BaseTaskNode`, changing downstream dispatch semantics
 - **`graph.connect()`** Establishes connection relationships between nodes (upstream/downstream dependencies)
 - **`name` / `execution_mode`** Passed via `__init__()` constructor parameters
 
@@ -172,8 +172,8 @@ classDiagram
 |------|-------------|------------|
 | Semantics | 1 → N (one-to-many split) | 1 → 1 (conditional routing) |
 | Input | Single task | Single task |
-| Output | Each element in the tuple becomes an independent task | `(target_tag, task)` routed to specified downstream |
-| Counters | `split_counter` propagates to downstream `task_counter` | `route_counters[tag]` propagated separately |
+| Output | Each element in the tuple becomes an independent task | `dict[str, Y]` (target name → task) routed to the specified downstream |
+| Counters | Split results are counted one by one into the downstream `downstream_counter` | Counted separately into `downstream_counter` for each routing target |
 | Execution Mode | Default serial, can be specified at creation | Default serial, can be specified at creation |
 | Retry | Default 0, can be specified at creation | Default 0, can be specified at creation |
 
@@ -197,56 +197,49 @@ graph LR
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**: `task` + `hash` (SHA1) + `id` (CelestialTree event) + `source_name` (source node name)
+- **TaskEnvelope**: `task` (original task) + `id` (CelestialTree event)
 - **TaskInQueue**:
-  - Multi-upstream convergence, tracks termination signals by `source_tag`
+  - Multi-upstream convergence, tracks termination signals by `source` name (`add_source_name`)
   - After all upstreams send `TerminationSignal`, merges into `TerminationIdPool` and returns
 - **TaskOutQueue**:
-  - Broadcast mode `put()` → all downstreams
-  - Targeted mode `put_target(item, tag)` → specified downstream (used by Router)
+  - Broadcast mode `put(item)` → all downstreams
+  - Targeted mode `put_target(name, item)` → specified downstream (used by Router)
 - **Termination Protocol**: Ensures graceful exit for all nodes, whether DAG or cyclic graph
 
 ---
 
 ## Slide 10: Execution Model
 
-### Three-Layer Execution Dimensions
+### Two-Layer Execution Dimensions
 
 ```mermaid
 graph TD
-    subgraph Graph-Level graph_mode
-        A[eager: all concurrent]
-        B[staged: layer-by-layer]
+    subgraph Graph-Level Scheduling graph_mode
+        A[serial: Launch nodes serially]
+        B[thread / async: Launch nodes concurrently]
     end
 
     subgraph Node-Level execution_mode
-        C[serial: run in main thread]
-        D[thread: independent thread]
-    end
-
-    subgraph Task-Level execution_mode
-        E[serial: sequential one-by-one]
-        F[thread: ThreadPoolExecutor]
-        H[async: asyncio + Semaphore]
+        C[serial: Process tasks serially in the main thread]
+        D[thread: ThreadPoolExecutor]
+        E[async: asyncio + Semaphore]
     end
 
     A --> C
     A --> D
+    A --> E
     B --> C
     B --> D
-    C --> E
-    C --> F
-    D --> E
-    D --> F
+    B --> E
 ```
 
 | Level | Options | Description |
 |------|------|------|
-| Graph-level `graph_mode` | `eager` / `staged` | Controls node concurrency vs. sequential |
+| Graph-level `graph_mode` | `serial` / `thread` / `async` | Controls node concurrency vs. sequential |
 | Node-level `execution_mode` | `serial` / `thread` / `async` | Concurrency strategy for tasks within a node |
 
 Notes:
-Note that in TaskGraph mode, node-level `async` is also available (each node holds its own `TaskDispatch`).
+Each node holds its own `TaskDispatch`, so node-level `async` is also available in task graph mode.
 
 ---
 
@@ -254,20 +247,16 @@ Note that in TaskGraph mode, node-level `async` is also available (each node hol
 
 ### TaskMetrics — Thread-Safe Real-Time Counting
 
-- **Four Core Counters**:
-  - `task_counter`: Total input tasks (including Splitter/Router additions)
+- **Core Counters**:
+  - `external_input_counter`: Number of externally injected tasks (entering via `put_task`)
+  - `upstream_counter` / `downstream_counter`: Task counts between each upstream/downstream node (recorded separately by name)
   - `success_counter`: Successfully processed count
-  - `error_counter`: Final failure count (exceeded retry limit)
-  - `duplicate_counter`: Deduplication interception count
+  - `fail_counter`: Final failure count (exceeded retry limit)
+  - `duplicate_counter`: Duplicate task count (a counting dimension retained by the framework)
 
-- **Termination Judgment**: `is_tasks_finished()` = `total == success + error + duplicate`
+- **Termination Judgment**: `is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
 
-- **Deduplication Mechanism**:
-  - `TaskEnvelope.hash` = `SHA1(pickle.dumps(task))`
-  - `processed_set` records processed hashes
-  - Zero-cost deduplication — hash computed once during encapsulation
-
-- **SumCounter Aggregation**: Supports accurate merging of multi-source counters in Splitter/Router scenarios
+- **Busy Time Measurement**: `begin_task()` / `end_task()` record the node's real busy wall-clock time; `get_elapsed()` returns the cumulative value
 
 ---
 
@@ -346,9 +335,9 @@ graph LR
 
 - **Log Levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **Error Persistence**: SQLite format, includes `stage_name`, `error_type`, `error_message`, `task_json`, `result_json` and other fields
+- **Error Persistence**: SQLite format, includes `stage`, `error_type`, `error_message`, `task_json`, `result_json`, `retry_times` and other fields
 
-- **Error Analysis Tools**: `load_records()`, `load_records_grouped_by_stage()` aggregates failed tasks by dimension
+- **Error Analysis Tools**: `load_records()`, `load_tasks_grouped_by_stage()` aggregates failed tasks by dimension
 
 ---
 
@@ -359,15 +348,24 @@ graph LR
 ```
 CelestialFlowError (base class)
 ├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/thread/async)
-│       ├── StageModeError        (serial/thread)
-│       └── LogLevelError         (TRACE~CRITICAL)
-├── RemoteWorkerError             (Redis remote execution failure)
-└── UnconsumedError               (Unconsumed queue tasks)
+│   ├── InvalidOptionError
+│   │   └── CallableParameterKindError   (illegal parameter kind of callable object)
+│   └── GraphStructureError
+│       ├── DuplicateNodeError           (duplicate node name)
+│       ├── UnknownNodeError             (unknown node name)
+│       ├── NodeNotFoundError            (node not found in graph)
+│       └── InvalidStructureError        (invalid graph structure input)
+├── RuntimeStateError
+│   └── InitializationError              (initialization error)
+├── CelestialFlowTimeoutError            (timeout error)
+├── RemoteWorkerError                    (Redis remote execution failure)
+├── ReporterError                        (reporter error)
+├── PersistedError                       (error summary restored from persistence)
+├── TerminationMergeError                (termination signal merge error)
+└── UnconsumedError                      (unconsumed queued task)
 ```
 
-- **InvalidOptionError**: Auto-generates "field=value, allowed=[...]" hint messages
+- **InvalidOptionError**: Auto-generates "Invalid field: value. Valid options are (...)" hint messages
 - **Fast Feedback**: Configuration-level errors thrown before graph startup, not at runtime
 
 ---
@@ -412,11 +410,10 @@ CelestialFlowError (base class)
 
 | Direction | Endpoint | Data |
 |------|------|------|
-| Pull | `/api/pull_server_state` | Current graph sync state, structure state, analysis state, max `event_id` |
+| Pull | `/api/pull_server_state` | Current graph sync state, graph meta state, max `event_id` |
 | Pull | `/api/pull_injection` | Pending tasks and termination signals |
-| Push | `/api/push_status` | Update status |
-| Push | `/api/push_structure` | Update graph structure |
-| Push | `/api/push_analysis` | Update graph analysis data |
+| Push | `/api/push_status` | Update node status snapshots |
+| Push | `/api/push_graph_meta` | Update graph structure + graph analysis meta information |
 | Push | `/api/push_errors` | Update error records |
 
 - **Main repo no longer includes built-in Web frontend**: Here only defines the sync interfaces actually used by `TaskReporter`
@@ -431,20 +428,16 @@ CelestialFlowError (base class)
 - **Zero-Copy Termination Detection**
   - `is_tasks_finished()` = atomic counter comparison, no need to traverse queues or scan state
 
-- **Hash Once, Deduplicate Forever**
-  - `TaskEnvelope.hash` computed once during encapsulation via SHA1; subsequent deduplication is just set lookup (O(1))
-
 - **Factory-Backed Queue Backend**
-  - Framework internally selects `ThreadQueue` / `AsyncQueue` based on `execution_mode`
+  - The framework internally selects the serial or concurrent implementation of `TaskInQueue` / `TaskOutQueue` based on `execution_mode`
   - Zero synchronization overhead in serial mode
 
 - **Tiered Metric Counters**
-  - serial/async: `ValueWrapper` plain int
-  - thread: `ValueWrapper` + `threading.Lock`
-  - Selects the lightest synchronization mechanism as needed
+  - `ValueWrapper` creates a real `threading.Lock` by default to ensure thread safety
+  - You can also pass a shared lock, or pass `NoOpContext` to disable locking in single-threaded mode
 
-- **Frontend Incremental Rendering**
-  - `JSON.stringify` comparison-based change detection, only re-renders changed DOM regions
+- **Frontend Incremental Rendering (celestialflow-web)**
+  - The external Web project performs change detection on status, re-rendering only the changed DOM regions
 
 ---
 
@@ -483,8 +476,8 @@ graph LR
 | `TaskWheel` | Cyclic + Hub | Center node connects all ring nodes |
 | `TaskComplete` | Fully connected | All nodes interconnected |
 
-- **Forced DAG**: Chain and Grid constructions can use `graph_mode="staged"`
-- **Cyclic Graphs**: Loop / Wheel / Complete must use `graph_mode="eager"`
+- **Forced DAG**: Chain and Grid support `graph_mode="serial"` (nodes launch serially)
+- **Cyclic Graphs**: Loop / Wheel / Complete must use `graph_mode="thread"` or `"async"` (serial launching reports an error due to the presence of a cycle)
 
 ---
 
@@ -502,7 +495,6 @@ graph LR
 | **Process-Level Isolation** | None (thread-level) | Executor-level | Dispatch-level | Default isolation |
 | **External Monitoring Integration** | HTTP reporting interface | Built-in Web UI | Built-in Cloud UI | Ray Dashboard |
 | **Event Provenance** | CelestialTree integration | No native support | No native support | No native support |
-| **Task Deduplication** | Built-in SHA1 hash dedup | No native support | No native support | No native support |
 | **Learning Curve** | Low (pure Python API) | Medium-High | Medium | Medium-High |
 | **Deployment Form** | Library / CLI | Standalone platform | Standalone platform/SaaS | Standalone cluster |
 
@@ -514,7 +506,7 @@ graph LR
 
 - **Data Collection Pipeline**
   - Multi-stage crawler: URL discovery → Page download → Content extraction → Data storage
-  - Natural deduplication avoids duplicate requests
+  - Multiple stages are naturally concurrent, and combined with failure retry, scraping stability is improved
 
 - **ETL / Data Processing**
   - Splitter splits large batches → Multi-Worker concurrent processing → Router distributes results
@@ -565,9 +557,9 @@ extract_image = TaskExecutor(
 )
 store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
-graph = TaskGraph(graph_mode="eager")
+graph = TaskGraph("crawler", graph_mode="thread")
 graph.set_nodes(
-    stages=[discover, download, router, extract_article, extract_image, store]
+    nodes=[discover, download, router, extract_article, extract_image, store]
 )
 graph.connect([discover], [download])
 graph.connect([download], [router])
@@ -619,8 +611,7 @@ graph LR
 | Cyclic graph support | Signal merge protocol | Increased termination logic complexity in exchange for topological flexibility |
 | Node `execution_mode` | serial/thread/async | Keeps thread model simple and reliable |
 | Logging architecture | Queue + Spout thread | Adds one daemon thread in exchange for thread-safe writes |
-| Deduplication strategy | SHA1(pickle) | Pickle instability risk in exchange for universal object hashing ability |
-| External result retrieval | Polling HGET (0.1s) | Simple and reliable, but not real-time push |
+| External result retrieval | Polling HGET (0.1s) | Simple and reliable at the demo layer, but not real-time push |
 | Status reporting | Reporter pull/push protocol | Increased remote interface specification in exchange for monitoring/control decoupling |
 | CelestialTree integration | Optional dependency + NullClient | Zero overhead when not tracing, but requires extra configuration |
 
@@ -638,11 +629,11 @@ Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliab
   - Built-in Splitter / Router are Executor specializations; Redis collaboration is demonstrated via demos
 
 - **Queue Backend Replaceable**
-  - Framework internally selects `ThreadQueue` / `AsyncQueue` based on `execution_mode`
+  - The framework internally selects the serial or concurrent implementation of `TaskInQueue` / `TaskOutQueue` based on `execution_mode`
 
 - **Metric Backend Extensible**
-  - `ValueWrapper` adapts per execution mode
-  - `SumCounter` transparently aggregates multi-source counters
+  - `ValueWrapper` can receive a shared lock or `NoOpContext` to adapt to different concurrency models
+  - Upstream/downstream counters are recorded separately by node name, making extension easy
 
 - **Persistence Customizable**
   - Spout-Inlet pattern; just implement `_handle_record()` to customize output target
@@ -704,7 +695,7 @@ Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliab
 
 **CelestialFlow** — Graph-Driven · Lightweight · High-Performance · Observable
 
-- Version: 3.1.4
+- Version: 3.3.1
 - Python: 3.12+
 - Dependency: `pip install celestialflow`
 

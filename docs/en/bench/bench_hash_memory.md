@@ -1,6 +1,6 @@
-# bench_hash_memory.py Benchmark Guide
+# bench/bench_hash_memory.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -23,6 +23,8 @@ Compare the memory usage and lookup performance when storing SHA1 hash values in
 - **Lookup latency**: hit / miss measured with 0.3s steady-state, reported in nanoseconds per lookup
 
 ## Benchmark Results (Measured)
+
+> 🟢 The memory/timing in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows 11 N=100,000 (date not recorded)
 

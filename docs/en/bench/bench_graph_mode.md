@@ -1,6 +1,6 @@
-# bench_graph_mode.py Benchmark Guide
+# bench/bench_graph_mode.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -9,22 +9,22 @@ Compare the task graph execution performance of complex DAGs under different com
 ## Test Content
 
 ### `bench_graph_0`
-- **Structure**: 4-node DAG, `stage1 → stage2 → stage4`, `stage1 → stage3` (stage3 is an independent branch that does not merge into stage4)
+- **Structure**: 4-node DAG, `NodeA → NodeB1 → NodeC`, `NodeA → NodeB2` (`NodeB2` is an independent branch that does not merge into `NodeC`)
 - **Task Mix**: CPU-intensive (Fibonacci), I/O-intensive (sleep), pure computation (divide by two, square)
 - **Input**: `range(25, 32)` (7 purely successful tasks; earlier versions included error inputs, which have been removed)
-- **Retry Settings**: `stage1`, `stage2` enable `max_retries=1` for `ValueError` (not triggered under the current input)
-- **Reporter**: Disabled by default (commented out in code; can be enabled by uncommenting)
+- **Retry Settings**: `NodeA`, `NodeB1` enable `max_retries=1` for `ValueError` (not triggered under the current input)
+- **Reporter**: Not enabled (there is no `set_reporter(...)` / `add_observer(...)` call anywhere in the script)
 
 ### `bench_graph_1`
 - **Structure**: 6-node multi-layer DAG (A → [B, C]; B → [D, E]; C → E; D → F)
 - **Tasks**: Random 0-2 second sleep (simulating uneven load)
 - **Input**: `range(10)`
-- **Reporter**: Disabled by default (commented out in code; can be enabled by uncommenting)
+- **Reporter**: Not enabled (there is no `set_reporter(...)` / `add_observer(...)` call anywhere in the script)
 
 ### `bench_graph_2`
-- **Structure**: 4-node DAG (Splitter → A → [B, C]), using `TaskSplitter` to expand inputs
+- **Structure**: 3-node DAG (NodeA → [NodeB, NodeC]); nodes use `TaskExecutor` directly and no longer wrap `TaskSplitter` (earlier versions included Splitter, which has been removed)
 - **Tasks**: Pure computation (add one, multiply by two), testing framework scheduling throughput upper limit
-- **Input**: `range(10_000)` (expanded by Splitter into 10,000 individual tasks)
+- **Input**: `range(10_000)` injected directly into `NodeA` (not expanded via Splitter)
 
 ## Key Configuration
 
@@ -280,6 +280,59 @@ Note: `process` mode has been deprecated; bench data retained only.
 - Pure computation (bench_graph_2): `async` remains the slowest, but the order of `serial+serial` and `thread+serial` flipped this round, with high single-round variance; multi-round data should be the basis for conclusions
 
 > This round's runtime environment (Windows) is not directly comparable column-by-column to the 2026/08/17 macOS data.
+
+### 2026/09/19 — Re-run after node refactor + removing Splitter from bench_graph_2 (Windows)
+
+> Environment: Windows, Python 3.14.3, Reporter **not enabled**
+> Source changes: `stage` → `node` rename; busy time changed from estimation to measurement (`metrics.begin_task/end_task`); `node.snapshot` → `node.get_snapshot`; reporter merged structure+analysis into `graph_meta`
+> Script changes: `bench_graph_2` removed `TaskSplitter`, changed to a 3-node DAG that injects `range(10_000)` directly into `NodeA`
+
+#### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 7 tasks
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 7.35s | 2.34s | 2.38s |
+| **thread** | 7.09s | 2.34s | 2.11s |
+| **async**  | 7.08s | 2.24s | 2.11s |
+
+- The `serial` column is on par with the previous round (~7.1–7.4s), still dominated by the GIL constraint of fibonacci
+- The `thread` / `async` columns rose from ~1.37–1.41s in the previous round to ~2.11–2.38s
+- **Key observation**: In this scenario the `sleep_1` node has 7 tasks and `max_workers=4`, giving a theoretical lower bound of `ceil(7/4) × 1s ≈ 2s`. This round's data (~2.1–2.4s) matches the theoretical lower bound for the first time; the previous round's 1.37s was below that lower bound — **we infer that the old concurrent path failed to fully process all tasks (or the timing methodology was flawed), and this round's data is more credible**
+- The three `graph_mode` rows remain nearly identical
+
+#### `bench_graph_1` — 6-node DAG, I/O-intensive (random sleep), 10 tasks
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 80.05s | 16.03s | 20.13s |
+| **thread** | 30.03s | 8.02s  | 7.04s  |
+| **async**  | 25.02s | 7.02s  | 7.04s  |
+
+- The optimal combination remains `thread/async` graph mode paired with `thread/async` execution mode, clustered at ~7.0s
+- Compared with the previous round, several cells became slower: `serial+thread` 12→16s, `serial+async` 12→20s, `thread+serial` 20→30s, `async+serial` 21→25s; this is consistent with the "concurrent path now processes more completely" phenomenon of `bench_graph_0`
+- Random sleep (0–2s) causes high single-round variance; the trend (both graph-level/node-level concurrency are beneficial) is more reliable than absolute values
+
+#### `bench_graph_2` — 3-node DAG (NodeA → [NodeB, NodeC]), pure computation, 10,000 tasks
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 2.79s | 3.29s | 5.19s |
+| **thread** | 2.61s | 3.13s | 5.80s |
+| **async**  | 2.58s | 3.17s | 4.74s |
+
+- Overall speedup after removing `TaskSplitter`: the `serial` column drops from the previous round's 4.59/2.96/3.05s to 2.79/2.61/2.58s
+- The pattern returns cleanly: `serial` execution (~2.6–2.8s) < `thread` (~3.1–3.3s) < `async` (~4.7–5.8s)
+- Removing Splitter also eliminated two things: the overhead of 10,000 expansion enqueues, and the repeated warning `TaskSplitter only accepts execution_mode='serial'`
+- The previous round's anomaly of "`thread+serial` overtaking `serial+serial`" has disappeared, supporting that it was more likely environmental noise
+- `graph_mode` still has little impact; the bottleneck is task scheduling inside nodes
+
+#### Round summary
+
+- `bench_graph_0`'s concurrency columns now match the theoretical lower bound (~2s), suggesting the previous round's concurrency timing/task processing may have been incomplete; subsequent rounds should use this round as the baseline
+- I/O-intensive still follows "graph-level + node-level dual concurrency is optimal", and pure computation still follows "`serial` execution has the lowest overhead"
+- After removing Splitter, `bench_graph_2`'s matrix pattern is cleaner and suitable as a regression baseline for scheduling throughput
+
+> This round's environment (Windows) is not directly comparable column-by-column to the 2026/08/17 (macOS) data; the differences from 2026/08/31 (Windows) mainly come from the source refactor and the script's removal of Splitter.
 
 ## Dependencies
 

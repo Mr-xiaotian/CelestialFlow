@@ -1,10 +1,12 @@
-# bench_ipc_queue.py Benchmark Guide
+# bench/bench_ipc_queue.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
 Compare the performance of various Python IPC (Inter-Process Communication) mechanisms in real cross-process scenarios: MPQueue, SimpleQueue, Pipe, Manager().Queue. Provide data to support queue selection for CelestialFlow's multiprocessing mode.
+
+> **Note**: The framework has removed `stage_mode="process"` and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 
 ## Test Content
 
@@ -16,7 +18,7 @@ Compare the performance of various Python IPC (Inter-Process Communication) mech
 | `Manager().Queue` | Manager-server-based queue | SPSC |
 
 - **Scale**: `COUNT = 100_000`, `REPEAT = 3`
-- **Payload modes**: `int` (8 bytes), `small` (~16 bytes), `medium` (~144 bytes), `large` (~4104 bytes)
+- **Payload modes**: `int` (Python integer objects), `small` (~16 bytes), `medium` (~144 bytes), `large` (~4104 bytes)
 - **Verification**: Data integrity verified via checksum (no loss, no corruption)
 
 ## Key Implementation
@@ -33,6 +35,8 @@ Compare the performance of various Python IPC (Inter-Process Communication) mech
 4. **Windows `spawn` serialization overhead**: All payloads must be transferred between parent and child processes via pickle; serialization/deserialization time for large objects will dominate.
 
 ## Benchmark Results (Measured)
+
+> 🟢 The timing/throughput in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows spawn int payload (date not recorded)
 

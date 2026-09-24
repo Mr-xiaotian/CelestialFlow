@@ -1,6 +1,6 @@
-# validate_executor_func_signature
+# src/celestialflow/node/util_callable.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `util_callable.py` は実行器関数のシグネチャに対する軽量な検証を提供します。現在公開されているツール関数は `validate_executor_func_signature` のみで、`BaseTaskNode._set_func` がコールバックを登録する際に呼び出します。
 

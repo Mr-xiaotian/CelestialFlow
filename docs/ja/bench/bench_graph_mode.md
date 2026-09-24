@@ -1,6 +1,6 @@
-# bench_graph_mode.py ベンチマーク説明
+# bench/bench_graph_mode.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -9,22 +9,22 @@
 ## テスト内容
 
 ### `bench_graph_0`
-- **構造**：4 ノード DAG。`stage1 → stage2 → stage4`、`stage1 → stage3`（stage3 は stage4 に合流しない独立したブランチ）
+- **構造**：4 ノード DAG。`NodeA → NodeB1 → NodeC`、`NodeA → NodeB2`（`NodeB2` は `NodeC` に合流しない独立したブランチ）
 - **タスク混合**：CPU 集約型（フィボナッチ）、I/O 集約型（sleep）、純粋計算（2 で割る、2 乗）
 - **入力**：`range(25, 32)`（7 個の純粋な成功タスク。早期バージョンには異常入力が含まれていたが、削除済み）
-- **リトライ設定**：`stage1`、`stage2` で `ValueError` に対し `max_retries=1` を有効化（現在の入力では発火しない）
-- **Reporter**：デフォルトで無効（コード内でコメントアウト済み。コメント解除で有効化可能）
+- **リトライ設定**：`NodeA`、`NodeB1` で `ValueError` に対し `max_retries=1` を有効化（現在の入力では発火しない）
+- **Reporter**：未有効化（スクリプト内に `set_reporter(...)` / `add_observer(...)` の呼び出しが一切ない）
 
 ### `bench_graph_1`
 - **構造**：6 ノード多層 DAG（`A → [B, C]`、`B → [D, E]`、`C → E`、`D → F`）
 - **タスク**：ランダム 0-2 秒 sleep（不均一負荷のシミュレーション）
 - **入力**：`range(10)`
-- **Reporter**：デフォルトで無効（コード内でコメントアウト済み。コメント解除で有効化可能）
+- **Reporter**：未有効化（スクリプト内に `set_reporter(...)` / `add_observer(...)` の呼び出しが一切ない）
 
 ### `bench_graph_2`
-- **構造**：4 ノード DAG（Splitter → A → [B, C]）。`TaskSplitter` で入力を展開
+- **構造**：3 ノード DAG（NodeA → [NodeB, NodeC]）。ノードは直接 `TaskExecutor` を使用し、`TaskSplitter` で包まない（早期バージョンには Splitter が含まれていたが、削除済み）
 - **タスク**：純粋計算（+1、×2）。フレームワークのスケジューリングスループット上限をテスト
-- **入力**：`range(10_000)`（Splitter により 10,000 個の独立タスクに展開）
+- **入力**：`range(10_000)` を `NodeA` に直接注入（Splitter による展開を経ない）
 
 ## 主要設定
 
@@ -281,8 +281,61 @@ python bench/bench_graph_mode.py
 
 > 本ラウンドの実行環境（Windows）と 2026/08/17 の macOS データは列ごとに直接比較できない。
 
+### 2026/09/19 — node リファクタリング + bench_graph_2 の Splitter 除去後の再実行（Windows）
+
+> 環境：Windows、Python 3.14.3、Reporter **未有効化**
+> ソース変更：`stage` → `node` に改名；busy time は推定ではなく実測（`metrics.begin_task/end_task`）に変更；`node.snapshot` → `node.get_snapshot`；reporter は structure+analysis を `graph_meta` に統合
+> スクリプト変更：`bench_graph_2` は `TaskSplitter` を削除し、3 ノード DAG で `range(10_000)` を直接 `NodeA` に注入するよう変更
+
+#### `bench_graph_0` — 4 ノード DAG、CPU+I/O 混合、7 タスク
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 7.35s | 2.34s | 2.38s |
+| **thread** | 7.09s | 2.34s | 2.11s |
+| **async**  | 7.08s | 2.24s | 2.11s |
+
+- `serial` 列は前回ラウンドと同等（~7.1–7.4s）で、依然として fibonacci の GIL 制限が主導
+- `thread` / `async` 列は前回ラウンドの ~1.37–1.41s から ~2.11–2.38s に上昇
+- **重要な観察**：このシナリオでは `sleep_1` ノードに 7 タスクがあり `max_workers=4` であるため、理論下限は `ceil(7/4) × 1s ≈ 2s` となる。今回のデータ（~2.1–2.4s）は初めて理論下限と一致し、前回ラウンドの 1.37s はこの下限を下回っていた——**旧版の並行パスが全タスクを完全には処理できていなかった（または計測口径に誤りがあった）と推測され、今回のデータの方が信頼できる**
+- `graph_mode` の 3 行は依然としてほとんど差がない
+
+#### `bench_graph_1` — 6 ノード DAG、I/O 集約型（ランダム sleep）、10 タスク
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 80.05s | 16.03s | 20.13s |
+| **thread** | 30.03s | 8.02s  | 7.04s  |
+| **async**  | 25.02s | 7.02s  | 7.04s  |
+
+- 最適組み合わせは依然として `thread/async` グラフモードに `thread/async` 実行モードを組み合わせたもので、~7.0s に集中
+- 前回ラウンドと比べ、複数のセルが遅くなっている：`serial+thread` 12→16s、`serial+async` 12→20s、`thread+serial` 20→30s、`async+serial` 21→25s。`bench_graph_0` の「並行パスが今はより完全に処理している」現象と一致
+- ランダム sleep（0–2s）により単一ラウンドの分散が大きい。傾向（グラフレベル/ノードレベルの並行がいずれも利益を生む）の方が絶対値より信頼できる
+
+#### `bench_graph_2` — 3 ノード DAG（NodeA → [NodeB, NodeC]）、純粋計算、10,000 タスク
+
+| graph_mode \ execution_mode | serial | thread | async |
+|----------------------------|--------|--------|-------|
+| **serial** | 2.79s | 3.29s | 5.19s |
+| **thread** | 2.61s | 3.13s | 5.80s |
+| **async**  | 2.58s | 3.17s | 4.74s |
+
+- `TaskSplitter` を除去したことで全体的に高速化：`serial` 列は前回ラウンドの 4.59/2.96/3.05s から 2.79/2.61/2.58s に低下
+- 規則性が明瞭に回帰：`serial` 実行（~2.6–2.8s）< `thread`（~3.1–3.3s）< `async`（~4.7–5.8s）
+- Splitter の除去により同時に 2 つのことが解消された：10,000 回の展開・エンキューのオーバーヘッド、および `TaskSplitter only accepts execution_mode='serial'` の重複警告
+- 前回ラウンドの「`thread+serial` が `serial+serial` を逆転」という異常は消失し、環境ノイズであった可能性が高いことを裏付ける
+- `graph_mode` の影響は依然として非常に小さく、ボトルネックはノード内部のタスクスケジューリングにある
+
+#### 本ラウンドの総括
+
+- `bench_graph_0` の並行列は今や理論下限と一致しており（~2s）、前回ラウンドの並行計測/タスク処理が不完全であった可能性を示唆する。以降は本ラウンドをベースラインとする
+- I/O 集約型は依然として「グラフレベル + ノードレベルの二重並行が最適」に従い、純粋計算は依然として「`serial` 実行が最低オーバーヘッド」に従う
+- Splitter 除去後は `bench_graph_2` のマトリックス規則性がよりクリーンで、スケジューリングスループットの回帰ベースラインとして適している
+
+> 本ラウンドの環境（Windows）と 2026/08/17（macOS）のデータは列ごとに直接比較できない。2026/08/31（Windows）との差異は主にソースのリファクタリングとスクリプトの Splitter 除去によるものである。
+
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskStage`、`benchmark_graph`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`benchmark_graph`）
 - `python-dotenv`
 - 外部サービス：Reporter サービス（オプション）

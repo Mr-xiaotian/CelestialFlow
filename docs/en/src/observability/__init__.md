@@ -1,6 +1,6 @@
-# Observability Module
+# src/celestialflow/observability/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The Observability module provides CelestialFlow's observability features, including runtime status monitoring, the Observer pattern, and remote status reporting. It makes the task execution process transparent and monitorable.
 
@@ -8,10 +8,23 @@ The Observability module provides CelestialFlow's observability features, includ
 
 | Exported Symbol | Source Module | Description |
 |-----------------|---------------|-------------|
-| `BaseObserver` | `core_observer` | Base class for executor lifecycle observers, defining event interfaces such as `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` |
+| `BaseObserver` | `core_observer` | Base class for executor lifecycle observers, defining event interfaces such as `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_task_added`, `on_finish` |
 | `NullTaskReporter` | `core_report` | Null implementation of task reporter, used as a placeholder when reporting is disabled |
+| `PrintObserver` | `core_observer_print` | A `print`-based observer that outputs task progress to the console; requires a `name` as the output prefix at construction |
 | `ReporterProtocol` | `core_report` | Minimum interface protocol required by Reporter dependants |
 | `TaskReporter` | `core_report` | Task status reporter; a background thread periodically pushes runtime status to the `celestialflow-web` service and pulls control commands |
+
+Complete `__all__`:
+
+```python
+__all__ = [
+    "BaseObserver",
+    "NullTaskReporter",
+    "PrintObserver",
+    "ReporterProtocol",
+    "TaskReporter",
+]
+```
 
 ## File Descriptions
 
@@ -22,10 +35,16 @@ The Observability module provides CelestialFlow's observability features, includ
    - **Key Features**:
      - `BaseObserver`: Defines lifecycle event interfaces, subclasses override as needed
 
-2. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
+2. **core_observer_print.py** (`PrintObserver`)
+   - **Purpose**: An out-of-the-box console observer
+   - **Key Features**:
+     - Counts `total` / `succeeded` / `failed` / `duplicated` and prints with the `[name] ...` prefix
+     - All counters are thread-safe `ValueWrapper`s
+
+3. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
    - **Purpose**: Task status reporter and its null implementation
    - **Key Features**:
-     - **Status Reporting**: Periodically pushes task graph structure, topology, runtime status, and error information
+     - **Status Reporting**: Periodically pushes the task graph's metadata, runtime status, and error information
      - **Task Injection**: Pulls tasks to be injected from the `celestialflow-web` service and dynamically inserts them into the running task graph
      - **Parameter Adjustment**: Pulls configuration from the `celestialflow-web` service to dynamically adjust parameters such as reporting interval
      - **Error Syncing**: Incrementally pushes error records based on `event_id`
@@ -48,7 +67,7 @@ The Observability module provides CelestialFlow's observability features, includ
 
 ### Observer Pattern
 - **Multicast**: `BaseTaskNode`'s internal `TaskMetrics` maintains `list[BaseObserver]`, broadcasting events on count changes and node start/stop
-- **Synchronous Dispatch**: All registered observers' corresponding callbacks are synchronously invoked in methods such as `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish`
+- **Synchronous Dispatch**: All registered observers' corresponding callbacks are synchronously invoked in methods such as `add_success_count` / `add_fail_count` / `add_duplicate_count` / `add_external_input_count` / `on_start` / `on_finish`
 - **Exception Isolation**: Subclass-overridden callbacks are automatically wrapped by `__init_subclass__`; exceptions are uniformly caught by `observer_error()` and do not escape into the framework
 
 ### Bidirectional Communication (TaskReporter)

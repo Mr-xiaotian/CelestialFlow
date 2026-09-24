@@ -1,21 +1,22 @@
-# ノードスケジューラテスト (test_dispatch.py)
+# tests/node/test_dispatch.py
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
-`celestialflow.node.core_dispatch.TaskDispatch` が `serial` / `thread` / `async` の 3 つのスケジューリングモードで示すコア動作を検証します。具体的には、タスクの正常実行、例外リトライ、重複タスクの排除、終了シグナルのマージによる終了、および worker 自体のクラッシュ時のフォールバックロジックを扱います。
+`celestialflow.node.core_dispatch.TaskDispatch` が `serial` / `thread` / `async` の 3 つのスケジューリングモードで示すコア動作を検証します。タスクの正常実行、例外リトライ（成功 / 枯渇）、終了シグナルのマージによる終了、および失敗 / リトライ処理チェーン自体がクラッシュした際のフォールバックロジックを扱います。
 
 ## コアテスト対象
 
 | クラス / 関数 | 役割 | 説明 |
 |-----------|------|------|
-| `TaskDispatch` | 被テスト対象 | タスクスケジューラ。入力キューから `TaskEnvelope` / 終了シグナルを取り出し、モードに応じて実行して結果キューに書き戻す |
-| `TaskExecutor` | ホスト | スケジューラを格納する最小可搬の `BaseTaskNode` サブクラスを構築 |
-| `_CtreeStub` | モック | `ctree_client.emit` をインクリメンタル整数に置き換え、sqlite のユニーク制約との衝突を回避 |
-| `MockSpout` / `LogSpout` / `LifecycleSpout` | グローバルハンドル | `autouse` fixture で必要に応じて `start()` / `stop()` し、バックグラウンドスレッドと永続化状態の干渉を防ぐ |
-| `_RecordingLogInlet` / `_CrashRetryLogInlet` | 模擬 LogInlet | 記録または例外送出により worker クラッシュのフォールバックを発火 |
-| `_CrashOnFailObserver` | 模擬 Observer | 失敗コールバック内で例外を投げ、`observer_error` のフォールバックを検証 |
+| `TaskDispatch` | 被テスト対象 | タスクスケジューラ。`task_queue` から `TaskEnvelope` / `TerminationIdPool` を取り出し、モードに応じて実行した後に終了シグナルを `yield_queue` へ書き戻す |
+| `TaskExecutor` | ホスト | スケジューラのホストとして最小限動作する実行器を構築 |
+| `_CtreeStub` / `_SequentialCtreeStub` | モック | `ctree_client.emit` をインクリメンタル整数に置き換え、sqlite のユニーク制約との衝突を回避 |
+| `get_log_spout()` / `get_lifecycle_spout()` | グローバルハンドル | `autouse` fixture `_cleanup_global_spouts` 内でケース前後に `stop()` し、バックグラウンドスレッドと永続化状態の干渉を防ぐ |
+| `_RecordingLogInlet` / `_CrashRetryLogInlet` | 模擬 LogInlet | `worker_crash` を記録する、または `task_retry` に例外を送出させ、処理チェーンのクラッシュフォールバックを発火させる |
+| `_CrashOnFailObserver` | 模擬 Observer | `on_task_fail` 内で例外を投げ、`observer_error` のフォールバックを検証 |
+| `_make_executor` / `_put` / `_put_termination` / `_collect_results` / `_run_dispatch` | ユーティリティ関数 | 実行器の構築、タスク / 終了シグナルの注入、結果の収集、モードごとのスケジューラ実行 |
 
 ## 主要テストシナリオ
 
@@ -36,7 +37,6 @@
 | ケース | カバレッジ目標 |
 |------|---------|
 | `test_basic_parallel` | 10 タスク・4 スレッドの並列処理、結果数 = 10 |
-| `test_thread_duplicate` | 同一 task を重複投入時、`metrics.get_duplicate_count() == 1`、かつ少なくとも 1 件の結果が保持される |
 
 ### `TestDispatchAsync` — 非同期スケジューリング
 
@@ -63,15 +63,12 @@
 
 ```mermaid
 flowchart LR
-    In[TaskInQueue] --> Get[task_queue.get]
-    Get --> Sig{is TerminationIdPool?}
+    In[task_queue.get] --> Sig{is TerminationIdPool?}
     Sig -- yes --> Merge[_process_termination_signal]
     Merge --> Break[break ループ]
-    Sig -- no --> Dup{metrics.is_duplicate?}
-    Dup -- yes --> DupDeal[deal_duplicate]
-    Dup -- no --> Worker[_worker / _async_worker]
-    Worker --> Out[TaskOutQueue]
-    Break --> Put[result_queue.put signal]
+    Sig -- no --> Worker[_worker / _async_worker]
+    Worker --> Out[yield_queue]
+    Break --> Put[yield_queue.put signal]
 ```
 
 ## テストカバレッジマトリクス
@@ -79,11 +76,11 @@ flowchart LR
 | テストクラス | ケース数 | カバレッジ目標 |
 |--------|--------|---------|
 | `TestDispatchSerial` | 7 | 単一/複数タスク、リトライ成功、リトライ枯渇、単一/複数 ID 終了シグナル、成功 fanout 時の独立下流 ID |
-| `TestDispatchThread` | 2 | 10 タスク並列、重複タスクの排除カウント |
+| `TestDispatchThread` | 1 | 10 タスク並列 |
 | `TestDispatchAsync` | 2 | 10 タスク並列、非同期リトライ成功 |
-| `TestWorkerCrashKeepsTerminationSignal` | 2 | 失敗処理チェーンのクラッシュ、リトライログのクラッシュ（3 モードパラメータ化） |
-| `TestDispatchCoreBehavior` | 2 | 空キューでの終了、5 タスクの結果数（3 モードパラメータ化） |
-| **合計** | **15** | |
+| `TestWorkerCrashKeepsTerminationSignal` | 2 | 失敗処理チェーンのクラッシュ、リトライログのクラッシュ（3 モードパラメータ化 → 6 ケース） |
+| `TestDispatchCoreBehavior` | 2 | 空キューでの終了、5 タスクの結果数（3 モードパラメータ化 → 6 ケース） |
+| **合計** | **14**（パラメータ化展開後 22） | |
 
 ## 実行方法
 
@@ -119,9 +116,9 @@ pytest tests/node/test_dispatch.py -k "CoreBehavior" -v
 
 ## 注意事項
 
-- 各ケースには `autouse` fixture `_cleanup_global_spouts` があり、`LogSpout` / `LifecycleSpout` をケース前後で `stop()` し、バックグラウンドスレッドのリークや永続化状態の干渉を防ぎます。
-- `_CtreeStub` の開始 ID はデフォルト 42 で、sqlite のユニーク制約との衝突を避けます。`ctree_client` を 0 から開始させたい場合は別途インスタンス化してください。
-- 公開 API（`task_queue.put` / `result_queue.add_queue`）経由でテストフィクスチャを注入し、`executor` の内部状態を直接変更しません。
+- 各ケースには `autouse` fixture `_cleanup_global_spouts` があり、`LogSpout` / `LifecycleSpout` をケース前後で各 1 回 `stop()` し、バックグラウンドスレッドのリークや永続化状態の干渉を防ぎます。
+- `_CtreeStub` の開始 ID はデフォルト 42 で、sqlite のユニーク制約との衝突を避けます。`test_success_fanout_creates_distinct_downstream_ids` では別途 `_SequentialCtreeStub`（開始 100）を使い、各下流の ID を区別します。
+- 公開 API（`task_queue.put` / `yield_queue.add_queue`）経由でテストフィクスチャを注入し、`executor` の内部状態を直接変更することを避けます。`metrics.set_downstream_counter` と `yield_queue.add_queue` はペアでバインドされ、`connect_to` の動作を模擬します。
 - `_RecordingLogInlet` の `_log` は空操作で、実 spout キューに依存しません。
 - `monkeypatch.setattr` で `get_log_inlet` を置き換える際は、`celestialflow.node.core_node` と `celestialflow.node.core_dispatch` の両方を上書きする必要があります（両方から呼ばれるため）。
 - 関連実装は `src/celestialflow/node/core_dispatch.py` および `src/celestialflow/node/core_node.py` にあります。

@@ -1,6 +1,6 @@
 # Tutorial: Building an Image Crawler
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 This tutorial will guide you through a complete hands-on project — **Baidu Image Crawler** — to learn CelestialFlow from scratch.
 
@@ -10,7 +10,7 @@ Crawl Baidu image search results and download images for specified keywords to y
 1. Analyze and decompose the task flow
 2. Write processing functions for each stage
 3. Assemble and run the task graph
-4. Monitor execution status via logs, progress bar and status snapshots
+4. Monitor execution status via logs, observers, and status snapshots
 
 ---
 
@@ -208,6 +208,14 @@ After verifying the processing functions, assign them to their respective `TaskE
 ```python
 from celestialflow import TaskExecutor, TaskSplitter
 
+
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """Parse HTML into multiple image URL tasks."""
+    urls = parse_image_urls(html)
+    print(f"Parsed {len(urls)} image URLs")
+    return tuple(urls)
+
+
 # Search stage: input keyword, output HTML
 stage_search = TaskExecutor(
     "Search Page",
@@ -216,19 +224,8 @@ stage_search = TaskExecutor(
     max_retries=2,
 )
 
-
-# Parse stage: input HTML, output multiple image URLs (needs splitting)
-# Need a custom Splitter to split the URL list
-class URLSplitter(TaskSplitter):
-    """Split URL list into individual tasks."""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"Parsed {len(urls)} image URLs")
-        return tuple(urls)
-
-
-stage_parse = URLSplitter("Parse Images")
+# Parse stage: input HTML, output multiple image URLs (TaskSplitter distributes iterable results to downstream one by one)
+stage_parse = TaskSplitter("Parse Images", split_image_urls)
 
 # Download stage: input URL, output image data
 stage_download = TaskExecutor(
@@ -244,7 +241,6 @@ stage_save = TaskExecutor(
     "Store Files",
     func=lambda data: save_image(data, "cat") if data else None,
     execution_mode="serial",
-    enable_duplicate_check=False,  # Allow saving duplicate data (for retries)
 )
 ```
 
@@ -254,10 +250,10 @@ stage_save = TaskExecutor(
 from celestialflow import TaskGraph
 
 # Create task graph
-graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
 
 # Set nodes
-graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
 
 # Set connection relationships between nodes
 graph.connect([stage_search], [stage_parse])
@@ -355,16 +351,14 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
     return file_path
 
 
-# ========== Custom Node ==========
+# ========== Split Function ==========
 
 
-class URLSplitter(TaskSplitter):
-    """URL list splitter."""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"Parsed {len(urls)} image URLs")
-        return tuple(urls)
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """Parse HTML into multiple image URL tasks."""
+    urls = parse_image_urls(html)
+    print(f"Parsed {len(urls)} image URLs")
+    return tuple(urls)
 
 
 # ========== Build Task Graph ==========
@@ -381,7 +375,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_retries=2,
     )
 
-    stage_parse = URLSplitter("Parse Images")
+    stage_parse = TaskSplitter("Parse Images", split_image_urls)
 
     stage_download = TaskExecutor(
         "Download Images",
@@ -396,12 +390,11 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         "Store Files",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
 
     # Set connections
-    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
-    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
+    graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -441,10 +434,10 @@ python crawler.py
 
 ### 5.2 View Running Status
 
-During execution, you can monitor through logs, progress bar, or node `snapshot()` snapshots:
+During execution, you can monitor through logs, observers, or node `get_snapshot()` snapshots:
 
-1. **Node Processing Progress**: Success, failure, and pending statistics for each stage (obtained via `get_counts()` or `snapshot()`)
-2. **Graph Structure Information**: View via `graph.get_structure_list()` or `graph.get_structure_graph()`
+1. **Node Processing Progress**: Success, failure, and pending statistics for each stage (obtained via `get_counts()` or `get_snapshot()`)
+2. **Graph Structure Information**: View via `graph.get_structure_list()` or `graph.get_order_graph()`
 3. **Error Information**: Failed image URLs and exception logs
 4. **Task Injection**: Continue injecting new keywords via `node.put_task()`, or inject a termination signal via `node.put_signal()`
 
@@ -485,7 +478,7 @@ This tutorial demonstrated the complete workflow of using CelestialFlow:
 2. **Function Writing**: Write processing functions for each layer and test individually
 3. **Node Creation**: Wrap functions as `TaskExecutor`
 4. **Graph Assembly**: Organize node relationships with `TaskGraph`
-5. **Monitor & Run**: Monitor execution status via logs, progress bar, and status snapshots
+5. **Monitor & Run**: Monitor execution status via logs, observers, and status snapshots
 
 ### Key Concept Review
 
@@ -494,7 +487,7 @@ This tutorial demonstrated the complete workflow of using CelestialFlow:
 | `TaskExecutor` | Task node, wrapping a processing function |
 | `TaskSplitter` | Splitter, splitting one task into multiple |
 | `TaskGraph` | Task graph, organizing node relationships and execution flow |
-| `graph_mode` | Graph running mode (serial/thread) |
+| `graph_mode` | Graph running mode (serial/thread/async) |
 | `execution_mode` | Node internal execution mode (serial/thread/async) |
 
 ### Next Steps

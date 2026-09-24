@@ -1,6 +1,6 @@
-# クローンユーティリティテスト (test_clone.py)
+# tests/benchmark/test_clone.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
@@ -69,7 +69,7 @@ pytest tests/benchmark/test_clone.py -k "graph" -v
 - `clone_graph` テストは有向非巡回グラフ `A → B → C` を構築し、グラフ構造の完全性を検証します。
 - `LocalEventClient` の独立検証により、クローングラフが独立したイベントバスを持ち、ランタイム状態が相互に干渉しないことを確認します。
 - `TaskReporter` 付きのグラフはクローン後に新しい reporter インスタンスにバインドされ、`cloned.reporter.task_graph` はクローングラフを指します。
-- ファイル末尾の `# 実行方法` コメントは上方の `pytest` コマンドと一致し、そのままコピーして実行できます。
+- ソースファイルの末尾には歴史的に残された `# 実行方法` のコメント行が 1 行あります（既に存在しない `tests/utils/test_utils_clone.py` を指しています）。上方の `pytest` コマンドを基準としてください。
 
 ## 注意事項
 

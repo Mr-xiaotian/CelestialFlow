@@ -1,6 +1,6 @@
-# bench_tqdm.py Benchmark Guide
+# bench/bench_tqdm.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -25,6 +25,8 @@ Quantify the performance overhead of the `tqdm` progress bar in loops, helping d
 3. **Memory growth in large loops**: The test code fully expands `range(data_size)` into a `list` stored in `data`; when `data_size` is increased to 10 million, the list alone occupies approximately 80MB of memory.
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows lightweight loop (date not recorded)
 

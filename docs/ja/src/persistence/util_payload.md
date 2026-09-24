@@ -1,6 +1,6 @@
-# PersistencePayload
+# src/celestialflow/persistence/util_payload.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `persistence/util_payload.py` は、タスクデータの永続化シリアライゼーションツールを提供し、任意の Python オブジェクトを再帰的に JSON フレンドリーな構造に変換します。
 
@@ -86,7 +86,7 @@ pending_item = {
     "record": {
         "event_id": event_id,
         "ts": datetime.now().timestamp(),
-        "node": node_name,
+        "stage": stage_name,
         "status": "pending",
         "task_json": to_persisted_payload(task),  # 自動シリアライズ
     },

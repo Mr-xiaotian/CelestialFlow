@@ -1,6 +1,6 @@
-# Benchmark Module
+# src/celestialflow/benchmark/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 Provides executor/task graph cloning and benchmarking capabilities. This module sits at the top of the dependency chain — it may depend on other modules, but should not be depended on by them.
 

@@ -1,6 +1,6 @@
-# demo_nodes.py デモ説明
+# demo/demo_nodes.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目標
 
@@ -26,7 +26,7 @@ flowchart TD
 - `Downloader` → リソースをダウンロード
 - `Parser` → 新しい URL を解析し、`GenURLs` にループバック
 
-**グラフ構造**：循環グラフ（`parse_node → generate_node`）
+**グラフ構造**：循環グラフ（`Parser → GenURLs`）
 
 ### `demo_splitter_1`
 大規模データ分割のデモ：入力 `range(100_000)` がリストにラップされて `TaskSplitter` に渡され、下流が 1 つずつ受信処理することで、一度に大量のタスクをメモリにロードするのを回避する。
@@ -41,14 +41,14 @@ flowchart LR
     Router -->|奇数 n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
 ```
 
-ルーティングロジック：`Origin` ノードは入力整数をそのまま出力し、`TaskRouter` は `router_even(n) -> str` を保持し、`_route()` 内で偶奇性に基づいて `StageA`（偶数）または `StageB`（奇数）を選択し、元のタスクを更に下流に振り分ける。
+ルーティングロジック：`Origin` ステージは入力整数をそのまま出力するだけであり、`TaskRouter` は `router_even(n) -> dict[str, int]` を保持し、その `func` が偶奇性に基づいてターゲット名からタスクへのマッピングを返し、フレームワークはこれに基づいて元のタスクを `StageA`（偶数）または `StageB`（奇数）に振り分ける。
 
 ## 主要設定
 
 - `demo_splitter_0` は `graph.set_graph_mode("thread")` と `graph.set_node_execution_mode("thread")` の 2 つの独立した呼び出しで、各 `TaskExecutor` ノードを `"thread"` モード（`max_workers=4`）に統一設定。`TaskSplitter` は実行モードを明示的に設定せず、分割ノードとしてタスクを透過する
-- `demo_splitter_1` は `TaskChain` を介して間接的に `execution_mode="thread"`、`max_workers=50`（`Process` ノード）で動作
+- `demo_splitter_1` は `TaskChain` を介して間接的に `execution_mode="thread"`、`max_workers=50`（`Process` ステージ）で動作
 - `demo_router_0` では `Origin`/`StageA`/`StageB` がいずれも `execution_mode="thread"` を使用し（`max_workers=4` / `2` / `2`）、`Router` は `TaskRouter` ノードであり、自身は `execution_mode` を使用しない
-- 監視は `graph.set_reporter(TaskReporter(report_host, report_port, graph))` を通じて `REPORT_HOST`/`REPORT_PORT` 環境変数に対応するリモート Reporter に接続
+- 監視は `graph.set_reporter(TaskReporter(report_host, report_port, graph))` を通じて `REPORT_HOST`/`REPORT_PORT` 環境変数に対応するリモート Reporter に接続。`demo_splitter_0` と `demo_router_0` の `graph.set_ctree(ctree_client)` はいずれもコメントアウトされており、`demo_splitter_1` は `chain.set_ctree(ctree_client)` を通じて CelestialTree を有効化している。接続する場合は、まず `celestialtree` を別途インストールし、対応する呼び出しがコメントアウトされていないことを確認すること
 - Redis リモート協調のサンプルは `demo_redis.py` に移行済み
 
 ## 発生しうる問題
@@ -68,7 +68,7 @@ python demo/demo_nodes.py
 # 例：demo_splitter_0() を demo_router_0() に置き換え
 ```
 
-> **注意**：現在の `__main__` はデフォルトで `demo_splitter_0()` のみを呼び出す。`demo_splitter_1()` と `demo_router_0()` はいずれも呼び出されないため、`main()` 内で手動で実行するか、コメントを解除する必要がある。
+> **注意**：現在の `__main__` はデフォルトで `demo_splitter_0()` のみを呼び出す。`demo_splitter_1()` と `demo_router_0()` はいずれも呼び出されない（`demo_router_0()` はソース内でコメントアウトされている）。実行するには、`__main__` 内で手動で呼び出すか、コメントを解除する必要がある。
 
 ## 期待される動作
 
@@ -113,4 +113,4 @@ Origin は元の整数のみを生成し、Router が内部で偶奇性に基づ
 - `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
 - `demo_utils`
 - `python-dotenv`
-- 外部サービス：Reporter（オプション）
+- 外部サービス：CelestialTree（オプション）、Reporter（オプション）

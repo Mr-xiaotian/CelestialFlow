@@ -1,4 +1,4 @@
-# Spout Basic Tests (test_spout.py)
+# tests/funnel/test_spout.py
 
 > 📅 Last Updated: 2026/09/09
 

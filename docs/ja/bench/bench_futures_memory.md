@@ -1,6 +1,6 @@
-# bench_futures_memory.py ベンチマーク説明
+# bench/bench_futures_memory.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -70,6 +70,8 @@ python bench/bench_futures_memory.py
 ```
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間/メモリはすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
 
 ### 履歴結果 - Windows futures メモリ比較（日時未記録）
 

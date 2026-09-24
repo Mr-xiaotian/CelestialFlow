@@ -1,6 +1,6 @@
-# フォーマットユーティリティテスト (test_format.py)
+# tests/runtime/test_format.py
 
-> 📅 最終更新日: 2026/08/12
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 `celestialflow.runtime.util_format` の `format_repr` と `format_table` の2つのフォーマット関数を検証し、文字列の短縮表現とテーブルレンダリング出力の正確性を確認します。

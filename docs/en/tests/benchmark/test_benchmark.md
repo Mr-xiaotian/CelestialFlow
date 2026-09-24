@@ -1,4 +1,4 @@
-# Performance Benchmark Tests (test_benchmark.py)
+# tests/benchmark/test_benchmark.py
 
 > 📅 Last Updated: 2026/09/09
 

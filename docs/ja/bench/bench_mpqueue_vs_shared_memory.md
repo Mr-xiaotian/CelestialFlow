@@ -1,10 +1,12 @@
-# bench_mpqueue_vs_shared_memory.py ベンチマーク説明
+# bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
 より複雑な生産者-消費者トポロジ（SPSC、MPSC、SPMC）において、`multiprocessing.Queue` と `shared_memory` ベースのカスタムリングバッファの性能を比較する。CelestialFlow の高スループットシナリオにおける IPC 最適化に詳細なデータを提供する。
+
+> **注意**：フレームワークは既に `stage_mode="process"` および内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
 
 ## テスト内容
 
@@ -33,6 +35,8 @@
 4. **Windows 共有メモリ命名**：`SharedMemory(name=shm_name)` は Windows 上でグローバル名前空間に依存する。名前の衝突（複数の benchmark インスタンスの同時実行等）は予期しない動作を引き起こす可能性がある。
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間/スループットはすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
 
 ### 履歴結果 - Windows SharedMemory 比較（日時未記録）
 

@@ -1,6 +1,6 @@
-# Format Utility Tests (test_format.py)
+# tests/runtime/test_format.py
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 Validates the `format_repr` and `format_table` formatting functions in `celestialflow.runtime.util_format`, ensuring correctness of string truncation representation and table rendering output.

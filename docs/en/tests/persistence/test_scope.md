@@ -1,6 +1,6 @@
-# Scope Management Tests (test_scope.py)
+# tests/persistence/test_scope.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 
@@ -25,7 +25,7 @@ Verifies the `funnel_scope()` context manager in `celestialflow.persistence.core
 Verifies that entering `funnel_scope()` starts the background threads of two global spouts, and that exit automatically stops and cleans up thread references.
 
 - Within the scope, asserts that `log_spout._thread` and `lifecycle_spout._thread` are non-empty and alive.
-- Writes logs via `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])`.
+- Writes logs via `get_log_inlet().graph_start("scope_graph", "thread", ["hello scope"])`.
 - Writes to sqlite via `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")`.
 - After exiting the scope, asserts that `_thread` is `None`, and the log file and sqlite file have been persisted and contain the correct content.
 - Verifies that the `records` table in sqlite contains `[("scope_stage", "success", '"data"', '"ok"')]`.

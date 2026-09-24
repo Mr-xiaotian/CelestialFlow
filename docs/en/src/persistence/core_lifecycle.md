@@ -1,8 +1,8 @@
-# Lifecycle Persistence
+# src/celestialflow/persistence/core_lifecycle.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
-`persistence/core_lifecycle.py` handles task lifecycle persistence: it records task state transitions throughout the lifecycle (pending → success / failed / deleted), and writes the data into SQLite database files under the `lifecycles/` directory. The core components are `LifecycleSpout` and `LifecycleInlet`.
+`persistence/core_lifecycle.py` handles task lifecycle persistence: it records task state transitions throughout the lifecycle (pending → success / failed, and retry count updates), and writes the data into SQLite database files under the `lifecycles/` directory. The core components are `LifecycleSpout` and `LifecycleInlet`.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ flowchart LR
     end
     Funnel --> Queue[queue.Queue]
     Queue -->|Daemon thread polling| Spout[LifecycleSpout._handle_record]
-    Spout -->|Ops: insert / delete / promote| SQLite[lifecycles/**/*.sqlite3]
+    Spout -->|Ops: insert / promote / update_retry| SQLite[lifecycles/**/*.sqlite3]
     SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>Read persisted records]
 ```
 
@@ -55,11 +55,11 @@ lifecycle_spout.start()
 | Operation | Triggered By | Description |
 |-----------|--------------|-------------|
 | `insert` | `LifecycleInlet.task_input()` | A new task enters a stage; writes a `pending` record |
-| `delete` | `LifecycleInlet.task_duplicate()` | Deletes the pending record for a duplicate task |
 | `promote_success` | `LifecycleInlet.task_success()` | Promotes the pending record to `success`; writes the result JSON |
 | `promote_failed` | `LifecycleInlet.task_fail()` | Promotes the pending record to `failed`; updates event_id and writes the error type and message |
+| `update_retry` | `LifecycleInlet.task_retry()` | Keeps the `pending` state, only updates `retry_times` and the error type / message of the most recent failure |
 
-Each operation calls `commit()` immediately after the record is actually modified.
+Each operation calls `commit()` immediately after the record is actually modified; an unknown `__op__` raises a `ValueError`.
 
 ### File Path
 
@@ -96,22 +96,23 @@ Both methods return an empty list when `db_path` has not yet been initialized.
 ```python
 class LifecycleInlet(BaseInlet):
     def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
-        """Write a pending record indicating that a task has entered a stage."""
+        """写入一条 pending 记录，表示任务已进入某个 stage。"""
 
     def task_success(self, event_id: int, result: Any) -> None:
-        """Promote the pending record to success and write the result."""
-
-    def task_duplicate(self, event_id: int) -> None:
-        """Delete the pending record for a deduplicated task."""
+        """将 pending 记录晋升为 success 并写入结果。"""
 
     def task_fail(self, event_id: int, error_id: int, error: Exception) -> None:
-        """Promote the pending record to failed, binding the final error information."""
+        """将 pending 晋升为 failed，绑定最终错误信息。"""
+
+    def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
+        """更新 pending 记录的重试次数与最近一次失败的错误信息。"""
 ```
 
 Notes:
 
 - In `task_input`, `task` is serialized via `to_persisted_payload()` into a JSON-friendly structure and stored in the `task_json` field.
 - `task_fail` persists `error_type` (exception class name) together with `error_message` (`str(error)`).
+- `task_retry` only updates `retry_times` and the most recent error information; the record stays in the `pending` state, and is ultimately promoted by `task_success` / `task_fail`.
 - `LifecycleInlet` only writes to the queue and does not directly operate on the database; all I/O is performed in the background thread of `LifecycleSpout`.
 
 ## Global Singletons
@@ -137,19 +138,22 @@ lifecycle_spout.start()
 # 2. Create LifecycleInlet and bind it
 lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 
-# 3. Record task lifecycle
+# 3. 记录任务生命周期
 lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
-# Task succeeded: pending -> success
+# 任务成功：pending -> success
 lifecycle_inlet.task_success(event_id=1, result="OK")
 
-# Task failed: pending -> failed
+# 任务失败：pending -> failed
 lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad input"))
 
-# 4. Get persisted data
+# 任务重试：更新 pending 记录的重试次数（状态仍为 pending）
+lifecycle_inlet.task_retry(event_id=2, retry_times=1, error=ValueError("bad input"))
+
+# 4. 获取持久化数据
 errors = lifecycle_spout.get_task_error_pairs("StageA")
 for task, (error_type, error_msg) in errors:
-    print(f"Failed task: {task}, error: {error_type}: {error_msg}")
+    print(f"失败任务: {task}, 错误: {error_type}: {error_msg}")
 
 # 5. Stop
 lifecycle_spout.stop()

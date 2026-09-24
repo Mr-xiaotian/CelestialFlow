@@ -1,8 +1,8 @@
-# タスクライフサイクル永続化 (Lifecycle Persistence)
+# src/celestialflow/persistence/core_lifecycle.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
-`persistence/core_lifecycle.py` は、タスクライフサイクル（Lifecycle）の永続化を担当します：タスクのライフサイクル全体における状態変化（pending → success / failed / 削除）を記録し、データを `lifecycles/` ディレクトリ下の SQLite データベースファイルに書き込みます。中核コンポーネントは `LifecycleSpout` と `LifecycleInlet` です。
+`persistence/core_lifecycle.py` は、タスクライフサイクル（Lifecycle）の永続化を担当します：タスクのライフサイクル全体における状態変化（pending → success / failed、およびリトライ回数の更新）を記録し、データを `lifecycles/` ディレクトリ下の SQLite データベースファイルに書き込みます。中核コンポーネントは `LifecycleSpout` と `LifecycleInlet` です。
 
 ## アーキテクチャ設計
 
@@ -16,7 +16,7 @@ flowchart LR
     end
     Funnel --> Queue[queue.Queue]
     Queue -->|デーモンスレッドポーリング| Spout[LifecycleSpout._handle_record]
-    Spout -->|操作: insert / delete / promote| SQLite[lifecycles/**/*.sqlite3]
+    Spout -->|操作: insert / promote / update_retry| SQLite[lifecycles/**/*.sqlite3]
     SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>永続化済みレコードの読み取り]
 ```
 
@@ -54,12 +54,12 @@ lifecycle_spout.start()
 
 | 操作 | トリガーメソッド | 説明 |
 |------|---------|------|
-| `insert` | `LifecycleInlet.task_input()` | 新規タスクが node に入り、`pending` レコードを書き込む |
-| `delete` | `LifecycleInlet.task_duplicate()` | 重複判定されたタスクに対応する pending レコードを削除 |
+| `insert` | `LifecycleInlet.task_input()` | 新規タスクが stage に入り、`pending` レコードを書き込む |
 | `promote_success` | `LifecycleInlet.task_success()` | pending を `success` に昇格させ、結果 JSON を書き込む |
 | `promote_failed` | `LifecycleInlet.task_fail()` | pending を `failed` に昇格させ、event_id を更新してエラータイプとメッセージを書き込む |
+| `update_retry` | `LifecycleInlet.task_retry()` | `pending` 状態を保ち、`retry_times` と直近の失敗のエラータイプ / メッセージのみを更新 |
 
-操作が実際にレコードを変更するたびに、直ちに `commit()` が実行されます。
+操作が実際にレコードを変更するたびに、直ちに `commit()` が実行されます；未知の `__op__` は `ValueError` を送出します。
 
 ### ファイルパス
 
@@ -76,12 +76,12 @@ Lifecycle データはデフォルトで `./lifecycles/` ディレクトリ下�
 ```python
 # エラーレコードを取得
 error_pairs: list[tuple[Any, tuple[str, str]]] = lifecycle_spout.get_task_error_pairs(
-    "NodeA"
+    "StageA"
 )
 # 返値: [(task, (error_type, error_message)), ...]
 
 # 成功結果を取得
-result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("NodeA")
+result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("StageA")
 # 返値: [(task, result), ...]
 ```
 
@@ -95,23 +95,24 @@ result_pairs: list[tuple[Any, Any]] = lifecycle_spout.get_task_result_pairs("Nod
 
 ```python
 class LifecycleInlet(BaseInlet):
-    def task_input(self, node_name: str, event_id: int, task: Any) -> None:
-        """pending レコードを書き込み、タスクが node に入ったことを示します。"""
+    def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
+        """写入一条 pending 记录，表示任务已进入某个 stage。"""
 
     def task_success(self, event_id: int, result: Any) -> None:
-        """pending レコードを success に昇格させ、結果を書き込みます。"""
-
-    def task_duplicate(self, event_id: int) -> None:
-        """重複判定されたタスクに対応する pending レコードを削除します。"""
+        """将 pending 记录晋升为 success 并写入结果。"""
 
     def task_fail(self, event_id: int, error_id: int, error: Exception) -> None:
-        """pending を failed に昇格させ、最終エラー情報を紐付けます。"""
+        """将 pending 晋升为 failed，绑定最终错误信息。"""
+
+    def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
+        """更新 pending 记录的重试次数与最近一次失败的错误信息。"""
 ```
 
 説明：
 
 - `task_input` の `task` は `to_persisted_payload()` によって JSON フレンドリな構造にシリアライズされ、`task_json` フィールドに保存されます。
 - `task_fail` は `error_type`（例外クラス名）と `error_message`（`str(error)`）を併せて永続化します。
+- `task_retry` は `retry_times` と直近のエラー情報のみを更新し、レコードは `pending` 状態のまま保持され、最終的には `task_success` / `task_fail` によって昇格されます。
 - `LifecycleInlet` はキューへの書き込みのみを行い、データベースを直接操作しません。すべての I/O は `LifecycleSpout` のバックグラウンドスレッドで実行されます。
 
 ## グローバルシングルトン
@@ -137,19 +138,22 @@ lifecycle_spout.start()
 # 2. LifecycleInlet を作成してバインド
 lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 
-# 3. タスクのライフサイクルを記録
-lifecycle_inlet.task_input("NodeA", event_id=1, task="hello")
+# 3. 记录任务生命周期
+lifecycle_inlet.task_input("StageA", event_id=1, task="hello")
 
-# タスク成功: pending -> success
+# 任务成功：pending -> success
 lifecycle_inlet.task_success(event_id=1, result="OK")
 
-# タスク失敗: pending -> failed
+# 任务失败：pending -> failed
 lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad input"))
 
-# 4. 永続化データを取得
-errors = lifecycle_spout.get_task_error_pairs("NodeA")
+# 任务重试：更新 pending 记录的重试次数（状态仍为 pending）
+lifecycle_inlet.task_retry(event_id=2, retry_times=1, error=ValueError("bad input"))
+
+# 4. 获取持久化数据
+errors = lifecycle_spout.get_task_error_pairs("StageA")
 for task, (error_type, error_msg) in errors:
-    print(f"失敗タスク: {task}, エラー: {error_type}: {error_msg}")
+    print(f"失败任务: {task}, 错误: {error_type}: {error_msg}")
 
 # 5. 停止
 lifecycle_spout.stop()

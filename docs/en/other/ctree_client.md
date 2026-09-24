@@ -1,6 +1,6 @@
 # CelestialTree Client
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/24
 
 CelestialFlow supports integrating the `celestialtree` client for fine-grained full-chain task provenance tracking and event recording.
 
@@ -53,29 +53,8 @@ The framework automatically emits the following types of events:
 - `task.success`: Task processed successfully.
 - `task.error`: Task processing failed.
 - `task.retry.N`: Task retry attempt N.
-- `task.split`: Task split.
-- `task.route`: Task routed.
-- `task.duplicate`: Duplicate task detected.
 - `termination.input` / `termination.merge`: Termination signal propagation.
 
 ## Provenance Queries
 
-`TaskGraph` provides simplified wrapper methods for querying provenance information:
-
-### get_stage_input_trace
-
-Get the provenance tree for all current input tasks of a Stage (i.e., where these tasks came from).
-
-```python
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-print(trace_str)
-```
-
-### get_error_trace
-
-Get the provenance tree for a specific error ID.
-
-```python
-trace_str = graph.get_error_trace(error_id=12345)
-print(trace_str)
-```
+`TaskGraph` no longer provides built-in convenience query methods such as `get_stage_input_trace` / `get_error_trace`; the framework is only responsible for sending events to the CelestialTree service through the injected client. When you need to query provenance information, use the query interfaces of the `celestialtree` client itself directly.

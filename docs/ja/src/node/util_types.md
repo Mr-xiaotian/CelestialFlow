@@ -1,6 +1,6 @@
-# AnyTaskNode
+# src/celestialflow/node/util_types.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `util_types.py` は `node` モジュールにノード層特有の型エイリアスを提供します。現状は `AnyTaskNode` 型エイリアス 1 つだけを定義し、`TaskGraph` などの上位構造が「任意のノード」としてノードオブジェクトを参照できるようにします。
 
@@ -14,7 +14,7 @@
 from typing import Any
 from .core_node import BaseTaskNode
 
-type AnyTaskNode = BaseTaskNode[Any, Any]
+type AnyTaskNode = BaseTaskNode[Any, Any, Any]
 ```
 
 意味:

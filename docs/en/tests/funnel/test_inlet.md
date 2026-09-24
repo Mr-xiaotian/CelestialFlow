@@ -1,4 +1,4 @@
-# Inlet Basic Tests (test_inlet.py)
+# tests/funnel/test_inlet.py
 
 > 📅 Last Updated: 2026/09/09
 

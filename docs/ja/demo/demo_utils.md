@@ -1,6 +1,6 @@
-# demo_utils.py デモツール説明
+# demo/demo_utils.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目標
 
@@ -30,11 +30,11 @@ flowchart TD
     Fib --> Executor["demo_executor.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
-    Url --> NodesSplitter0["demo_nodes.py<br/>(demo_splitter_0)"]
+    Url --> StagesSplitter0["demo_nodes.py<br/>(demo_splitter_0)"]
     Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
-    Router --> NodesRouter0["demo_nodes.py<br/>(demo_router_0)"]
+    Router --> StagesRouter0["demo_nodes.py<br/>(demo_router_0)"]
     Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
-    Misc --> NodesSplitter1["demo_nodes.py<br/>(demo_splitter_1)"]
+    Misc --> StagesSplitter1["demo_nodes.py<br/>(demo_splitter_1)"]
     Compute --> Structure["demo_structure.py"]
 ```
 

@@ -1,10 +1,12 @@
-# bench_mpqueue_vs_shared_memory.py Benchmark Guide
+# bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
 Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the performance of `multiprocessing.Queue` against a custom ring buffer based on `shared_memory`. Provide in-depth data for CelestialFlow's IPC optimization in high-throughput scenarios.
+
+> **Note**: The framework has removed `stage_mode="process"` and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 
 ## Test Content
 
@@ -33,6 +35,8 @@ Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the 
 4. **Windows shared memory naming**: `SharedMemory(name=shm_name)` relies on the global namespace on Windows; name collisions (e.g., running multiple benchmark instances simultaneously) can cause unpredictable behavior.
 
 ## Benchmark Results (Measured)
+
+> 🟢 The timing/throughput in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows SharedMemory comparison (date not recorded)
 

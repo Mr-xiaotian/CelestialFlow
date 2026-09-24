@@ -1,20 +1,18 @@
-# node/__init__.py
+# src/celestialflow/node/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
-`celestialflow.node` パッケージはノード層のすべての公共 API を公開します。`core_nodes` モジュールから `TaskExecutor`、`TaskSplitter`、`TaskRouter` を再エクスポートし、タスクグラフに「実行・分割・ルーティング」の 3 種類の直接使用できるパイプラインコンポーネントを提供します。
-
-> 本モジュールの docstring には歴史的名称「CelestialFlow ステージモジュール」が残っていますが、継続して保持できます。
+`celestialflow.node` パッケージはノード層のすべての公共 API を公開します。`core_nodes` モジュールから `TaskExecutor`、`TaskSplitter`、`TaskRouter` を再エクスポートし、タスクグラフに「実行・分割・ルーティング」の 3 種類の、そのままグラフノードとして使用できるパイプラインコンポーネントを提供します。
 
 ## 公開エクスポートシンボル（`__all__`）
 
 ```python
 from celestialflow.node import (
-    TaskExecutor,  # 汎用タスク実行器
-    TaskSplitter,  # 1→N タスク分割器
-    TaskRouter,  # 条件ルーター
+    TaskExecutor,  # 通用任务执行器
+    TaskSplitter,  # 1→N 任务拆分器
+    TaskRouter,  # 条件路由器
 )
 ```
 
@@ -34,9 +32,11 @@ __all__ = [
 
 | エクスポートシンボル | ソースモジュール | 親クラス | 用途 |
 |---------|-------|------|------|
-| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R]` | 汎用タスク実行器。単一入力を単一結果にマッピング |
-| `TaskSplitter` | `core_nodes` | `BaseTaskNode[Iterable[TItem], Iterable[RItem]]` | 分割器。単一タスクを複数のサブタスクに分割（1→N） |
-| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, tuple[str, T]]` | ルーター。ユーザー定義の `router` 関数によりタスクを異なる下流へ振り分け |
+| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R, R]` | 汎用タスク実行器。単一入力を単一結果にマッピング |
+| `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | 分割器。単一タスクを複数のサブタスクに分割（1→N） |
+| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | ルーター。`func` が `{下流名: ペイロード}` マッピングを返し、それに基づいて振り分け |
+
+> 3 つのノードクラスはいずれも独自の `__init__` を定義せず、`BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)` をそのまま再利用します；`func` は必須です。
 
 ## 使用例
 
@@ -62,12 +62,16 @@ for task, result in executor.get_success_pairs():
 ```python
 from celestialflow.node import TaskSplitter
 
-# 文字列を単一文字に分割
-splitter = TaskSplitter("CharSplitter")
 
-# 下流の TaskGraph と組み合わせる:
+def split_chars(text: str) -> list[str]:
+    return list(text)
+
+
+splitter = TaskSplitter("CharSplitter", split_chars)
+
+# 配合下游 TaskGraph:
 # graph.connect([splitter], [downstream])
-# splitter.run([["abc", "de"]])
+# splitter.run(["abc"])
 ```
 
 ### TaskRouter — 条件に応じて異なる下流へルーティング
@@ -76,24 +80,25 @@ splitter = TaskSplitter("CharSplitter")
 from celestialflow.node import TaskRouter
 
 
-def by_length(text: str) -> str:
-    return "LongPath" if len(text) > 5 else "ShortPath"
+def route_by_length(text: str) -> dict[str, str]:
+    target = "LongPath" if len(text) > 5 else "ShortPath"
+    return {target: text}
 
 
-router = TaskRouter("LengthRouter", router=by_length)
+router = TaskRouter("LengthRouter", route_by_length)
 # graph.connect([router], [long_node, short_node])
 ```
 
 ## 他のモジュールとの関連
 
-- **`core_node`**: 基底クラス `BaseTaskNode` と内部スケジューラ `TaskDispatch` を定義し、すべてのノードのランタイム骨格。
-- **`core_nodes`**: 3 つの公共ノードクラスを提供。
-- **`runtime`**: ノードは `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` を通じてキューとメトリクスを通信。
-- **`observability`**: `BaseObserver` を通じて実行進捗をレポート。
-- **`persistence`**: `LifecycleInlet` / `LogInlet` を通じてタスクのライフサイクルとログを永続化。
+- **`core_node`**: 基底クラス `BaseTaskNode` と内部スケジューラ `TaskDispatch` を定義し、すべてのノードのランタイム骨格です。
+- **`core_nodes`**: 3 つの公共ノードクラスを提供します。
+- **`runtime`**: ノードは `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` を通じてキューとメトリクスを通信します。
+- **`observability`**: `BaseObserver` を通じて実行進捗をレポートします。
+- **`persistence`**: `LifecycleInlet` / `LogInlet` を通じてタスクのライフサイクルとログを永続化します。
 
 ## 注意事項
 
-1. **基底クラスは公共 API ではない**：`BaseTaskNode` と `TaskDispatch` は `__all__` に含まれません。ノード動作をカスタマイズする場合は `TaskExecutor` を継承し `process_task_success` / `get_binding_counter` をオーバーライドしてください。
+1. **基底クラスは公共 API ではない**：`BaseTaskNode` と `TaskDispatch` は `__all__` に含まれません。ノード動作をカスタマイズする場合は `TaskExecutor` を継承し `process_task_success` をオーバーライドしてください。
 2. **エントリ層の一貫性**：`celestialflow` トップレベルパッケージエントリ（`docs/zh-CN/src/__init__.md`）からも上記の 3 つのシンボルを直接 `import` できます。
 3. **ライフサイクル**：すべてのノードの `start()` / `start_async()` はワンタイム呼び出しです。実行完了後はインスタンスをリセットせず再利用するのではなく、新しいインスタンスを作成してください。

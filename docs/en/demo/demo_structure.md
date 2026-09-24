@@ -1,10 +1,12 @@
-# demo_structure.py Demo Guide
+# demo/demo_structure.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
 Demonstrates the various predefined graph structures (DAG and cyclic graphs) in `core_structure.py`, showcasing how CelestialFlow builds and runs chain, cross, grid, loop, wheel, complete graph, and other topologies.
+
+> The original `demo_forest` (two independent tree-shaped DAGs) in `demo_structure.py` has been removed; the forest example now resides in `demo_forest()` of [demo_web.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/demo/demo_web.md).
 
 ## Demo Structures
 
@@ -12,42 +14,41 @@ Demonstrates the various predefined graph structures (DAG and cyclic graphs) in 
 
 | Function | Structure | Description |
 |------|------|------|
-| `demo_chain` | TaskChain | 5-node linear chain, thread mode |
-| `demo_forest` | TaskGraph | Two independent tree-shaped DAGs coexisting |
+| `demo_chain` | TaskChain | 5-node linear chain (`NodeA`~`NodeE`), each node `execution_mode="serial"` |
 | `demo_cross` | TaskCross | 3-layer cross structure (3→1→3) |
 | `demo_network` | TaskCross | Multi-layer multi-branch network (2→3→1) |
 | `demo_star` | TaskCross | Center node pointing to multiple edge nodes |
 | `demo_fanin` | TaskCross | Multiple source nodes merging into one sink node |
-| `demo_grid` | TaskGrid | 4×4 thread grid, staged scheduling |
+| `demo_grid` | TaskGrid | 4×4 thread grid |
 
 #### Chain — `demo_chain`
 
 ```mermaid
 flowchart LR
-    A["StageA<br/>square"] --> B["StageB<br/>square"]
-    B --> C["StageC<br/>square"]
-    C --> D["StageD<br/>square"]
-    D --> E["StageE<br/>square"]
+    A["NodeA<br/>square"] --> B["NodeB<br/>square"]
+    B --> C["NodeC<br/>square"]
+    C --> D["NodeD<br/>square"]
+    D --> E["NodeE<br/>square"]
 ```
 
-Linear 5-node chain; data passes sequentially through `StageA → StageB → StageC → StageD → StageE`, each node performing a square operation. Built with `TaskChain`, started via `chain.run({"StageA": list(range(20))})`.
+Linear 5-node chain; data passes sequentially through `NodeA → NodeB → NodeC → NodeD → NodeE`, each node performing a square operation (`square`, with a 1-second sleep). Built with `TaskChain`, started via `chain.run({"NodeA": list(range(20))}, if_put_signal=False)`.
 
 #### Cross — `demo_cross`
 
 ```mermaid
 flowchart LR
     subgraph Layer1["Layer 1"]
-        A["StageA"]
-        B["StageB"]
-        C["StageC"]
+        A["NodeA"]
+        B["NodeB"]
+        C["NodeC"]
     end
     subgraph Layer2["Layer 2"]
-        D["StageD"]
+        D["NodeD"]
     end
     subgraph Layer3["Layer 3"]
-        E["StageE"]
-        F["StageF"]
-        G["StageG"]
+        E["NodeE"]
+        F["NodeF"]
+        G["NodeG"]
     end
 
     A --> D
@@ -58,7 +59,7 @@ flowchart LR
     D --> G
 ```
 
-3-layer cross structure (3→1→3). Built with `TaskCross`, started via `cross.run(...)`.
+3-layer cross structure (3→1→3), built with `TaskCross`, started via `cross.run(...)`. Each node uses `add_one_sleep`, where `NodeD` has `max_workers=5` and the rest have 2.
 
 #### Network — `demo_network`
 
@@ -88,7 +89,7 @@ flowchart LR
     B3 --> C
 ```
 
-Multi-layer multi-branch network topology (2→3→1), simulating a neural network's forward propagation structure.
+Multi-layer multi-branch network topology (2→3→1), simulating a neural network's forward propagation structure. All nodes use `add_one_sleep`.
 
 #### Star — `demo_star`
 
@@ -99,7 +100,7 @@ flowchart LR
     Core --> Side3["Side3<br/>add_15"]
 ```
 
-Center node `Core` distributes computation results to multiple edge nodes; each edge node processes independently.
+Center node `Core` (`square`) distributes computation results to multiple edge nodes (`add_5` / `add_10` / `add_15`); each edge node processes independently.
 
 #### Fan-In — `demo_fanin`
 
@@ -157,8 +158,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["StageA<br/>add_one_sleep"] --> B["StageB<br/>add_one_sleep"]
-    B --> C["StageC<br/>add_one_sleep"]
+    A["NodeA<br/>add_one_sleep"] --> B["NodeB<br/>add_one_sleep"]
+    B --> C["NodeC<br/>add_one_sleep"]
     C -.->|loopback| A
 ```
 
@@ -214,41 +215,22 @@ flowchart TD
     A2 --> C1
 ```
 
-3 groups of 2-node cycles (A/B/C); `A2` fans out to `B1` and `C1`, achieving multi-cycle interconnection.
-
-### Forest — `demo_forest`
-
-```mermaid
-flowchart TD
-    subgraph Tree1["Tree 1"]
-        A["stageA"] --> C["stageC"]
-        B["stageB"] --> D["stageD"]
-        C --> E["stageE"]
-        D --> E
-    end
-
-    subgraph Tree2["Tree 2"]
-        F["stageF"] --> G["stageG"]
-        F --> H["stageH"]
-        G --> I["stageI"]
-        H --> J["stageJ"]
-    end
-```
-
-Two independent tree-shaped DAGs coexisting in the same `TaskGraph` without interfering. Tree 1 (A→C→E, B→D→E) and Tree 2 (F→G→I, F→H→J) run independently.
+3 groups of 2-node cycles (A/B/C); `A2` fans out to `B1` and `C1`, achieving multi-cycle interconnection. Manually assembled with the generic `TaskGraph` + `set_nodes` / `connect`.
 
 ## Key Configuration
 
-- DAG structures: default `graph_mode="thread"` (`TaskChain` of `demo_chain` does not explicitly pass `graph_mode`); each Stage of `demo_chain` uses `execution_mode="serial"`, while most others use `execution_mode="thread"`
-- `demo_grid`: source code does not explicitly set staged schedule mode, relying on `TaskGrid`'s default behavior
-- Cyclic graphs: `demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` all explicitly pass `if_put_signal=False` (i.e., no automatic termination signal injected); it is recommended to prepare manual termination when running cyclic graphs
-- Each demo wires in the Reporter via `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))`, and CelestialTree via `<graph>.set_ctree(ctree_client)` (`set_ctree` is commented out in `demo_chain`); whether they actually take effect depends on whether environment variables like `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` and the server are ready
+- DAG structures: `TaskChain` of `demo_chain` does not explicitly pass `graph_mode`, and its 5 nodes all use `execution_mode="serial"`; the nodes of `demo_cross` / `demo_network` / `demo_star` / `demo_fanin` / `demo_grid` mostly use `execution_mode="thread"`
+- `demo_grid`: `TaskGrid` uses the default `graph_mode="thread"` (the source does not explicitly pass `graph_mode`)
+- Cyclic graphs: `demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` all explicitly pass `if_put_signal=False` (i.e., no automatic termination signal is injected); `demo_chain` also passes `if_put_signal=False`. It is recommended to prepare manual termination when running cyclic graphs
+- Each demo wires in the Reporter via `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))`; `<graph>.set_ctree(ctree_client)` is commented out in every example, so CelestialTree is not enabled by default. Whether they actually take effect depends on whether environment variables such as `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` and the server are ready
+- `demo_network`, `demo_star`, `demo_fanin`, and `demo_wheel` are defined but not called by `__main__`
 
 ## Potential Issues
 
-1. **Cyclic graphs may not stop automatically**: All four cyclic graph examples explicitly pass `if_put_signal=False` (no automatic termination signal injected). Among them, `demo_wheel`'s `Core` uses `square` (does not throw), so tasks keep looping and rotating; the other examples' tasks grow to `add_one_sleep`'s exception threshold (n>30) before stopping producing new tasks, and likewise will not auto-exit. Prepare **Ctrl+C** for manual termination before running.
-2. **Sleep latency accumulation**: `add_one_sleep` includes 1-second sleep; 20 tasks × multiple nodes = long total duration.
-3. **No assertions**: Only verifies that the framework can start and run; does not check result values.
+1. **`__main__` calls the undefined `demo_forest`**: `__main__` calls `demo_forest()` immediately after `demo_chain()`, but this file no longer defines that function (the forest example has been migrated to `demo_web.py`), so execution will raise `NameError` at that point, and the subsequent `demo_cross()`, `demo_grid()`, `demo_loop()`, `demo_complete()`, and `demo_multi_cycle()` will not be executed.
+2. **Cyclic graphs may not stop automatically**: All four cyclic graph examples explicitly pass `if_put_signal=False` (no automatic termination signal injected). Among them, `demo_wheel`'s `Core` uses `square` (does not throw), so tasks keep looping and rotating; the other examples' tasks grow to `add_one_sleep`'s exception threshold (n>30) before stopping producing new tasks, and likewise will not auto-exit. Prepare **Ctrl+C** for manual termination before running.
+3. **Sleep latency accumulation**: Both `square` and `add_one_sleep` include a 1-second sleep; when there are many tasks, the total duration grows noticeably.
+4. **No assertions**: Only verifies that the framework can start and run; does not check result values.
 
 ## How to Run
 
@@ -256,19 +238,21 @@ Two independent tree-shaped DAGs coexisting in the same `TaskGraph` without inte
 python demo/demo_structure.py
 ```
 
+> **Note**: `__main__` calls `demo_chain()`, `demo_forest()`, `demo_cross()`, `demo_grid()`, `demo_loop()`, `demo_complete()`, and `demo_multi_cycle()` in sequence. Because `demo_forest()` is undefined, the script will be interrupted by a `NameError` after `demo_chain()` finishes; to run other structures, call the corresponding function directly inside `__main__`.
+
 ## Expected Behavior
 
-`__main__` only calls `demo_chain()` by default; all other structure functions are commented out. Uncomment them to run multiple structures in sequence.
+The following outputs are all expected outputs (mock); the specific log format depends on the framework output.
 
 ### DAG Structures
 
 ```
 === demo_chain (5-node linear chain) ===
-[StageA] Input: 2 -> Output: 4
-[StageB] Input: 4 -> Output: 16
-[StageC] Input: 16 -> Output: 256
-[StageD] Input: 256 -> Output: 65536
-[StageE] Input: 65536 -> Output: 4294967296
+[NodeA] Input: 2 -> Output: 4
+[NodeB] Input: 4 -> Output: 16
+[NodeC] Input: 16 -> Output: 256
+[NodeD] Input: 256 -> Output: 65536
+[NodeE] Input: 65536 -> Output: 4294967296
 ```
 
 ```
@@ -285,10 +269,10 @@ Grid33: success=180  fail=0
 
 ```
 === demo_loop (3-node closed loop) ===
-[StageA] Input: 1 -> Output: 2
-[StageB] Input: 2 -> Output: 3
-[StageC] Input: 3 -> Output: 4
-[StageA] Input: 4 -> Output: 5
+[NodeA] Input: 1 -> Output: 2
+[NodeB] Input: 2 -> Output: 3
+[NodeC] Input: 3 -> Output: 4
+[NodeA] Input: 4 -> Output: 5
 ... (loops continuously, will not stop automatically)
 ```
 
@@ -301,18 +285,6 @@ Grid33: success=180  fail=0
 ```
 
 > **Important**: The cyclic graph examples (`demo_loop`, `demo_wheel`, `demo_complete`, `demo_multi_cycle`) all explicitly pass `if_put_signal=False`, so no automatic termination signal is injected. When run with the defaults, they may continue looping, so press **Ctrl+C** to manually terminate the process.
-
-### Forest
-
-Two independent DAGs run separately without interference:
-
-```
-=== demo_forest (disjoint DAGs) ===
-[stageA] Input: 1 -> Result: 2
-[stageB] Input: 2 -> Result: 3
-[stageF] Input: 3 -> Result: 4
-[stageC] Input: ...
-```
 
 > When running multiple structures in sequence, the `Summary` section shows success/failure counts for each node.
 > The counts in `demo_grid` are mock estimates: `Grid00` inputs `range(10)`, where `0` triggers `add_one_sleep`'s `ValueError` and fails, the remaining tasks propagate down the 4×4 grid, and `Grid33` aggregates 180 tasks.

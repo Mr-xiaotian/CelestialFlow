@@ -1,6 +1,6 @@
-# Clone Utility Tests (test_clone.py)
+# tests/benchmark/test_clone.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 
@@ -69,7 +69,7 @@ pytest tests/benchmark/test_clone.py -k "graph" -v
 - `clone_graph` tests construct a directed acyclic graph `A → B → C` to verify graph structural integrity.
 - The `LocalEventClient` independence verification ensures the cloned graph has an independent event bus, preventing runtime state interference between instances.
 - For a graph with a `TaskReporter`, after cloning the graph should bind a new reporter instance; `cloned.reporter.task_graph` points to the cloned graph.
-- The `# 运行方式` comment at the end of the file matches the `pytest` commands above for easy copy-and-run.
+- The source file retains a historical `# 运行方式` comment on the last line (pointing to the no-longer-existing `tests/utils/test_utils_clone.py`); please rely on the `pytest` commands above.
 
 ## Notes
 

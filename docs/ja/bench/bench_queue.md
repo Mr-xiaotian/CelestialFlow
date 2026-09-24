@@ -1,6 +1,6 @@
-# bench_queue.py ベンチマーク説明
+# bench/bench_queue.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -27,6 +27,8 @@
 4. **Redis `flushdb`**：テスト開始前に `flushdb` が実行される。本番 Redis インスタンスに接続している場合、データ損失が発生する。
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間はすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
 
 ### 履歴結果 - Windows ローカルキューと Redis（日時未記録）
 
@@ -101,11 +103,11 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     COUNT = 10_000
 
-    # test_threadqueue_perf(COUNT)        # スレッドキューをコメントアウト
-    test_mpqueue_perf(COUNT)              # MPQueue のみテスト
-    # test_manager_queue_perf(COUNT)      # Manager キューをスキップ
-    # test_redis_list_perf(COUNT)         # Redis をスキップ
-    # test_redis_stream_perf(COUNT)
+    # test_threadqueue_perf(COUNT)           # 注释掉线程队列
+    test_mpqueue_perf(COUNT)                 # 仅测试 MPQueue
+    # test_manager_queue_perf(COUNT)         # 跳过 Manager 队列
+    # test_redis_list_perf(redis_client, COUNT)   # 跳过 Redis（注意需传入已连接的 redis_client）
+    # test_redis_stream_perf(redis_client, COUNT)
 ```
 
 修正後に実行：

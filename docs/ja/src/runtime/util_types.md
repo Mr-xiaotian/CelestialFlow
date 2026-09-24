@@ -1,8 +1,70 @@
-# TaskTypes
+# src/celestialflow/runtime/util_types.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
-TaskTypes モジュールはフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
+`util_types.py` はフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
+
+## TerminationSignal
+
+タスクキュー終了をマークするセンチネルオブジェクト。ノードがこのシグナルを受信すると、上流にもはやタスクが存在しないことを示し、停止準備に入るべきです。
+
+```python
+class TerminationSignal:
+    def __init__(self, _id: int = -1, source: str = "input"):
+        self.id = _id  # 终止信号 ID
+        self.source = source  # 来源标识
+
+
+# 全局单例
+TERMINATION_SIGNAL = TerminationSignal()
+```
+
+## TerminationIdPool
+
+終了シグナル ID プール。受信済みのすべての終了シグナル ID を格納するために使用します。
+
+```python
+class TerminationIdPool:
+    def __init__(self, ids: list[int]):
+        self.ids = ids  # 终止信号 ID 列表
+```
+
+## NoOpContext
+
+空のコンテキストマネージャ。`with` ロジックを無効化するために使用します。
+
+```python
+class NoOpContext:
+    def __enter__(self) -> NoOpContext: ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
+```
+
+`__exit__` はすべての例外情報を無視し、自身では例外を飲み込みません（`None` を返します）。
+
+## ValueWrapper
+
+スレッド内/単一プロセス用のカウンターラッパー。**デフォルトで自前のスレッドロックを作成**し、明示的にロックを無効化することもできます。
+
+```python
+class ValueWrapper:
+    def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
+        """
+        :param value: 初始值
+        :param lock: 可选的线程锁。默认 None 表示自建一把锁；
+            传入已存在的 Lock 可让多个计数器共用同一把锁；
+            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
+        """
+        self.value = value
+        self._lock = lock if lock is not None else Lock()
+```
+
+| メソッド | 説明 |
+|------|------|
+| `get_lock()` | ロックオブジェクトを取得；ロック無効時は `NoOpContext` を返す |
+| `add(value)` | ロックを保持した状態で `value` を増加 |
+| `get()` | ロックを保持した状態で現在値を読み取る |
+
+> `lock=None` の場合に実際の `Lock` を自前で作成するため、`ValueWrapper` はデフォルトでスレッドセーフです；明示的に単一スレッドアクセスと分かっている場合にのみ `NoOpContext` を渡してロックを無効化すべきです。
 
 ## StageStatus
 
@@ -10,96 +72,9 @@ TaskTypes モジュールはフレームワークで使用される基本デー�
 
 ```python
 class StageStatus(IntEnum):
-    NOT_STARTED = 0  # 未起動
-    RUNNING = 1  # 実行中
-    STOPPED = 2  # 停止済み
-```
-
-## TerminationSignal
-
-タスクキュー終了をマークするセンチネルオブジェクト。ノードがこのシグナルを受信すると、上流にタスクがもう存在しないことを示し、停止準備に入るべきです。
-
-```python
-class TerminationSignal:
-    def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id  # イベント ID
-        self.source = source  # ソース
-
-
-# グローバルシングルトン
-TERMINATION_SIGNAL = TerminationSignal()
-```
-
-## TerminationIdPool
-
-受信済みの全終了シグナル ID を格納する終了シグナル ID プール。
-
-```python
-class TerminationIdPool:
-    def __init__(self, ids: list[int]):
-        self.ids = ids  # 終了シグナル ID リスト
-```
-
-## NoOpContext
-
-空のコンテキストマネージャ。`with` ロジックを無効化するために使用します（例: ロックが不要な場合）。
-
-```python
-class NoOpContext:
-    def __enter__(self) -> "NoOpContext": ...
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
-```
-
-## ValueWrapper
-
-スレッド内/単一プロセス用のカウンターラッパー。オプションでロックを設定可能。
-
-```python
-class ValueWrapper:
-    def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
-        self.value = value
-        self._lock = lock or NoOpContext()
-
-    def get_lock(self) -> Lock | NoOpContext:
-        """ロックオブジェクトまたは NoOpContext（ロックなしの場合）を返します。"""
-```
-
-## SumCounter
-
-複数のカウンター（ValueWrapper）を累算する合計カウンター。
-
-```python
-class SumCounter:
-    def __init__(self, lock: Lock | NoOpContext | None = None):
-        """
-        :param lock: オプションのスレッドロック。デフォルト None（NoOpContext を使用）
-        """
-        self.init_value = ValueWrapper(value=0, lock=self.lock)
-        self.counters = []
-```
-
-### メソッド
-
-| メソッド | 説明 |
-|------|------|
-| `add(value)` | 初期カウント値を増加（`init_value` に加算） |
-| `append_counter(counter)` | 外部カウンターを追加 |
-| `reset()` | 全カウンターをゼロにリセット |
-| `get()` | 全カウンターの累算値を取得 |
-| `value`（プロパティ） | 全カウンターの合計値を累算 |
-
-### 使用例
-
-```python
-from celestialflow.runtime.util_types import SumCounter, ValueWrapper
-
-counter = SumCounter()
-counter.add(10)
-
-sub_counter = ValueWrapper(value=5)
-counter.append_counter(sub_counter)
-
-print(counter.get())  # 15
+    NOT_STARTED = 0  # 未启动
+    RUNNING = 1  # 运行中
+    STOPPED = 2  # 已停止
 ```
 
 ## CTreeEvent
@@ -112,11 +87,8 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 | `TASK_SUCCESS` | `"task.success"` | タスク実行成功 |
 | `TASK_ERROR` | `"task.error"` | タスク実行失敗 |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | リトライプレフィックス（リトライ回数を連結） |
-| `TASK_DUPLICATE` | `"task.duplicate"` | 重複タスク検出 |
 | `TERMINATION_INPUT` | `"termination.input"` | 終了シグナル注入 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 終了シグナルマージ |
-
-
 
 ## 使用例
 
@@ -131,20 +103,20 @@ from celestialflow.runtime.util_types import (
     TerminationIdPool,
 )
 
-# カスタム終了シグナルの作成
+# 创建自定义终止信号
 signal = TerminationSignal(_id=42, source="my_source")
-print(f"シグナル ID: {signal.id}, ソース: {signal.source}")
+print(f"信号 ID: {signal.id}, 来源: {signal.source}")
 
-# グローバルシングルトンの使用
-print(f"デフォルト終了シグナル ID: {TERMINATION_SIGNAL.id}")  # -1
-print(f"デフォルトソース: {TERMINATION_SIGNAL.source}")  # "input"
+# 使用全局单例
+print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"默认来源: {TERMINATION_SIGNAL.source}")  # "input"
 print(
-    f"同一インスタンスか: {TERMINATION_SIGNAL is TerminationSignal()}"
-)  # False（毎回新規インスタンス）
+    f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False（每次创建新实例）
 
-# 終了シグナル ID プールの作成
+# 创建终止信号 ID 池
 pool = TerminationIdPool(ids=[1, 2, 3])
-print(f"ID プール: {pool.ids}")  # [1, 2, 3]
+print(f"ID 池: {pool.ids}")  # [1, 2, 3]
 ```
 
 ### StageStatus 列挙型
@@ -152,53 +124,49 @@ print(f"ID プール: {pool.ids}")  # [1, 2, 3]
 ```python
 from celestialflow.runtime.util_types import StageStatus
 
-# 列挙値
+# 枚举值
 print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
 print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
 print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
 
-# 状態遷移
+# 状态转换
 status = StageStatus.NOT_STARTED
-print(f"初期状態: {status.name}")
+print(f"初始状态: {status.name}")
 ```
 
-### ValueWrapper と SumCounter
+### ValueWrapper
 
 ```python
-from celestialflow.runtime.util_types import ValueWrapper, SumCounter
+from celestialflow.runtime.util_types import ValueWrapper
 
-# ValueWrapper：オプションロック付きカウンター
+# 默认带真实线程锁
 counter = ValueWrapper(value=10)
-print(f"初期値: {counter.value}")  # 10
-with counter.get_lock():
-    counter.value += 5
-print(f"ロック付きインクリメント後: {counter.value}")  # 15
+print(f"初始值: {counter.value}")  # 10
 
-# SumCounter：複数カウンターの累算
-sum_counter = SumCounter()
-sum_counter.add(100)
+counter.add(5)
+print(f"递增后: {counter.get()}")  # 15
 
-sub1 = ValueWrapper(value=20)
-sub2 = ValueWrapper(value=30)
-sum_counter.append_counter(sub1)
-sum_counter.append_counter(sub2)
+# 与其它计数器共用同一把锁
+from threading import Lock
 
-print(f"合計 (100 + 20 + 30): {sum_counter.value}")  # 150
-
-# リセット
-sum_counter.reset()
-print(f"リセット後: {sum_counter.value}")  # 0
+shared = Lock()
+a = ValueWrapper(value=0, lock=shared)
+b = ValueWrapper(value=0, lock=shared)
+print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
 ```
 
 ### NoOpContext
 
 ```python
-from celestialflow.runtime.util_types import NoOpContext
+from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
-# 空のコンテキストマネージャ。with ロジックの無効化に使用
+# 空上下文管理器，用于禁用 with 逻辑
 ctx = NoOpContext()
 with ctx:
-    print("これはノーオペレーションコンテキストです")
+    print("这是一个无操作上下文")
+
+# 单线程场景下显式关闭加锁
+single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```
 
 ### CTreeEvent 定数
@@ -206,19 +174,17 @@ with ctx:
 ```python
 from celestialflow.runtime.util_types import CTreeEvent
 
-# イベント名定数
-print(f"タスク入力イベント: {CTreeEvent.TASK_INPUT}")  # "task.input"
-print(f"タスク成功イベント: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
-print(f"タスク失敗イベント: {CTreeEvent.TASK_ERROR}")  # "task.error"
-print(f"リトライプレフィックス: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
-print(f"重複タスクイベント: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
-print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
-print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
+# 事件名称常量
+print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
-
-
 
 ## 注意事項
 
-- `ValueWrapper` と `SumCounter` のスレッドセーフ性は、呼び出し元が正しい `Lock` オブジェクトを渡すことに依存します。
-- `NoOpContext` は `serial`/`async` モードで実際のロックの代わりに使用され、不要なロックオーバーヘッドを回避します。
+- `ValueWrapper` はデフォルトで実際の `Lock` を使用するため、デフォルトでスレッドセーフです；`NoOpContext` は単一スレッドモードでロックのオーバーヘッドを明示的に排除するために使用します。
+- `TERMINATION_SIGNAL` はモジュールレベルのシングルトンで、デフォルトは `id=-1`、`source="input"` です。
+- `StageStatus` は `IntEnum` であり、整数と直接比較できます。

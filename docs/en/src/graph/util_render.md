@@ -1,6 +1,6 @@
-# GraphRender
+# src/celestialflow/graph/util_render.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `graph/util_render.py` provides a utility for rendering graph structures as framed, tree-shaped text lists. It is called directly by `TaskGraph.get_structure_list()` to visualize the task graph topology in logs / CLI output.
 
@@ -78,7 +78,7 @@ for line in lines:
 from celestialflow.graph.util_render import render_structure_list
 
 print(render_structure_list([], {}, []))
-# ['+ No stages defined +']
+# ['+ No nodes defined +']
 ```
 
 ### Via TaskGraph Built-in Method

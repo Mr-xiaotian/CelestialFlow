@@ -1,6 +1,6 @@
-# demo_network.py デモ説明
+# demo/demo_network.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -72,7 +72,7 @@ def linear(w: float, b: float):
 | B1~B3 | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | A1/A2 からの Fan-in |
 | C | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | B1~B3 からの Fan-in |
 
-- すべてのノードは `execution_mode="thread"` を使用し、`TaskCross` 全体は `graph_mode="thread"` を使用する
+- すべての Stage は `execution_mode="thread"` を使用し、`TaskCross` 全体は `graph_mode="thread"` を使用する
 - 出力層 C は実行後に `get_success_pairs()` を呼び出してすべての成功結果を読み取る（追加の永続化設定は不要）
 
 ## 設計意図

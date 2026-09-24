@@ -1,12 +1,12 @@
-# Graph Analysis Utility Tests (test_order_graph.py)
+# tests/graph/test_order_graph.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 Validates the basic graph analysis functions in `celestialflow.graph.util_order_graph`, including `OrderGraph` construction, level computation (`compute_node_levels`), source node lookup (`source_nodes`), SCC partitioning (`tarjan_scc`), and regression tests for iterative algorithms when depth exceeds Python's default recursion limit (approximately 1000).
 
 ## Core Test Objects
-- `OrderGraph.from_edges` / `add_node` / `add_edge` / `successors`: Constructs and queries the ordered graph structure.
+- `OrderGraph` / `add_node` / `add_edge` / `successors`: Constructs and queries the ordered graph structure (`add_edge` automatically fills in missing endpoint nodes).
 - `compute_node_levels`: Computes the logical levels of nodes in the graph (nodes within the same SCC share a level).
 - `source_nodes`: Finds the entry nodes (source nodes) of the graph (returns one representative per SCC).
 - `tarjan_scc`: Strongly connected component partitioning (iterative implementation).

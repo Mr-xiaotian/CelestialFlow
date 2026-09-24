@@ -1,10 +1,10 @@
-# Node Base Class Tests (test_node.py)
+# tests/node/test_node.py
 
-> 📅 Last Updated: 2026/09/10
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 
-Validates the general configuration, binding, and startup exception aggregation behavior provided by `celestialflow.node.core_node.BaseTaskNode` (covered indirectly through the public subclass `TaskExecutor`).
+Validates the general configuration, binding, and startup exception aggregation behavior provided by `celestialflow.node.core_node.BaseTaskNode` (covered indirectly through the public subclass `TaskExecutor`), including the field separation of `get_snapshot` / `get_meta` and the counting bindings established by `connect_to` remaining stable after switching execution mode.
 
 ## Core Test Objects
 
@@ -12,7 +12,7 @@ Validates the general configuration, binding, and startup exception aggregation 
 |-----------|------|-------------|
 | `add_one(x)` | Test callback | Synchronous add-one function |
 | `async_add_one(x)` | Test callback | Asynchronous add-one coroutine function |
-| `TestBaseTaskNodeConfig` | Test class | Covers name, execution mode, snapshot, predecessor binding preserved when switching mode |
+| `TestBaseTaskNodeConfig` | Test class | Covers name, execution mode, snapshot / metadata, and downstream binding not lost when switching mode |
 | `TestBaseTaskNodeStartErrors` | Test class | Covers `start` / `start_async` exception aggregation behavior |
 
 ## Key Test Scenarios
@@ -27,8 +27,10 @@ Validates the general configuration, binding, and startup exception aggregation 
 | `test_valid_execution_mode_thread` | Supports `execution_mode="thread"` |
 | `test_valid_execution_mode_async` | Supports `execution_mode="async"` (using `async_add_one`) |
 | `test_invalid_execution_mode` | An illegal mode should raise `InvalidOptionError` |
-| `test_snapshot_contains_execution_mode` | The dictionary returned by `snapshot(interval=0.1)` contains the `execution_mode` field |
-| `test_prev_binding_survives_execution_mode_switch` | After binding a predecessor via `prev_binding`, calling `set_execution_mode("thread")` does not break the established count relationship (`metrics.get_task_count()` is consistent before and after) |
+| `test_snapshot_excludes_build_time_fields` | `get_snapshot()` no longer contains the build-time fields `name` / `class_name` / `execution_mode` / `max_workers` |
+| `test_get_meta_reports_build_time_fields` | `get_meta()` returns only `class_name` / `execution_mode` / `max_workers` |
+| `test_snapshot_tolerates_not_started_node` | When the node has not started, `get_snapshot()` does not crash due to the missing `start_time` (`status == 0`, `start_time == 0.0`, `elapsed_time == 0`) |
+| `test_connect_to_binding_survives_execution_mode_switch` | The downstream / upstream shared counters established by `connect_to` remain the same object after `set_execution_mode("thread")`, and counting continues to accumulate |
 
 ### `TestBaseTaskNodeStartErrors` — Startup Exception Aggregation
 
@@ -41,7 +43,7 @@ Validates the general configuration, binding, and startup exception aggregation 
 
 ```mermaid
 flowchart TB
-    Start[start]
+    Start[start / start_async]
     Prep[_prepare_start]
     Mode{execution_mode}
     Serial[dispatch_serial]
@@ -65,9 +67,9 @@ flowchart TB
 
 | Test Class | Case Count | Coverage Goals |
 |--------|--------|---------|
-| `TestBaseTaskNodeConfig` | 8 | Name identity and modification, three valid execution modes, invalid mode error, snapshot field, switching mode does not break predecessor binding |
+| `TestBaseTaskNodeConfig` | 10 | Name identity and modification, three valid execution modes, invalid mode error, snapshot / metadata field separation, not-started snapshot tolerance, switching mode does not break downstream binding |
 | `TestBaseTaskNodeStartErrors` | 2 | Synchronous / asynchronous `start*` exception aggregation |
-| **Total** | **10** | |
+| **Total** | **12** | |
 
 ## How to Run
 
@@ -94,7 +96,8 @@ pytest tests/node/test_node.py -k "execution_mode" -v
 
 ## Notes
 
-- `test_prev_binding_survives_execution_mode_switch` is a regression test covering a previous issue where `TaskMetrics` rebuilt the counter when switching execution mode, causing the predecessor binding to fail; the current version pins `TaskMetrics` to the same `threading.Lock` to ensure the statistics object remains stable.
-- `TestBaseTaskNodeStartErrors` uses `monkeypatch.setattr` to replace two **internal hooks** `_prepare_start` and `_finish_start`; this requires the test and implementation to be in the same package (guaranteed by the public export from `celestialflow.node`).
+- `test_connect_to_binding_survives_execution_mode_switch` is a regression test covering a previous issue where `TaskMetrics` rebuilt the counter when switching execution mode, causing the downstream binding to fail; the current version's `connect_to` makes the upstream and downstream share the same counter object via `metrics.set_downstream_counter` / `set_upstream_counter`.
+- `get_snapshot()` only collects runtime fields (`start_time` / `status` / `elapsed_time` / counts / `upstream_counts` / `downstream_counts`), while build-time fields are reported once via `get_meta()` along with the graph structure, avoiding repeated transmission in each round of status pushes.
+- `TestBaseTaskNodeStartErrors` uses `monkeypatch.setattr` to replace two **internal hooks**, `_prepare_start` and `_finish_start`; this requires the test and implementation to be in the same package (already guaranteed by the public export from `celestialflow.node`).
 - `ExceptionGroup` is only available in Python 3.11+; this repository is based on Python 3.14 which satisfies the requirement.
 - The related implementation is at `src/celestialflow/node/core_node.py`.

@@ -1,6 +1,6 @@
-# OrderGraph とグラフアルゴリズムユーティリティ
+# src/celestialflow/graph/util_order_graph.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `graph/util_order_graph.py` は、最小限のグラフ構造 `OrderGraph` と、それを中心とする一連の基礎的なグラフアルゴリズムを提供します。
 
@@ -8,7 +8,7 @@
 
 - フレームワーク内部に軽量かつ安定した順序を持つグラフ構造を提供します。
 - グラフ解析機能の一部を担い、サードパーティのグラフ構造への依存を軽減します。
-- `TaskGraph`、ランタイム推定、テストに対して統一されたグラフ解析基盤を提供します。
+- `TaskGraph` とテストに対して統一されたグラフ解析基盤を提供します。
 
 ## 主な能力
 
@@ -78,7 +78,6 @@
 - ソースノードの識別
 - DAG 判定
 - ノード階層計算
-- ランタイムのグローバル pending 推定に必要なトポロジーと前駆アクセス
 
 ## 使用例
 
@@ -93,7 +92,7 @@ graph.add_edge("A", "C")
 graph.add_edge("B", "D")
 graph.add_edge("C", "D")
 
-print(graph.nodes)  # ('A', 'B', 'C', 'D')
+print(graph.nodes)  # ['A', 'B', 'C', 'D']
 print(graph.successors("A"))  # ('B', 'C')
 print(graph.predecessors("D"))  # ('B', 'C')
 print(is_dag(graph))  # True

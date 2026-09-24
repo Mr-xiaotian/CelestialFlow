@@ -1,6 +1,6 @@
-# Graph モジュール
+# src/celestialflow/graph/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 Graph モジュールは CelestialFlow のコアスケジューリングシステムであり、タスクノード間の依存関係、実行フロー、ライフサイクルを管理します。柔軟なタスクグラフの構築、分析、レンダリング機能を提供します。
 
@@ -31,7 +31,7 @@ from celestialflow.graph import (
    - **主要機能**:
      - ノード間の依存関係の確立（`set_nodes` / `connect`）
      - タスクグラフの実行（`start` / `start_async`、`graph_mode` に基づく serial/thread/async 実行）
-     - 実行時監視スナップショットとグローバル残り時間推定（`collect_runtime_snapshot`）
+     - 構築期のノードメタ情報とグラフ分析情報のエクスポート（`get_node_meta` / `get_graph_analysis` / `get_structure_list`）
      - 初期タスクと永続化タスクの注入（`run` / `run_async` / `restore_db`）
      - エラー永続化と未消費タスク処理（`drain_task_queue`）
 
@@ -53,12 +53,13 @@ from celestialflow.graph import (
      - `OrderGraph`: 最小順序付き有向グラフ。安定したノード順序、入辺・出辺の隣接テーブルを維持
      - `is_dag()` / `topo_sort()`: DAG 判定とトポロジカルソート
      - `tarjan_scc()` / `get_condensation()`: 強連結成分分析と凝縮グラフ構築
+     - `source_sccs()` / `source_nodes()`: ソース SCC を特定し代表的なソースノードを抽出
      - `compute_node_levels()`: SCC 凝縮グラフに基づくノード階層計算
 
 4. **util_render.py**
    - **役割**: グラフ構造を枠線付きツリーテキストリストにレンダリング
    - **主要関数**:
-     - `render_structure_list()`: ノード辞書、隣接テーブル、ソースノードから枠線付きツリーテキストを生成
+     - `render_structure_list()`: ノード名リスト、隣接テーブル、ソースノードから枠線付きツリーテキストを生成
 
 ## モジュール連携
 
@@ -81,7 +82,7 @@ from celestialflow.graph import (
 2. **構造の選択**: 一般的なパターンには `TaskChain`/`TaskCross` などの事前定義構造を直接使用可能
 3. **設定**: `set_reporter()` / `set_ctree()` で外部サービスを統合
 4. **実行**: `run()` または `run_async()` を呼び出す
-5. **監視**: `collect_runtime_snapshot()` で状態スナップショットを取得
+5. **監視**: `TaskReporter` が各ノードの `get_snapshot()` を定期的に呼び出して実行時状態を収集
 
 ## 使用例
 
@@ -93,32 +94,32 @@ from celestialflow.graph import (
 from celestialflow import TaskGraph, TaskExecutor
 
 
-# ノード関数を定義
-def node_a_func(x: int) -> int:
+# ステージ関数を定義
+def stage_a_func(x: int) -> int:
     return x + 1
 
 
-def node_b_func(x: int) -> int:
+def stage_b_func(x: int) -> int:
     return x * 2
 
 
-def node_c_func(x: int) -> int:
+def stage_c_func(x: int) -> int:
     return x - 3
 
 
 # ノードを作成
-n1 = TaskExecutor("N1", func=node_a_func, execution_mode="serial")
-n2 = TaskExecutor("N2", func=node_b_func, execution_mode="serial")
-n3 = TaskExecutor("N3", func=node_c_func, execution_mode="serial")
+s1 = TaskExecutor("S1", func=stage_a_func, execution_mode="serial")
+s2 = TaskExecutor("S2", func=stage_b_func, execution_mode="serial")
+s3 = TaskExecutor("S3", func=stage_c_func, execution_mode="serial")
 
-# DAG を構築: N1 -> N2 -> N3
+# DAG を構築: S1 -> S2 -> S3
 graph = TaskGraph(name="MyGraph", graph_mode="thread")
-graph.set_nodes([n1, n2, n3])
-graph.connect([n1], [n2])
-graph.connect([n2], [n3])
+graph.set_nodes([s1, s2, s3])
+graph.connect([s1], [s2])
+graph.connect([s2], [s3])
 
 # 実行
-graph.run({n1.get_name(): [1, 2, 3]})
+graph.run({s1.get_name(): [1, 2, 3]})
 
 # グラフ分析
 analysis = graph.get_graph_analysis()
@@ -140,10 +141,10 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 監視：collect_runtime_snapshot でランタイムスナップショットを1回収集
-snapshot, ts = chain.collect_runtime_snapshot()
-print(f"スナップショットタイムスタンプ: {ts}")
-print(f"ノード 0 のスナップショット: {snapshot[nodes[0].get_name()]}")
+# グラフ分析：DAG 判定と階層構造を確認
+analysis = chain.get_graph_analysis()
+print(f"DAG か: {analysis['isDAG']}")
+print(f"階層: {analysis['layersDict']}")
 ```
 
 ### TaskCross クロス層
@@ -163,7 +164,7 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.collect_runtime_snapshot())
+print(cross.get_structure_list())
 ```
 
 ### TaskGrid グリッド
@@ -171,14 +172,14 @@ print(cross.collect_runtime_snapshot())
 ```python
 from celestialflow import TaskGrid, TaskExecutor
 
-n00 = TaskExecutor("A", func=lambda x: x)
-n01 = TaskExecutor("B", func=lambda x: x + 1)
-n10 = TaskExecutor("C", func=lambda x: x * 2)
-n11 = TaskExecutor("D", func=lambda x: x * x)
+s00 = TaskExecutor("A", func=lambda x: x)
+s01 = TaskExecutor("B", func=lambda x: x + 1)
+s10 = TaskExecutor("C", func=lambda x: x * 2)
+s11 = TaskExecutor("D", func=lambda x: x * x)
 
-grid = TaskGrid(name="GridPipeline", grid=[[n00, n01], [n10, n11]])
-grid.run({n00.get_name(): [1, 2]})
-print(grid.collect_runtime_snapshot())
+grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
+grid.run({s00.get_name(): [1, 2]})
+print(grid.get_structure_list())
 ```
 
 ### TaskLoop リンググラフ

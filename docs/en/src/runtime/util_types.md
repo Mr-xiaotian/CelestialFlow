@@ -1,33 +1,21 @@
-# TaskTypes
+# src/celestialflow/runtime/util_types.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
-
-The TaskTypes module defines the basic data types, enums, and helper classes used throughout the framework.
-
-## StageStatus
-
-Enum class representing the running state of a task graph node (`BaseTaskNode` and its subclasses, such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
-
-```python
-class StageStatus(IntEnum):
-    NOT_STARTED = 0  # Not started
-    RUNNING = 1  # Running
-    STOPPED = 2  # Stopped
-```
+`util_types.py` defines the basic data types, enums, and helper classes used throughout the framework.
 
 ## TerminationSignal
 
-A sentinel object used to mark the end of a task queue. When a node receives this signal, it indicates that the upstream has no more tasks and the node should prepare to stop.
+A sentinel object used to mark the end of a task queue. When a node receives this signal, it indicates that the upstream has no more tasks, and the node should prepare to stop.
 
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id  # Event ID
-        self.source = source  # Source
+        self.id = _id  # 终止信号 ID
+        self.source = source  # 来源标识
 
 
-# Global singleton
+# 全局单例
 TERMINATION_SIGNAL = TerminationSignal()
 ```
 
@@ -38,69 +26,55 @@ Termination signal ID pool, used to store all received termination signal IDs.
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids  # List of termination signal IDs
+        self.ids = ids  # 终止信号 ID 列表
 ```
 
 ## NoOpContext
 
-An empty context manager, used to disable `with` logic (e.g., when no lock is needed).
+An empty context manager, used to disable `with` logic.
 
 ```python
 class NoOpContext:
-    def __enter__(self) -> "NoOpContext": ...
+    def __enter__(self) -> NoOpContext: ...
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 ```
 
+`__exit__` ignores all exception information and does not swallow exceptions itself (returns `None`).
+
 ## ValueWrapper
 
-A counter wrapper for intra-thread / single-process use, with an optional lock.
+A counter wrapper for intra-thread / single-process use, **which creates its own thread lock by default**, or can explicitly disable locking.
 
 ```python
 class ValueWrapper:
     def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
+        """
+        :param value: 初始值
+        :param lock: 可选的线程锁。默认 None 表示自建一把锁；
+            传入已存在的 Lock 可让多个计数器共用同一把锁；
+            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
+        """
         self.value = value
-        self._lock = lock or NoOpContext()
-
-    def get_lock(self) -> Lock | NoOpContext:
-        """Return the lock object or NoOpContext (when lock-free)."""
+        self._lock = lock if lock is not None else Lock()
 ```
-
-## SumCounter
-
-A sum counter that accumulates multiple counters (ValueWrapper).
-
-```python
-class SumCounter:
-    def __init__(self, lock: Lock | NoOpContext | None = None):
-        """
-        :param lock: Optional thread lock, default None (uses NoOpContext)
-        """
-        self.init_value = ValueWrapper(value=0, lock=self.lock)
-        self.counters = []
-```
-
-### Methods
 
 | Method | Description |
-|--------|-------------|
-| `add(value)` | Increase the initial count value (added to `init_value`) |
-| `append_counter(counter)` | Append an external counter |
-| `reset()` | Reset all counters to zero |
-| `get()` | Get the accumulated value of all counters |
-| `value` (property) | The total accumulated value of all counters |
+|------|------|
+| `get_lock()` | Returns the lock object; returns `NoOpContext` when locking is disabled |
+| `add(value)` | Increments `value` while holding the lock |
+| `get()` | Reads the current value while holding the lock |
 
-### Usage Example
+> Because `lock=None` creates a real `Lock`, `ValueWrapper` is thread-safe by default; you should explicitly pass `NoOpContext` to disable locking only when single-threaded access is certain.
+
+## StageStatus
+
+The running-state enum for task graph nodes (`BaseTaskNode` and its subclasses, such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
 
 ```python
-from celestialflow.runtime.util_types import SumCounter, ValueWrapper
-
-counter = SumCounter()
-counter.add(10)
-
-sub_counter = ValueWrapper(value=5)
-counter.append_counter(sub_counter)
-
-print(counter.get())  # 15
+class StageStatus(IntEnum):
+    NOT_STARTED = 0  # 未启动
+    RUNNING = 1  # 运行中
+    STOPPED = 2  # 已停止
 ```
 
 ## CTreeEvent
@@ -113,11 +87,8 @@ CelestialTree event name constants, used for task tracking and visualization.
 | `TASK_SUCCESS` | `"task.success"` | Task execution succeeded |
 | `TASK_ERROR` | `"task.error"` | Task execution failed |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | Retry prefix (concatenated with retry count) |
-| `TASK_DUPLICATE` | `"task.duplicate"` | Duplicate task detected |
 | `TERMINATION_INPUT` | `"termination.input"` | Termination signal injected |
 | `TERMINATION_MERGE` | `"termination.merge"` | Termination signals merged |
-
-
 
 ## Usage Examples
 
@@ -132,20 +103,20 @@ from celestialflow.runtime.util_types import (
     TerminationIdPool,
 )
 
-# Create a custom termination signal
+# 创建自定义终止信号
 signal = TerminationSignal(_id=42, source="my_source")
-print(f"Signal ID: {signal.id}, Source: {signal.source}")
+print(f"信号 ID: {signal.id}, 来源: {signal.source}")
 
-# Use the global singleton
-print(f"Default termination signal ID: {TERMINATION_SIGNAL.id}")  # -1
-print(f"Default source: {TERMINATION_SIGNAL.source}")  # "input"
+# 使用全局单例
+print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"默认来源: {TERMINATION_SIGNAL.source}")  # "input"
 print(
-    f"Is same instance: {TERMINATION_SIGNAL is TerminationSignal()}"
-)  # False (each call creates a new instance)
+    f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False（每次创建新实例）
 
-# Create a termination signal ID pool
+# 创建终止信号 ID 池
 pool = TerminationIdPool(ids=[1, 2, 3])
-print(f"ID pool: {pool.ids}")  # [1, 2, 3]
+print(f"ID 池: {pool.ids}")  # [1, 2, 3]
 ```
 
 ### StageStatus Enum
@@ -153,53 +124,49 @@ print(f"ID pool: {pool.ids}")  # [1, 2, 3]
 ```python
 from celestialflow.runtime.util_types import StageStatus
 
-# Enum values
+# 枚举值
 print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
 print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
 print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
 
-# State transitions
+# 状态转换
 status = StageStatus.NOT_STARTED
-print(f"Initial state: {status.name}")
+print(f"初始状态: {status.name}")
 ```
 
-### ValueWrapper and SumCounter
+### ValueWrapper
 
 ```python
-from celestialflow.runtime.util_types import ValueWrapper, SumCounter
+from celestialflow.runtime.util_types import ValueWrapper
 
-# ValueWrapper: counter with optional lock
+# 默认带真实线程锁
 counter = ValueWrapper(value=10)
-print(f"Initial value: {counter.value}")  # 10
-with counter.get_lock():
-    counter.value += 5
-print(f"After locked increment: {counter.value}")  # 15
+print(f"初始值: {counter.value}")  # 10
 
-# SumCounter: multi-counter accumulation
-sum_counter = SumCounter()
-sum_counter.add(100)
+counter.add(5)
+print(f"递增后: {counter.get()}")  # 15
 
-sub1 = ValueWrapper(value=20)
-sub2 = ValueWrapper(value=30)
-sum_counter.append_counter(sub1)
-sum_counter.append_counter(sub2)
+# 与其它计数器共用同一把锁
+from threading import Lock
 
-print(f"Total (100 + 20 + 30): {sum_counter.value}")  # 150
-
-# Reset
-sum_counter.reset()
-print(f"After reset: {sum_counter.value}")  # 0
+shared = Lock()
+a = ValueWrapper(value=0, lock=shared)
+b = ValueWrapper(value=0, lock=shared)
+print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
 ```
 
 ### NoOpContext
 
 ```python
-from celestialflow.runtime.util_types import NoOpContext
+from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
-# Empty context manager, used to disable with logic
+# 空上下文管理器，用于禁用 with 逻辑
 ctx = NoOpContext()
 with ctx:
-    print("This is a no-op context")
+    print("这是一个无操作上下文")
+
+# 单线程场景下显式关闭加锁
+single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```
 
 ### CTreeEvent Constants
@@ -207,21 +174,17 @@ with ctx:
 ```python
 from celestialflow.runtime.util_types import CTreeEvent
 
-# Event name constants
-print(f"Task input event: {CTreeEvent.TASK_INPUT}")  # "task.input"
-print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
-print(f"Task failure event: {CTreeEvent.TASK_ERROR}")  # "task.error"
-print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
-print(f"Duplicate task event: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
-print(
-    f"Termination injection event: {CTreeEvent.TERMINATION_INPUT}"
-)  # "termination.input"
-print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
+# 事件名称常量
+print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
-
-
 
 ## Notes
 
-- The thread safety of `ValueWrapper` and `SumCounter` depends on the caller passing the correct `Lock` object.
-- `NoOpContext` is used in `serial`/`async` modes as a substitute for a real lock, avoiding unnecessary lock overhead.
+- `ValueWrapper` uses a real `Lock` by default, so it is thread-safe by default; `NoOpContext` is used to explicitly eliminate lock overhead in single-threaded mode.
+- `TERMINATION_SIGNAL` is a module-level singleton with default `id=-1` and `source="input"`.
+- `StageStatus` is an `IntEnum`, so it can be compared directly with integers.

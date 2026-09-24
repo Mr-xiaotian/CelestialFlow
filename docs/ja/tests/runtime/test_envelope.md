@@ -1,63 +1,40 @@
-# タスクエンベロープテスト (test_envelope.py)
+# tests/runtime/test_envelope.py
 
-> 📅 最終更新日: 2026/08/19
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
-`celestialflow.runtime.core_envelope` モジュールの `TaskEnvelope` クラスと `celestialflow.runtime.util_hash` の `object_to_hash` ハッシュユーティリティを検証し、タスクデータ、ID、ハッシュ値が伝送過程で完全性と一貫性を保つことを確認します。
+`celestialflow.runtime.core_envelope` モジュールの `TaskEnvelope` クラスを検証し、タスクデータと ID がエンベロープによって正しく保存され Getter で復元できること、同時に `__slots__` のメモリ制約が有効であることを確認します。
 
 ## コアテスト対象
-- `TaskEnvelope`: タスクデータをラップするコアコンテナ。
-- `object_to_hash`: 汎用オブジェクトハッシュ計算ユーティリティ。
+- `TaskEnvelope`: タスクデータとタスク ID をラップするコアコンテナ。`__slots__ = ("_id", "_task")` でインスタンス属性を制限。
 
 ## テストカバレッジマトリクス
 
 | テストクラス | ケース数 | カバレッジ目標 |
-|-------------|---------|--------------|
-| `TestTaskEnvelope` | 7 | コンストラクタ/Getter、ID クエリ、ハッシュ一貫性、遅延計算、ハッシュ不可フォールバック、`__slots__` メモリ制限 |
-| `TestObjectToHash` | 4 | 戻り値の型(bytes)、SHA1 固定長20バイト、同一入力の一貫性、異なる入力の差異 |
+|--------|--------|---------|
+| `TestTaskEnvelope` | 3 | コンストラクタ/Getter、`get_id` クエリ、`__slots__` メモリ制限 |
 
 ## 主要テストシナリオ
 
 ### `TestTaskEnvelope`
-1. **基本属性**: コンストラクタパラメータ（task, id）が Getter メソッドで正確に復元できることを検証。
-2. **ハッシュ一貫性**:
-   - 同一内容のオブジェクトが同じハッシュを生成することを検証（IDが異なっていても）。
-   - 異なる内容が異なるハッシュを生成することを検証。
-3. **遅延計算**: ハッシュ値が初回の `get_hash()` 呼び出し時にのみ計算され、初期 `hash` 属性が `None` であることを検証。
-4. **ハッシュ不可タスクのフォールバック**:
-   - タスクオブジェクトが pickle できない場合、`get_hash()` が `__unhashable_task__:` をプレフィックスとする一意のフォールバックバイト列を返すことを検証。
-   - 2つの異なるハッシュ不可タスクが同一のフォールバック値を再利用しないことを検証。
-5. **メモリ効率**: `__slots__` 機構が有効であり、動的属性追加時に `AttributeError` がスローされることを検証。
-
-### `TestObjectToHash`
-- 戻り値が20バイトの SHA1 ダイジェストに固定されることを検証。
-- 同一構造のオブジェクトが異なる呼び出し間で一貫したハッシュを生成することを検証。
-- 異なるオブジェクトが異なるハッシュを生成することを検証。
+1. **構築と復元** (`test_create_and_getters`): 辞書タスク `{"key": "value", "num": 42}` と `id=100` でエンベロープを構築し、`get_task()` が元のタスクを返し、`get_id()` が 100 を返すことを検証。
+2. **ID クエリ** (`test_get_id`): 文字列タスク `"hello"` と `id=1` で構築し、`get_id()` が 1 を返すことを検証。
+3. **メモリ効率** (`test_slots_memory_efficient`): `__slots__` 機構が有効であり、インスタンスに動的に `extra_attr` を追加すると `AttributeError` がスローされることを検証。
 
 ## テストの重点
-- **不変性の模倣**: `TaskEnvelope` は厳密には不変ではありませんが、`__slots__` によって拡張性が制限されています。
-- **ハッシュの堅牢性**: `object_to_hash` が様々な Python データ型を処理できることを確認。
-- **失敗時のデグレード戦略**: ハッシュ計算の失敗によって他のタスク処理フローが中断されないことを確認。
+- **データ完全性**: エンベロープはタスクオブジェクトと ID を無損失で保存しなければならない。
+- **拡張不可性**: `__slots__` によって動的属性を阻止し、メモリ使用量を制御可能にする。
 
 ## 実行方法
 
 ```bash
-# 全テスト実行
+# 全部実行
 pytest tests/runtime/test_envelope.py -v
 
-# エンベロープ属性テストのみ
-pytest tests/runtime/test_envelope.py -k "Envelope" -v
+# Getter 関連テストのみ実行
+pytest tests/runtime/test_envelope.py -k "get_id or getters" -v
 
-# object_to_hash テストのみ
-pytest tests/runtime/test_envelope.py -k "ObjectToHash" -v
-
-# ハッシュ一貫性テストのみ
-pytest tests/runtime/test_envelope.py -k "hash" -v
-
-# ハッシュ不可タスクフォールバックテストのみ
-pytest tests/runtime/test_envelope.py -k "unhashable" -v
-
-# slots メモリテストのみ
+# slots メモリテストのみ実行
 pytest tests/runtime/test_envelope.py -k "slots" -v
 ```
 
@@ -65,13 +42,11 @@ pytest tests/runtime/test_envelope.py -k "slots" -v
 
 | テスト | 所要時間 |
 |--------|---------|
-| `TestTaskEnvelope` | ~0.1s（純粋なメモリ操作） |
-| `TestObjectToHash` | < 0.1s（純粋なメモリ操作） |
+| `TestTaskEnvelope` | < 0.1s（純粋なメモリ操作） |
 
 ## 重要な詳細
-- ハッシュ計算は `id` フィールドの影響を排除し、内容が同じで ID が異なるタスクが重複として識別されることを保証します。
-- pickle 不可能なタスクに対しては、テストが専用プレフィックス付きの一意なフォールバック値を返すことを検証し、例外が上方に伝播しないことを確認します。
-- `test_slots_memory_efficient` は `pytest.raises(AttributeError)` を使用してメモリ最適化制限を検証します。
+- `test_create_and_getters` は非スカラー（辞書）タスクを使用し、エンベロープが任意のオブジェクト型をそのまま保存できることを検証。
+- `test_slots_memory_efficient` は `pytest.raises(AttributeError)` を使用してメモリ最適化制限を検証。
 
 ## 注意事項
 - タスクエンベロープは、システムが異なるノード間でデータを転送する統一フォーマットです。

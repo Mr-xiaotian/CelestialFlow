@@ -1,6 +1,6 @@
-# bench_gil_vs_nogil.py ベンチマーク説明
+# bench/bench_gil_vs_nogil.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目標
 
@@ -19,17 +19,15 @@
 |------|------|
 | `executor_cpu_serial` | `TaskExecutor` が CPU 集中タスクを直列実行 |
 | `executor_cpu_thread` | `TaskExecutor` が CPU 集中タスクをスレッド実行 |
-| `graph_cpu_pipeline_serial` | 3-stage `TaskGraph` による直列 CPU パイプライン |
-| `graph_cpu_pipeline_thread` | 3-stage `TaskGraph` によるスレッド CPU パイプライン |
-| `graph_io_pipeline_thread` | 3-stage `TaskGraph` によるスレッド I/O パイプライン |
+| `graph_cpu_pipeline_serial` | 3-node `TaskGraph` による直列 CPU パイプライン |
+| `graph_cpu_pipeline_thread` | 3-node `TaskGraph` によるスレッド CPU パイプライン |
+| `graph_io_pipeline_thread` | 3-node `TaskGraph` によるスレッド I/O パイプライン |
 
 ### テスト負荷設計
 
 - **CPU タスク**: 純粋な Python 整数ループとハッシュ風の混合演算を実行し、Python バイトコード実行のオーバーヘッドをできるだけ強く受けるように設計
 - **I/O タスク**: `time.sleep()` でブロッキング待機をシミュレート
-- **グラフ構造**: 3 つの stage からなる単純な直列パイプラインに固定し、グラフトポロジーの差異が結果に影響しないようにする
-- **ログレベル**: 一律 `CRITICAL` を使用し、ログ出力が benchmark に与える影響を最小化
-- **重複チェック/落盤を無効化**: `TaskExecutor` 構築時に `enable_duplicate_check=False` を明示設定し、benchmark が重複チェックロジックを発動しないようにする
+- **グラフ構造**: 3 つの node からなる単純な直列パイプラインに固定し、グラフトポロジーの差異が結果に影響しないようにする
 - **繰り返し回数**: デフォルトで各 workload を 3 回実行し、平均値 / 最小値 / 最大値を集計
 
 ## 主要設定

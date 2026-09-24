@@ -1,6 +1,6 @@
-# TaskErrors
+# src/celestialflow/runtime/util_errors.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 

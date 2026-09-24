@@ -1,6 +1,6 @@
-# bench_datastructures.py Benchmark Guide
+# bench/bench_datastructures.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -57,7 +57,7 @@ N = 100_000
 
 ### Running Specific Tests in Isolation
 
-The script runs all tests by default. To validate a single data structure, comment out other calls in `main()`:
+The script runs all tests by default. To validate a single data structure, comment out other calls in the `if __name__ == "__main__":` block at the end of the script:
 
 ```python
 if __name__ == "__main__":
@@ -83,6 +83,8 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 threads
 ```
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows local Redis (date not recorded)
 

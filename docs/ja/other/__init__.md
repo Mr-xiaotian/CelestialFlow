@@ -1,6 +1,6 @@
 # Other モジュール
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/24
 
 ## 概要
 
@@ -13,7 +13,7 @@ Other モジュールは CelestialFlow フレームワークの拡張コンポ�
 **役割**: CelestialTree イベントソーシングシステムを統合し、タスクの全リンクトレースとイベント記録を実現します。
 
 **コア機能**:
-- **イベント記録**: タスクライフサイクル中の重要なイベント（入力、成功、失敗、リトライ、分割、ルーティングなど）を自動記録
+- **イベント記録**: タスクライフサイクル中の重要なイベント（入力、成功、失敗、リトライ、終了マージなど）を自動記録
 - **データリネージ追跡**: 結果のデータソースと生成パスを照会
 - **エラー根本原因特定**: エラータスクの完全なコールチェーンを追跡
 - **実行ツリー可視化**: タスク実行のコールツリー構造を生成
@@ -22,7 +22,7 @@ Other モジュールは CelestialFlow フレームワークの拡張コンポ�
 - CelestialTree サービスと統合し、HTTP および gRPC 通信をサポート
 - 自動イベント発行、手動の計装不要
 - 簡略化されたトレーサビリティ照会インターフェースを提供
-- タスク分割、ルーティング、重複検出などの複雑なシナリオをサポート
+- タスク分割、ルーティングなどの複雑なシナリオをサポート
 
 **使用パターン**:
 ```python
@@ -36,10 +36,6 @@ ctree_client = CelestialTreeClient(
 )
 
 graph.set_ctree(ctree_client)
-
-# トレーサビリティ情報の照会
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-error_trace = graph.get_error_trace(error_id=12345)
 ```
 
 ### 2. go_worker.md - Go Worker タスクコンシューマー
@@ -135,17 +131,14 @@ CelestialTree Client → CelestialTree Service
 graph.set_ctree(ctree_client)
 
 # タスクグラフを実行
-graph.start_graph(init_tasks)
-
-# タスクトレーサビリティを照会
-trace = graph.get_stage_input_trace("ProcessingStage")
+graph.run(init_tasks)
 ```
 
 ### 2. クロス言語実行モード
 ```python
-# Python 側：通常の TaskStage で demo_redis helper をラップ
-transport_stage = TaskStage("RedisTransport", redis_push)
-ack_stage = TaskStage("RedisAck", redis_wait)
+# Python 側：通常の TaskExecutor で demo_redis helper をラップ
+transport_node = TaskExecutor("RedisTransport", redis_push)
+ack_node = TaskExecutor("RedisAck", redis_wait)
 
 # Go 側：Worker Pool を起動してタスクを消費
 # go_worker/main.go で同じ Redis key を設定

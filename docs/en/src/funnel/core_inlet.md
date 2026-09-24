@@ -1,6 +1,6 @@
-# BaseInlet
+# src/celestialflow/funnel/core_inlet.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `BaseInlet` is the base class for all inlet classes, responsible for sending records to the corresponding `BaseSpout` through a queue.
 
@@ -71,21 +71,22 @@ classDiagram
         +_funnel(record: Any) None
     }
     class LogInlet {
-        +start_graph()
-        +end_graph()
-        +start_executor()
-        +end_executor()
+        +graph_start()
+        +graph_end()
+        +node_start()
+        +node_end()
         +task_input()
         +task_success()
         +task_fail()
         +task_retry()
         +termination_input()
+        +termination_merge()
     }
     class LifecycleInlet {
         +task_input()
         +task_success()
         +task_fail()
-        +task_duplicate()
+        +task_retry()
     }
     BaseInlet <|-- LogInlet
     BaseInlet <|-- LifecycleInlet
@@ -96,7 +97,7 @@ classDiagram
 | Subclass | Source File | Responsibility |
 |----------|-------------|----------------|
 | `LogInlet` | `persistence/core_log.py` | Log recording, tracking the entire lifecycle of task enqueue/dequeue/termination |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | Lifecycle recording, persisting task entry/success/failure/deduplication to SQLite |
+| `LifecycleInlet` | `persistence/core_lifecycle.py` | Lifecycle recording, persisting task entry/success/failure/retry to SQLite |
 
 ## Usage Example
 

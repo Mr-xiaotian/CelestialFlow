@@ -1,6 +1,6 @@
-# demo_graph.py Demo Guide
+# demo/demo_graph.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 

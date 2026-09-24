@@ -1,6 +1,6 @@
 # tests/ テスト概要
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 説明
 
@@ -33,7 +33,7 @@
 | `graph/test_graph.md` など | `TaskGraph`、トポロジ分析、構造エクスポート関連テスト |
 | `observability/test_observer.md` / `test_reporter.md` | オブザーバー、Reporter、注入、レポート関連テスト |
 | `persistence/test_lifecycle.md` など | ライフサイクル / ログ / sqlite ユーティリティなど永続化関連テスト |
-| `runtime/test_envelope.md` など | キュー、エンベロープ、例外、推定器、カウンターなどの基本ランタイムテスト |
+| `runtime/test_envelope.md` など | キュー、エンベロープ、例外、カウンターなどの基本ランタイムテスト |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` ベンチマークテストと clone ヘルパーのテスト |
 
 ## 使用方法

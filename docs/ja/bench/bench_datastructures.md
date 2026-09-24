@@ -1,6 +1,6 @@
-# bench_datastructures.py ベンチマーク説明
+# bench/bench_datastructures.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -12,9 +12,9 @@
 |------------|------|------|
 | `test_builtin_dict` | ネイティブ辞書 put/get | N=10,000 |
 | `test_queue_thread` | `queue.Queue` シングルスレッド読み書き | N=10,000 |
-| `test_mpqueue` | `multiprocessing.Queue` クロスプロセス読み書き（非推奨、参考用に保持） | N=10,000 |
+| `test_mpqueue` | `multiprocessing.Queue` クロスプロセス読み書き | N=10,000 |
 | `test_manager_dict` | `Manager().dict` クロスプロセス読み書き | N=10,000 |
-| `test_value_number` | `multiprocessing.Value` アトミックインクリメント（非推奨、参考用に保持） | N=10,000 |
+| `test_value_number` | `multiprocessing.Value` アトミックインクリメント | N=10,000 |
 | `test_redis_plain` | Redis 逐次 set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline バッチ set/get | N=10,000 |
 | `test_redis_multithread_plain` | Redis マルチスレッド並行書き込み | N=10,000 / 10 スレッド |
@@ -33,7 +33,7 @@
 1. **Redis 接続失敗**：`.env` に Redis 設定がないかサービスが未起動の場合、Redis 関連テストはスキップされ、警告のみ出力される。
 2. **MPQueue のバッファ制限**：`mpqueue_worker` では全 N 要素を put してから get するため、N が大きい場合に OS パイプバッファの上限に達する可能性がある（特に Linux 上）。
 
-> **注意**：`test_mpqueue` と `test_value_number` で使用される `multiprocessing.Queue` および `multiprocessing.Value` は、フレームワーク内部では既に使用されていない（`stage_mode="process"` は削除済み）。これらのベンチマークは引き続きスクリプト内でデフォルト実行され、主に純粋なインメモリ方式とのクロスプロセス性能ベースライン比較のために参考用として保持されている。
+> **注意**：現在のスクリプトは依然として `test_mpqueue` と `test_value_number` をデフォルトで実行し、純粋なインメモリ方式とのクロスプロセス性能ベースライン比較に使用している。`stage_mode="process"` はフレームワークから削除済みであるため、これらのテストは現在のフレームワーク内部動作を反映せず、歴史的な性能参考としてのみ使用される。
 
 ## 実行方法
 
@@ -57,7 +57,7 @@ N = 100_000
 
 ### 特定テストの単独実行
 
-スクリプトはデフォルトで全テストを実行する。特定のデータ構造のみを検証したい場合は、`main()` 内で他の呼び出しをコメントアウトする：
+スクリプトはデフォルトで全テストを実行する。特定のデータ構造のみを検証したい場合は、スクリプト末尾の `if __name__ == "__main__":` コードブロック内で他の呼び出しをコメントアウトする：
 
 ```python
 if __name__ == "__main__":
@@ -83,6 +83,8 @@ test_redis_multithread_plain(r, num_threads=5)   # 5 スレッド
 ```
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間はすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
 
 ### 履歴結果 - Windows ローカル Redis（日時未記録）
 

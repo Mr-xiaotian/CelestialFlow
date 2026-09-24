@@ -1,4 +1,4 @@
-# グローバルテスト設定 (conftest.py)
+# tests/conftest.py
 
 > 📅 最終更新日: 2026/09/09
 

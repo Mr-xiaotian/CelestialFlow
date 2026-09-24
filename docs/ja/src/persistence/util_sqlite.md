@@ -1,6 +1,6 @@
-# PersistenceSQLite
+# src/celestialflow/persistence/util_sqlite.py
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/24
 
 `persistence/util_sqlite.py` は、SQLite データベースの接続管理とレコード CRUD 操作ツールを提供し、`LifecycleSpout` および `TaskReporter` の基盤ストレージエンジンです。
 
@@ -9,9 +9,12 @@
 | 関数 | 説明 |
 |------|------|
 | `connect_db(db_path)` | SQLite 接続を作成し、WAL モードを設定、テーブル構造を確保 |
+| `normalize_record(record)` | レコードを sqlite 書き込み可能な形式に正規化（`event_id` がない場合は `None` を返す） |
+| `row_to_record_dict(row)` | sqlite の行を対外的なレコード辞書に変換 |
 | `insert_record(conn, record)` | レコードを 1 件挿入 |
 | `promote_record_to_failed_by_event_id(...)` | レコードを failed に昇格し、新しい event_id に切り替え |
 | `promote_record_to_success_by_event_id(...)` | レコードを success に昇格し、結果を書き込む |
+| `update_retry_by_event_id(conn, event_id, *, ts, retry_times, ...)` | pending レコードのリトライ回数と直近のエラー情報を更新 |
 | `delete_record_by_event_id(conn, event_id)` | event_id でレコードを削除 |
 | `clear_records(db_path)` | データベース内の全レコードをクリア |
 | `append_records(db_path, records)` | バッチ追加書き込み。event_id 衝突時はスキップ（冪等） |
@@ -36,9 +39,12 @@ CREATE TABLE IF NOT EXISTS records (
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
     task_json TEXT NOT NULL,
-    result_json TEXT NOT NULL DEFAULT 'null'
+    result_json TEXT NOT NULL DEFAULT 'null',
+    retry_times INTEGER NOT NULL DEFAULT 0
 )
 ```
+
+> 旧データベースとの互換性：`_ensure_table` は起動時に `retry_times` 列をチェックし、存在しない場合は自動的に `ALTER TABLE` で追加します。
 
 **インデックス：**
 - `idx_records_event_id` (UNIQUE)：event_id で高速検索
@@ -75,6 +81,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | `insert_record` | `(conn, record: dict) -> bool` | 正規化後に INSERT |
 | `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | event_id、status='failed'、エラー情報を更新 |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | status='success' + result_json を更新 |
+| `update_retry_by_event_id` | `(conn, event_id, *, ts, retry_times, error_type="", error_message="") -> bool` | pending 状態を保ち、リトライ回数と直近のエラー情報を更新 |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | レコードを削除 |
 
 ### 読み取り操作（接続を自己管理）
@@ -169,3 +176,4 @@ for item in items:
 - `insert_record` は `INSERT` を使用し、`event_id` のユニークインデックスに基づいて一意性を保証します。外部からの一括書き込み時には通常 `append_records` と組み合わせて `IntegrityError` を捕捉し冪等性を実現します。
 - 正規化関数 `normalize_record` は `event_id` がないレコードをフィルタリングします（`None` を返します）。
 - `task_json` と `result_json` には `json.dumps` 後の文字列が格納され、読み取り時に `json.loads` で復元されます。
+- `retry_times` は `update_retry_by_event_id` によって維持され、タスクが昇格する前のリトライ回数を記録するために使用されます。

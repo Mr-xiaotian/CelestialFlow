@@ -1,6 +1,6 @@
-# demo_network.py Demo Guide
+# demo/demo_network.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 

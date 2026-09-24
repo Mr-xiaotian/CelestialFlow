@@ -1,6 +1,6 @@
-# Observability モジュール
+# src/celestialflow/observability/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 Observability モジュールは CelestialFlow の可観測性機能を提供し、実行状態の監視、Observer パターン、リモート状態レポートを含みます。タスク実行プロセスを透過的かつ監視可能にします。
 
@@ -8,10 +8,23 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 
 | エクスポートシンボル | ソースモジュール | 説明 |
 |---------|---------|------|
-| `BaseObserver` | `core_observer` | 実行器ライフサイクルオブザーバーの基底クラス。`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_tasks_added`、`on_finish` などのイベントインターフェースを定義 |
+| `BaseObserver` | `core_observer` | 実行器ライフサイクルオブザーバーの基底クラス。`on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_task_added`、`on_finish` などのイベントインターフェースを定義 |
 | `NullTaskReporter` | `core_report` | タスクレポーターの空実装。レポート機能を無効にする際のプレースホルダー |
+| `PrintObserver` | `core_observer_print` | `print` ベースのオブザーバー。タスク進捗をコンソールに出力。構築時に `name` を出力プレフィックスとして渡す必要がある |
 | `ReporterProtocol` | `core_report` | レポーター依存者が必要とする最小限のインターフェースプロトコル |
 | `TaskReporter` | `core_report` | タスク状態レポーター。バックグラウンドスレッドで定期的に `celestialflow-web` サービスに実行状態をプッシュし、制御指示をプル |
+
+完全な `__all__`:
+
+```python
+__all__ = [
+    "BaseObserver",
+    "NullTaskReporter",
+    "PrintObserver",
+    "ReporterProtocol",
+    "TaskReporter",
+]
+```
 
 ## ファイル説明
 
@@ -22,11 +35,17 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
    - **主要機能**:
      - `BaseObserver`: ライフサイクルイベントインターフェースを定義。サブクラスが必要に応じてオーバーライド
 
-2. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
+2. **core_observer_print.py** (`PrintObserver`)
+   - **役割**: すぐに使えるコンソールオブザーバー
+   - **主要機能**:
+     - `total` / `succeeded` / `failed` / `duplicated` を集計し、`[name] ...` プレフィックスで出力
+     - すべてのカウンタはスレッドセーフな `ValueWrapper`
+
+3. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
    - **役割**: タスク状態レポーターとその空実装
    - **主要機能**:
-     - **状態レポート**: タスクグラフの構造、トポロジー、実行状態、エラー情報を定期的にプッシュ
-     - **タスク注入**: `celestialflow-web` サービスから注入タスクをプルし、実行中のタスクグラフに動的挿入
+     - **状態レポート**: タスクグラフの図元情報、実行状態、エラー情報を定期的にプッシュ
+     - **タスク注入**: `celestialflow-web` サービスから注入待ちタスクをプルし、実行中のタスクグラフに動的に挿入
      - **パラメータ調整**: `celestialflow-web` サービスから設定をプルし、レポート間隔などのパラメータを動的調整
      - **エラー同期**: `event_id` に基づくエラーレコードの増分プッシュ
    - **通信プロトコル**: HTTP
@@ -48,7 +67,7 @@ Observability モジュールは CelestialFlow の可観測性機能を提供し
 
 ### Observer パターン
 - **マルチキャスト**: `BaseTaskNode` 内部の `TaskMetrics` が `list[BaseObserver]` を維持し、カウント変化と起動/停止時にイベントをブロードキャスト
-- **同期配信**: `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish` などのメソッドで、登録済みの全オブザーバーの対応コールバックを同期的に呼び出し
+- **同期配信**: `add_success_count` / `add_fail_count` / `add_duplicate_count` / `add_external_input_count` / `on_start` / `on_finish` などのメソッドで、登録済みの全オブザーバーの対応コールバックを同期的に呼び出し
 - **例外分離**: サブクラスのオーバーライドコールバックは `__init_subclass__` で自動的にラップされ、例外は一律 `observer_error()` に委譲され、フレームワークに伝播しない
 
 ### 双方向通信（TaskReporter）

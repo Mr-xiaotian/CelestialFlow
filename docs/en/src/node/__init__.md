@@ -1,12 +1,10 @@
-# node Module
+# src/celestialflow/node/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 
 The `celestialflow.node` package exposes the full public API of the node layer. It re-exports `TaskExecutor`, `TaskSplitter`, and `TaskRouter` from the `core_nodes` module, providing three types of pipeline components—execution, splitting, and routing—that can be directly used as graph nodes in the task graph.
-
-> This module's docstring still retains the historical name "CelestialFlow 阶段模块" and may continue to be kept.
 
 ## Public Exported Symbols (`__all__`)
 
@@ -34,9 +32,11 @@ __all__ = [
 
 | Exported Symbol | Source Module | Parent Class | Purpose |
 |---------|-------|------|------|
-| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R]` | General task executor, mapping a single input to a single result |
-| `TaskSplitter` | `core_nodes` | `BaseTaskNode[Iterable[TItem], Iterable[RItem]]` | Splitter, splitting a single task into multiple sub-tasks (1→N) |
-| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, tuple[str, T]]` | Router, distributing tasks to different downstream based on user-defined `router` function |
+| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R, R]` | General task executor, mapping a single input to a single result |
+| `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | Splitter, splitting a single task into multiple sub-tasks (1→N) |
+| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | Router; `func` returns a `{downstream name: payload}` mapping and dispatches accordingly |
+
+> None of the three node classes defines its own `__init__`; they directly reuse `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)`; `func` is required.
 
 ## Usage Examples
 
@@ -62,12 +62,16 @@ for task, result in executor.get_success_pairs():
 ```python
 from celestialflow.node import TaskSplitter
 
-# Split a string into individual characters
-splitter = TaskSplitter("CharSplitter")
+
+def split_chars(text: str) -> list[str]:
+    return list(text)
+
+
+splitter = TaskSplitter("CharSplitter", split_chars)
 
 # Pair with downstream TaskGraph:
 # graph.connect([splitter], [downstream])
-# splitter.run([["abc", "de"]])
+# splitter.run(["abc"])
 ```
 
 ### TaskRouter — Route to different downstream based on conditions
@@ -76,11 +80,12 @@ splitter = TaskSplitter("CharSplitter")
 from celestialflow.node import TaskRouter
 
 
-def by_length(text: str) -> str:
-    return "LongPath" if len(text) > 5 else "ShortPath"
+def route_by_length(text: str) -> dict[str, str]:
+    target = "LongPath" if len(text) > 5 else "ShortPath"
+    return {target: text}
 
 
-router = TaskRouter("LengthRouter", router=by_length)
+router = TaskRouter("LengthRouter", route_by_length)
 # graph.connect([router], [long_node, short_node])
 ```
 
@@ -94,6 +99,6 @@ router = TaskRouter("LengthRouter", router=by_length)
 
 ## Notes
 
-1. **Base classes are not public API**: `BaseTaskNode` and `TaskDispatch` do not appear in `__all__`. If custom node behavior is needed, please inherit from `TaskExecutor` and override `process_task_success` / `get_binding_counter`.
+1. **Base classes are not public API**: `BaseTaskNode` and `TaskDispatch` do not appear in `__all__`. If custom node behavior is needed, please inherit from `TaskExecutor` and override `process_task_success`.
 2. **Entry layer consistency**: The above three symbols can also be `import`ed directly from the top-level `celestialflow` package entry (`docs/en/src/__init__.md`).
 3. **Lifecycle**: All nodes' `start()` / `start_async()` are one-time calls; after execution completes, a new instance should be created rather than resetting for reuse.

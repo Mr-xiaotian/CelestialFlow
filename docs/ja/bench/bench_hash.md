@@ -1,6 +1,6 @@
-# bench_hash.py ベンチマーク説明
+# bench/bench_hash.py
 
-> 📅 最終更新日: 2026/08/26
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -15,7 +15,7 @@
 | `pickle+blake2b16` | `pickle.dumps` | BLAKE2b(16B) | より高速、短いダイジェスト |
 | `json+md5` | カスタム JSON | MD5 | 言語間で安定、ただし JSON シリアライズ可能な型のみ対応 |
 | `json+sha256` | カスタム JSON | SHA256 | より安全、ただしより低速 |
-| `repr+md5` | `repr(normalized)` | MD5 | 可読性が高い、ただし `set`/`dict` の順序に敏感 |
+| `repr+md5` | `repr(normalized)` | MD5 | 可読性が高い；`normalize_for_hash` が `set`/`dict`/`tuple`/`list`/`bytes` をソート正規化済みで、出力は安定 |
 | `repr+sha1+uuid` | `repr(normalized)` | SHA1→UUID | 標準 UUID にフォーマット |
 | `repr+blake2b16` | `repr(normalized)` | BLAKE2b(16B) | 高速 + 短いダイジェスト |
 | `fast_mixed` | 型分岐（bytes/str/repr/pickle） | SHA1 | 基本型ではショートカット、複雑オブジェクトでは pickle にフォールバック |
@@ -37,6 +37,8 @@
 4. **大規模オブジェクトのメモリ圧力**：`long_str_4k`、`bytes_4k` は 10,000 回の繰り返しテスト中に一時的に大量のメモリを消費する可能性がある。
 
 ## ベンチマーク結果（実測）
+
+> 🟢 本セクションの各表の所要時間はすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
 
 ### 履歴結果 - Windows ハッシュ方式比較（日時未記録）
 

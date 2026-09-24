@@ -1,81 +1,57 @@
-# TaskEnvelope
+# src/celestialflow/runtime/core_envelope.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
-A wrapper class for task data that is passed between task graph nodes. It encapsulates the original task data, task hash, and task ID.
-
+A wrapper class for task data that is passed between task graph nodes. It encapsulates the original task data and the task ID.
 
 ## Attributes
 
 ```python
-class TaskEnvelope:
-    __slots__ = ("_hash", "_id", "_task")
+class TaskEnvelope[T]:
+    __slots__ = ("_id", "_task")
 
     def __init__(self, task: T, id: int):
-        self._task: T = task  # Original task data
-        self._hash: bytes | None = None  # Hash value (lazy computation)
-        self._id: int = id  # Unique task ID
+        self._task: T = task  # 原始任务数据
+        self._id: int = id  # 任务唯一 ID
 ```
+
+`TaskEnvelope` is a generic class (PEP 695 syntax `class TaskEnvelope[T]`), using `__slots__` to restrict instance fields, storing only `_task` and `_id`.
 
 ## Getter Methods
 
 ```python
 def get_task(self) -> T:
-    """Get the original task data."""
-
-
-def get_hash(self) -> bytes:
-    """Get the task hash value. Lazily computed and cached on first call."""
+    """获取原始任务。"""
 
 
 def get_id(self) -> int:
-    """Get the task ID."""
+    """获取任务 ID。"""
 ```
 
-## Lazy Hashing
-
-`_hash` is `None` at construction time and is only computed on the first call to `get_hash()`. This avoids wasting computational resources in scenarios where deduplication checks are not needed.
-
-- For normally serializable tasks, `get_hash()` uses `object_to_hash()` to generate a stable SHA1 byte string.
-- If a task object cannot be pickled / hashed, `get_hash()` no longer throws the exception directly to the caller; instead, it falls back to a fallback byte string that is unique only to that `TaskEnvelope`.
-- This fallback value carries a dedicated prefix, semantically indicating "unique placeholder for an unhashable task", to avoid affecting the normal deduplication and scheduling of other tasks.
-
-```python
-envelope = TaskEnvelope(task="data", id=1)
-assert envelope._hash is None  # Not yet computed
-h = envelope.get_hash()  # First call, computed and cached
-assert envelope._hash is not None  # Cached
-assert envelope.get_hash() == h  # Subsequent calls return the cached value
-```
+| Method | Return Type | Description |
+|------|---------|------|
+| `get_task()` | `T` | Returns the original task passed at construction |
+| `get_id()` | `int` | Returns the task ID passed at construction |
 
 ## Usage Examples
 
-The following examples demonstrate the core operations of `TaskEnvelope`, including creation, data access, lazy hash computation, and ID changes.
+The following examples demonstrate the creation of `TaskEnvelope` and data access.
 
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# 1. Create a task envelope
+# 1. 创建任务信封
 envelope = TaskEnvelope(
     task={"user": "alice", "score": 95},
     id=1,
 )
 
-# 2. Get the original task data
+# 2. 获取原始任务数据
 task = envelope.get_task()
-print(f"Task data: {task}")  # {"user": "alice", "score": 95}
+print(f"任务数据: {task}")  # {"user": "alice", "score": 95}
 
-# 3. Check initial state (hash not yet computed — lazy evaluation)
-print(f"Initial hash: {envelope._hash}")  # None
-
-# 4. Get the task ID
-print(f"Task ID: {envelope.get_id()}")  # 1
-
-# 5. First call to get_hash() computes and caches SHA1
-h = envelope.get_hash()
-print(f"SHA1 hash: {h.hex()[:16]}...")
-print(f"Hash cached after call: {envelope._hash is not None}")  # True
-print(f"Repeat call returns cached value: {envelope.get_hash() == h}")  # True
+# 3. 获取任务 ID
+print(f"任务 ID: {envelope.get_id()}")  # 1
 ```
 
 ### Multiple Data Types
@@ -83,37 +59,14 @@ print(f"Repeat call returns cached value: {envelope.get_hash() == h}")  # True
 ```python
 from celestialflow.runtime import TaskEnvelope
 
-# Different types of task data
+# 不同类型的任务数据
 env_str = TaskEnvelope(task="hello world", id=2)
 env_list = TaskEnvelope(task=[1, 2, 3], id=3)
 env_dict = TaskEnvelope(task={"key": "value"}, id=4)
 env_none = TaskEnvelope(task=None, id=5)
 ```
 
-### Fallback Behavior for Unhashable Tasks
+## Notes
 
-```python
-from celestialflow.runtime import TaskEnvelope
-
-
-class UnpicklableTask:
-    def __getstate__(self):
-        raise TypeError("cannot pickle")
-
-
-env1 = TaskEnvelope(task=UnpicklableTask(), id=101)
-env2 = TaskEnvelope(task=UnpicklableTask(), id=102)
-
-h1 = env1.get_hash()
-h2 = env2.get_hash()
-
-assert h1.startswith(b"__unhashable_task__:")
-assert h2.startswith(b"__unhashable_task__:")
-assert h1 != h2
-```
-
-The goal of this behavior is not to allow unhashable tasks to participate in "content-based deduplication", but to guarantee that:
-
-- A single unhashable task does not interrupt the entire scheduling pipeline
-- It does not mistakenly collide with normal task hashes
-- Different unhashable task envelopes still have unique identifiers
+- `TaskEnvelope` no longer participates in task deduplication: it does not hold a task hash, and the hash computation and checks related to deduplication are no longer implemented at the runtime layer.
+- Because of `__slots__`, you cannot dynamically add attributes other than `_task` / `_id` to instances.

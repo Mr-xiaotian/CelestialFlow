@@ -1,6 +1,6 @@
-# CelestialFlow Package Entry
+# src/celestialflow/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Introduction
 
@@ -60,6 +60,7 @@ Provides observer pattern support for monitoring task execution.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `BaseObserver` | Observer base class, defines on_start / on_success / on_failure interfaces |
+| `PrintObserver` | print-based console progress observer, thread-safely outputs task execution counts |
 | `TaskReporter` | Task reporter, reports task execution events via HTTP |
 
 ---
@@ -93,7 +94,6 @@ Provides runtime helper types and utility functions.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `format_table` | Formatted table output, for console display of comparison data |
-| `make_hashable` | Converts non-hashable objects (e.g. dict, list) to hashable form |
 | `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
 ---
@@ -107,6 +107,7 @@ __all__ = [
     "BaseInlet",
     "BaseObserver",
     "BaseSpout",
+    "PrintObserver",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
@@ -124,7 +125,6 @@ __all__ = [
     "format_table",
     "load_records",
     "load_tasks_grouped_by_stage",
-    "make_hashable",
 ]
 ```
 
@@ -222,7 +222,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskReporter"]
+        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
     end
 
     subgraph benchmark
@@ -234,7 +234,7 @@ graph TD
     end
 
     subgraph runtime
-        R["format_table<br/>make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>TerminationSignal"]
     end
 
     Init --> F

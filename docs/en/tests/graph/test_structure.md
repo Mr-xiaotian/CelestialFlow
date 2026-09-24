@@ -1,6 +1,6 @@
-# Specific Graph Structure Tests (test_structure.py)
+# tests/graph/test_structure.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 Verifies the dedicated analysis capabilities of two predefined cyclic graph structures, `TaskLoop` and `TaskWheel`, as well as the input validation for various predefined graph structures (`TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`), ensuring that empty/illegal inputs do not cause silent construction or crashes.
@@ -16,7 +16,7 @@ Verifies the dedicated analysis capabilities of two predefined cyclic graph stru
 |--------|--------|---------|
 | `TestTaskLoop` | 2 | isDAG identified as False, cycle nodes share the same level, source node derivation returns a representative |
 | `TestTaskWheel` | 2 | Center at level 0, Ring at level 1, source node returns only Center |
-| `TestStructureValidation` | 10 | Empty stages / empty layers / empty grid / empty first row / mismatched row length / single-node Complete / empty input validation for each structure |
+| `TestStructureValidation` | 10 | Empty nodes / empty layers / empty grid / empty first row / mismatched row length / single-node Complete / empty input validation for each structure |
 | **Total** | **14** | |
 
 ## Key Test Flows
@@ -35,16 +35,16 @@ Covers empty/illegal input boundaries for all 6 predefined graph structures:
 
 | Case | Verification Point |
 |------|--------|
-| `test_chain_empty_stages_raises` | `TaskChain` with empty stages raises `InvalidStructureError` |
+| `test_chain_empty_nodes_raises` | `TaskChain` with empty nodes raises `InvalidStructureError` |
 | `test_cross_empty_layers_raises` | `TaskCross` with empty layers raises `InvalidStructureError` |
 | `test_cross_empty_layer_raises` | `TaskCross` containing an empty layer raises `InvalidStructureError` |
 | `test_grid_empty_raises` | `TaskGrid` with empty grid raises `InvalidStructureError` |
 | `test_grid_empty_row_raises` | `TaskGrid` with empty first row raises `InvalidStructureError` |
 | `test_grid_ragged_rows_raises` | `TaskGrid` with mismatched row length raises `InvalidStructureError` |
-| `test_loop_empty_stages_raises` | `TaskLoop` with empty stages raises `InvalidStructureError` |
+| `test_loop_empty_nodes_raises` | `TaskLoop` with empty nodes raises `InvalidStructureError` |
 | `test_wheel_empty_ring_raises` | `TaskWheel` with empty ring raises `InvalidStructureError` |
 | `test_complete_single_node_raises` | `TaskComplete` with a single node raises `InvalidStructureError` |
-| `test_complete_empty_stages_raises` | `TaskComplete` with empty stages raises `InvalidStructureError` |
+| `test_complete_empty_nodes_raises` | `TaskComplete` with empty nodes raises `InvalidStructureError` |
 
 ## Test Focus
 - **Non-DAG Recognition**: Ensures cyclic structures are not incorrectly treated as DAGs.

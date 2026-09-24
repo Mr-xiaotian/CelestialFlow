@@ -1,10 +1,10 @@
-# bench_observer.py Benchmark Guide
+# bench/bench_observer.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
-Compare the execution time of `TaskExecutor` under three scenarios for the same batch of tasks—**no observer**, **print logging** (`PrintObserver`), and **tqdm progress bar** (`TqdmObserver`)—to quantify the performance overhead introduced by observer callbacks.
+Compare the execution time of `TaskExecutor` for the same batch of tasks across three scenarios—**no observer**, **print logging** (the framework's built-in `PrintObserver`, which requires a `name` prefix at construction), and **tqdm progress bar** (`TqdmObserver`, defined inside `bench_observer.py`)—to quantify the performance overhead introduced by observer callbacks.
 
 Help users choose an appropriate observation strategy based on task scale and real-time feedback needs.
 
@@ -15,7 +15,7 @@ Help users choose an appropriate observation strategy based on task scale and re
 | Scenario | Observer | Description |
 |------|--------|------|
 | **No observer** | `None` | Bare executor with no callback output, used as the baseline |
-| **print logging** | `PrintObserver` | Executes `print()` on every lifecycle event, simulating simple log output |
+| **print logging** | `PrintObserver` | Executes a `print()` with a `name` prefix on every lifecycle event, simulating simple log output |
 | **tqdm progress bar** | `TqdmObserver` | Updates a `tqdm` progress bar on every lifecycle event, providing visual feedback |
 
 ### Task Workload
@@ -41,7 +41,7 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 ## Potential Issues
 
 1. **TTY buffering of print**: `print()` defaults to line-buffered; when output goes to a real terminal, screen refresh may be triggered, which is slower than redirecting to a file. The overhead of `print` may differ across terminal environments.
-2. **`tqdm`'s `total=0` initial value**: `TaskExecutor` has not resolved the total task count when `add_observer` is called, so `total` is 0 in `on_start` and is not updated until `on_tasks_added`. `TqdmObserver` handles this scenario (initially setting `total=0` and dynamically expanding in `on_tasks_added`), but this does not affect the correctness of the benchmark results.
+2. **`tqdm`'s deferred `total` creation**: `TqdmObserver` waits until `on_start` to create the progress bar, and accumulates the total in `on_task_added` (that callback may arrive before `on_start`). Since `run()` injects all tasks before starting, `total` at `on_start` already includes the tasks injected before startup; if there are further `on_task_added` events afterward, the progress bar expands dynamically, but this does not affect the correctness of the benchmark results.
 3. **Warm-up effect**: The first run may be affected by bytecode cache warm-up, import initialization, or system cache, making subsequent rounds faster. `bench_observer_multirun()` mitigates this by averaging across multiple rounds.
 4. **Fibonacci computation itself is already small enough**: For light tasks, the I/O overhead of observer callbacks may dominate; the absolute numbers from benchmarks will vary by machine, but the **relative ratios** should remain consistent across platforms.
 
@@ -129,5 +129,5 @@ runs = 10  # Change from 5 to 10 for more stable averages
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `BaseObserver`)
+- `celestialflow` (`TaskExecutor`, `BaseObserver`, `PrintObserver`)
 - `tqdm` (used by `TqdmObserver`)

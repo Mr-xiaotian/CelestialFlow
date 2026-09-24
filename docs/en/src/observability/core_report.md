@@ -1,8 +1,8 @@
-# observability/core_report.py
+# src/celestialflow/observability/core_report.py
 
-> 📅 Last Updated: 2026/09/10
+> 📅 Last Updated: 2026/09/24
 
-`core_report.py` implements the reporter component that interfaces with the `celestialflow-web` service. A background thread periodically pushes the task graph's structure, status, and error information to the remote end, while pulling the tasks and termination signals that need to be injected and dynamically writing them into the running task graph. The file contains three main types:
+`core_report.py` implements the reporter component that interfaces with the `celestialflow-web` service. A background thread periodically pushes the task graph's metadata, status, and error information to the remote end, while pulling the tasks and termination signals that need to be injected and dynamically writing them into the running task graph. The file contains three main types:
 
 - `ReporterProtocol`: the minimal interface protocol by which dependants declare "having reporter start/stop capability".
 - `TaskReporter`: the real reporter implementation, responsible for HTTP pulling / pushing.
@@ -26,11 +26,10 @@ classDiagram
         -Thread _thread
         -Session _session
         -bool _server_has_current_graph
-        -bool _server_has_structure
-        -bool _server_has_analysis
+        -bool _server_has_graph_meta
         -int _server_max_event_id_in_fail
+        -dict _last_status_dict
         +int interval
-        +int history_limit
         +start()
         +stop()
         -_pull_timeout()
@@ -41,12 +40,10 @@ classDiagram
         -_pull_injection()
         -_push_errors()
         -_push_status()
-        -_push_structure()
-        -_push_analysis()
+        -_push_graph_meta()
     }
     class NullTaskReporter {
         +int interval
-        +int history_limit
         +start()
         +stop()
     }
@@ -99,11 +96,10 @@ Internal state after initialization:
 | `_thread` | `Thread | None` | Reference to the background thread |
 | `_session` | `requests.Session` | Reused HTTP session |
 | `_server_has_current_graph` | `bool` | Whether the server already holds the current `graph_id` |
-| `_server_has_structure` | `bool` | Whether the server has received a structure push |
-| `_server_has_analysis` | `bool` | Whether the server has received an analysis push |
+| `_server_has_graph_meta` | `bool` | Whether the server has received a graph metadata (structure + analysis) push |
 | `_server_max_event_id_in_fail` | `int | None` | Maximum failed `event_id` watermark known to the server |
-| `interval` | `int` | Reporting period (seconds), dynamically adjusted by `_pull_server_state`, in the range `[1, 60]` |
-| `history_limit` | `int` | Upper bound for retained history snapshots, default 20 |
+| `_last_status_dict` | `dict[str, dict[str, Any]] | None` | Per-node snapshot from the last successful push, used for change gating |
+| `interval` | `int` | Reporting period (seconds), default `5`, dynamically adjusted by `_pull_server_state`, in the range `[1, 60]` |
 
 ### Lifecycle
 
@@ -148,10 +144,8 @@ def _refresh_all(self) -> None:
         self._pull_injection()  # GET /api/pull_injection
 
         # 2. Push (on demand)
-        if (not self._server_has_current_graph) or (not self._server_has_structure):
-            self._push_structure()  # POST /api/push_structure
-        if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()  # POST /api/push_analysis
+        if (not self._server_has_current_graph) or (not self._server_has_graph_meta):
+            self._push_graph_meta()  # POST /api/push_graph_meta
         self._push_status()  # POST /api/push_status
         self._push_errors()  # POST /api/push_errors
     except Exception as e:
@@ -168,7 +162,7 @@ The Reporter interacts with the following endpoints on the `celestialflow-web` s
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/pull_server_state?graph_id=...` | Retrieve sync decision state (interval, `is_current_graph`, whether structure / analysis already exist, max `event_id` of failed records) |
+| `GET` | `/api/pull_server_state?graph_id=...` | Retrieve sync decision state (interval, `is_current_graph`, whether graph metadata already exists, max `event_id` of failed records) |
 | `GET` | `/api/pull_injection` | Retrieve the list of tasks to inject this round and the list of termination-signal nodes |
 
 ### Push Endpoints
@@ -177,8 +171,7 @@ The Reporter interacts with the following endpoints on the `celestialflow-web` s
 |--------|----------|-------------|
 | `POST` | `/api/push_errors` | Push errors (failed records) |
 | `POST` | `/api/push_status` | Push runtime status snapshot |
-| `POST` | `/api/push_structure` | Push graph structure (nodes / edges / source nodes) |
-| `POST` | `/api/push_analysis` | Push graph analysis data |
+| `POST` | `/api/push_graph_meta` | Push graph structure, node metadata, and graph analysis data |
 
 ### Non-2xx Response Handling
 
@@ -193,7 +186,7 @@ GET /api/pull_server_state?graph_id={graph_id}
 Reads the remote sync state and updates:
 
 - `interval` (in the range `[1, 60]`);
-- `_server_has_current_graph` / `_server_has_structure` / `_server_has_analysis`;
+- `_server_has_current_graph` / `_server_has_graph_meta`;
 - `_server_max_event_id_in_fail` (`None` when absent).
 
 Failures are recorded via `log_inlet.pull_interval_failed(e)`, without affecting subsequent pushes.
@@ -243,7 +236,7 @@ for target_node in injection_payload.get("terminations", []):
         self.log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
 ```
 
-> ⚠️ **One-by-one enqueueing is a hard protocol requirement**: the `for task in task_datas: node.put_task(task)` loop **must** call `put_task` for each individual task. If the entire `task_datas` list is injected as a single task, it will break `BaseTaskNode`'s enqueueing semantics and produce unexpected downstream behavior. Regression test: `tests/observability/test_reporter.py::test_reporter_accepts_split_task_and_termination_payload`.
+> ⚠️ **One-by-one enqueueing is a hard protocol requirement**: the `for task in task_datas: node.put_task(task)` loop **must** call `put_task` for each individual task. If the entire `task_datas` list is injected as a single task, it will break `BaseTaskNode`'s enqueueing semantics and produce unexpected downstream behavior. Regression test: `tests/observability/test_reporter.py`.
 
 Payload parsing failures (non-2xx / JSON exception) are recorded via `log_inlet.pull_tasks_failed(e)`, and **do not interrupt** subsequent pushes.
 
@@ -265,23 +258,33 @@ Push payload:
 
 Non-2xx response → `ReporterError` → `log_inlet.push_errors_failed(e)`.
 
-## `_push_status`
+## `_push_status` (Change Gating)
+
+Collect a snapshot per node and push it:
 
 ```python
-status_dict, now = self.task_graph.collect_runtime_snapshot()
+status_dict: dict[str, dict[str, Any]] = {}
+for node_name, node in self.task_graph.node_dict.items():
+    status_dict[node_name] = node.get_snapshot()
+
+# Gate: skip when the server holds the current graph and the snapshot matches the last successful push
+if self._server_has_current_graph and status_dict == self._last_status_dict:
+    return
 
 payload = {
     "graph_id": self.task_graph.get_graph_id(),
     "status": status_dict,
-    "timestamp": now,
+    "timestamp": time.time(),
 }
 ```
 
+After a successful push, `_last_status_dict` is updated to this round's `status_dict`. The timestamp does not participate in the comparison (it necessarily differs every round); the compared object is the per-node snapshot itself. When the server has just switched context (`_server_has_current_graph` is false), its status cache has already been cleared, so a push is forced this time regardless of whether the snapshot is the same.
+
 Non-2xx response → `ReporterError` → `log_inlet.push_status_failed(e)`.
 
-## `_push_structure`
+## `_push_graph_meta`
 
-Triggered only when `not _server_has_current_graph` or `not _server_has_structure`:
+Triggered only when `not _server_has_current_graph` or `not _server_has_graph_meta`:
 
 ```python
 payload = {
@@ -289,24 +292,14 @@ payload = {
     "nodes": self.task_graph.get_nodes(),
     "edges": self.task_graph.get_edges(),
     "source_nodes": self.task_graph.get_source_nodes(),
+    "node_meta": self.task_graph.get_node_meta(),
+    "analysis": self.task_graph.get_graph_analysis(),
 }
 ```
 
-Non-2xx response → `ReporterError` → `log_inlet.push_structure_failed(e)`.
+That is, it merges the former `structure` (nodes / edges / source nodes) and `analysis` into a single graph metadata push, attaching each node's build-time metadata `node_meta` (`class_name` / `execution_mode` / `max_workers`).
 
-## `_push_analysis`
-
-Triggered only when `not _server_has_current_graph` or `not _server_has_analysis`:
-
-```python
-analysis = self.task_graph.get_graph_analysis()
-payload = {
-    "graph_id": self.task_graph.get_graph_id(),
-    "analysis": analysis,
-}
-```
-
-Non-2xx response → `ReporterError` → `log_inlet.push_analysis_failed(e)`.
+Non-2xx response → `ReporterError` → `log_inlet.push_graph_meta_failed(e)`.
 
 ## Key Data Flow
 
@@ -322,7 +315,7 @@ sequenceDiagram
         alt Non-2xx
             R->>L: pull_interval_failed(e)
         else 2xx
-            S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
+            S-->>R: {interval, is_current_graph, has_graph_meta, max_event_id_in_fail}
         end
 
         R->>S: GET /api/pull_injection
@@ -342,16 +335,10 @@ sequenceDiagram
             end
         end
 
-        alt Server has no graph or no structure
-            R->>S: POST /api/push_structure
+        alt Server has no graph or no graph metadata
+            R->>S: POST /api/push_graph_meta
             alt Non-2xx
-                R->>L: push_structure_failed(e)
-            end
-        end
-        alt Server has no graph or no analysis
-            R->>S: POST /api/push_analysis
-            alt Non-2xx
-                R->>L: push_analysis_failed(e)
+                R->>L: push_graph_meta_failed(e)
             end
         end
 
@@ -378,8 +365,7 @@ sequenceDiagram
 | `pull_interval_failed(error)` | `/api/pull_server_state` failure |
 | `push_errors_failed(error)` | `/api/push_errors` non-2xx / payload construction failure |
 | `push_status_failed(error)` | `/api/push_status` failure |
-| `push_structure_failed(error)` | `/api/push_structure` failure |
-| `push_analysis_failed(error)` | `/api/push_analysis` failure |
+| `push_graph_meta_failed(error)` | `/api/push_graph_meta` failure |
 | `loop_failed(error)` | Top-level uncaught exception in `_refresh_all` (does not affect the next cycle) |
 | `stop_reporter()` | Logs that the reporter has stopped at the end of `stop()` |
 | `worker_crash(error)` | Dispatcher worker crash (invoked only by `core_dispatch`) |
@@ -393,7 +379,6 @@ When the Reporter is not enabled, `NullTaskReporter` is used as a placeholder:
 ```python
 class NullTaskReporter:
     interval: int = 1
-    history_limit: int = 20
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
@@ -436,6 +421,7 @@ placeholder.stop()
 2. **Non-2xx responses must be checked**: all `GET` / `POST` requests **must** check `res.ok` after receiving the response, and surface failures to the corresponding `_pull_*_failed` / `_push_*_failed` log.
 3. **`_thread` must be set to `None` after `stop()`**: this is required to support a second `start()`; otherwise the leaked `Thread` reference will cause repeated `join` issues.
 4. **`interval` converges to the range `[1, 60]`**: the `interval` pulled from the remote end is clamped via `int(max(1.0, min(float(interval), 60.0)))`.
-5. **Structure / analysis pushes are on demand**: triggered only when the server first holds the current graph, or when the corresponding field is missing — to avoid repeated uploads every cycle.
-6. **Incremental error pushes use the maximum `event_id` of failed records as the watermark**: this requires the client's `event_id` to be monotonically increasing (guaranteed by `LocalEventClient` / `ctree_client`).
-7. **Depends on graph protocols, not concrete classes**: `TaskReporter` accesses the task graph through the `ReporterTaskGraph` / `ReporterTaskNode` protocols, allowing it to be tested in isolation without introducing a `celestialflow.graph` dependency.
+5. **Graph metadata pushes are on demand**: triggered only when the server first holds the current graph, or when the graph metadata is missing — to avoid repeated uploads every cycle; `node_meta` has been merged into `_push_graph_meta` and no longer enters the per-cycle status push.
+6. **Status pushes have change gating**: `_push_status` sends only when the per-node snapshot changes (or the server has just switched context), avoiding meaningless repeated requests.
+7. **Incremental error pushes use the maximum `event_id` of failed records as the watermark**: this requires the client's `event_id` to be monotonically increasing (guaranteed by `LocalEventClient` / `ctree_client`).
+8. **Depends on graph protocols, not concrete classes**: `TaskReporter` accesses the task graph through the `ReporterTaskGraph` / `ReporterTaskNode` protocols, allowing it to be tested in isolation without introducing a `celestialflow.graph` dependency.

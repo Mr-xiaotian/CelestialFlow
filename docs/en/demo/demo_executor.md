@@ -1,6 +1,6 @@
-# demo_executor.py Demo Guide
+# demo/demo_executor.py
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -82,10 +82,12 @@ python demo/demo_executor.py
 After running, the three modes execute sequentially, with the main output being `tqdm` progress bars similar to:
 
 ```text
-FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
+
+> When `TaskProgress` creates the progress bar it does not set `desc`, so the progress bar has no node-name prefix; the it/s values above are illustrative only.
 
 > **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`) and still fail after 1 retry; `""` triggers a type error (not in the retry list).
 > All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast, and the it/s differences on the progress bars primarily reflect scheduling overhead.
@@ -94,4 +96,6 @@ FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00
 
 - `celestialflow` (`TaskExecutor`)
 - `demo_utils` (`fibonacci`, `fibonacci_async`)
-- `demo_observer` (`TaskProgress`, provided by `demo_observer.py` in the same directory of this repository; the current `demo_executor.py` still keeps the `from celestialflow import TaskProgress` import style, but `celestialflow` no longer exports this class. For actual use, change it to `from demo_observer import TaskProgress`)
+- `demo_observer` (`TaskProgress`, locally defined by `demo_observer.py` in the same directory of this repository)
+
+> ⚠️ **Changed**: `demo_executor.py` currently still writes `from celestialflow import TaskProgress`, but `celestialflow` no longer exports `TaskProgress` (that class is now locally defined by `demo_observer.py`). Therefore, running `python demo/demo_executor.py` directly will raise `ImportError` at the import stage; you must change it to `from demo_observer import TaskProgress` for it to run normally.

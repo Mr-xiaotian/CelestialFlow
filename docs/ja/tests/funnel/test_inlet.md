@@ -1,4 +1,4 @@
-# Inlet 基本テスト (test_inlet.py)
+# tests/funnel/test_inlet.py
 
 > 📅 最終更新日: 2026/09/09
 

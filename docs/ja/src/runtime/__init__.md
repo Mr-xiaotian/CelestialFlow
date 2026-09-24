@@ -1,6 +1,6 @@
-# Runtime モジュール
+# src/celestialflow/runtime/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 Runtime モジュールは CelestialFlow タスク実行ランタイムのコアインフラストラクチャを提供し、タスクエンベロープ（Envelope）、キュー（Queue）、メトリクス統計（Metrics）などのコンポーネントを含みます。
 
@@ -12,14 +12,16 @@ Runtime モジュールは、タスク実行プロセスにおけるデータラ
 
 ```python
 from celestialflow.runtime import (
-    TaskEnvelope,  # タスクエンベロープ
-    TaskInQueue,  # タスク入力キュー
-    TaskMetrics,  # タスクメトリクス統計
-    TaskOutQueue,  # タスク出力キュー
+    TaskEnvelope,  # 任务信封
+    TaskInQueue,  # 任务输入队列
+    TaskMetrics,  # 任务指标统计
+    TaskOutQueue,  # 任务输出队列
 )
 ```
 
-> **注意**：`util_constant`、`util_errors`、`util_estimators`、`util_event`、`util_hash`、`util_types`、`util_config`、`util_format` などのユーティリティモジュールのシンボルは `runtime/__init__.py` の `__all__` に**含まれていません**。完全修飾パスでインポートしてください（例: `from celestialflow.runtime.util_errors import ConfigurationError`）。
+`__all__ = ["TaskEnvelope", "TaskInQueue", "TaskMetrics", "TaskOutQueue"]`
+
+> **注意**：`util_constant`、`util_errors`、`util_event`、`util_types`、`util_config`、`util_format` などのユーティリティモジュールのシンボルは `runtime/__init__.py` の `__all__` に**含まれていません**。完全修飾パスでインポートしてください（例: `from celestialflow.runtime.util_errors import ConfigurationError`）。
 
 ## ファイル説明
 
@@ -33,13 +35,13 @@ from celestialflow.runtime import (
    - **主要機能**: 終了シグナルマージ、ソース名管理、キューチャネルの動的追加
 
 2. **core_envelope.py** (`TaskEnvelope`)
-   - **役割**: タスクデータラッパー。元タスクとそのハッシュ、ID などのメタ情報をカプセル化します
-   - **格納情報**: タスクデータ、SHA1 ハッシュ値（遅延計算）、タスク ID
-   - **主要機能**: データカプセル化、遅延ハッシュ計算、hash 不可能タスクのフォールバック
+   - **役割**: タスクデータラッパー。元タスクとその ID をカプセル化します
+   - **格納情報**: タスクデータ（`_task`）、タスク ID（`_id`）
+   - **主要機能**: データのカプセル化とアクセス
 
 3. **core_metrics.py** (`TaskMetrics`)
-   - **役割**: タスク実行メトリクス統計。成功/失敗/重複カウントと重複排除ロジックを管理します
-   - **主要機能**: スレッドセーフカウンター、重複タスク検査、リトライ可能例外の設定、タスク完了判定
+   - **役割**: タスク実行メトリクス統計。外部注入 / 上流受信 / 成功 / 失敗 / 重複のカウントを管理します
+   - **主要機能**: スレッドセーフカウンター、上流/下流のノード別カウント、オブザーバーコールバック、リトライ可能例外の設定、タスク完了判定、実測のビジー時間
 
 ### ユーティリティモジュール
 
@@ -50,35 +52,26 @@ from celestialflow.runtime import (
 
 5. **util_types.py**
    - **役割**: ランタイム型定義とデータ構造
-   - **含まれる型**: `TerminationSignal`、`TerminationIdPool`、`ValueWrapper`、`SumCounter`、`NoOpContext`、`StageStatus`、`CTreeEvent`
+   - **含まれる型**: `TerminationSignal`、`TERMINATION_SIGNAL`、`TerminationIdPool`、`NoOpContext`、`ValueWrapper`、`StageStatus`、`CTreeEvent`
 
-6. **util_hash.py**
-   - **役割**: オブジェクトハッシュ計算。タスク重複排除に使用
-   - **主要関数**: `make_hashable()`、`object_to_hash()`
-
-7. **util_estimators.py**
-   - **役割**: 実行時間推定と進捗計算
-   - **主要関数**: `calc_remaining()`、`calc_elapsed()`、`format_avg_time()`
-
-8. **util_event.py**
+6. **util_event.py**
    - **役割**: イベントクライアント抽象インターフェースとローカル実装
    - **主要クラス**: `EventClient`（Protocol）、`LocalEventClient`、`clone_event_client()`
 
-9. **util_constant.py**
+7. **util_constant.py**
    - **役割**: ランタイム定数定義（ログレベルマッピングなど）
 
-10. **util_config.py**
-    - **役割**: ランタイム設定ロード（pyproject.toml からログレベルを読み取りなど）
+8. **util_config.py**
+   - **役割**: ランタイム設定ロード（pyproject.toml からログレベルを読み取りなど）
 
-11. **util_format.py**
-    - **役割**: 汎用フォーマットツール（文字列切り詰め、テーブルレンダリング、時間フォーマットなど）
+9. **util_format.py**
+   - **役割**: 汎用フォーマットツール（文字列切り詰め、テーブルレンダリング、値ごとのクラスタリング）
 
 ## モジュール関連
 
 ### 内部関連
-- `TaskEnvelope` は `util_hash` を使用してタスクハッシュを計算
 - `TaskInQueue`/`TaskOutQueue` は `util_types` の `TerminationSignal`/`TerminationIdPool` を使用
-- `TaskMetrics` は `util_types` の `ValueWrapper`/`SumCounter` を使用
+- `TaskMetrics` は `util_types` の `ValueWrapper` を使用し、`StageStatus` でライフサイクル状態を表現
 - すべてのエラーは `CelestialFlowError` およびそのサブクラスを通じて統一的に処理
 
 ### 外部関連
@@ -92,60 +85,63 @@ from celestialflow.runtime import (
 ```python
 from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
 
-# 1. TaskEnvelope：タスクエンベロープの作成と操作
+# 1. TaskEnvelope：创建和访问任务信封
 envelope = TaskEnvelope(task={"data": 42}, id=1)
-print(f"タスクデータ: {envelope.get_task()}")
-print(f"タスクハッシュ: {envelope.get_hash().hex()[:8]}...")
-print(f"タスクID: {envelope.get_id()}")
+print(f"任务数据: {envelope.get_task()}")
+print(f"任务ID: {envelope.get_id()}")
 ```
 
 ```python
-# 2. TaskMetrics：メトリクス統計
-metrics = TaskMetrics(enable_duplicate_check=True)
+from celestialflow.runtime import TaskMetrics
+from celestialflow.runtime.util_types import ValueWrapper
 
-# タスク処理のシミュレーション
-metrics.add_task_count(5)
+# 2. TaskMetrics：指标统计
+metrics = TaskMetrics()
+
+# 模拟任务处理过程：外部注入 3 个 + 上游接收 2 个
+metrics.add_external_input_count(3)
+metrics.set_upstream_counter("upstream", ValueWrapper(value=2))
 metrics.add_success_count(3)
 metrics.add_fail_count(1)
 metrics.add_duplicate_count(1)
 
-# 各カウントの照会
-print(f"入力: {metrics.get_task_count()}")
-print(f"成功: {metrics.get_success_count()}")
-print(f"失敗: {metrics.get_fail_count()}")
-print(f"重複: {metrics.get_duplicate_count()}")
-print(f"全完了: {metrics.is_tasks_finished()}")
+# 查询各项计数
+print(f"输入: {metrics.get_input_count()}")  # 5
+print(f"成功: {metrics.get_success_count()}")  # 3
+print(f"失败: {metrics.get_fail_count()}")  # 1
+print(f"重复: {metrics.get_duplicate_count()}")  # 1
+print(f"全部完成: {metrics.is_tasks_finished()}")
 
-# スナップショット辞書の取得
+# 获取快照字典
 counts = metrics.get_counts()
-print(f"保留中: {counts['tasks_pending']}")
+print(f"待处理: {counts['tasks_pending']}")
 ```
 
 ```python
-# 3. TaskInQueue / TaskOutQueue：キュー通信
+# 3. TaskInQueue / TaskOutQueue：队列通信
 from queue import Queue as ThreadQueue
 
-# 入力キューの作成
+# 创建输入队列
 in_queue = TaskInQueue(out_name="processor")
 in_queue.add_source_name("producer")
 
-# 出力キューの作成
+# 创建输出队列
 out_queue = TaskOutQueue(in_name="processor")
 consumer_queue = ThreadQueue()
-out_queue.add_queue(consumer_queue, "consumer")
+out_queue.add_queue("consumer", consumer_queue)
 
-# タスクを生産
+# 生产任务
 envelope_a = TaskEnvelope(task="hello", id=1)
 in_queue.put(envelope_a)
 out_queue.put(envelope_a)
 
-# タスクを消費
+# 消费任务
 retrieved = in_queue.get()
-print(f"デキューされたタスク: {retrieved.get_task()}")
+print(f"出队任务: {retrieved.get_task()}")
 ```
 
 ## ベストプラクティス
 
-1. **クリティカルタスク**: 適切な `set_retry_exceptions` を設定
-2. **重複に敏感なシナリオ**: `enable_duplicate_check=True` を有効化
-3. **キュー通信**: メモリ溢れを避けるため `maxsize` を適切に設定
+1. **クリティカルタスク**: `set_retry_exceptions()` でリトライ可能な例外型を設定
+2. **ノード別統計**: `set_upstream_counter()` / `set_downstream_counter()` でノード間のトラフィックを追跡
+3. **キュー通信**: `maxsize` を適切に設定してメモリ溢れを避ける

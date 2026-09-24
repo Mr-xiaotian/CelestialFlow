@@ -1,6 +1,6 @@
-# node/util_callable.py
+# src/celestialflow/node/util_callable.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `util_callable.py` provides lightweight validation of executor function signatures. It currently exposes a single utility function, `validate_executor_func_signature`, which `BaseTaskNode._set_func` calls when registering a callback.
 

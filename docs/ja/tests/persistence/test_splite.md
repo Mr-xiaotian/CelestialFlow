@@ -1,16 +1,16 @@
-# SQLite ユーティリティテスト (test_splite.py)
+# tests/persistence/test_splite.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
-`celestialflow.persistence.util_sqlite` モジュールのすべての sqlite ユーティリティ関数を検証し、データベースのテーブル作成、レコードの CRUD、状態遷移、stage 別集約などの機能が正確かつ信頼できることを確認します。
+`celestialflow.persistence.util_sqlite` モジュールのすべての sqlite ユーティリティ関数を検証し、データベースのテーブル作成、レコードの CRUD、状態遷移、リトライ更新、stage 別集約などの機能が正確かつ信頼できることを確認します。
 
 ## コアテスト対象
 
 | 関数 | 説明 |
 |------|------|
-| `connect_db` | 接続を確立し、records テーブルとインデックスを自動作成 |
+| `connect_db` | 接続を確立し、records テーブルとインデックスを自動作成。旧ライブラリでカラムが欠落している場合は `retry_times` を自動補完 |
 | `normalize_record` | エラーレコードを sqlite 書き込み可能形式に正規化し、`stage` または `status` が欠落している場合は `KeyError` を送出 |
 | `insert_record` | レコードを1件挿入（メタ情報行は無視し、`False` を返す） |
 | `load_records` | ステータスでフィルタして全レコードを読み取り（任意の `status` パラメータ） |
@@ -22,6 +22,7 @@
 | `load_records_after_event_id_in_fail` | failed event_id 下限で増分読み取り |
 | `promote_record_to_failed_by_event_id` | ステータスを failed に更新しエラー情報を書き込み（`event_id` はエラーイベント ID に置き換え） |
 | `promote_record_to_success_by_event_id` | ステータスを success に更新し結果を書き込み |
+| `update_retry_by_event_id` | pending レコードのリトライ回数とエラー情報を更新し、ステータスは変更しない；レコードが存在しない場合は `False` を返す |
 | `delete_record_by_event_id` | event_id でレコードを削除 |
 | `load_task_error_records` | stage 別に `(task_json, (error_type, error_message))` リストを読み取り |
 | `load_task_result_records` | stage 別に `(task_json, result_json)` リストを読み取り |
@@ -30,20 +31,20 @@
 
 | テストクラス | ケース数 | カバレッジ対象 |
 |------------|---------|------------|
-| `TestSpliteUtils` | 17 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、エラータイプ集計、状態遷移、削除、ペア読み取り |
+| `TestSpliteUtils` | 19 | 接続・テーブル作成、正規化、挿入/読み取り、追加/重複排除、ページング検索、クリア、増分/グループ読み取り、エラータイプ集計、状態遷移、リトライ更新、削除、ペア読み取り |
 
 ## 主要テストシナリオ
 
 ### テーブル作成とインデックス
 
 - `connect_db` は `records` テーブルおよび `idx_records_event_id`、`idx_records_status_id` インデックスを自動作成。
-- `result_json` フィールドの存在を検証し、テーブル構造のフィールド順序が `id / event_id / ts / stage / status / error_type / error_message / task_json / result_json` であることを確認。
+- `result_json` フィールドの存在を検証し、テーブル構造のフィールド順序が `id / event_id / ts / stage / status / error_type / error_message / task_json / result_json / retry_times` であることを確認。
 
 ### 正規化
 
 - `event_id` を欠くメタ情報行（例：`timestamp` / `graph_name` のみ）は `None` を返し、データベースに保存されない。
 - 業務レコードが `stage` または `status` を欠く場合、`normalize_record` は `KeyError` を送出。
-- エラーレコードは `status="failed"` に正規化され、`task_json` は JSON 文字列にシリアライズされる。
+- エラーレコードは `status="failed"` に正規化され、`retry_times` はデフォルトで 0、`task_json` は JSON 文字列にシリアライズされる。
 
 ### 挿入と読み取り
 
@@ -68,10 +69,11 @@
 - `query_error_type_counts` は `node` パラメータによる stage フィルタをサポート。
 - status が `failed` のレコードのみを集計し、success など他の状態は無視。
 
-### 状態遷移
+### 状態遷移とリトライ更新
 
 - `promote_record_to_failed_by_event_id`: waiting→failed、event_id を新しいエラー event ID に移行しエラー情報を書き込み。
 - `promote_record_to_success_by_event_id`: pending→success、結果を書き込み、元の event_id を保持。
+- `update_retry_by_event_id`: pending レコードのリトライ回数とエラー情報を更新し、ステータスは pending のまま維持；存在しない event_id に対しては `False` を返す。
 
 ### 増分とグループ化
 
@@ -93,7 +95,7 @@ pytest tests/persistence/test_splite.py -v
 # キーワードでマッチ
 pytest tests/persistence/test_splite.py -k "connect or normalize" -v
 pytest tests/persistence/test_splite.py -k "insert or append" -v
-pytest tests/persistence/test_splite.py -k "promote" -v
+pytest tests/persistence/test_splite.py -k "promote or retry" -v
 pytest tests/persistence/test_splite.py -k "group" -v
 pytest tests/persistence/test_splite.py -k "load_task" -v
 ```

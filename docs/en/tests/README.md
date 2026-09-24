@@ -1,6 +1,6 @@
 # tests/ Test Overview
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Description
 
@@ -33,7 +33,7 @@ If this is your first time examining the test suite, we recommend reading in the
 | `graph/test_graph.md` etc. | `TaskGraph`, topological analysis, and structure export tests |
 | `observability/test_observer.md` / `test_reporter.md` | Observer, Reporter, injection, and reporting tests |
 | `persistence/test_lifecycle.md` etc. | Lifecycle / log / sqlite utility persistence tests |
-| `runtime/test_envelope.md` etc. | Queue, envelope, exception, estimator, counter, and other base runtime tests |
+| `runtime/test_envelope.md` etc. | Base runtime tests such as queues, envelopes, exceptions, and counters |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` benchmark tests and clone utility tests |
 
 ## How to Use

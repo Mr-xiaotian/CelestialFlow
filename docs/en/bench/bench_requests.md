@@ -1,6 +1,6 @@
-# bench_requests.py Benchmark Guide
+# bench/bench_requests.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -31,6 +31,8 @@ Outputs mean, median, stdev, min, max (in milliseconds) for each group of reques
 3. **Public target rate limiting**: If pointing at `httpbin.org` or similar public services, frequent testing may trigger rate limiting, returning 429 or connection resets.
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Public internet httpbin (date not recorded)
 
@@ -65,7 +67,7 @@ Outputs mean, median, stdev, min, max (in milliseconds) for each group of reques
 - On a stable local target, **sequential Session reuse yields a very clear benefit**, with average time dropping about **72%** (20.7ms → 5.8ms)
 - In concurrent scenarios, **per-thread Session reuse** still beats concurrent no-Session, but the advantage is noticeably smaller than in the serial scenario, indicating that local interface processing and thread scheduling overhead have become the main components
 - Compared with the old public-internet `httpbin` results, local results show less variance and are more suitable for code-level connection reuse comparisons
-- The current script is better suited for validating HTTP client strategies against CelestialFlow's own web interfaces, rather than measuring public internet network quality
+- The current script is better suited for validating celestialflow-web client strategies, rather than measuring public internet network quality
 
 ### 2026/06/16 - Local TaskWebServer (2nd retest)
 

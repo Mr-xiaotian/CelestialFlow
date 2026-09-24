@@ -1,6 +1,6 @@
-# observability/util_types.py
+# src/celestialflow/observability/util_types.py
 
-> 📅 Last Updated: 2026/09/10
+> 📅 Last Updated: 2026/09/24
 
 `observability/util_types.py` defines the minimal task graph protocol interface `ReporterTaskGraph` and the minimal node protocol interface `ReporterTaskNode` on which `TaskReporter` depends. They are `Protocol` classes, allowing `TaskReporter` to declare its dependency without importing the concrete `TaskGraph` / `BaseTaskNode` types.
 
@@ -23,6 +23,8 @@ class ReporterTaskGraph(Protocol):
 
     def get_nodes(self) -> list[str]: ...
 
+    def get_node_meta(self) -> dict[str, dict[str, Any]]: ...
+
     def get_edges(self) -> dict[str, list[str]]: ...
 
     def get_source_nodes(self) -> list[str]: ...
@@ -30,8 +32,6 @@ class ReporterTaskGraph(Protocol):
     def get_lifecycle_path(self) -> Path: ...
 
     def get_graph_analysis(self) -> dict[str, Any]: ...
-
-    def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]: ...
 ```
 
 | Method | Return | Description |
@@ -39,11 +39,11 @@ class ReporterTaskGraph(Protocol):
 | `node_dict` | `Mapping[str, ReporterTaskNode]` | Returns a read-only mapping of nodes indexed by name (property) |
 | `get_graph_id()` | `str` | Get the unique identifier of the current task graph |
 | `get_nodes()` | `list[str]` | Returns the names of all nodes |
+| `get_node_meta()` | `dict[str, dict[str, Any]]` | Returns each node's build-time metadata (`class_name` / `execution_mode` / `max_workers`), reported once along with the graph metadata |
 | `get_edges()` | `dict[str, list[str]]` | Returns the edge set in the graph structure (`{from_name: [to_name, ...]}`) |
 | `get_source_nodes()` | `list[str]` | Returns the names of all source nodes with no upstream input |
 | `get_lifecycle_path()` | `Path` | Get the path to the lifecycle persistence file |
 | `get_graph_analysis()` | `dict[str, Any]` | Get graph analysis data (topology info, etc.) |
-| `collect_runtime_snapshot()` | `tuple[dict[str, Any], float]` | Collect the latest runtime snapshot (per-node aggregated status dict + collection timestamp) |
 
 ### ReporterTaskNode
 
@@ -56,12 +56,18 @@ class ReporterTaskNode(Protocol):
     def put_task(self, task: Any) -> None: ...
 
     def put_signal(self) -> None: ...
+
+    def get_meta(self) -> dict[str, Any]: ...
+
+    def get_snapshot(self) -> dict[str, Any]: ...
 ```
 
 | Method | Return | Description |
 |--------|--------|-------------|
 | `put_task(task)` | `None` | Inject a single task into the node's input queue (for dynamic task injection) |
 | `put_signal()` | `None` | Put a termination signal into the node's input queue |
+| `get_meta()` | `dict[str, Any]` | Returns the node's build-time metadata (`class_name` / `execution_mode` / `max_workers`) |
+| `get_snapshot()` | `dict[str, Any]` | Returns the node's runtime snapshot (status, counts, elapsed, upstream/downstream counts) |
 
 ## Usage Examples
 

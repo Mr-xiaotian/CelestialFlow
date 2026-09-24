@@ -1,6 +1,6 @@
-# TaskErrors
+# src/celestialflow/runtime/util_errors.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -341,7 +341,7 @@ except InvalidOptionError as e:
 from celestialflow.runtime.util_errors import DuplicateNodeError
 
 try:
-    graph.set_nodes([node_a, node_a])  # 同名ノード
+    graph.set_nodes([stage_a, stage_a])  # 同名ノード
 except DuplicateNodeError as e:
     print(f"重複ノード: {e}")
 ```
@@ -376,11 +376,11 @@ from celestialflow.runtime.util_errors import DuplicateNodeError, UnknownNodeErr
 
 graph = TaskGraph(name="ErrorTestGraph")
 
-node_a = TaskExecutor("A", func=lambda x: x)
-node_b = TaskExecutor("A", func=lambda x: x * 2)  # 同名ノード
+stage_a = TaskExecutor("A", func=lambda x: x)
+stage_b = TaskExecutor("A", func=lambda x: x * 2)  # 同名ノード
 
 try:
-    graph.set_nodes([node_a, node_b])
+    graph.set_nodes([stage_a, stage_b])
 except DuplicateNodeError as e:
     print(f"重複ノード: {e}")
 

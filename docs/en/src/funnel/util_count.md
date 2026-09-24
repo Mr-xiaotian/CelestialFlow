@@ -1,6 +1,6 @@
-# PendingCounter
+# src/celestialflow/funnel/util_count.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `funnel/util_count.py` provides a thread-safe pending counter, `PendingCounter`, used to count the number of records corresponding to a `BaseSpout` that have not yet finished processing.
 

@@ -1,6 +1,6 @@
-# Funnel Module
+# src/celestialflow/funnel/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The Funnel module provides CelestialFlow's queue communication infrastructure, serving as the underlying base class for `LogSpout`/`LogInlet` and `LifecycleSpout`/`LifecycleInlet` in the Persistence module.
 

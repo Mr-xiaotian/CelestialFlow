@@ -1,6 +1,6 @@
-# Graph Structure Rendering Tests (test_render.py)
+# tests/graph/test_render.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 Verifies that `celestialflow.graph.util_render.render_structure_list` can render a graph structure (node metadata, adjacency list, source nodes) as a tree-shaped text list with borders, covering scenarios such as normal DAGs, cyclic graphs, empty graphs, and ultra-deep chains, while ensuring that deep-graph rendering does not trigger Python's default recursion limit.
@@ -13,12 +13,12 @@ Verifies that `celestialflow.graph.util_render.render_structure_list` can render
 
 | Test Class | Case Count | Coverage Target | Key Assertions |
 |--------|--------|---------|---------|
-| `TestUtilRender` | 4 | Normal DAG rendering, empty structure, cyclic graph reference marker, ultra-deep chain rendering | Empty structure returns `"+ No stages defined +"`; cyclic graph repeating nodes are expanded only once and marked `[Ref]`; deep chain length = `DEEP + 2` without raising `RecursionError` |
+| `TestUtilRender` | 4 | Normal DAG rendering, empty structure, cyclic graph reference marker, ultra-deep chain rendering | Empty structure returns `"+ No nodes defined +"`; cyclic graph repeating nodes are expanded only once and marked `[Ref]`; deep chain length = `DEEP + 2` without raising `RecursionError` |
 
 ## Key Test Scenarios
 
 1. **Normal DAG rendering** (`test_render_structure_list`): A 4-node diamond structure (s1→{s2,s3}→s4) verifies the node label format is correct and the list contains the `[Ref]` marker.
-2. **Empty structure** (`test_render_structure_list_no_nodes`): Empty `nodes` should return the placeholder `"+ No stages defined +"`.
+2. **Empty structure** (`test_render_structure_list_no_nodes`): Empty `nodes` should return the placeholder `"+ No nodes defined +"`.
 3. **Cyclic graph reference marker** (`test_render_structure_list_cycle`): A three-node closed loop (c1→c2→c3→c1) verifies that `c1` appears 2 times (first expansion + `[Ref]` back reference), and the entire output contains `[Ref]`.
 4. **Ultra-deep chain does not trigger recursion limit** (`test_render_deep_chain_no_recursion_error`): A 5000-node linear chain verifies the rendered row count is exactly `DEEP + 2` (top border + node rows + bottom border), and the first and last node labels are both correct.
 

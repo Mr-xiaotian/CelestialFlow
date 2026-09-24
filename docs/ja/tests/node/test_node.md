@@ -1,10 +1,10 @@
-# ノード基底クラステスト (test_node.py)
+# tests/node/test_node.py
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
-`celestialflow.node.core_node.BaseTaskNode`（公開サブクラス `TaskExecutor` を介して間接的にカバー）が提供する汎用設定、紐付け、起動時例外集約の振る舞いを検証します。
+`celestialflow.node.core_node.BaseTaskNode`（公開サブクラス `TaskExecutor` を介して間接的にカバー）が提供する汎用設定、紐付け、起動時例外集約の振る舞いを検証します。`get_snapshot` / `get_meta` のフィールド区分、および `connect_to` が確立するカウントバインドが実行モード切替後も安定していることを含みます。
 
 ## コアテスト対象
 
@@ -12,7 +12,7 @@
 |-----------|------|------|
 | `add_one(x)` | テストコールバック | 同期加算関数 |
 | `async_add_one(x)` | テストコールバック | 非同期加算コルーチン関数 |
-| `TestBaseTaskNodeConfig` | ケースクラス | 名称、実行モード、スナップショット、モード切替時の前駆バインド保持をカバー |
+| `TestBaseTaskNodeConfig` | ケースクラス | 名称、実行モード、スナップショット / メタ情報、モード切替時の下流バインド保持をカバー |
 | `TestBaseTaskNodeStartErrors` | ケースクラス | `start` / `start_async` の例外集約挙動をカバー |
 
 ## 主要テストシナリオ
@@ -27,8 +27,10 @@
 | `test_valid_execution_mode_thread` | `execution_mode="thread"` に対応 |
 | `test_valid_execution_mode_async` | `execution_mode="async"` に対応（`async_add_one` を使用） |
 | `test_invalid_execution_mode` | 不正なモードで `InvalidOptionError` が送出される |
-| `test_snapshot_contains_execution_mode` | `snapshot(interval=0.1)` が返す dict に `execution_mode` フィールドが含まれる |
-| `test_prev_binding_survives_execution_mode_switch` | `prev_binding` で前駆をバインド後、`set_execution_mode("thread")` を呼んでも既存のカウンタ関係が破壊されない（`metrics.get_task_count()` が前後で一致） |
+| `test_snapshot_excludes_build_time_fields` | `get_snapshot()` は構築期フィールド `name` / `class_name` / `execution_mode` / `max_workers` を含まなくなる |
+| `test_get_meta_reports_build_time_fields` | `get_meta()` は `class_name` / `execution_mode` / `max_workers` のみを返す |
+| `test_snapshot_tolerates_not_started_node` | ノード未起動時に `get_snapshot()` が `start_time` の欠落でクラッシュしない（`status == 0`、`start_time == 0.0`、`elapsed_time == 0`） |
+| `test_connect_to_binding_survives_execution_mode_switch` | `connect_to` が確立した下流 / 上流の共有カウンタが `set_execution_mode("thread")` 後も同一オブジェクトを保ち、カウントが加算され続ける |
 
 ### `TestBaseTaskNodeStartErrors` — 起動例外の集約
 
@@ -41,14 +43,14 @@
 
 ```mermaid
 flowchart TB
-    Start[start]
+    Start[start / start_async]
     Prep[_prepare_start]
     Mode{execution_mode}
     Serial[dispatch_serial]
     Thread[dispatch_thread]
     Async[dispatch_async]
     Finish[_finish_start]
-    Agg[ExceptionGroup 集約送出]
+    Agg[ExceptionGroup 集約して送出]
 
     Start --> Prep
     Prep --> Mode
@@ -65,9 +67,9 @@ flowchart TB
 
 | テストクラス | ケース数 | カバレッジ目標 |
 |--------|--------|---------|
-| `TestBaseTaskNodeConfig` | 8 | 名称の識別と変更、3 種の合法的な実行モード、不正モードでのエラー、スナップショットフィールド、モード切替で前駆バインドが破壊されないこと |
+| `TestBaseTaskNodeConfig` | 10 | 名称の識別と変更、3 種の合法的な実行モード、不正モードでのエラー、スナップショット / メタ情報のフィールド区分、未起動スナップショットの耐障害性、モード切替で下流バインドが破壊されないこと |
 | `TestBaseTaskNodeStartErrors` | 2 | 同期 / 非同期 `start*` の例外集約 |
-| **合計** | **10** | |
+| **合計** | **12** | |
 
 ## 実行方法
 
@@ -94,7 +96,8 @@ pytest tests/node/test_node.py -k "execution_mode" -v
 
 ## 注意事項
 
-- `test_prev_binding_survives_execution_mode_switch` は回帰テストで、過去の「`TaskMetrics` が実行モード切替時にカウンタを再構築し、前駆バインドが無効化される」問題をカバーします。現在のバージョンでは `TaskMetrics` が同一の `threading.Lock` を使い続けることで統計オブジェクトの安定性を保証しています。
+- `test_connect_to_binding_survives_execution_mode_switch` は回帰テストで、過去の「`TaskMetrics` が実行モード切替時にカウンタを再構築し、下流バインドが無効化される」問題をカバーします。現在のバージョンでは `connect_to` が `metrics.set_downstream_counter` / `set_upstream_counter` を介して上流と下流が同一のカウンタオブジェクトを共有するようにします。
+- `get_snapshot()` は実行期フィールド（`start_time` / `status` / `elapsed_time` / カウント / `upstream_counts` / `downstream_counts`）のみを収集し、構築期フィールドは `get_meta()` がグラフ構造とともに一度に報告するようになり、状態プッシュのたびに重複転送することを避けます。
 - `TestBaseTaskNodeStartErrors` は `monkeypatch.setattr` で `_prepare_start` と `_finish_start` という **内部フック** を置き換えます。これはテストと実装が同じパッケージ内に存在することを必要としますが、`celestialflow.node` からの公開エクスポートにより保証されています。
 - `ExceptionGroup` は Python 3.11+ でのみ利用可能です。本リポジトリは Python 3.14 をベースにしているため要件を満たします。
 - 関連実装は `src/celestialflow/node/core_node.py` にあります。

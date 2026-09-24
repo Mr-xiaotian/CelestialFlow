@@ -1,6 +1,6 @@
-# benchmark/util_benchmark.py
+# src/celestialflow/benchmark/util_benchmark.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `benchmark/util_benchmark.py` provides performance benchmarking functionality for executors and task graphs, used to compare performance differences across execution modes.
 
@@ -67,7 +67,11 @@ async def benchmark_graph(
     execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Benchmarks a task graph.
+    Benchmarks a task graph, covering all combinations of ``graph_mode × execution_mode``.
+
+    - ``sync_graph`` is used for cells where ``execution_mode in {"serial", "thread"}``;
+    - ``async_graph`` is used for cells where ``execution_mode == "async"``;
+    - ``graph_mode`` determines whether the current cell is started with ``run()`` or ``run_async()``.
 
     :param sync_graph: Sync task graph template (for serial/thread execution_mode)
     :param async_graph: Async task graph template (for async execution_mode)

@@ -1,6 +1,6 @@
 # demo/ デモ概要
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 説明
 
@@ -13,7 +13,7 @@
 プロジェクトに初めて触れる方は、以下の順序で読むことを推奨します：
 
 1. `demo_executor.md`：まず `TaskExecutor` の基本的な実行方法を理解
-2. `demo_graph.md`：次に `TaskGraph` がノードをどのようにつなげて DAG を形成するかを確認
+2. `demo_graph.md`：次に `TaskGraph` が stage をどのようにつなげて DAG を形成するかを確認
 3. `demo_structure.md`：さらにチェーン、グリッド、ループ、完全グラフなどの構造化ラッパーを確認
 4. `demo_observer.md`：最後に実行中の観測と進捗表示を確認
 
@@ -22,11 +22,12 @@
 | ドキュメント | ソースコード | デモ目標 | 外部サービス要否 |
 |------|------|---------|:---------------:|
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` の serial / thread / async 3 つの実行モード | 不要 |
-| `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に `TaskProgress` とカスタム `PrintObserver` を登録 | 不要 |
+| `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に `TaskProgress` と組み込み `PrintObserver` を登録 | 不要 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | タスクグラフから独立して、`BaseInlet` / `BaseSpout` でイベント収集パイプラインを構築 | 不要 |
-| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ノード分割パイプライン | Reporter（オプション） |
-| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | Reporter（オプション） |
-| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | Reporter（オプション） |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ型パイプライン | Reporter / CelestialTree（オプション） |
+| `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジの web レポートデモ | Reporter（オプション） |
+| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | Reporter / CelestialTree（オプション） |
+| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | Reporter / CelestialTree（オプション） |
 | `demo_redis.md` | `demo/demo_redis.py` | 通常の `TaskExecutor` で Redis タスク投入、結果確認、外部タスクソースを実現 | Redis、Reporter（オプション） |
 | `demo_network.md` | `demo/demo_network.py` | `TaskCross` でニューラルネットワークトポロジとパラメータ化線形ノードを構築 | 不要 |
 | `demo_utils.md` | `demo/demo_utils.py` | 各デモスクリプトで共有されるヘルパー関数とタスク関数 | 不要 |
@@ -40,9 +41,9 @@
 | ドキュメント | 説明 |
 |------|------|
 | `demo_executor.md` | `TaskExecutor` のシリアル / スレッド / 非同期実行デモ |
-| `demo_graph.md` | DAG タスクグラフ、ETL フロー、staged/eager スケジューリングデモ |
+| `demo_graph.md` | DAG タスクグラフ、ETL フロー、非同期パイプラインデモ |
 | `demo_structure.md` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop` などの構造化グラフラッパーデモ |
-| `demo_nodes.md` | `TaskExecutor`、`TaskSplitter`、`TaskRouter` などのノードレベル機能説明 |
+| `demo_nodes.md` | `TaskSplitter`、`TaskRouter` などの構造型ノードとチェーン/循環グラフ能力の説明 |
 | `demo_network.md` | `TaskCross` 多層ニューラルネットワークトポロジとパラメータ化ノードのデモ |
 
 ### 観測、パイプラインと拡張
@@ -51,6 +52,7 @@
 |------|------|
 | `demo_observer.md` | オブザーバー、進捗報告、ライフサイクルコールバックデモ |
 | `demo_funnel.md` | Inlet / Spout パイプライン動作とデータフローデモ |
+| `demo_web.md` | 複雑トポロジを Reporter 経由で web ダッシュボードにレポートするデモ |
 | `demo_redis.md` | Redis 関連統合サンプル |
 
 ### ヘルパー関数
@@ -73,6 +75,7 @@ python demo/demo_structure.py
 
 - Reporter サービス
 - Redis サービス
+- CelestialTree サービス
 
 実行前に該当する単一ページドキュメントの「依存関係」と「実行方法」セクションを確認してください。
 

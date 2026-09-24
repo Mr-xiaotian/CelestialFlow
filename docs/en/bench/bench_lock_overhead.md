@@ -1,6 +1,6 @@
-# bench_lock_overhead.py Benchmark Guide
+# bench/bench_lock_overhead.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -47,6 +47,8 @@ Used to quickly assess the cost of "adding an extra explicit lock layer" on the 
 4. **The explicit lock is an "extra layer of lock"**: `multiprocessing.Queue` already has its own internal synchronization; the `lock` results here measure the additional cost of "wrapping one more explicit lock outside".
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### 2026/06/16 - Windows local retest
 

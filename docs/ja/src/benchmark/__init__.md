@@ -1,6 +1,6 @@
-# Benchmark モジュール
+# src/celestialflow/benchmark/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 実行器/タスクグラフのクローン（clone）とベンチマークテスト（benchmark）機能を提供します。本モジュールは依存チェーンの最上位に位置し、他のモジュールに依存できますが、他のモジュールから依存されるべきではありません。
 
@@ -40,10 +40,10 @@ def double(x: int) -> int:
 
 # 状態隔離されたテストのためにタスクグラフをクローン
 graph = TaskGraph(name="Demo")
-node_a = TaskExecutor("A", double)
-node_b = TaskExecutor("B", double)
-graph.set_nodes([node_a, node_b])
-graph.connect([node_a], [node_b])
+stage_a = TaskExecutor("A", double)
+stage_b = TaskExecutor("B", double)
+graph.set_nodes([stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
 
 cloned = clone_graph(graph)
 print(f"元のグラフのノード数: {len(graph.node_dict)}")

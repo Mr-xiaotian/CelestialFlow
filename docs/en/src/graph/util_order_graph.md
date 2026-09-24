@@ -1,6 +1,6 @@
-# OrderGraph and Graph Algorithm Utilities
+# src/celestialflow/graph/util_order_graph.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `graph/util_order_graph.py` provides the minimal graph structure `OrderGraph` along with a set of basic graph algorithms built around it.
 
@@ -8,7 +8,7 @@ This file's current role is to:
 
 - Provide a lightweight, stably ordered graph structure for internal framework use.
 - Carry part of the graph analysis capabilities to reduce coupling with third-party graph structures.
-- Provide a unified graph analysis foundation for `TaskGraph`, runtime estimation, and tests.
+- Provide a unified graph analysis foundation for `TaskGraph` and tests.
 
 ## Main Capabilities
 
@@ -28,8 +28,6 @@ This file's current role is to:
 - `in_edges`: returns a view of the incoming adjacency list (**shared with internal storage, callers should not modify it**).
 - `successors(name)`: returns successor nodes.
 - `predecessors(name)`: returns predecessor nodes.
-- `has_node(name)`: checks whether a node exists.
-- `from_edges(out_edges, stage_names=None)`: build an `OrderGraph` from an adjacency map.
 
 ### Graph Algorithms
 
@@ -45,14 +43,9 @@ This file's current role is to:
 
 ## Design Notes
 
-### Why not `list`
+### Internal Storage
 
-`OrderGraph` uses `dict[str, None]` internally for `_nodes` rather than `list[str]`, because it needs to satisfy two things at once:
-
-- Fast node existence checks.
-- Stable node iteration order.
-
-With a `list`, deduplication and existence checks are both linear; with a regular `set`, existence checks are fast but order is unstable. `dict` is effectively an "ordered set" here, which fits this scenario better.
+`OrderGraph` internally uses two adjacency lists (`_in: dict[str, list[str]]` and `_out: dict[str, list[str]]`) to jointly express the node set and the edge set. `add_node` / `add_edge` never remove nodes, and node iteration order is guaranteed by Python `dict` insertion order, so the node set and edge set always remain stable.
 
 ### Why preserve order
 
@@ -85,7 +78,6 @@ This level algorithm directly serves the current `TaskGraph` graph analysis proc
 - Source node identification.
 - DAG check.
 - Node level computation.
-- Topological and predecessor traversal required for runtime global pending estimation.
 
 ## Usage Examples
 
@@ -100,7 +92,7 @@ graph.add_edge("A", "C")
 graph.add_edge("B", "D")
 graph.add_edge("C", "D")
 
-print(graph.nodes)  # ('A', 'B', 'C', 'D')
+print(graph.nodes)  # ['A', 'B', 'C', 'D']
 print(graph.successors("A"))  # ('B', 'C')
 print(graph.predecessors("D"))  # ('B', 'C')
 print(is_dag(graph))  # True

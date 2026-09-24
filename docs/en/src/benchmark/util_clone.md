@@ -1,6 +1,6 @@
-# benchmark/util_clone.py
+# src/celestialflow/benchmark/util_clone.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `benchmark/util_clone.py` provides functionality for cloning executors and task graphs, used for performance testing and configuration reuse.
 
@@ -35,7 +35,6 @@ Copied attributes:
 - `max_workers`: Concurrency limit
 - `max_retries`: Max retry count
 - `max_info`: Max log info length
-- `enable_duplicate_check`: Duplicate check toggle
 - `retry_exceptions`: List of retryable exceptions (set via `set_retry_exceptions()`)
 
 ### clone_graph

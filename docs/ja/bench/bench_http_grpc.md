@@ -1,6 +1,6 @@
-# bench_http_grpc.py ベンチマーク説明
+# bench/bench_http_grpc.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目的
 
@@ -14,9 +14,9 @@ CelestialTree イベント追跡システムの異なる転送プロトコル（
 | `bench_http_ctree` | HTTP プロトコルで CelestialTree にイベントを報告 |
 | `bench_grpc_ctree` | gRPC プロトコルで CelestialTree にイベントを報告 |
 
-- **グラフ構造**：`TaskSplitter → TaskStage` のシンプルなチェーン
+- **グラフ構造**：`TaskSplitter → TaskExecutor` のシンプルなチェーン
 - **タスク**：`no_op` 恒等関数（`range(1e4)` を処理）
-- **設定**：`stage_mode="thread"`、`execution_mode="thread"`、`max_workers=50`
+- **設定**：`execution_mode="thread"`、`max_workers=50`（`TaskSplitter` はデフォルトで直列、`TaskExecutor` 自身も `execution_mode` を明示的に設定しない。構築時に直接引数を渡しているため）
 
 ## 主要設定
 
@@ -31,9 +31,11 @@ CelestialTree イベント追跡システムの異なる転送プロトコル（
 
 ## ベンチマーク結果（実測）
 
+> 🟢 本セクションの表の所要時間はすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
+
 ### 履歴結果 - ローカル CelestialTree（日時未記録）
 
-> 環境：Windows、Python 3.10、TaskSplitter → TaskStage チェーン、`range(1e4)` を処理
+> 環境：Windows、Python 3.10、TaskSplitter → TaskExecutor チェーン、`range(1e4)` を処理
 > 外部サービス：ローカル CelestialTree（HTTP + gRPC）
 
 | シナリオ | 所要時間 | ベースライン比 overhead |
@@ -102,7 +104,7 @@ python bench/bench_http_grpc.py
 
 ## 依存関係
 
-- `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskStage`）
+- `celestialflow`（`TaskChain`、`TaskSplitter`、`TaskExecutor`）
 - `celestialtree`（追加インストールが必要。ソースリポジトリでは `uv sync --group dev` で取得可能）
 - `python-dotenv`
 - 外部サービス：CelestialTree（HTTP ポート + gRPC ポート）

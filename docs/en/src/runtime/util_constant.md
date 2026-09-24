@@ -1,6 +1,6 @@
-# RuntimeConstant
+# src/celestialflow/runtime/util_constant.py
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/24
 
 `runtime/util_constant.py` defines runtime global constants, primarily the log level mapping table `LEVEL_DICT`.
 

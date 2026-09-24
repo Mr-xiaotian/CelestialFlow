@@ -1,6 +1,6 @@
-# Runtime Exception Tests (test_errors.py)
+# tests/runtime/test_errors.py
 
-> 📅 Last Updated: 2026/08/19
+> 📅 Last Updated: 2026/09/24
 
 ## Purpose
 Verifies the custom exception hierarchy in `celestialflow.runtime.util_errors`, ensuring that exception inheritance, default messages, and additional fields all meet expectations.

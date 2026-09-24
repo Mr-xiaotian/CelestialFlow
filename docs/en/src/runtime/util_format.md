@@ -1,6 +1,6 @@
-# RuntimeFormat
+# src/celestialflow/runtime/util_format.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `runtime/util_format.py` provides general formatting utility functions, including string truncation, table rendering, and clustering by value.
 

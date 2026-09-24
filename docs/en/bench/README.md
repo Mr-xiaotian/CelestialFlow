@@ -1,10 +1,10 @@
 # bench/ Benchmark Overview
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/14
 
 ## Description
 
-This directory collects benchmark documentation for various aspects of the `CelestialFlow` project, covering topics such as execution modes, graph scheduling, persistence, queues, hashing, lock overhead, network requests, and Python 3.14 GIL / No-GIL comparisons.
+This directory collects benchmark documentation for various aspects of the `CelestialFlow` project, covering topics such as execution modes, graph scheduling, persistence, queues, hashing, lock overhead, a comparison of funnel vs. lock synchronization mechanisms, network requests, and Python 3.14 GIL / No-GIL comparisons.
 
 These benchmarks serve three main purposes:
 
@@ -51,6 +51,7 @@ To quickly build a general impression of the project's performance characteristi
 | Document | Description |
 |------|------|
 | `bench_lock_overhead.md` | Lock contention and synchronization overhead |
+| `bench_funnel_vs_lock.md` | Comparison of funnel (queue + single consumer) vs. locking (`ValueWrapper`) synchronization mechanisms |
 | `bench_datastructures.md` | Performance baselines for common data structures and cross-process structures |
 | `bench_hash.md` | Comparison of object stable hash strategies (`normalize_for_hash` + multiple serialization/hash combinations) |
 | `bench_hash_container.md` | Hash performance comparison for container-type objects |

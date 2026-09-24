@@ -1,6 +1,6 @@
 # CelestialTree Client
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/24
 
 CelestialFlow は `celestialtree` クライアントの接続をサポートし、細粒度のタスク全リンクトレース（Provenance）とイベント記録を実現します。
 
@@ -49,33 +49,12 @@ graph.set_ctree(ctree_client)
 
 フレームワークは以下のタイプのイベントを自動的に発行します：
 
-- `task.input`: タスクが Stage に入る。
+- `task.input`: タスクがノードに入る。
 - `task.success`: タスク処理が成功。
 - `task.error`: タスク処理が失敗。
 - `task.retry.N`: タスクの N 回目のリトライ。
-- `task.split`: タスクの分割。
-- `task.route`: タスクのルーティング。
-- `task.duplicate`: 重複タスクの検出。
 - `termination.input` / `termination.merge`: 終了信号のフロー。
 
 ## トレーサビリティ照会
 
-`TaskGraph` はトレーサビリティ情報を照会するための簡略化されたラッパーメソッドを提供します：
-
-### get_stage_input_trace
-
-ある Stage の現在のすべての入力タスクのトレースツリー（すなわち、これらのタスクがそれぞれどこから来たか）を取得します。
-
-```python
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-print(trace_str)
-```
-
-### get_error_trace
-
-特定のエラー ID のトレースツリーを取得します。
-
-```python
-trace_str = graph.get_error_trace(error_id=12345)
-print(trace_str)
-```
+`TaskGraph` は `get_stage_input_trace` / `get_error_trace` などの便利な照会メソッドを内蔵しなくなりました。フレームワークは、注入されたクライアントを介してイベントを CelestialTree サービスへ送信する役割のみを担います。トレーサビリティ情報を照会する必要がある場合は、`celestialtree` クライアント自身の照会インターフェースを直接使用してください。

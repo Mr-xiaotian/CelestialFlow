@@ -1,6 +1,6 @@
-# bench_utils.py Benchmark Notes
+# bench/bench_utils.py
 
-> 📅 Last Updated: 2026/04/22
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 

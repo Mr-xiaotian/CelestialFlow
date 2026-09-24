@@ -1,6 +1,6 @@
-# bench_futures_memory.py Benchmark Guide
+# bench/bench_futures_memory.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -70,6 +70,8 @@ python bench/bench_futures_memory.py
 ```
 
 ## Benchmark Results (Measured)
+
+> 🟢 The timing/memory in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows futures memory comparison (date not recorded)
 

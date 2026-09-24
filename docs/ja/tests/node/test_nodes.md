@@ -1,24 +1,24 @@
-# 具象ノードクラステスト (test_nodes.py)
+# tests/node/test_nodes.py
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
-`celestialflow.node.core_nodes` 内の 3 つの具象ノードクラス `TaskExecutor` / `TaskSplitter` / `TaskRouter` の実行・分割・ルーティング挙動を検証します。直列 / スレッド / 非同期の 3 つの実行モード、重複チェックデフォルト値の Web 互換性、sqlite からの永続化リプレイ、ノード初期化制約、ルーティングカウンタの安定ロックをカバーします。
+`celestialflow.node.core_nodes` 内の 3 つの具象ノードクラス `TaskExecutor` / `TaskSplitter` / `TaskRouter` の実行・分割・ルーティング挙動を検証します。直列 / スレッド / 非同期の 3 つの実行モード、sqlite からの永続化リプレイ、ノード初期化制約、ルーティングの未知 target エラー、バインドカウンタの安定ロックをカバーします。
 
 ## コアテスト対象
 
 | クラス / 関数 | 役割 | 説明 |
 |-----------|------|------|
-| `TaskExecutor` | 被テスト対象 | 汎用エグゼキュータ。`serial` / `thread` / `async`、例外処理、retry、duplicate、`restore_db` を検証 |
-| `TaskSplitter` | 被テスト対象 | 1→N スプリッタ。`split_counter`、空イテラブル、ジェネレータ、カスタム `split_item` を検証 |
-| `TaskRouter` | 被テスト対象 | ルータ。`route_counters`、未知 target で `InvalidOptionError`、安定ロックを検証 |
+| `TaskExecutor` | 被テスト対象 | 汎用エグゼキュータ。`serial` / `thread` / `async`、例外処理、retry、restore_db、結果永続化を検証 |
+| `TaskSplitter` | 被テスト対象 | 1→N スプリッタ。`metrics.downstream_counter`、空イテラブル、ジェネレータ、カスタム分割関数を検証 |
+| `TaskRouter` | 被テスト対象 | ルータ。`func` は `dict[str, Y]` マッピングを返す；`metrics.downstream_counter`、未知 target で `InvalidOptionError`、安定ロックを検証 |
 | `append_records` | ユーティリティ | `celestialflow.persistence.util_sqlite` を介して failed / pending レコードを直接書き込み、リプレイテストに使用 |
 | `build_result_dict` | ユーティリティ | `get_success_pairs` と `get_error_pairs` を集約して `{task: result_or_error_str}` を構築 |
 
 ## 主要テストシナリオ
 
-### `TestTaskExecutor` — エグゼキュータ（17 ケース）
+### `TestTaskExecutor` — エグゼキュータ（14 ケース）
 
 | ケース | カバレッジ目標 |
 |------|---------|
@@ -29,9 +29,6 @@
 | `test_thread_basic` | スレッドモード（4 worker）で 5 タスクを正常処理 |
 | `test_async_basic` | 非同期モードで 3 タスクを正常処理 |
 | `test_async_double` | 非同期モードで 20 タスクを連続処理 |
-| `test_duplicate_check_disabled_by_default` | **回帰**：`enable_duplicate_check` のデフォルトが `False`、重複タスクはカウントされない |
-| `test_duplicate_check_enabled` | 明示的に有効化時、succeeded=3 / duplicated=3 |
-| `test_duplicate_check_disabled` | 明示的に無効化時、succeeded=6 / duplicated=0 |
 | `test_restore_db` | デフォルトでは自ノード `stage == self.get_name()` の failed / pending のみ読み取り、3 件の成功をリプレイ |
 | `test_restore_db_filters_error_type_when_enabled` | `filter_by_error_type=True` + `set_retry_exceptions(RuntimeError)` 時、RuntimeError のみリプレイ |
 | `test_restore_db_filter_keeps_pending_records` | フィルタ有効時でも `pending` レコードは常に保持される |
@@ -44,46 +41,48 @@
 
 | ケース | カバレッジ目標 |
 |------|---------|
-| `test_splitter_init` | デフォルト `execution_mode="serial"`、`max_retries=0`、`split_counter.get() == 0` |
-| `test_splitter_process_success` | `TaskGraph` 直列接続後の下流 `tasks_succeeded == 3`、`split_counter == 3` |
-| `test_splitter_allows_empty_iterable` | 空イテラブルは例外を投げず、下流 succeeded=0、split_counter=0 |
-| `test_splitter_supports_generator_input` | 一度きりジェネレータも完全に分割される（split_counter=3） |
-| `test_splitter_allows_constructor_split_item` | コンストラクタ引数 `split_item=lambda item: item.strip()` で `_split([" a ", " b ", " c "]) == ("a", "b", "c")` |
+| `test_splitter_init` | デフォルト `execution_mode="serial"`、`metrics.downstream_counter == {}` |
+| `test_splitter_process_success` | `TaskGraph` 直列接続後の下流 `tasks_succeeded == 3`、`downstream_counter["A"].get() == 3` |
+| `test_splitter_allows_empty_iterable` | 空イテラブルは例外を投げず、下流 succeeded=0、送信カウント=0 |
+| `test_splitter_supports_generator_input` | 一度きりジェネレータも完全に分割される（送信カウント=3） |
+| `test_splitter_custom_func_transforms_items` | カスタム分割関数（`lambda task: (item.strip() for item in task)`）がサブタスクを変換してから分配し、下流の結果が `["a", "b", "c"]` になる |
 
-### `TestTaskRouter` — ルータ（4 ケース）
+### `TestTaskRouter` — ルータ（6 ケース）
 
 | ケース | カバレッジ目標 |
 |------|---------|
-| `test_router_init` | デフォルト `serial` / `max_retries=0` / `route_counters == {}` |
-| `test_router_route_logic` | `_route` が `(target, task)` を返す；未登録 target で `InvalidOptionError` |
-| `test_router_process_success` | `TaskGraph` 内の 2 つの下流 `target1` / `target2` がそれぞれ 1 件ずつ受信、`route_counters` もそれぞれ = 1 |
-| `test_router_binding_counter_uses_stable_metrics_lock` | ルーティングカウンタは生成時から `metrics.lock` にバインドされ、`execution_mode` を切り替えてもロックオブジェクトは変化しない |
+| `test_router_init` | デフォルト `serial`、`metrics.downstream_counter == {}` |
+| `test_router_func_returns_target_payload_map` | `func(task)` が `{target: payload}` マッピングを返す |
+| `test_router_process_success` | `TaskGraph` 内の 2 つの下流 `target1` / `target2` がそれぞれ 1 件ずつ受信、`downstream_counter` もそれぞれ = 1 |
+| `test_router_unknown_target_fails_with_hint` | 接続済み target へは正常に配送；未接続 target は失敗としてカウントされ、エラーメッセージに `Unknown target: ghost` と許可 target の一覧が含まれる |
+| `test_router_dispatch_targets_receive_own_payload` | 1 回のルーティングで複数 target を返す場合、各下流はルータの入力ではなく自身のペイロードを受け取る |
+| `test_router_binding_counter_stable_across_mode_switch` | ルーティングカウンタは生成時から `metrics` にバインドされ、`execution_mode` を切り替えても同一カウンタオブジェクトが変わらない |
 
 ## 主要データフロー
 
 ```mermaid
 flowchart LR
     subgraph "TaskExecutor"
-        PutTask[put_task] -->|envelope| Q[TaskInQueue]
+        PutTask[put_task] -->|envelope| Q[task_queue]
         Q --> D[Dispatch]
         D --> W[worker]
         W -->|success| SP[process_task_success]
-        SP --> Counter[success_counter]
-        SP --> Downstream[(下流ノード)]
+        SP --> Counter[metrics カウント]
+        SP --> Downstream[(下流ノード yield_queue)]
     end
 
     subgraph "TaskSplitter"
-        Q2[TaskInQueue] --> DS[_split]
+        Q2[task_queue] --> DS[分割関数]
         DS --> PSR[process_task_success]
-        PSR -->|list result| PSR_put[_put_split_result]
-        PSR_put --> SC[split_counter]
+        PSR -->|各サブタスク| PSR_put[yield_queue.put_target]
+        PSR_put --> SC[metrics.downstream_counter]
         PSR_put --> Down2[(下流ノード per item)]
     end
 
     subgraph "TaskRouter"
-        Q3[TaskInQueue] --> DR[_route]
-        DR -->|target,task| PR[process_task_success]
-        PR --> RC[route_counters target]
+        Q3[task_queue] --> DR[ルーティング関数]
+        DR -->|dict target:payload| PR[process_task_success]
+        PR --> RC[metrics.downstream_counter]
         PR --> Down3[(指定下流ノード)]
     end
 ```
@@ -92,10 +91,10 @@ flowchart LR
 
 | テストクラス | ケース数 | カバレッジ目標 |
 |--------|--------|---------|
-| `TestTaskExecutor` | 17 | 3 つの実行モード、retry ヒット / 非ヒット、duplicate デフォルト値、sqlite リプレイ（error_type フィルタ含む）、永続化、コールバックシグネチャ検証 |
-| `TestTaskSplitter` | 5 | デフォルトパラメータ、グラフ統合、空イテラブル、ジェネレータ、カスタム `split_item` |
-| `TestTaskRouter` | 4 | デフォルトパラメータ、`_route` での未知 target 拒否、グラフ統合、安定ロック |
-| **合計** | **26** | |
+| `TestTaskExecutor` | 14 | 3 つの実行モード、retry ヒット / 非ヒット、sqlite リプレイ（error_type フィルタ含む）、永続化、コールバックシグネチャ検証 |
+| `TestTaskSplitter` | 5 | デフォルトパラメータ、グラフ統合、空イテラブル、ジェネレータ、カスタム分割関数 |
+| `TestTaskRouter` | 6 | デフォルトパラメータ、`func` の返すマッピング、グラフ統合、未知 target エラー、ペイロード別配送、安定ロック |
+| **合計** | **25** | |
 
 ## 実行方法
 
@@ -112,9 +111,6 @@ pytest tests/node/test_nodes.py -k "TaskSplitter" -v
 # TaskRouter テストのみ
 pytest tests/node/test_nodes.py -k "TaskRouter" -v
 
-# 重複チェック関連ケースのみ
-pytest tests/node/test_nodes.py -k "duplicate" -v
-
 # sqlite リプレイケースのみ
 pytest tests/node/test_nodes.py -k "restore_db" -v
 ```
@@ -129,9 +125,9 @@ pytest tests/node/test_nodes.py -k "restore_db" -v
 
 ## 注意事項
 
-- `test_duplicate_check_disabled_by_default` は回帰テストで、`enable_duplicate_check` のデフォルトが `False` であることを保証し、ハッシュコストを削減して Web 側の再試行セマンティクスをサポートします。
 - `test_restore_db*` ケースは `append_records` で sqlite に直接書き込み、`load_tasks_grouped_by_stage` のリプレイロジックを検証します。レコードの `stage` フィールドはノード名（`TaskGraph` の `set_nodes` と一致）です。
-- `test_router_binding_counter_uses_stable_metrics_lock` は回帰テストで、過去の `route_counters` がモード切替で `TaskMetrics` が再構築されることでロック参照を失う問題をカバーします。現在のバージョンでは `metrics.lock` が一貫して使用されます。
+- `test_router_unknown_target_fails_with_hint` は、`TaskRouter.process_task_success` が `connect_to` でバインドされていない target に対して `InvalidOptionError` を送出し、エラーメッセージに `Unknown target: <name>` と現在許可されている target の一覧が含まれることをアサートします。
+- `test_router_binding_counter_stable_across_mode_switch` は回帰テストで、過去にバインドカウンタがモードの違いにより `TaskMetrics` の再構築で参照を失う問題をカバーします。現在のバージョンでは `connect_to` によって上流と下流が同一のカウンタオブジェクトを共有します。
 - 非同期ケースには `pytest-asyncio` プラグインが必要です（プロジェクトで `pytest.mark.asyncio` を設定済み）。
 - 永続化関連ケースはグローバルの `LifecycleSpout` / `LogSpout` に依存します。分離したい場合はカスタム fixture で明示的に `start()` / `stop()` してください。
 - 関連実装は `src/celestialflow/node/core_nodes.py` にあります。

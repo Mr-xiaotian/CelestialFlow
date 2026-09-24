@@ -1,6 +1,6 @@
 # CelestialFlow 技術共有
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ---
 
@@ -11,7 +11,7 @@
 **次世代 Python タスクオーケストレーションエンジン**
 
 - 軽量 · グラフ駆動 · 高性能 · 可観測
-- バージョン 3.1.4 | Python 3.12+
+- バージョン 3.3.1 | Python 3.12+
 - DAG / 循環グラフ / 分散実行 / 可観測実行チェーンをサポート
 
 ---
@@ -40,7 +40,7 @@
 ### コア特性
 
 - **グラフトポロジー豊富**：Chain / Cross / Grid / Loop / Wheel / Complete の6種のプリセット構造
-- **多次元実行モデル**：Stage 級 (serial/thread) × Task 級 (serial/thread/async) の組み合わせ
+- **多次元実行モデル**：グラフ級 (serial/thread/async) × ノード級 (serial/thread/async) の組み合わせ
 - **外部連携サンプル**：通常の `TaskExecutor` で Redis / Go Worker などの外部システムに接続可能
 - **イベントソース**：CelestialTree 統合、タスクの全ライフサイクルを追跡可能
 - **状態レポートチェーン**：`TaskReporter` と `celestialflow-web` サービスによる状態と制御命令の交換
@@ -57,15 +57,15 @@
   - オーケストレーションロジックとビジネスロジックを完全に分離
 
 - **エンベロープパターン (Envelope Pattern)**
-  - `TaskEnvelope` がタスク + ハッシュ + イベント ID + ソース情報をカプセル化
-  - 透過的に重複排除、トレーサビリティ、ルーティング能力を提供
+  - `TaskEnvelope` が元のタスク + CelestialTree イベント ID をカプセル化
+  - 透過的にトレーサビリティとルーティング能力を提供
 
 - **終了信号プロトコル (Termination Protocol)**
   - `TerminationSignal` → `TerminationIdPool` の段階的マージ
   - DAG および循環グラフの両方で正しい終了を保証
 
 - **指標を第一級市民に (Metrics as First-Class)**
-  - 各 Stage に `TaskMetrics` を内蔵、スレッドセーフなリアルタイムカウント
+  - 各ノードに `TaskMetrics` を内蔵、スレッドセーフなリアルタイムカウント
 
 ---
 
@@ -81,11 +81,11 @@ graph TB
     end
 
     subgraph CelestialFlow コア
-        C --> D[init_resources<br/>キュー/接続を作成]
-        D --> E[init_analysis<br/>DAG検出/階層化]
+        C --> D[_build_analysis<br/>DAG 検出/グラフ分析]
+        D --> E[_prepare_start<br/>レポートとリソースを起動]
         E --> F{graph_mode}
-        F -->|eager| G[全ノードを並行起動]
-        F -->|staged| H[層ごとに順次実行]
+        F -->|serial| G[ノードを順次起動]
+        F -->|thread/async| H[ノードを並行起動]
         G --> I[TaskDispatch がタスクを実行]
         H --> I
     end
@@ -118,16 +118,16 @@ graph TB
 
 ```python
 TaskGraph(
-    graph_mode: str = "eager",   # "eager" | "staged"
-    log_level: str = "SUCCESS"
+    name: str,
+    graph_mode: str = "serial",   # "serial" | "thread" | "async"
 )
 ```
 
-- **初期化**: 構築後に `graph.set_nodes(stages=[...])` でノードを設定し、`graph.connect(...)` で接続を確立。ソースノードは SCC 凝縮により自動計算
+- **初期化**: 構築後に `graph.set_nodes(nodes=[...])` でノードを設定し、`graph.connect(...)` で接続を確立。ソースノードは SCC 凝縮により自動計算
 - **スケジュールモード**：
-  - `eager`：全ノードを並行起動、依存関係はキューが自然に保証
-  - `staged`：DAG のみ利用可能、層ごとに実行、層間は同期ブロック
-- **状態管理**：`node_dict`（ノードオブジェクト集合）、`status_dict`（ランタイム状態）、`snapshot()`（直近 20 スナップショット）
+  - `serial`：ノードを順次起動、依存関係はキューが自然に保証
+  - `thread` / `async`：ノードを並行起動、スレッドまたはコルーチンで並行実行
+- **状態管理**：`node_dict`（ノードオブジェクト集合）、`node.get_snapshot()`（ノードのランタイム状態スナップショット）、`get_node_meta()`（ノードメタ情報）
 - **グラフ分析**：NetworkX ベースで有向グラフを構築、DAG 性質を検出、トポロジー階層を計算
 
 ---
@@ -139,16 +139,16 @@ TaskGraph(
 ```mermaid
 classDiagram
     BaseTaskNode <|-- TaskExecutor
-    TaskExecutor <|-- TaskSplitter
-    TaskExecutor <|-- TaskRouter
+    BaseTaskNode <|-- TaskSplitter
+    BaseTaskNode <|-- TaskRouter
     class BaseTaskNode {
         +func: Callable
         +execution_mode: str
         +max_workers: int
         +max_retries: int
         +metrics: TaskMetrics
-        +start(task_source)
-        +start_async(task_source)
+        +run(init_tasks_dict)
+        +run_async(init_tasks_dict)
     }
 
     class TaskExecutor {
@@ -157,8 +157,8 @@ classDiagram
 ```
 
 - **BaseTaskNode**：全ランタイムノードの基底クラス、共通骨格（キュー、metrics、ライフサイクル）を定義
-- **TaskExecutor**：汎用タスクエグゼキュータ。リトライ、重複排除、キャッシュ、並行戦略を管理。ユーザーが直接構築して使用
-- **TaskSplitter / TaskRouter**：グラフ構造型特化ノード、下流配布セマンティクスを変更
+- **TaskExecutor**：汎用タスクエグゼキュータ。リトライ、キャッシュ、並行戦略を管理。ユーザーが直接構築して使用
+- **TaskSplitter / TaskRouter**：グラフ構造型特化ノードで、いずれも `BaseTaskNode` を直接継承し、下流配布セマンティクスを変更
 - **`graph.connect()`** でノード間の接続関係（上流・下流依存）を確立
 - **`name` / `execution_mode`** は `__init__()` 構築パラメータで渡す
 
@@ -172,8 +172,8 @@ classDiagram
 |------|-------------|------------|
 | セマンティクス | 1 → N（一対多分割） | 1 → 1（条件ルーティング） |
 | 入力 | 単一タスク | 単一タスク |
-| 出力 | tuple の各要素が独立タスクに | `(target_tag, task)` で指定下流にルーティング |
-| カウンター | `split_counter` が下流の `task_counter` に伝播 | `route_counters[tag]` がそれぞれ伝播 |
+| 出力 | tuple の各要素が独立タスクに | `dict[str, Y]`（ターゲット名 → タスク）を指定下流にルーティング |
+| カウンター | 分割結果を 1 つずつ下流の `downstream_counter` に計上 | 各ルーティングターゲットごとに `downstream_counter` へ計上 |
 | 実行モード | デフォルト serial、作成時に指定可能 | デフォルト serial、作成時に指定可能 |
 | リトライ | デフォルト 0、作成時に指定可能 | デフォルト 0、作成時に指定可能 |
 
@@ -197,56 +197,49 @@ graph LR
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree イベント) + `source_name`(ソースノード名)
+- **TaskEnvelope**：`task`(元のタスク) + `id`(CelestialTree イベント)
 - **TaskInQueue**：
-  - 多上流集約、`source_tag` で終了信号を追跡
+  - 多上流集約、`source` 名で終了信号を追跡（`add_source_name`）
   - 全上流が `TerminationSignal` を送信後、`TerminationIdPool` にマージして返却
 - **TaskOutQueue**：
-  - ブロードキャストモード `put()` → 全下流
-  - 指向モード `put_target(item, tag)` → 指定下流（Router が使用）
+  - ブロードキャストモード `put(item)` → 全下流
+  - 指向モード `put_target(name, item)` → 指定下流（Router が使用）
 - **終了プロトコル**：DAG でも循環グラフでも、全ノードが優雅に終了できることを保証
 
 ---
 
 ## Slide 10: 実行モデル
 
-### 3層実行次元
+### 2層実行次元
 
 ```mermaid
 graph TD
     subgraph グラフ級スケジュール graph_mode
-        A[eager: 全部並行]
-        B[staged: 層ごとに実行]
+        A[serial: ノードを順次起動]
+        B[thread / async: ノードを並行起動]
     end
 
     subgraph ノード級 execution_mode
-        C[serial: メインスレッド内実行]
-        D[thread: 独立スレッド]
-    end
-
-    subgraph タスク級 execution_mode
-        E[serial: シリアル逐次]
-        F[thread: ThreadPoolExecutor]
-        H[async: asyncio + Semaphore]
+        C[serial: メインスレッド内でタスクを順次処理]
+        D[thread: ThreadPoolExecutor]
+        E[async: asyncio + Semaphore]
     end
 
     A --> C
     A --> D
+    A --> E
     B --> C
     B --> D
-    C --> E
-    C --> F
-    D --> E
-    D --> F
+    B --> E
 ```
 
 | 階層 | オプション | 説明 |
 |------|------|------|
-| グラフ級 `graph_mode` | `eager` / `staged` | ノード間の並行 vs 順序を制御 |
+| グラフ級 `graph_mode` | `serial` / `thread` / `async` | ノード間の直列 vs 並行起動を制御 |
 | ノード級 `execution_mode` | `serial` / `thread` / `async` | ノード内タスクの並行戦略 |
 
 備考：
-TaskGraph モードでは、ノード級の `async` も使用可能（各ノードはそれぞれ自分の `TaskDispatch` を保持）。
+各ノードはそれぞれ自分の `TaskDispatch` を保持するため、ノード級の `async` もタスクグラフモードで同様に使用可能。
 
 ---
 
@@ -254,20 +247,16 @@ TaskGraph モードでは、ノード級の `async` も使用可能（各ノー�
 
 ### TaskMetrics — スレッドセーフなリアルタイムカウント
 
-- **4大コアカウンター**：
-  - `task_counter`：総入力タスク数（Splitter/Router 追加分を含む）
+- **コアカウンター**：
+  - `external_input_counter`：外部注入タスク数（`put_task` 経由で進入）
+  - `upstream_counter` / `downstream_counter`：各上流・下流ノードとのタスクカウント（名前ごとに個別記録）
   - `success_counter`：成功処理数
-  - `error_counter`：最終失敗数（リトライ回数超過）
-  - `duplicate_counter`：重複排除インターセプト数
+  - `fail_counter`：最終失敗数（リトライ回数超過）
+  - `duplicate_counter`：重複タスクカウント（フレームワークが保持するカウント次元）
 
-- **終了判定**：`is_tasks_finished()` = `total == success + error + duplicate`
+- **終了判定**：`is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
 
-- **重複排除メカニズム**：
-  - `TaskEnvelope.hash` = `SHA1(pickle.dumps(task))`
-  - `processed_set` が処理済みハッシュを記録
-  - ゼロコスト重複排除——ハッシュはカプセル化段階で1回計算
-
-- **SumCounter 集約**：Splitter/Router シナリオでの多ソースカウンターの正確なマージをサポート
+- **忙碌時間の実測**：`begin_task()` / `end_task()` がノードの実際のビジーウォールクロック時間を記録し、`get_elapsed()` が累計値を返す
 
 ---
 
@@ -328,12 +317,12 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph 生産端
+    subgraph 生産側
         A[LogInlet] -->|Queue| B[LogSpout]
         C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
     end
 
-    subgraph 消費端
+    subgraph 消費側
         B --> E["logs/task_logger(DATE).log"]
         D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
     end
@@ -346,9 +335,9 @@ graph LR
 
 - **ログレベル**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **エラー永続化**：SQLite 形式、`stage_name`、`error_type`、`error_message`、`task_json`、`result_json` などのフィールドを含む
+- **エラー永続化**：SQLite 形式、`stage`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` などのフィールドを含む
 
-- **エラー分析ツール**：`load_records()`、`load_records_grouped_by_stage()` で次元ごとに失敗タスクを集約
+- **エラー分析ツール**：`load_records()`、`load_tasks_grouped_by_stage()` で次元ごとに失敗タスクを集約
 
 ---
 
@@ -359,15 +348,24 @@ graph LR
 ```
 CelestialFlowError (基底クラス)
 ├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/thread/async)
-│       ├── StageModeError        (serial/thread)
-│       └── LogLevelError         (TRACE~CRITICAL)
-├── RemoteWorkerError             (Redis リモート実行失敗)
-└── UnconsumedError               (未消費のキュー内タスク)
+│   ├── InvalidOptionError
+│   │   └── CallableParameterKindError   (呼び出し可能オブジェクトのパラメータ kind が不正)
+│   └── GraphStructureError
+│       ├── DuplicateNodeError           (重複ノード名)
+│       ├── UnknownNodeError             (未知のノード名)
+│       ├── NodeNotFoundError            (グラフ内にノードが見つからない)
+│       └── InvalidStructureError        (無効なグラフ構造入力)
+├── RuntimeStateError
+│   └── InitializationError              (初期化エラー)
+├── CelestialFlowTimeoutError            (タイムアウトエラー)
+├── RemoteWorkerError                    (Redis リモート実行失敗)
+├── ReporterError                        (レポーターエラー)
+├── PersistedError                       (永続化から復元されたエラー要約)
+├── TerminationMergeError                (終了信号マージエラー)
+└── UnconsumedError                      (未消費のキュータスク)
 ```
 
-- **InvalidOptionError**：「field=value, allowed=[...]」のヒント情報を自動生成
+- **InvalidOptionError**：「Invalid field: value. Valid options are (...)」のヒント情報を自動生成
 - **迅速なフィードバック**：設定レベルのエラーはグラフ起動前にスローされ、実行時ではない
 
 ---
@@ -412,11 +410,10 @@ CelestialFlowError (基底クラス)
 
 | 方向 | エンドポイント | データ |
 |------|------|------|
-| Pull | `/api/pull_server_state` | 現在のグラフ同期状態、構造状態、分析状態、最大 `event_id` |
+| Pull | `/api/pull_server_state` | 現在のグラフ同期状態、グラフメタ情報状態、最大 `event_id` |
 | Pull | `/api/pull_injection` | 注入待ちタスクと終了信号 |
-| Push | `/api/push_status` | 状態を更新 |
-| Push | `/api/push_structure` | グラフ構造を更新 |
-| Push | `/api/push_analysis` | グラフ分析データを更新 |
+| Push | `/api/push_status` | ノード状態スナップショットを更新 |
+| Push | `/api/push_graph_meta` | グラフ構造 + グラフ分析メタ情報を更新 |
 | Push | `/api/push_errors` | エラーレコードを更新 |
 
 - **主リポジトリには Web フロントエンドを内蔵しない**：ここでは `TaskReporter` が実際に使用する同期インターフェースのみを定義
@@ -431,20 +428,16 @@ CelestialFlowError (基底クラス)
 - **ゼロコピー終了検出**
   - `is_tasks_finished()` = アトミックカウンター比較、キュー走査や状態スキャン不要
 
-- **ハッシュ1回、重複排除一生**
-  - `TaskEnvelope.hash` はカプセル化段階で SHA1 を1回計算、以降の重複排除は set lookup (O(1)) のみ
-
 - **ファクトリ化キューバックエンド**
-  - フレームワーク内部で `execution_mode` に応じて `ThreadQueue` / `AsyncQueue` を選択
+  - フレームワーク内部で `execution_mode` に応じて `TaskInQueue` / `TaskOutQueue` の直列または並行実装を選択
   - シリアルモードはゼロ同期オーバーヘッド
 
 - **指標カウンターのレベル分け**
-  - serial/async：`ValueWrapper` 通常の int
-  - thread：`ValueWrapper` + `threading.Lock`
-  - 必要に応じて最も軽量な同期メカニズムを選択
+  - `ValueWrapper` はデフォルトで実際の `threading.Lock` を自前で構築し、スレッドセーフを保証
+  - 共有ロックを渡したり、`NoOpContext` を渡してシングルスレッド下でロックを無効化することも可能
 
-- **フロントエンド増分レンダリング**
-  - `JSON.stringify` 比較によるスパイダー型変更検出、変更された DOM 領域のみ再レンダリング
+- **フロントエンド増分レンダリング（celestialflow-web）**
+  - 外部 Web プロジェクトが状態の変更検出を行い、変化した DOM 領域のみを re-render
 
 ---
 
@@ -483,8 +476,8 @@ graph LR
 | `TaskWheel` | 循環+Hub | 中心ノードが環上の全ノードに接続 |
 | `TaskComplete` | 全結合 | 全ノード相互接続 |
 
-- **強制 DAG**：Chain と Grid は構築時に `graph_mode="staged"` を設定して利用可能
-- **循環グラフ**：Loop / Wheel / Complete は `graph_mode="eager"` 必須
+- **強制 DAG**：Chain と Grid は `graph_mode="serial"`（ノード順次起動）をサポート
+- **循環グラフ**：Loop / Wheel / Complete は `graph_mode="thread"` または `"async"` を必ず使用（シリアル起動は環が存在するためエラーになる）
 
 ---
 
@@ -502,7 +495,6 @@ graph LR
 | **プロセス級隔離** | なし（スレッド級隔離） | Executor 級 | Dispatch 級 | デフォルト隔離 |
 | **外部監視接続** | HTTP レポートインターフェース | 内蔵 Web UI | 内蔵 Cloud UI | Ray Dashboard |
 | **イベントソース** | CelestialTree 統合 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
-| **タスク重複排除** | 内蔵 SHA1 ハッシュ重複排除 | ネイティブサポートなし | ネイティブサポートなし | ネイティブサポートなし |
 | **学習曲線** | 低（純粋 Python API） | 中高 | 中 | 中高 |
 | **デプロイ形態** | ライブラリ / CLI | 独立プラットフォーム | 独立プラットフォーム/SaaS | 独立クラスター |
 
@@ -514,7 +506,7 @@ graph LR
 
 - **データ収集 Pipeline**
   - 多段階クローラー：URL 発見 → ページダウンロード → コンテンツ抽出 → データ保存
-  - ネイティブ重複排除能力が重複リクエストを回避
+  - 多段階が自然に並行し、失敗リトライと組み合わせて取得の安定性を向上
 
 - **ETL / データ処理**
   - Splitter で大量分割 → 多 Worker 並行処理 → Router で結果を分流
@@ -565,9 +557,9 @@ extract_image = TaskExecutor(
 )
 store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
-graph = TaskGraph(graph_mode="eager")
+graph = TaskGraph("crawler", graph_mode="thread")
 graph.set_nodes(
-    stages=[discover, download, router, extract_article, extract_image, store]
+    nodes=[discover, download, router, extract_article, extract_image, store]
 )
 graph.connect([discover], [download])
 graph.connect([download], [router])
@@ -619,7 +611,6 @@ graph LR
 | 循環グラフサポート | 信号マージプロトコル | 終了ロジックの複雑度増加と引き換えにトポロジー柔軟性を獲得 |
 | ノード `execution_mode` | serial/thread/async | シンプルで信頼性の高いスレッドモデルを維持 |
 | ログアーキテクチャ | Queue + Spout スレッド | 1つのデーモンスレッド増加と引き換えにスレッドセーフ書き込みを獲得 |
-| 重複排除戦略 | SHA1(pickle) | pickle 不安定性リスクと引き換えに汎用オブジェクトハッシュ能力を獲得 |
 | 外部結果取得 | ポーリング HGET (0.1s) | Demo 層の実装はシンプルかつ信頼性が高いが、リアルタイムプッシュではない |
 | 状態レポート | Reporter pull/push プロトコル | リモートインターフェース約定増加と引き換えに監視と制御の疎結合を獲得 |
 | CelestialTree 統合 | オプション依存 + NullClient | 追跡なし時はゼロオーバーヘッドだが、追加設定が必要 |
@@ -638,11 +629,11 @@ graph LR
   - 内蔵 Splitter / Router は Executor の特化；Redis 連携は demo で接続方法を示す
 
 - **キューバックエンド交換可能**
-  - フレームワーク内部で `execution_mode` に応じて `ThreadQueue` / `AsyncQueue` を選択
+  - フレームワーク内部で `execution_mode` に応じて `TaskInQueue` / `TaskOutQueue` の直列または並行実装を選択
 
 - **指標バックエンド拡張可能**
-  - `ValueWrapper` が実行モードに応じて適応
-  - `SumCounter` が多ソースカウンターを透過的に集約
+  - `ValueWrapper` は共有ロックまたは `NoOpContext` を渡して異なる並行モデルに適応可能
+  - 上流/下流カウンターはノード名ごとに個別記録され、拡張が容易
 
 - **永続化カスタマイズ可能**
   - Spout-Inlet パターン、`_handle_record()` を実装するだけで出力先をカスタマイズ可能
@@ -704,7 +695,7 @@ graph LR
 
 **CelestialFlow** — グラフ駆動 · 軽量 · 高性能 · 可観測
 
-- バージョン：3.1.4
+- バージョン：3.3.1
 - Python：3.12+
 - 依存：`pip install celestialflow`
 

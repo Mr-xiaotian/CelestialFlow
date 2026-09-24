@@ -1,6 +1,6 @@
 # demo/ Demo Overview
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Description
 
@@ -22,9 +22,10 @@ If this is your first encounter with the project, we recommend reading in the fo
 | Document | Source | Demo Objective | Requires External Service? |
 |------|------|---------|:---------------:|
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor`'s three execution modes: serial / thread / async | No |
-| `demo_observer.md` | `demo/demo_observer.py` | Registering `TaskProgress` and custom `PrintObserver` for `TaskExecutor` | No |
+| `demo_observer.md` | `demo/demo_observer.py` | Registering `TaskProgress` and the built-in `PrintObserver` for `TaskExecutor` | No |
 | `demo_funnel.md` | `demo/demo_funnel.py` | Standalone use of `BaseInlet` / `BaseSpout` to build event collection pipeline, independent of task graphs | No |
 | `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` fan-out/fan-in ETL and async staged pipelines | Reporter / CelestialTree (optional) |
+| `demo_web.md` | `demo/demo_web.py` | Forest DAG and complex-topology web reporting demo with Splitter/Router | Reporter (optional) |
 | `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`, `TaskRouter`, and chain/cyclic graph structures | Reporter / CelestialTree (optional) |
 | `demo_structure.md` | `demo/demo_structure.py` | Predefined topologies: `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete` | Reporter / CelestialTree (optional) |
 | `demo_redis.md` | `demo/demo_redis.py` | Implementing Redis task submission, result acknowledgment, and external task sources with ordinary `TaskExecutor` | Redis, Reporter (optional) |
@@ -40,9 +41,9 @@ If this is your first encounter with the project, we recommend reading in the fo
 | Document | Description |
 |------|------|
 | `demo_executor.md` | Serial / thread / async execution demos for `TaskExecutor` |
-| `demo_graph.md` | DAG task graph, ETL pipeline demos |
+| `demo_graph.md` | DAG task graph, ETL pipeline, and async pipeline demos |
 | `demo_structure.md` | `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop` and other structured graph wrapper demos |
-| `demo_nodes.md` | `TaskExecutor`, `TaskSplitter`, `TaskRouter` and other node-level capability descriptions |
+| `demo_nodes.md` | `TaskSplitter`, `TaskRouter` and other structural special nodes, plus chain/cyclic graph capability descriptions |
 | `demo_network.md` | Multi-layer neural network topology and parameterized node demos with `TaskCross` |
 
 ### Observation, Pipelines, and Extensions
@@ -51,6 +52,7 @@ If this is your first encounter with the project, we recommend reading in the fo
 |------|------|
 | `demo_observer.md` | Observer, progress reporting, and lifecycle callback demos |
 | `demo_funnel.md` | Inlet / Spout pipeline behavior and data flow demos |
+| `demo_web.md` | Complex topology reported to the web dashboard via the Reporter |
 | `demo_redis.md` | Redis-related integration examples |
 
 ### Utility Functions

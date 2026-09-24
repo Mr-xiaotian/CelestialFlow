@@ -1,4 +1,4 @@
-# 性能ベンチマークテスト (test_benchmark.py)
+# tests/benchmark/test_benchmark.py
 
 > 📅 最終更新日: 2026/09/09
 

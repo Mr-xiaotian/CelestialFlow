@@ -1,6 +1,6 @@
-# GraphRender
+# src/celestialflow/graph/util_render.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `graph/util_render.py` は、グラフ構造を枠付きのツリー型テキストリストにレンダリングするユーティリティを提供し、`TaskGraph.get_structure_list()` から直接呼び出されます。ログ/CLI におけるタスクグラフのトポロジー可視化に使用されます。
 

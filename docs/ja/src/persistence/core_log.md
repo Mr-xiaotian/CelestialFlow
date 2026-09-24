@@ -1,6 +1,6 @@
-# ログ永続化 (Log Persistence)
+# src/celestialflow/persistence/core_log.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `persistence/core_log.py` モジュールは、スレッドセーフなログシステムを提供します。プロデューサー・コンシューマーモードにより、ログを統一的に収集・フォーマットし、`logs/` ディレクトリ配下のテキストファイルに永続化します。
 
@@ -51,7 +51,7 @@ LEVEL_DICT[log_level]?}
 
 1.  **LogInlet（プロデューサー）**:
     -   ラッパークラス。各 Worker スレッドが保持。
-    -   豊富なセマンティックメソッド（`task_success`、`start_graph` など）を提供。
+    -   豊富なセマンティックメソッド（`task_success`、`graph_start` など）を提供。
     -   ログメッセージとレベルをカプセル化してスレッドセーフなキュー（`queue.Queue`）に投入。
     -   ログレベルに基づくフィルタリングをサポートし、不要な通信を削減。
 
@@ -65,13 +65,13 @@ LEVEL_DICT[log_level]?}
 
 | レベル | 値 | 説明 |
 |------|----|------|
-| TRACE | 0 | 最も詳細なトレース情報。キューの `put`/`get` 操作など |
-| DEBUG | 10 | デバッグ情報。タスク入力など |
-| SUCCESS | 20 | 重要な操作の成功。タスク完了、分割成功など |
-| INFO | 30 | 一般情報。グラフ起動/終了、構造表示など |
-| WARNING | 40 | 警告情報。タスクリトライ、キュー操作異常など |
+| TRACE | 0 | 最も詳細なトレース情報。終了シグナルのマージなど |
+| DEBUG | 10 | デバッグ情報。タスク入力、レポーター停止など |
+| SUCCESS | 20 | 重要な操作の成功。タスク完了など |
+| INFO | 30 | 一般情報。ノードの起動停止、グラフ構造の出力など |
+| WARNING | 40 | 警告情報。タスクリトライ、レポート失敗など |
 | ERROR | 50 | エラー情報。タスク失敗、ループ異常など |
-| CRITICAL | 60 | 重大エラー。実行者クラッシュ、ワーカークラッシュなど |
+| CRITICAL | 60 | 重大エラー。ノード / ワーカークラッシュなど |
 
 ## LogSpout
 
@@ -84,7 +84,7 @@ listener = LogSpout()
 listener.start()
 ```
 
-起動後、ログは `logs/flow_log({date}).log` ファイルに書き込まれます。
+起動後、ログは `logs/flow_log({date}).log` ファイルに書き込まれ、行バッファリング（`buffering=1`）方式で開かれるため、読み取り側が新規ログを速やかに確認できます。
 
 ### ファイルパス
 
@@ -104,7 +104,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 ```
 
 -   `log_queue`: `LogSpout.get_queue()` が返すキューです。
--   `log_level`: この Inlet の最低ログレベルを設定します。このレベルを下回るログはキューに送信されません。
+-   `log_level`: この Inlet の最低ログレベルを設定します。このレベルを下回るログはキューに送信されません；不正なレベルは `InvalidOptionError` を送出します。
 
 ### メソッド分類
 
@@ -114,21 +114,16 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | メソッド | ログレベル | 説明 |
 |------|---------|------|
-| `start_graph(graph_name, graph_mode, structure_list)` | INFO | タスクグラフの起動と構造情報を記録 |
-| `end_graph(graph_name, use_time)` | INFO | タスクグラフの終了と経過時間を記録 |
+| `graph_start(graph_name, graph_mode, structure_list)` | INFO | タスクグラフの起動と構造情報を記録 |
+| `graph_end(graph_name, use_time)` | INFO | タスクグラフの終了と経過時間を記録 |
 
-#### 実行者 (Executor)
-
-| メソッド | ログレベル | 説明 |
-|------|---------|------|
-| `start_executor(executor_name, task_num, execution_mode_desc)` | INFO | 実行者起動を記録 |
-| `end_executor(executor_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 実行者終了と統計を記録 |
-
-#### 実行者クラッシュ
+#### ノード (Node)
 
 | メソッド | ログレベル | 説明 |
 |------|---------|------|
-| `executor_crash(executor_name, exception)` | CRITICAL | 実行者クラッシュを記録 |
+| `node_start(node_name, task_num, execution_mode_desc)` | INFO | ノード起動と実行モードを記録 |
+| `node_end(node_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | ノード終了と統計を記録 |
+| `node_crash(node_name, exception)` | CRITICAL | ノードクラッシュを記録 |
 
 #### ワーカースレッド (Worker)
 
@@ -140,31 +135,19 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | メソッド | ログレベル | 説明 |
 |------|---------|------|
-| `task_input(executor_name, task_repr, input_id)` | DEBUG | タスクが入力キューに入ったことを記録 |
-| `task_success(executor_name, task_repr, execution_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | タスク成功完了を記録 |
-| `task_retry(executor_name, task_repr, retry_times, exception, task_id)` | WARNING | タスク失敗だがリトライがトリガーされたことを記録 |
-| `task_fail(executor_name, task_repr, exception, parent_id, error_id)` | ERROR | タスク失敗かつリトライ不可能を記録 |
-| `task_duplicate(executor_name, task_repr, parent_id, duplicate_id)` | WARNING | 重複タスク検出を記録 |
+| `task_input(node_name, task_repr, input_id)` | DEBUG | タスクが入力キューに入ったことを記録 |
+| `task_success(node_name, task_repr, result_repr, use_time, parent_id, success_id)` | SUCCESS | タスク成功完了を記録 |
+| `task_retry(node_name, task_repr, fail_times, exception, task_id)` | WARNING | タスク失敗だがリトライがトリガーされたことを記録 |
+| `task_fail(node_name, task_repr, exception, parent_id, error_id)` | ERROR | タスク失敗かつリトライ不可能を記録 |
 
-#### Split 分割 (Splitter)
-
-| メソッド | ログレベル | 説明 |
-|------|---------|------|
-| `split_trace(executor_name, part_index, part_total, parent_id, split_id)` | TRACE | split サブタスク配信を記録 |
-| `split_success(executor_name, task_repr, split_count, use_time)` | SUCCESS | split 成功を記録 |
-
-#### Router ルーティング (Router)
-
-| メソッド | ログレベル | 説明 |
-|------|---------|------|
-| `route_success(executor_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | タスクルーティング成功を記録 |
+> 分割（Split）とルーティング（Router）には専用のログメソッドがなくなりました：`TaskSplitter` / `TaskRouter` の入力配分は一律 `task_input`、成功は一律 `task_success` を通ります。重複タスクログ `task_duplicate` も削除されました。
 
 #### 終了シグナル (Termination)
 
 | メソッド | ログレベル | 説明 |
 |------|---------|------|
-| `termination_input(executor_name, termination_id)` | DEBUG | 終了シグナル入力を記録 |
-| `termination_merge(executor_name, parent_ids, termination_id)` | TRACE | 終了シグナルマージを記録 |
+| `termination_input(node_name, termination_id)` | DEBUG | 終了シグナル入力を記録 |
+| `termination_merge(node_name, parent_ids, termination_id)` | TRACE | 終了シグナルマージを記録 |
 
 #### レポーター (Reporter)
 
@@ -172,42 +155,49 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 |------|---------|------|
 | `stop_reporter()` | DEBUG | レポーター停止を記録 |
 | `loop_failed(exception)` | ERROR | レポーターループエラーを記録 |
-| `pull_interval_failed(exception)` | WARNING | レポート間隔プル失敗を記録 |
-| `pull_tasks_failed(exception)` | WARNING | タスク注入プル失敗を記録 |
+| `pull_interval_failed(exception)` | WARNING | レポート間隔のプル失敗を記録 |
+| `pull_tasks_failed(exception)` | WARNING | タスク注入のプル失敗を記録 |
 | `inject_tasks_success(target_node, task_datas)` | INFO | タスク注入成功を記録 |
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | タスク注入失敗を記録 |
 | `push_errors_failed(exception)` | WARNING | エラー情報プッシュ失敗を記録 |
 | `push_status_failed(exception)` | WARNING | 状態情報プッシュ失敗を記録 |
-| `push_structure_failed(exception)` | WARNING | 構造情報プッシュ失敗を記録 |
-| `push_analysis_failed(exception)` | WARNING | 分析情報プッシュ失敗を記録 |
+| `push_graph_meta_failed(exception)` | WARNING | グラフメタ情報プッシュ失敗を記録 |
 
 ### 使用例
 
 ```python
-# グラフライフサイクル
-sinker.start_graph("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
-sinker.end_graph("my_graph", 12.34)
+from celestialflow.persistence import LogSpout, LogInlet
 
-# 実行者サイクル
-sinker.start_executor("Executor1", 50, "thread")
-sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
+log_spout = LogSpout()
+log_spout.start()
+sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
-# タスクライフサイクル
-sinker.task_input("Executor1", "task_1", 1)
-sinker.task_success("Executor1", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("Executor1", "task_2", 1, TimeoutError("timeout"), 1)
-sinker.task_fail("Executor1", "task_3", ValueError("bad"), 1, 4)
-sinker.task_duplicate("Executor1", "task_2", 1, 5)
+# 图生命周期
+sinker.graph_start("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
+sinker.graph_end("my_graph", 12.34)
 
-# 終了シグナル
-sinker.termination_input("Executor1", 1)
-sinker.termination_merge("Executor1", [1, 2], 3)
+# 节点周期
+sinker.node_start("NodeA", 50, "thread")
+sinker.node_end("NodeA", "thread", 4.8, 48, 1, 1)
 
-# レポーターイベント
+# 任务生命周期
+sinker.task_input("NodeA", "task_1", 1)
+sinker.task_success("NodeA", "task_1", "OK", 0.05, 1, 2)
+sinker.task_retry("NodeA", "task_2", 1, TimeoutError("timeout"), 1)
+sinker.task_fail("NodeA", "task_3", ValueError("bad"), 1, 4)
+
+# 终止信号
+sinker.termination_input("NodeA", 1)
+sinker.termination_merge("NodeA", [1, 2], 3)
+
+# 上报器事件
 sinker.inject_tasks_success("NodeA", ["task_10", "task_11"])
 sinker.inject_tasks_failed("NodeA", ["task_10"], RuntimeError("conflict"))
 sinker.push_errors_failed(ConnectionError("timeout"))
 sinker.push_status_failed(ConnectionError("timeout"))
+sinker.push_graph_meta_failed(ConnectionError("timeout"))
+
+log_spout.stop()
 ```
 
 これらの専用メソッドを使用することで、汎用的な `info()` や `debug()` の代わりに、生成されるログの可読性と機械解析の容易さが保証されます。

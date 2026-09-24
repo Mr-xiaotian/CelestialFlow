@@ -1,6 +1,6 @@
-# demo_executor.py デモ説明
+# demo/demo_executor.py
 
-> 📅 最終更新日: 2026/08/31
+> 📅 最終更新日: 2026/09/24
 
 ## 目標
 
@@ -82,10 +82,12 @@ python demo/demo_executor.py
 実行後、3 つのモードが順に実行され、主な出力は `tqdm` プログレスバーとなる。例：
 
 ```text
-FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
+
+> `TaskProgress` はプログレスバー作成時に `desc` を設定していないため、プログレスバーにノード名のプレフィックスは付かない。上記の it/s はあくまで例示である。
 
 > **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、1 回リトライされた後でも失敗する。`""` は型エラーをトリガーする（リトライ対象外）。
 > 3 つのモードはいずれも `demo_utils` の反復版フィボナッチ（O(n)）を使用し、単一タスクの計算自体は非常に高速である。プログレスバー上の it/s の差は主にスケジューリングオーバーヘッドを反映している。
@@ -94,4 +96,6 @@ FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00
 
 - `celestialflow`（`TaskExecutor`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
-- `demo_observer`（`TaskProgress`、本リポジトリの同ディレクトリの `demo_observer.py` が提供。現在のファイル `demo_executor.py` には依然として `from celestialflow import TaskProgress` という書き方が残っているが、`celestialflow` はこのクラスをもうエクスポートしていないため、実際の使用では `from demo_observer import TaskProgress` に変更すること）
+- `demo_observer`（`TaskProgress`、本リポジトリの同ディレクトリの `demo_observer.py` がローカル定義）
+
+> ⚠️ **変更あり**：`demo_executor.py` には依然として `from celestialflow import TaskProgress` と書かれているが、`celestialflow` はもはや `TaskProgress` をエクスポートしていない（このクラスは現在 `demo_observer.py` がローカル定義している）。そのため `python demo/demo_executor.py` を直接実行するとインポート段階で `ImportError` がスローされ、正常に実行するには `from demo_observer import TaskProgress` に変更する必要がある。

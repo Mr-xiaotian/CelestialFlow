@@ -1,6 +1,6 @@
-# demo_redis.py デモ説明
+# demo/demo_redis.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 目標
 
@@ -13,7 +13,7 @@
 - `redis_pop(key)`：`BLPOP` を使って Redis List からブロッキング取得する
 - 上記 3 つの機能はいずれも通常の Python メソッドであり、`TaskExecutor(..., func=helper)` を通じてグラフに接続される
 
-## Redis インタラクション設計
+## Redis インタラクションフロー
 
 ```mermaid
 flowchart LR
@@ -219,7 +219,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
 
 ```mermaid
 flowchart TB
-    Start["Start<br/>sleep_1_*"] --> Local["本地计算 Stage<br/>Fibonacci / Sum / Download"]
+    Start["Start<br/>sleep_1_*"] --> Local["ローカル計算 Stage<br/>Fibonacci / Sum / Download"]
     Start --> Transport["TaskExecutor(RedisTransport)<br/>redis_push"]
     Transport -.-> RedisIn[(Redis input list)]
     RedisOut[(Redis output hash)] -.-> Ack["TaskExecutor(RedisAck)<br/>redis_wait"]
@@ -231,7 +231,7 @@ flowchart TB
 | `demo_redis_ack_1` | `Sum` | `testSum:input` | `testSum:output` |
 | `demo_redis_ack_2` | `Download` | `testDownload:input` | `testDownload:output` |
 
-3 つのシナリオの違いはローカル直算ノードである：
+3 つのシナリオの違いはローカル直算ステージである：
 
 - `demo_redis_ack_0`：CPU 集約型フィボナッチ
 - `demo_redis_ack_1`：軽量な合計計算
@@ -240,14 +240,14 @@ flowchart TB
 これらは共通のパターンを使用する：
 
 - `Start` ノードが `(key, payload)` タプルを生成する
-- 一方の経路は直接ローカル計算ノードに入る
+- 一方の経路は直接ローカル計算ステージに入る
 - もう一方の経路は `RedisTransport` に入り、`redis_push` によって Redis に書き込まれる
 - `RedisTransport` の出力 `(key, task_id)` は `RedisAck` に入る
 - `RedisAck` は `redis_wait` を通じて、リモート Worker が結果を書き戻すのを待つ
 
 ### `demo_redis_source_0`
 
-Redis をグラフ外の入力ソースとして使用する方法を示す。まず 1 つのノードが書き込み、別のノードが `BLPOP` で取得して下流処理を続行する。
+Redis をグラフ外の入力ソースとして使用する方法を示す。まず 1 つのステージが書き込み、別のステージが `BLPOP` で取得して下流処理を続行する。
 
 ```mermaid
 flowchart LR

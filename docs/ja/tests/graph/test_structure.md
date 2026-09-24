@@ -1,6 +1,6 @@
-# 特定グラフ構造テスト (test_structure.py)
+# tests/graph/test_structure.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 `TaskLoop` と `TaskWheel` の2つの事前定義循環グラフ構造の専用解析能力を検証し、ならびに各種事前定義グラフ構造（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）の入力検証を行い、空入力や不正入力で静的に構築されたりクラッシュが発生したりしないことを確認します。
@@ -28,23 +28,23 @@
 
 ### TaskWheel 解析
 - 中心ノード（Center）が第0層にあり、外側の循環ノード（Ring）が第1層にあることを検証。
-- `get_source_names()` は Center ノードのみを返し、タスクが中心から注入されることを検証。
+- `get_source_nodes()` は Center ノードのみを返し、タスクが中心から注入されることを検証。
 
 ### 構造入力検証 (`TestStructureValidation`)
 全 6 種類の事前定義グラフ構造に対する空/不正入力の境界をカバー：
 
 | ケース | 検証ポイント |
 |--------|------------|
-| `test_chain_empty_stages_raises` | `TaskChain` の空 stages が `InvalidStructureError` をスロー |
+| `test_chain_empty_nodes_raises` | `TaskChain` の空 nodes が `InvalidStructureError` をスロー |
 | `test_cross_empty_layers_raises` | `TaskCross` の空 layers が `InvalidStructureError` をスロー |
 | `test_cross_empty_layer_raises` | `TaskCross` の内部に空層を含む場合 `InvalidStructureError` をスロー |
 | `test_grid_empty_raises` | `TaskGrid` の空グリッドが `InvalidStructureError` をスロー |
 | `test_grid_empty_row_raises` | `TaskGrid` の先頭行が空の場合 `InvalidStructureError` をスロー |
 | `test_grid_ragged_rows_raises` | `TaskGrid` の行長不一致が `InvalidStructureError` をスロー |
-| `test_loop_empty_stages_raises` | `TaskLoop` の空 stages が `InvalidStructureError` をスロー |
+| `test_loop_empty_nodes_raises` | `TaskLoop` の空 nodes が `InvalidStructureError` をスロー |
 | `test_wheel_empty_ring_raises` | `TaskWheel` の空 ring が `InvalidStructureError` をスロー |
 | `test_complete_single_node_raises` | `TaskComplete` の単一ノードが `InvalidStructureError` をスロー |
-| `test_complete_empty_stages_raises` | `TaskComplete` の空 stages が `InvalidStructureError` をスロー |
+| `test_complete_empty_nodes_raises` | `TaskComplete` の空 nodes が `InvalidStructureError` をスロー |
 
 ## テストの重点
 - **非 DAG 識別**: 循環構造が誤って DAG として処理されないことを確認。
@@ -78,7 +78,7 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## 重要な詳細
 - `TaskLoop` は `run()` で起動しタスクを注入します（`run` のデフォルトは `if_put_signal=True` で、ソースノードに終了シグナルを自動補完してテストの終了を保証）。
-- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`get_graph_analysis()` / `get_source_names()` を直接呼び出して静的解析を行います。
+- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`get_graph_analysis()` / `get_source_nodes()` を直接呼び出して静的解析を行います。
 - テストの重点は「実行結果」ではなく「解析結果」（analysis dict）にあります。
 - 入力検証テストはすべて純粋な構築操作であり、グラフの起動を伴いません。
 

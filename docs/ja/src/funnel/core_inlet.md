@@ -1,6 +1,6 @@
-# BaseInlet
+# src/celestialflow/funnel/core_inlet.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューを通じて対応する `BaseSpout` に送信する役割を担います。
 
@@ -71,21 +71,22 @@ classDiagram
         +_funnel(record: Any) None
     }
     class LogInlet {
-        +start_graph()
-        +end_graph()
-        +start_executor()
-        +end_executor()
+        +graph_start()
+        +graph_end()
+        +node_start()
+        +node_end()
         +task_input()
         +task_success()
         +task_fail()
         +task_retry()
         +termination_input()
+        +termination_merge()
     }
     class LifecycleInlet {
         +task_input()
         +task_success()
         +task_fail()
-        +task_duplicate()
+        +task_retry()
     }
     BaseInlet <|-- LogInlet
     BaseInlet <|-- LifecycleInlet
@@ -96,7 +97,7 @@ classDiagram
 | サブクラス | 所在ファイル | 責務 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | ライフサイクル記録。タスクの進入/成功/失敗/重複検出を SQLite に永続化 |
+| `LifecycleInlet` | `persistence/core_lifecycle.py` | ライフサイクル記録。タスクの進入/成功/失敗/リトライを SQLite に永続化 |
 
 ## 使用例
 

@@ -1,6 +1,6 @@
-# Funnel モジュール
+# src/celestialflow/funnel/__init__.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールの `LogSpout`/`LogInlet` および `LifecycleSpout`/`LifecycleInlet` の基底クラスです。
 

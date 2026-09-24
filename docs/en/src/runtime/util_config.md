@@ -1,6 +1,6 @@
-# RuntimeConfig
+# src/celestialflow/runtime/util_config.py
 
-> 📅 Last Updated: 2026/08/12
+> 📅 Last Updated: 2026/09/24
 
 `runtime/util_config.py` provides runtime configuration loading functionality, currently used to read the log level from the project-level configuration file.
 

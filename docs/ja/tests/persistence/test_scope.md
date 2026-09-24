@@ -1,6 +1,6 @@
-# スコープ管理テスト (test_scope.py)
+# tests/persistence/test_scope.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 
@@ -25,7 +25,7 @@
 `funnel_scope()` 進入時に2つのグローバル spout のバックグラウンドスレッドが起動され、退出時に自動停止してスレッド参照がクリーンアップされることを検証。
 
 - スコープ内で `log_spout._thread` と `lifecycle_spout._thread` が非 None かつ生存していることをアサート。
-- `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])` でログ書き込み。
+- `get_log_inlet().graph_start("scope_graph", "thread", ["hello scope"])` でログ書き込み。
 - `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")` で sqlite に書き込み。
 - スコープ退出後、`_thread` が `None` であり、ログファイルと sqlite ファイルが永続化されて正しい内容を含むことをアサート。
 - sqlite の `records` テーブル内容が `[("scope_stage", "success", '"data"', '"ok"')]` であることを検証。

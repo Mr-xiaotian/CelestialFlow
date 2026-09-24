@@ -1,6 +1,6 @@
-# TaskQueue
+# src/celestialflow/runtime/core_queue.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The `TaskQueue` module provides `TaskInQueue` and `TaskOutQueue`, two classes used for connecting pipelines between different nodes. They support a multi-producer, multi-consumer model and integrate termination signal merge functionality.
 
@@ -15,22 +15,31 @@ Both internally use `queue.Queue` (thread-safe queue) as the default backend.
 
 ## TaskInQueue
 
-Task input queue, used to receive, deduplicate, and merge tasks from multiple upstream sources.
+Task input queue, used to receive tasks from multiple upstream sources and merge termination signals.
 
 ### Initialization
 
 ```python
-class TaskInQueue:
+class TaskInQueue[T]:
     def __init__(
         self,
         out_name: str,
         maxsize: int = 0,
-    ):
+    ) -> None:
         """
-        :param out_name: Unique name of the current node
-        :param maxsize: Maximum queue capacity, default 0 (unlimited)
+        :param out_name: 当前节点唯一名称
+        :param maxsize: 队列最大容量，默认为 0（无限制）
         """
 ```
+
+Internal attributes:
+
+| Attribute | Type | Description |
+|------|------|------|
+| `out_name` | `str` | Unique name of the current node |
+| `queue` | `Queue[TaskEnvelope[T] \| TerminationSignal]` | Underlying thread-safe queue |
+| `source_names` | `list[str]` | List of upstream source names |
+| `termination_dict` | `dict[str, int]` | Recorded termination signal source → ID |
 
 The queue is automatically created internally; no external injection is required. Upstream sources are dynamically added via `add_source_name()`.
 
@@ -39,33 +48,36 @@ The queue is automatically created internally; no external injection is required
 #### put
 
 ```python
-def put(self, item: TaskEnvelope | TerminationSignal) -> None:
-    """
-    Enqueue a task or termination signal.
-    """
+def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
+    """入队任务或终止信号。"""
 ```
 
 #### get
 
 ```python
-def get(self) -> TaskEnvelope | TerminationIdPool:
+def get(self) -> TaskEnvelope[T] | TerminationIdPool:
     """
-    Dequeue a task or termination signal ID pool.
+    出队任务或终止符号 id 池。
+    """
+```
 
-    Termination signal merging logic:
-    - Receive termination signal from "input" → immediately return TerminationIdPool
-    - Receive termination signals from all source_names → merge and return
-    - Only partial upstream signals received → continue waiting (internal loop retry)
-    """
+`get()` internally loops over the underlying queue until `_process_item()` returns a non-`None` value.
+
+Termination signal merging logic:
+
+- Receive a termination signal from `"input"` → immediately return `TerminationIdPool(ids=[...])`
+- Receive termination signals from all `source_names` → merge and return
+- Only partial upstream signals received → continue waiting (`_process_item` returns `None`, and the outer loop continues)
+- Receive the `TerminationIdPool` itself (a pool already merged upstream) → return directly, without going through the upstream merge logic again
 ```
 
 #### drain
 
 ```python
-def drain(self) -> list[TaskEnvelope]:
+def drain(self) -> list[TaskEnvelope[T]]:
     """
-    Drain all tasks from the queue, returning a list of tasks.
-    Records termination signals but does not return TerminationIdPool (only for synchronous environments, e.g., _finish_start).
+    清空队列中的所有任务，返回任务列表。
+    记录终止信号但不会返回 TerminationIdPool（仅用于同步环境，如 _finish_start）。
     """
 ```
 
@@ -74,12 +86,29 @@ def drain(self) -> list[TaskEnvelope]:
 ```python
 def add_source_name(self, name: str) -> None:
     """
-    Dynamically add an upstream source name.
+    添加入队来源名称。
 
-    :param name: Upstream node name
-    :raises DuplicateNodeError: If the name already exists
+    :param name: 入队来源名称
+    :raises DuplicateNodeError: 如果名称已存在
     """
 ```
+
+Internal termination-handling helper methods:
+
+```python
+def _record_termination(self, signal: TerminationSignal) -> None:
+    """记录入队来源的终止信号；来源不在 source_names ∪ {"input"} 时抛 UnknownNodeError。"""
+
+
+def _can_merge_termination(self) -> bool:
+    """所有 source_names 都已发出终止信号时返回 True。"""
+
+
+def _merge_termination(self) -> TerminationIdPool:
+    """合并所有 source_names 的终止信号；存在遗漏来源时抛 TerminationMergeError。"""
+```
+
+> `_merge_termination()` only merges termination signals from `source_names`; it does not handle the direct termination injected by `"input"`, nor the post-merge termination of `self.out_name`.
 
 ## TaskOutQueue
 
@@ -88,35 +117,36 @@ Task output queue, used to broadcast tasks to multiple downstream targets.
 ### Initialization
 
 ```python
-class TaskOutQueue:
+class TaskOutQueue[T]:
     def __init__(
         self,
         in_name: str,
-    ):
+    ) -> None:
         """
-        :param in_name: Unique name of the current node, used for logging
+        :param in_name: 当前节点唯一名称，用于记录日志
         """
 ```
 
-The output queue list is initially empty, with downstream channels dynamically added via `add_queue()`.
+The output queue dictionary `_queues` is initially empty, with downstream channels dynamically added via `add_queue()`.
 
 ### Main Methods
 
 #### put
 
 ```python
-def put(self, item: TaskEnvelope | TerminationSignal) -> None:
-    """Enqueue a task or termination signal to all output channels."""
+def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
+    """入队任务或终止信号到所有输出队列通道（遍历所有目标逐个转发）。"""
 ```
 
 #### put_target
 
 ```python
-def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
+def put_target(self, name: str, item: TaskEnvelope[T] | TerminationSignal) -> None:
     """
-    Enqueue to the output channel with the specified name.
+    入队任务或终止信号到指定的输出队列。
 
-    :param name: Downstream node name
+    :param name: 输出队列目标节点名称
+    :param item: 要入队的任务或终止信号
     """
 ```
 
@@ -126,23 +156,21 @@ Used for directed dispatch to a specific downstream node.
 
 ```python
 def get_target_names(self) -> list[str]:
-    """Get the names of all output queue target nodes."""
+    """获取所有输出队列的目标节点名称。"""
 ```
 
 Returns the list of names of all currently registered downstream channels (i.e., the keys of `_queues`).
 
-
-
 ### Helper Methods
 
 ```python
-def add_queue(self, queue: Any, name: str) -> None:
+def add_queue(self, name: str, queue: Any) -> None:
     """
-    Dynamically add an output queue.
+    添加一个输出队列到队列列表中。
 
-    :param queue: Queue instance
-    :param name: Target node name
-    :raises DuplicateNodeError: If the name already exists
+    :param name: 队列的目标节点名称，用于标识该队列
+    :param queue: 要添加的输出队列
+    :raises DuplicateNodeError: 如果名称已存在于队列列表中
     """
 ```
 
@@ -182,87 +210,91 @@ The following example demonstrates basic usage of `TaskInQueue` and `TaskOutQueu
 ```python
 from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
-from celestialflow.runtime.util_types import TerminationSignal
+from celestialflow.runtime.util_types import TerminationSignal, TerminationIdPool
 
-# ===== TaskInQueue Usage Example =====
+# ===== TaskInQueue 使用示例 =====
 
-# Create input queue, specifying current node name and queue capacity
+# 创建输入队列，指定当前节点名称和队列容量
 in_queue = TaskInQueue(
     out_name="processor",
-    maxsize=0,  # 0 means unlimited
+    maxsize=0,  # 0 表示无限制
 )
 
-# Add upstream source names
+# 添加上游来源名称
 in_queue.add_source_name("producer1")
 in_queue.add_source_name("producer2")
 
-# Upstream producers put tasks
+# 上游生产者放入任务
 env1 = TaskEnvelope(task=100, id=1)
 env2 = TaskEnvelope(task=200, id=2)
 in_queue.put(env1)
 in_queue.put(env2)
 
-# Downstream consumer gets tasks
+# 下游消费者获取任务
 task1 = in_queue.get()
-print(f"Received task: {task1.get_task()}, ID: {task1.get_id()}")
+print(f"收到任务: {task1.get_task()}, ID: {task1.get_id()}")
 
-# Dynamically add a new upstream source
+# 动态添加新的上游来源
 in_queue.add_source_name("producer3")
-print(f"Upstream source count: {len(in_queue.source_names)}")
+print(f"上游来源数: {len(in_queue.source_names)}")
 
-# ===== TaskOutQueue Usage Example =====
+# ===== TaskOutQueue 使用示例 =====
 
-# Create output queue (initially empty, channels are added dynamically via add_queue)
+# 创建输出队列（初始为空，后续通过 add_queue 动态添加通道）
 out_queue = TaskOutQueue(
     in_name="processor",
 )
 
-# Dynamically add downstream queue channels
+# 动态添加下游队列通道（注意参数顺序：先名称，后队列）
 consumer_q1 = ThreadQueue()
 consumer_q2 = ThreadQueue()
-out_queue.add_queue(consumer_q1, "consumer1")
-out_queue.add_queue(consumer_q2, "consumer2")
+out_queue.add_queue("consumer1", consumer_q1)
+out_queue.add_queue("consumer2", consumer_q2)
 
-# Broadcast task to all downstream
+# 广播任务到所有下游
 env3 = TaskEnvelope(task="broadcast_msg", id=3)
 out_queue.put(env3)
 
-# Verify both consumers received it
-print(f"consumer1 received: {consumer_q1.get().get_task()}")
-print(f"consumer2 received: {consumer_q2.get().get_task()}")
+# 验证两个消费者都收到了
+print(f"consumer1 收到: {consumer_q1.get().get_task()}")
+print(f"consumer2 收到: {consumer_q2.get().get_task()}")
 
-# Directed send to a specific downstream
+# 定向发送到指定下游
 consumer_q3 = ThreadQueue()
-out_queue.add_queue(consumer_q3, "consumer3")
+out_queue.add_queue("consumer3", consumer_q3)
 
 env4 = TaskEnvelope(task="targeted_msg", id=4)
-out_queue.put_target(env4, "consumer3")
-print(f"consumer3 received: {consumer_q3.get().get_task()}")
+out_queue.put_target("consumer3", env4)
+print(f"consumer3 收到: {consumer_q3.get().get_task()}")
 
-# ===== Termination Signal Merging =====
+# ===== 终止信号合并 =====
 
-# Both upstream send termination signals
-in_queue.put(TerminationSignal(_id=1, source="producer1"))
-in_queue.put(TerminationSignal(_id=2, source="producer2"))
+# 新建一个只用于演示合并的输入队列
+merge_queue = TaskInQueue(out_name="merger")
+merge_queue.add_source_name("producer1")
+merge_queue.add_source_name("producer2")
 
-# get() automatically merges all upstream termination signals and returns TerminationIdPool
-result = in_queue.get()
-from celestialflow.runtime.util_types import TerminationIdPool
+# 两个上游都发送终止信号
+merge_queue.put(TerminationSignal(_id=1, source="producer1"))
+merge_queue.put(TerminationSignal(_id=2, source="producer2"))
+
+# get() 会自动合并所有上游的终止信号并返回 TerminationIdPool
+result = merge_queue.get()
 
 if isinstance(result, TerminationIdPool):
-    print(f"Received merged termination signal, containing IDs: {result.ids}")
+    print(f"收到合并终止信号，包含 IDs: {result.ids}")  # [1, 2]
 
-# ===== drain — flush queue =====
-# Create a new queue and put residual tasks
+# ===== drain 清空队列 =====
+# 创建新队列并放入残留任务
 residual_q = TaskInQueue(
     out_name="drain_test",
 )
 residual_q.add_source_name("src")
 residual_q.put(TaskEnvelope(task="leftover", id=5))
 
-# drain flushes all remaining tasks
+# drain 清空所有剩余任务
 leftovers = residual_q.drain()
-print(f"Residual task count: {len(leftovers)}")
+print(f"残留任务数: {len(leftovers)}")
 ```
 
 ## Notes

@@ -1,6 +1,6 @@
 # Other Module
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/24
 
 ## Overview
 
@@ -22,7 +22,7 @@ The Other module contains extension components and external integrations for the
 - Integrates with the CelestialTree service, supporting HTTP and gRPC communication
 - Automatic event emission, no manual instrumentation required
 - Provides simplified provenance query interfaces
-- Supports complex scenarios such as task splitting, routing, and duplicate detection
+- Supports complex scenarios such as task splitting and routing
 
 **Usage Pattern**:
 ```python
@@ -36,10 +36,6 @@ ctree_client = CelestialTreeClient(
 )
 
 graph.set_ctree(ctree_client)
-
-# Query provenance information
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-error_trace = graph.get_error_trace(error_id=12345)
 ```
 
 ### 2. go_worker.md - Go Worker Task Consumer
@@ -135,17 +131,14 @@ CelestialTree Client → CelestialTree Service
 graph.set_ctree(ctree_client)
 
 # Run the task graph
-graph.start_graph(init_tasks)
-
-# Query task provenance
-trace = graph.get_stage_input_trace("ProcessingStage")
+graph.run(init_tasks)
 ```
 
 ### 2. Cross-Language Execution Pattern
 ```python
-# Python side: encapsulate demo_redis helpers using ordinary TaskStage
-transport_stage = TaskStage("RedisTransport", redis_push)
-ack_stage = TaskStage("RedisAck", redis_wait)
+# Python side: encapsulate demo_redis helpers using ordinary TaskExecutor
+transport_node = TaskExecutor("RedisTransport", redis_push)
+ack_node = TaskExecutor("RedisAck", redis_wait)
 
 # Go side: start Worker Pool to consume tasks
 # Configure the same Redis keys in go_worker/main.go

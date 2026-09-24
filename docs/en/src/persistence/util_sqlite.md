@@ -1,6 +1,6 @@
-# PersistenceSQLite
+# src/celestialflow/persistence/util_sqlite.py
 
-> 📅 Last Updated: 2026/08/31
+> 📅 Last Updated: 2026/09/24
 
 `persistence/util_sqlite.py` provides SQLite database connection management and record CRUD operation utilities, serving as the underlying storage engine for `LifecycleSpout` and `TaskReporter`.
 
@@ -9,9 +9,12 @@
 | Function | Description |
 |----------|-------------|
 | `connect_db(db_path)` | Creates a SQLite connection, configures WAL mode, and ensures table structure |
+| `normalize_record(record)` | Normalizes a record into a sqlite-writable format (returns `None` when `event_id` is missing) |
+| `row_to_record_dict(row)` | Converts a sqlite row into an outward-facing record dictionary |
 | `insert_record(conn, record)` | Inserts a record |
 | `promote_record_to_failed_by_event_id(...)` | Promotes a record to failed and switches to a new event_id |
 | `promote_record_to_success_by_event_id(...)` | Promotes a record to success and writes the result |
+| `update_retry_by_event_id(conn, event_id, *, ts, retry_times, ...)` | Updates the retry count of a pending record and the most recent error information |
 | `delete_record_by_event_id(conn, event_id)` | Deletes a record by event_id |
 | `clear_records(db_path)` | Clears all records in the database |
 | `append_records(db_path, records)` | Batch append writes; skips on event_id conflict (idempotent) |
@@ -36,9 +39,12 @@ CREATE TABLE IF NOT EXISTS records (
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
     task_json TEXT NOT NULL,
-    result_json TEXT NOT NULL DEFAULT 'null'
+    result_json TEXT NOT NULL DEFAULT 'null',
+    retry_times INTEGER NOT NULL DEFAULT 0
 )
 ```
+
+> Backward compatibility with old databases: `_ensure_table` checks the `retry_times` column at startup and automatically runs `ALTER TABLE` to add it if missing.
 
 **Indexes:**
 - `idx_records_event_id` (UNIQUE): Fast lookup by event_id
@@ -75,6 +81,7 @@ The following functions require the caller to manage the `conn` lifecycle (typic
 | `insert_record` | `(conn, record: dict) -> bool` | Normalizes and INSERTs |
 | `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | Updates event_id, status='failed', and error info |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | Updates status='success' + result_json |
+| `update_retry_by_event_id` | `(conn, event_id, *, ts, retry_times, error_type="", error_message="") -> bool` | Keeps the pending state, updates the retry count and the most recent error information |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | Deletes a record |
 
 ### Read Operations (self-managed connection)
@@ -169,3 +176,4 @@ for item in items:
 - `insert_record` uses `INSERT`, guaranteeing uniqueness based on the `event_id` unique index; external batch writes usually cooperate with `append_records` to capture `IntegrityError` and achieve idempotency.
 - The normalization function `normalize_record` filters out records missing `event_id` (returns `None`).
 - `task_json` and `result_json` store `json.dumps`-serialized strings; they are restored via `json.loads` upon reading.
+- `retry_times` is maintained by `update_retry_by_event_id`, recording the number of retries before a task is promoted.

@@ -1,6 +1,6 @@
-# ランタイム例外テスト (test_errors.py)
+# tests/runtime/test_errors.py
 
-> 📅 最終更新日: 2026/08/19
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 `celestialflow.runtime.util_errors` のカスタム例外体系を検証し、例外の継承関係、デフォルトメッセージ、追加フィールドが期待通りであることを確認します。

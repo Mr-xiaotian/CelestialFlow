@@ -1,6 +1,6 @@
-# RuntimeConstant
+# src/celestialflow/runtime/util_constant.py
 
-> 📅 最終更新日: 2026/08/12
+> 📅 最終更新日: 2026/09/24
 
 `runtime/util_constant.py` はランタイムのグローバル定数を定義します。主にログレベルマッピングテーブル `LEVEL_DICT` です。
 

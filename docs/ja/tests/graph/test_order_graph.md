@@ -1,12 +1,12 @@
-# グラフ解析ユーティリティテスト (test_order_graph.py)
+# tests/graph/test_order_graph.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 ## 役割
 `celestialflow.graph.util_order_graph` の基礎グラフ解析能力を検証します。`OrderGraph` 構築、階層計算（`compute_node_levels`）、ソースノード検索（`source_nodes`）、SCC 分割（`tarjan_scc`）、および深さが Python のデフォルト再帰上限（約 1000）を超える場合の反復アルゴリズムのリグレッションを含みます。
 
 ## コアテスト対象
-- `OrderGraph.from_edges` / `add_node` / `add_edge` / `successors`: 順序付きグラフ構造の構築とクエリ。
+- `OrderGraph` / `add_node` / `add_edge` / `successors`: 順序付きグラフ構造の構築とクエリ（`add_edge` が不足する端点ノードを自動補完）。
 - `compute_node_levels`: グラフ内の各ノードの論理階層を計算（SCC 内で階層を共有）。
 - `source_nodes`: グラフの入口ノード（ソースノード）を検索。SCC は代表点1つのみを返す。
 - `tarjan_scc`: 強連結成分分割（反復実装）。
@@ -36,7 +36,7 @@
 4. **深グラフリグレッション** (`TestDeepGraphRegression`):
    - 深鎖（5000 ノード）：`tarjan_scc` は全て単点 SCC、ソースノードは `n0`、階層は 0 から 4999 へ線形に増加。
    - 深環（5000 ノード）：全ノードが単一 SCC に収束。
-   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`layersDict[4999] == ["n4999"]`、`get_nodes()` は 5000 ノードを返し、`get_source_names() == ["n0"]`。
+   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`layersDict[4999] == ["n4999"]`、`get_nodes()` は 5000 個の stage を返し、`get_source_nodes() == ["n0"]`。
 
 ## テストヘルパー関数
 - `_make_graph(edges)`: エッジ定義（暗黙に出現する下流ノードを含む）からテストグラフを構築。

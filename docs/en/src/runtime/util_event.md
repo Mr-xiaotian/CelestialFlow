@@ -1,6 +1,6 @@
-# RuntimeEvent
+# src/celestialflow/runtime/util_event.py
 
-> 📅 Last Updated: 2026/06/18
+> 📅 Last Updated: 2026/09/24
 
 `runtime/util_event.py` provides the event client abstraction interface and local implementation for event ID generation and tracking within task graphs.
 

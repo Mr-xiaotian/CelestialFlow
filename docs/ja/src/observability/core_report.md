@@ -1,8 +1,8 @@
-# observability/core_report.py
+# src/celestialflow/observability/core_report.py
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/09/24
 
-`core_report.py` は `celestialflow-web` サービスと通信するレポーターコンポーネントを実装します。バックグラウンドスレッドにより、タスクグラフの構造・状態・エラー情報などを定期的に遠端へプッシュすると同時に、遠端から注入する必要のあるタスクと終了シグナルをプルし、実行中のタスクグラフへ動的に書き込みます。本ファイルには 3 つの主要型が含まれます:
+`core_report.py` は `celestialflow-web` サービスと通信するレポーターコンポーネントを実装します。バックグラウンドスレッドにより、タスクグラフの図元情報・状態・エラー情報などを定期的に遠端へプッシュすると同時に、注入する必要のあるタスクと終了シグナルをプルし、実行中のタスクグラフへ動的に書き込みます。本ファイルには 3 つの主要型が含まれます:
 
 - `ReporterProtocol`: 依存者が「reporter 起動停止能力を備える」ことを宣言するための最小インターフェースプロトコル。
 - `TaskReporter`: HTTP によるプル/プッシュを担う実際のレポーター実装。
@@ -26,11 +26,10 @@ classDiagram
         -Thread _thread
         -Session _session
         -bool _server_has_current_graph
-        -bool _server_has_structure
-        -bool _server_has_analysis
+        -bool _server_has_graph_meta
         -int _server_max_event_id_in_fail
+        -dict _last_status_dict
         +int interval
-        +int history_limit
         +start()
         +stop()
         -_pull_timeout()
@@ -41,12 +40,10 @@ classDiagram
         -_pull_injection()
         -_push_errors()
         -_push_status()
-        -_push_structure()
-        -_push_analysis()
+        -_push_graph_meta()
     }
     class NullTaskReporter {
         +int interval
-        +int history_limit
         +start()
         +stop()
     }
@@ -99,11 +96,10 @@ def __init__(
 | `_thread` | `Thread | None` | バックグラウンドスレッドの参照 |
 | `_session` | `requests.Session` | 再利用される HTTP セッション |
 | `_server_has_current_graph` | `bool` | サーバーが現在の `graph_id` を保持しているか |
-| `_server_has_structure` | `bool` | サーバーが構造プッシュを受け取ったことがあるか |
-| `_server_has_analysis` | `bool` | サーバーが分析プッシュを受け取ったことがあるか |
+| `_server_has_graph_meta` | `bool` | サーバーが図元情報（グラフ構造 + 分析）のプッシュをすでに受け取っているか |
 | `_server_max_event_id_in_fail` | `int | None` | サーバーが把握している最大失敗 `event_id` の水位線 |
-| `interval` | `int` | レポート周期（秒）。`_pull_server_state` で動的調整され、範囲は `[1, 60]` |
-| `history_limit` | `int` | 履歴スナップショットの保持上限、デフォルト 20 |
+| `_last_status_dict` | `dict[str, dict[str, Any]] | None` | 直前に成功したプッシュのノード別スナップショット。変化のゲーティングに使用 |
+| `interval` | `int` | レポート周期（秒）。デフォルト `5`、`_pull_server_state` で動的調整され、範囲は `[1, 60]` |
 
 ### ライフサイクル
 
@@ -148,10 +144,8 @@ def _refresh_all(self) -> None:
         self._pull_injection()  # GET /api/pull_injection
 
         # 2. プッシュ（必要に応じて）
-        if (not self._server_has_current_graph) or (not self._server_has_structure):
-            self._push_structure()  # POST /api/push_structure
-        if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()  # POST /api/push_analysis
+        if (not self._server_has_current_graph) or (not self._server_has_graph_meta):
+            self._push_graph_meta()  # POST /api/push_graph_meta
         self._push_status()  # POST /api/push_status
         self._push_errors()  # POST /api/push_errors
     except Exception as e:
@@ -168,7 +162,7 @@ Reporter は HTTP により `celestialflow-web` サービスの以下のエン�
 
 | メソッド | エンドポイント | 説明 |
 |------|------|------|
-| `GET` | `/api/pull_server_state?graph_id=...` | 同期判定状態（interval、`is_current_graph`、構造/分析の有無、失敗レコードの最大 event_id など）を取得 |
+| `GET` | `/api/pull_server_state?graph_id=...` | 同期判定状態（interval、`is_current_graph`、図元情報がすでに存在するか、失敗レコードの最大 event_id）を取得 |
 | `GET` | `/api/pull_injection` | 本ラウンドで注入するタスクリストと終了シグナル対象ノードを取得 |
 
 ### プッシュインターフェース（Push）
@@ -177,8 +171,7 @@ Reporter は HTTP により `celestialflow-web` サービスの以下のエン�
 |------|------|------|
 | `POST` | `/api/push_errors` | エラー（失敗レコード）をプッシュ |
 | `POST` | `/api/push_status` | ランタイム状態スナップショットをプッシュ |
-| `POST` | `/api/push_structure` | グラフ構造（ノード/エッジ/ソースノード）をプッシュ |
-| `POST` | `/api/push_analysis` | グラフ分析データをプッシュ |
+| `POST` | `/api/push_graph_meta` | グラフ構造、ノードメタ情報、グラフ分析データをプッシュ |
 
 ### 非 2xx レスポンス処理
 
@@ -193,7 +186,7 @@ GET /api/pull_server_state?graph_id={graph_id}
 リモート側の同期状態を読み取り、以下を更新します:
 
 - `interval`（範囲 `[1, 60]`）；
-- `_server_has_current_graph` / `_server_has_structure` / `_server_has_analysis`；
+- `_server_has_current_graph` / `_server_has_graph_meta`；
 - `_server_max_event_id_in_fail`（値がない場合は `None`）。
 
 失敗時は `log_inlet.pull_interval_failed(e)` で記録され、後続のプッシュには影響しません。
@@ -243,13 +236,13 @@ for target_node in injection_payload.get("terminations", []):
         self.log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
 ```
 
-> ⚠️ **1 件ずつのエンキューはプロトコルの必須要件**: `for task in task_datas: node.put_task(task)` のように `put_task` を 1 件ずつ呼び出す必要があります。`task_datas` リストをそのまま単一タスクとして注入すると、`BaseTaskNode` のエンキューセマンティクスが破壊され、予期しない下流挙動が発生します。リグレッションテストは `tests/observability/test_reporter.py::test_reporter_accepts_split_task_and_termination_payload` を参照。
+> ⚠️ **1 件ずつのエンキューはプロトコルの必須要件**: `for task in task_datas: node.put_task(task)` のように `put_task` を 1 件ずつ呼び出す必要があります。`task_datas` リストをそのまま単一タスクとして注入すると、`BaseTaskNode` のエンキューセマンティクスが破壊され、予期しない下流挙動が発生します。リグレッションテストは `tests/observability/test_reporter.py` を参照。
 
 ペイロード解析失敗（非 2xx / JSON 異常）は `log_inlet.pull_tasks_failed(e)` で記録され、**後続のプッシュは中断されません**。
 
 ## `_push_errors`（増分プッシュ）
 
-lifecycle SQLite 内の失敗レコードを読み取ってプッシュ:
+lifecycle sqlite 内の失敗レコードを読み取ってプッシュ:
 
 - `not self._server_has_current_graph` または `_server_max_event_id_in_fail is None` の場合、全件 `load_records(db_path=lifecycle_path)`；
 - それ以外の場合は増分で `load_records_after_event_id_in_fail(lifecycle_path, self._server_max_event_id_in_fail)` を呼び出し、サーバー水位線より厳密に大きい `event_id` の失敗レコードのみをプッシュ。
@@ -265,23 +258,33 @@ lifecycle SQLite 内の失敗レコードを読み取ってプッシュ:
 
 非 2xx レスポンス → `ReporterError` → `log_inlet.push_errors_failed(e)`。
 
-## `_push_status`
+## `_push_status`（変化ゲーティング）
+
+ノードごとにスナップショットを収集してプッシュ:
 
 ```python
-status_dict, now = self.task_graph.collect_runtime_snapshot()
+status_dict: dict[str, dict[str, Any]] = {}
+for node_name, node in self.task_graph.node_dict.items():
+    status_dict[node_name] = node.get_snapshot()
+
+# 门控：服务器持有当前图，且快照与上次成功推送一致时跳过
+if self._server_has_current_graph and status_dict == self._last_status_dict:
+    return
 
 payload = {
     "graph_id": self.task_graph.get_graph_id(),
     "status": status_dict,
-    "timestamp": now,
+    "timestamp": time.time(),
 }
 ```
 
+プッシュ成功後は `_last_status_dict` を今回の `status_dict` に更新します。タイムスタンプは比較に参加せず（毎ラウンド必ず異なるため）、比較対象はノードごとに収集したスナップショットそのものです；サーバーが直前にコンテキストを切り替えた（`_server_has_current_graph` が偽の）場合、その状態キャッシュはすでにクリアされているため、このときはスナップショットが同一であっても必ず一度強制プッシュします。
+
 非 2xx レスポンス → `ReporterError` → `log_inlet.push_status_failed(e)`。
 
-## `_push_structure`
+## `_push_graph_meta`
 
-`not _server_has_current_graph` または `not _server_has_structure` の場合のみトリガ:
+`not _server_has_current_graph` または `not _server_has_graph_meta` の場合のみトリガ:
 
 ```python
 payload = {
@@ -289,24 +292,14 @@ payload = {
     "nodes": self.task_graph.get_nodes(),
     "edges": self.task_graph.get_edges(),
     "source_nodes": self.task_graph.get_source_nodes(),
+    "node_meta": self.task_graph.get_node_meta(),
+    "analysis": self.task_graph.get_graph_analysis(),
 }
 ```
 
-非 2xx レスポンス → `ReporterError` → `log_inlet.push_structure_failed(e)`。
+すなわち、元の `structure`（ノード / エッジ / ソースノード）と `analysis` を 1 回の図元情報プッシュに統合し、各ノードの構築期メタ情報 `node_meta`（`class_name` / `execution_mode` / `max_workers`）を付加します。
 
-## `_push_analysis`
-
-`not _server_has_current_graph` または `not _server_has_analysis` の場合のみトリガ:
-
-```python
-analysis = self.task_graph.get_graph_analysis()
-payload = {
-    "graph_id": self.task_graph.get_graph_id(),
-    "analysis": analysis,
-}
-```
-
-非 2xx レスポンス → `ReporterError` → `log_inlet.push_analysis_failed(e)`。
+非 2xx レスポンス → `ReporterError` → `log_inlet.push_graph_meta_failed(e)`。
 
 ## 重要なデータフロー
 
@@ -322,7 +315,7 @@ sequenceDiagram
         alt 非 2xx
             R->>L: pull_interval_failed(e)
         else 2xx
-            S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
+            S-->>R: {interval, is_current_graph, has_graph_meta, max_event_id_in_fail}
         end
 
         R->>S: GET /api/pull_injection
@@ -342,16 +335,10 @@ sequenceDiagram
             end
         end
 
-        alt サーバーにグラフなし または 構造なし
-            R->>S: POST /api/push_structure
+        alt サーバーにグラフなし または 図元情報なし
+            R->>S: POST /api/push_graph_meta
             alt 非 2xx
-                R->>L: push_structure_failed(e)
-            end
-        end
-        alt サーバーにグラフなし または 分析なし
-            R->>S: POST /api/push_analysis
-            alt 非 2xx
-                R->>L: push_analysis_failed(e)
+                R->>L: push_graph_meta_failed(e)
             end
         end
 
@@ -378,8 +365,7 @@ sequenceDiagram
 | `pull_interval_failed(error)` | `/api/pull_server_state` の失敗 |
 | `push_errors_failed(error)` | `/api/push_errors` の非 2xx / ペイロード構築失敗 |
 | `push_status_failed(error)` | `/api/push_status` の失敗 |
-| `push_structure_failed(error)` | `/api/push_structure` の失敗 |
-| `push_analysis_failed(error)` | `/api/push_analysis` の失敗 |
+| `push_graph_meta_failed(error)` | `/api/push_graph_meta` の失敗 |
 | `loop_failed(error)` | `_refresh_all` トップレベルでの未捕捉例外（次ループに影響しない） |
 | `stop_reporter()` | `stop()` 終了時にレポーター停止を記録 |
 | `worker_crash(error)` | スケジューラ worker のクラッシュ（`core_dispatch` からのみ呼び出し） |
@@ -393,7 +379,6 @@ sequenceDiagram
 ```python
 class NullTaskReporter:
     interval: int = 1
-    history_limit: int = 20
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
@@ -436,6 +421,7 @@ placeholder.stop()
 2. **非 2xx レスポンスの確認は必須**: すべての `GET` / `POST` リクエストは、レスポンス取得後に `res.ok` を必ず判定し、失敗を対応する `_pull_*_failed` / `_push_*_failed` ログに記録してください。
 3. **`stop()` 後は `_thread` を必ず `None` に設定**: 2 回目の `start()` を許可するため。さもないと `Thread` 参照リークにより重複 join が発生します。
 4. **`interval` の収束範囲は `[1, 60]`**: 遠端から取得した `interval` は `int(max(1.0, min(float(interval), 60.0)))` にクランプされます。
-5. **構造/分析プッシュは必要時のみ**: サーバーが初めて現在のグラフを保持する場合、または対応するフィールドが欠落している場合にのみトリガされ、各ラウンドで重複アップロードしません。
-6. **増分エラープッシュは失敗レコードの最大 `event_id` を水位線とする**: クライアント側の `event_id` が単調増加であることが前提です（`LocalEventClient` / `ctree_client` が保証）。
-7. **図プロトコルへの依存（具体クラスではない）**: `TaskReporter` は `ReporterTaskGraph` / `ReporterTaskNode` プロトコルによりタスクグラフにアクセスし、`celestialflow.graph` をインポートせずに独立してテストできます。
+5. **図元情報プッシュは必要時のみ**: サーバーが初めて現在のグラフを保持する場合、または図元情報が欠落している場合にのみトリガされ、各ラウンドで重複アップロードしません；`node_meta` は `_push_graph_meta` に統合され、毎ラウンドの状態プッシュには含まれなくなりました。
+6. **状態プッシュには変化ゲーティングがある**: `_push_status` はノード別スナップショットが変化した場合（またはサーバーが直前にコンテキストを切り替えた場合）にのみ送信され、無意味な重複リクエストを避けます。
+7. **増分エラープッシュは失敗レコードの最大 `event_id` を水位線とする**: クライアント側の `event_id` が単調増加であることが前提です（`LocalEventClient` / `ctree_client` が保証）。
+8. **図プロトコルへの依存（具体クラスではない）**: `TaskReporter` は `ReporterTaskGraph` / `ReporterTaskNode` プロトコルによりタスクグラフにアクセスし、`celestialflow.graph` をインポートせずに独立してテストできます。

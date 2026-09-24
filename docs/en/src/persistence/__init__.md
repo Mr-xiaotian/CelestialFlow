@@ -1,6 +1,6 @@
-# Persistence Module
+# src/celestialflow/persistence/__init__.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 The Persistence module provides CelestialFlow's data persistence capabilities, including task Lifecycle recording and execution Logs. It ensures that key data from task execution can be reliably saved and retrieved.
 
@@ -23,10 +23,10 @@ The Persistence module provides CelestialFlow's data persistence capabilities, i
 ### Lifecycle Persistence
 
 1. **core_lifecycle.py** (`LifecycleSpout`, `LifecycleInlet`)
-   - **Purpose**: Persistence of task lifecycle, uniformly records task pending / success / failed / duplicate states
+   - **Purpose**: Persistence of task lifecycle, uniformly records task pending / success / failed / retry states
    - **Core Components**:
      - `LifecycleSpout`: Inherits `BaseSpout`, persists task lifecycle events via SQLite
-     - `LifecycleInlet`: Thread-safe collector, providing `task_input` / `task_success` / `task_fail` / `task_duplicate` methods
+     - `LifecycleInlet`: Thread-safe collector, providing `task_input` / `task_success` / `task_fail` / `task_retry` methods
    - **Storage Format**: SQLite database (WAL mode), files located under the `lifecycles/` directory
 
 ### Log Persistence
@@ -35,7 +35,7 @@ The Persistence module provides CelestialFlow's data persistence capabilities, i
    - **Purpose**: Infrastructure for log recording and storage
    - **Core Components**:
      - `LogSpout`: Log listening thread, receives log messages from the queue and writes them to text files under the `logs/` directory
-     - `LogInlet`: Thread-safe log collector, providing semantic logging methods (task success/failure/retry, graph/layer start/stop, reporter events, etc.)
+     - `LogInlet`: Thread-safe log collector, providing semantic logging methods (task success/failure/retry, graph/node start/stop, reporter events, etc.)
    - **Log Format**: Plain text format, each line contains `timestamp level message`
 
 ### Scope Management
@@ -128,13 +128,14 @@ from celestialflow.persistence import get_log_inlet
 
 log_inlet = get_log_inlet()
 
-# Record executor start/stop
-log_inlet.start_executor("StageA", 100, "thread")
-log_inlet.end_executor("StageA", "thread", 12.5, 98, 2, 0)
+# 记录节点启停
+log_inlet.node_start("NodeA", 100, "thread")
+log_inlet.node_end("NodeA", "thread", 12.5, 98, 2, 0)
 
-# Record task lifecycle
-log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
-log_inlet.task_fail("func", "task2", ValueError("bad"), 3, 4)
+# 记录任务生命周期
+log_inlet.task_success("NodeA", "task1", "result", 0.05, 1, 2)
+log_inlet.task_fail("NodeA", "task2", ValueError("bad"), 3, 4)
+log_inlet.task_retry("NodeA", "task2", 1, ValueError("bad"), 3)
 ```
 
 ### Recording Lifecycle

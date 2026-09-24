@@ -1,6 +1,6 @@
-# node/util_types.py
+# src/celestialflow/node/util_types.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `util_types.py` provides type aliases specific to the `node` module. It currently defines a single `AnyTaskNode` type alias, which is used by upper-layer structures such as `TaskGraph` to reference node objects in an "any node" form.
 
@@ -14,7 +14,7 @@
 from typing import Any
 from .core_node import BaseTaskNode
 
-type AnyTaskNode = BaseTaskNode[Any, Any]
+type AnyTaskNode = BaseTaskNode[Any, Any, Any]
 ```
 
 Meaning:

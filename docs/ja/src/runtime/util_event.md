@@ -1,6 +1,6 @@
-# RuntimeEvent
+# src/celestialflow/runtime/util_event.py
 
-> 📅 最終更新日: 2026/06/18
+> 📅 最終更新日: 2026/09/24
 
 `runtime/util_event.py` は、タスクグラフ内でのイベント ID 生成と追跡のためのイベントクライアント抽象インターフェースとローカル実装を提供します。
 

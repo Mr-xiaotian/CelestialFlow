@@ -1,6 +1,6 @@
-# PersistencePayload
+# src/celestialflow/persistence/util_payload.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 `persistence/util_payload.py` provides a persistence serialization utility for task data, recursively converting arbitrary Python objects into JSON-friendly structures.
 

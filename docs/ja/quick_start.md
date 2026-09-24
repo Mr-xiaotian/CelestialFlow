@@ -1,6 +1,6 @@
 # クイックスタート（Quick Start）
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 本セクションでは、**TaskGraph** を素早くインストールして実行し、サンプルを通じてそのタスクグラフスケジューリングメカニズムを体験します。
 
@@ -10,7 +10,7 @@
 
 ```bash
 # プロジェクト仮想環境を作成（デフォルトで .venv を生成）
-uv venv --python 3.10
+uv venv --python 3.12
 
 # 環境をアクティベート（Windows）
 . .\.venv\Scripts\Activate.ps1
@@ -53,10 +53,12 @@ uv sync --group dev
 
 現在の主リポジトリには Web サービスは内蔵されていません。サンプルコードで `TaskReporter` を有効にしている場合は、それを自前の HTTP サービスまたは独立した `celestialflow-web` プロジェクトに指定できます。CelestialFlow のコアスケジューリング能力のみを体験したい場合は、この節はスキップできます。
 
-状態レポートの設定は `set_reporter` で行うことができます：
+状態レポートの設定は、`set_reporter` に `TaskReporter` インスタンスを渡すことで実現できます：
 
 ```python
-graph.set_reporter(True, host="127.0.0.1", port=5005)
+from celestialflow import TaskReporter
+
+graph.set_reporter(TaskReporter("127.0.0.1", 5005, graph))
 ```
 
 `TaskReporter` を有効にしているが対象サービスが起動していない場合、[ログ](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md) にいくつかの `WARNING` が表示されます。これは Reporter がリモートサービスに接続できないことを示していますが、タスクグラフ自体の動作には影響しません。
@@ -83,6 +85,6 @@ pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` にはグラフ構造関連のテストが含まれます：DAG 構築、階層スケジューリング、スレッドモード、循環/グリッド/完全グラフ構造など。
-- `tests/node/test_node.py` にはノード関連のテストが含まれます：型、エスティメーター、カウンターなど。
+- `tests/node/test_node.py` にはノード関連のテストが含まれます：型、カウンター、スナップショットなど。
 
-コード実行中はログ、`BaseObserver`（例：`TqdmObserver` プログレスバー）または状態スナップショットで実行状況を確認できます。
+コード実行中はログ、`BaseObserver`（例：`PrintObserver` コンソールオブザーバー）またはノードの `get_snapshot()` スナップショットで実行状況を確認できます。

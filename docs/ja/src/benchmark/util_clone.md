@@ -1,6 +1,6 @@
-# benchmark/util_clone.py
+# src/celestialflow/benchmark/util_clone.py
 
-> 📅 最終更新日: 2026/09/09
+> 📅 最終更新日: 2026/09/24
 
 `benchmark/util_clone.py` は実行器とタスクグラフのクローン機能を提供し、パフォーマンステストと設定再利用に使用します。
 
@@ -35,7 +35,6 @@ def clone_executor[T, R](
 - `max_workers`: 並行数の上限
 - `max_retries`: 最大リトライ回数
 - `max_info`: ログ情報の最大長
-- `enable_duplicate_check`: 重複チェックスイッチ
 - `retry_exceptions`: リトライ可能例外のリスト（`set_retry_exceptions()` で設定）
 
 ### clone_graph
@@ -113,16 +112,16 @@ def process_b(x: int) -> int:
 
 # 元のグラフを作成
 graph = TaskGraph(name="CloneDemo", graph_mode="thread")
-node_a = TaskExecutor("A", process_a)
-node_b = TaskExecutor("B", process_b)
-graph.set_nodes(nodes=[node_a, node_b])
-graph.connect([node_a], [node_b])
+stage_a = TaskExecutor("A", process_a)
+stage_b = TaskExecutor("B", process_b)
+graph.set_nodes(nodes=[stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
 
 # テスト用にグラフをクローン
 cloned_graph = clone_graph(graph)
 
 # クローングラフを実行
-init_tasks = {node_a.get_name(): [1, 2, 3]}
+init_tasks = {stage_a.get_name(): [1, 2, 3]}
 cloned_graph.run(init_tasks)
 ```
 
@@ -188,21 +187,21 @@ async def async_task(x: int) -> int:
 
 
 async def main():
-    node_a = TaskExecutor("A", task)
-    node_b = TaskExecutor("B", task)
-    async_node_a = TaskExecutor("A", async_task)
-    async_node_b = TaskExecutor("B", async_task)
+    stage_a = TaskExecutor("A", task)
+    stage_b = TaskExecutor("B", task)
+    async_stage_a = TaskExecutor("A", async_task)
+    async_stage_b = TaskExecutor("B", async_task)
 
     sync_graph = TaskGraph(name="BenchSync")
-    sync_graph.set_nodes(nodes=[node_a, node_b])
+    sync_graph.set_nodes(nodes=[stage_a, stage_b])
     async_graph = TaskGraph(name="BenchAsync")
-    async_graph.set_nodes(nodes=[async_node_a, async_node_b])
+    async_graph.set_nodes(nodes=[async_stage_a, async_stage_b])
 
     # benchmark_graph は内部で clone_graph を使用し、結果辞書を返す
     results = await benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={node_a.get_name(): range(100)},
+        init_tasks_dict={stage_a.get_name(): range(100)},
         graph_modes=["serial", "thread", "async"],
         execution_modes=["serial", "thread", "async"],
     )

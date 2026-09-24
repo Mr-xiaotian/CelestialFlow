@@ -1,6 +1,6 @@
-# demo_nodes.py Demo Guide
+# demo/demo_nodes.py
 
-> 📅 Last Updated: 2026/09/09
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -26,7 +26,7 @@ flowchart TD
 - `Downloader` → Downloads resources
 - `Parser` → Parses new URLs and loops back to `GenURLs`
 
-**Graph structure**: Cyclic graph (`parse_stage → generate_stage`)
+**Graph structure**: Cyclic graph (`Parser → GenURLs`)
 
 ### `demo_splitter_1`
 Demonstrates large batch splitting: input `range(100_000)` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once.
@@ -41,14 +41,14 @@ flowchart LR
     Router -->|odd n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
 ```
 
-Routing logic: The `Origin` stage simply outputs the original input integer; `TaskRouter` holds `router_even(n) -> str` and, in `_route()`, selects `StageA` (even) or `StageB` (odd) based on parity, then dispatches the raw task downstream.
+Routing logic: The `Origin` stage only outputs the original input integer as-is; `TaskRouter` holds `router_even(n) -> dict[str, int]`, whose `func` returns a mapping from target names to tasks based on parity, and the framework dispatches the raw tasks accordingly to `StageA` (even) or `StageB` (odd).
 
 ## Key Configuration
 
 - `demo_splitter_0` uses two independent calls `graph.set_graph_mode("thread")` and `graph.set_node_execution_mode("thread")` to uniformly set each `TaskExecutor` node to `"thread"` mode (`max_workers=4`); `TaskSplitter` does not explicitly set an execution mode and only acts as a splitting node passing tasks through.
 - `demo_splitter_1` indirectly uses `execution_mode="thread"`, `max_workers=50` (the `Process` stage) via `TaskChain`.
 - In `demo_router_0`, `Origin` / `StageA` / `StageB` all use `execution_mode="thread"` (`max_workers=4` / `2` / `2`); `Router` is a `TaskRouter` node and does not consume `execution_mode` itself.
-- Monitoring is wired in via `graph.set_reporter(TaskReporter(report_host, report_port, graph))`, connecting to the remote Reporter corresponding to the `REPORT_HOST`/`REPORT_PORT` environment variables; `graph.set_ctree(ctree_client)` is commented out by default and does not enable CelestialTree; to wire it in, first install `celestialtree` separately and uncomment the corresponding call.
+- Monitoring is wired in via `graph.set_reporter(TaskReporter(report_host, report_port, graph))`, connecting to the remote Reporter corresponding to the `REPORT_HOST`/`REPORT_PORT` environment variables; `graph.set_ctree(ctree_client)` is commented out in both `demo_splitter_0` and `demo_router_0`, while `demo_splitter_1` enables CelestialTree via `chain.set_ctree(ctree_client)`; to wire it in, first install `celestialtree` separately and confirm the corresponding call is not commented out.
 - Redis remote collaboration examples have been migrated to `demo_redis.py`.
 
 ## Potential Issues
@@ -68,7 +68,7 @@ python demo/demo_nodes.py
 # e.g., replace demo_splitter_0() with demo_router_0()
 ```
 
-> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called. You need to execute or uncomment them manually inside `main()` to run them.
+> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called (`demo_router_0()` is commented out in the source). You need to execute them manually inside `__main__` or uncomment them to run.
 
 ## Expected Behavior
 

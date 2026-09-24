@@ -1,6 +1,6 @@
-# RuntimeConfig
+# src/celestialflow/runtime/util_config.py
 
-> 📅 最終更新日: 2026/08/12
+> 📅 最終更新日: 2026/09/24
 
 `runtime/util_config.py` はランタイム設定読み込み機能を提供し、現在はプロジェクトレベルの設定ファイルからログレベルを読み取るために使用されています。
 

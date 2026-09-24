@@ -1,6 +1,6 @@
-# bench_execution_mode.py Benchmark Guide
+# bench/bench_execution_mode.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -69,9 +69,8 @@ In `bench/bench_execution_mode.py`'s `main()`, you can selectively run:
 
 ```python
 async def main():
-    # Run Fibonacci test only
     await bench_executor_fibonacci()
-    # await bench_executor_sleep()  # Comment out sleep test
+    await bench_executor_sleep()
 ```
 
 ```bash
@@ -94,6 +93,8 @@ bench_task_1: list[Any] = list(range(20, 35))
 ```
 
 ## Benchmark Results (Measured)
+
+> 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### Historical Results - Windows execution mode comparison (date not recorded)
 
@@ -174,6 +175,33 @@ Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep be
 - In the I/O scenario, `thread` and `async` are still close to the theoretical parallel ceiling, both compressing total time to about 1 second; `async` is slightly faster but the difference is negligible
 - This round's results are much lower than the 2026/06/16 CPU data, mainly because the runtime environment switched from Windows to macOS (differences in single-core CPU performance, Python implementation details, etc.); the CPU benchmarks from the two rounds should not be directly compared in absolute terms
 
+### 2026/09/23 - Local retest (Windows / Python 3.14.3)
+
+> Environment: Windows, Python 3.14.3, command `uv run .\bench\bench_execution_mode.py`
+
+#### Scenario 1: Fibonacci (CPU-intensive)
+
+| Mode | Time | Relative to serial |
+|------|------|------|
+| serial | 0.0430s | 1.00x |
+| thread | 0.0149s | **2.89x** |
+| async | 0.0131s | **3.28x** |
+
+#### Scenario 2: sleep_1 (I/O-intensive)
+
+| Mode | Time | Relative to serial |
+|------|------|------|
+| serial | 6.0180s | 1.00x |
+| thread | **1.0126s** | 5.94x |
+| async | 1.0194s | 5.90x |
+
+**Supplementary conclusions for this round**:
+- **CPU scenario**: `thread` and `async` are about 2.9x and 3.3x faster than `serial` respectively. The source of the speedup here is not CPU parallelism, but **per-task framework overhead**: the largest `n` in `bench_task_1` is only 31, and the iterative algorithm needs only about 30 loops, so pure computation time is at the microsecond level; the measured time is therefore mainly composed of each task's metrics, log/lifecycle writes (funnel inlet), and the retry handling of the 4 error tasks. These overheads are I/O-like in nature, and `thread`/`async` can overlap them across workers, whereas `serial` can only bear them sequentially.
+- In addition, `serial` is the first mode run in `benchmark_executor` and may additionally bear a one-time global spout/lifecycle initialization cost, which further widens its gap with the two subsequent modes. Therefore this round's CPU data **cannot** be read as "multithreading accelerated CPU computation".
+- **I/O scenario**: Both `thread` and `async` are close to the theoretical optimum of 6x (5.94x / 5.90x respectively), basically matching the parallelism ceiling of 6 `max_workers`.
+- This round `thread` is slightly faster than `async` (about 0.7%), the opposite of the 2026/08/18 macOS retest (where `async` was slightly faster); this is a **noise-level difference**, and the two can be regarded as equivalent in this scenario.
+- When comparing with the 2026/08/18 macOS data, note that the environment switched from macOS back to Windows, and the absolute values of the CPU scenario are greatly affected by framework startup overhead, so the two rounds should not be compared directly.
+
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `benchmark_executor`, and optional `TaskProgress`, not enabled in this script)
+- `celestialflow` (`TaskExecutor`, `benchmark_executor`, and optional observer `PrintObserver`, not enabled in this script)

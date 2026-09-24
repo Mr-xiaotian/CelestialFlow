@@ -1,6 +1,6 @@
-# bench_persistence_spout.py Benchmark Guide
+# bench/bench_persistence_spout.py
 
-> 📅 Last Updated: 2026/08/26
+> 📅 Last Updated: 2026/09/24
 
 ## Objective
 
@@ -47,6 +47,8 @@ Thus the test results are closer to "peak processing speed of the background wri
 4. **Instability may occur with large samples**: Locally, larger samples `--log-count 500000 --lifecycle-count 50000` were attempted; `LogSpout` completed normally, but the `LifecycleSpout` phase experienced one interpreter crash, so it is recommended to treat that scale as a stress exploration value, not a stable baseline.
 
 ## Benchmark Results (Measured)
+
+> 🟢 The timing/throughput in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
 
 ### 2026/06/17 - Windows local first measurement
 
