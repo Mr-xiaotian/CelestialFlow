@@ -1,6 +1,6 @@
-# TaskStructure
+# src/celestialflow/graph/core_structure.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 TaskStructure 模块提供了多种预定义的任务图结构，帮助用户快速构建复杂的任务流。所有的结构都继承自 `TaskGraph`。
 
@@ -235,9 +235,10 @@ chain = TaskChain(name="ETL", nodes=[s1, s2, s3], graph_mode="thread")
 # 启动
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 获取结果快照
-snapshot, _ = chain.collect_runtime_snapshot()
-print(f"链阶段数: {len(snapshot)}")
+# 获取结构化拓扑文本与节点数
+tree_lines = chain.get_structure_list()
+print(f"链阶段数: {len(chain.get_nodes())}")
+print("\n".join(tree_lines))
 ```
 
 ### TaskCross 完整示例
@@ -269,7 +270,7 @@ layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyz
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.collect_runtime_snapshot())
+print(cross.get_structure_list())
 ```
 
 ### TaskGrid 完整示例
@@ -285,7 +286,7 @@ n11 = TaskExecutor("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
-print(grid.collect_runtime_snapshot())
+print(grid.get_structure_list())
 ```
 
 ### TaskLoop 完整示例
@@ -321,7 +322,7 @@ ring_nodes = [
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.run({center.get_name(): [42]})
-print(wheel.collect_runtime_snapshot())
+print(wheel.get_structure_list())
 ```
 
 ### TaskComplete 完整示例
@@ -340,5 +341,5 @@ complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,
 )
-print(complete.collect_runtime_snapshot())
+print(complete.get_structure_list())
 ```

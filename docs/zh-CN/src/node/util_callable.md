@@ -1,6 +1,6 @@
-# node/util_callable.py
+# src/celestialflow/node/util_callable.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `util_callable.py` 提供对执行器函数签名的轻量级校验。当前仅暴露一个工具函数 `validate_executor_func_signature`，供 `BaseTaskNode._set_func` 在注册回调时调用。
 

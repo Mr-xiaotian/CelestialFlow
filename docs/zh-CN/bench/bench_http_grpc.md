@@ -1,6 +1,6 @@
-# bench_http_grpc.py 基准测试说明
+# bench/bench_http_grpc.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 

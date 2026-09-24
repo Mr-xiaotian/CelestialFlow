@@ -1,14 +1,41 @@
-# demo_web.py 演示说明
+# demo/demo_web.py
 
-> 📅 最后更新日期: 2026/09/16
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
-构建一个 6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图，通过 `TaskReporter` 向 celestialflow-web 推送状态、结构、错误与生命周期数据，用于观察 web 仪表盘在**复杂拓扑**下的显示效果（结构图、节点状态卡、错误日志、进度条、历史曲线等）。
+本文件包含两个演示：`demo_forest()`（两棵独立树状 DAG）与 `demo_topology_topology()`（6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图）。后者通过 `TaskReporter` 向 celestialflow-web 推送状态、结构、错误与生命周期数据，用于观察 web 仪表盘在**复杂拓扑**下的显示效果（结构图、节点状态卡、错误日志、进度条、历史曲线等）。
 
 ## 演示场景
 
-### 复杂拓扑（`demo_web_topology`）
+### 森林（`demo_forest`）
+
+两棵互不干扰的树状 DAG 共存于同一 `TaskGraph`：
+
+```mermaid
+flowchart LR
+    subgraph Tree1["树 1"]
+        node_a["node_a"] --> node_c["node_c"]
+        node_b["node_b"] --> node_d["node_d"]
+        node_c --> node_e["node_e"]
+        node_d --> node_e
+    end
+    subgraph Tree2["树 2"]
+        node_f["node_f"] --> node_g["node_g"]
+        node_f --> node_h["node_h"]
+        node_g --> node_i["node_i"]
+        node_h --> node_j["node_j"]
+    end
+```
+
+- 树 1：`node_a → node_c → node_e`，`node_b → node_d → node_e`
+- 树 2：`node_f → node_g → node_i`，`node_f → node_h → node_j`
+- 全部节点使用 `add_one_sleep`（`execution_mode="thread"`，`max_workers=2`），图模式为 `graph_mode="thread"`
+- 初始任务注入 `node_a`（`1..10`）、`node_b`（`11..20`）、`node_f`（`21..30`）
+
+### 复杂拓扑（`demo_topology_topology`）
+
+> 该演示的图名为 `demo_web_topology`，函数名为 `demo_topology_topology`。
 
 ```mermaid
 flowchart LR
@@ -59,14 +86,14 @@ Ingest ──┬── Normalize ──┐
 
 - 各 Stage 通过 `TaskExecutor(..., execution_mode="thread" | "serial")` 显式指定执行模式
 - `normalize.set_retry_exceptions(ValueError)` 指定可重试异常；`max_retries=2` 提供两次重试机会
-- `Ingest` 启用 `enable_duplicate_check=True` 展示重复判重
+- `Ingest` 注入 24 个种子任务，其中 `3`、`5`、`8`、`12` 与前面的种子重复（由默认判重逻辑计入 `dup`），用于展示重复判重计数
 - 上报刷新间隔调整为 `reporter.interval = 2`（默认 5s），便于仪表盘快速刷新
 - 图模式为 `graph_mode="thread"`，节点内部可混合执行模式
 
 ## 可能出现的问题
 
 1. **无断言**：演示脚本，不验证结果正确性。
-2. **任务函数含 sleep**：每层 0.02~0.25s，完整执行预计 15~25 秒，期间仪表盘可观察多轮状态刷新。
+2. **任务函数含 sleep**：各阶段 sleep 从 0.02s（`route_task`）到 1s（`ingest_task`）不等，完整执行预计数十秒，期间仪表盘可观察多轮状态刷新。
 3. **未配置上报地址**：`REPORT_HOST` / `REPORT_PORT` 为空时跳过上报，demo 仍可独立运行，但仪表盘无数据。
 
 ## 运行方式
@@ -111,5 +138,6 @@ demo 结束后会打印各节点计数摘要，大致形如：
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `demo_utils`（`add_one_sleep`）
 - `python-dotenv`
 - 外部服务：celestialflow-web（可选，未就绪时跳过上报）

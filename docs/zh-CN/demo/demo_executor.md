@@ -1,6 +1,6 @@
-# demo_executor.py 演示说明
+# demo/demo_executor.py
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -82,10 +82,12 @@ python demo/demo_executor.py
 运行后将依次执行三种模式，主要输出为 `tqdm` 进度条，类似：
 
 ```text
-FibonacciSerial(serial): 100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-FibonacciThread(thread-6): 100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
+100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
 ```
+
+> `TaskProgress` 创建进度条时未设置 `desc`，因此进度条不带节点名前缀；上面的 it/s 仅为示意。
 
 > **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 与 `None` 触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），并经 1 次重试后仍失败；`""` 触发类型错误（不在重试列表中）。
 > 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快，进度条上的 it/s 差异主要反映调度开销。
@@ -94,4 +96,6 @@ FibonacciAsync(async-6): 100%|██████████| 12/12 [00:00<00:00
 
 - `celestialflow`（`TaskExecutor`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
-- `demo_observer`（`TaskProgress`，由本仓库同目录下 `demo_observer.py` 提供；当前文件 `demo_executor.py` 中仍保留 `from celestialflow import TaskProgress` 的写法，但 `celestialflow` 已不再导出该类，实际使用请改为 `from demo_observer import TaskProgress`）
+- `demo_observer`（`TaskProgress`，由本仓库同目录下 `demo_observer.py` 本地定义）
+
+> ⚠️ **已变更**：`demo_executor.py` 当前仍写作 `from celestialflow import TaskProgress`，但 `celestialflow` 已不再导出 `TaskProgress`（该类现由 `demo_observer.py` 本地定义）。因此直接运行 `python demo/demo_executor.py` 会在导入阶段抛出 `ImportError`，需改为 `from demo_observer import TaskProgress` 才能正常执行。

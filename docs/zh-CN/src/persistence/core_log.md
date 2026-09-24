@@ -1,6 +1,6 @@
-# 日志持久化 (Log Persistence)
+# src/celestialflow/persistence/core_log.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `persistence/core_log.py` 模块提供了一个线程安全的日志系统，通过生产者-消费者模式将日志统一收集、格式化和持久化到 `logs/` 目录下的文本文件。
 
@@ -51,7 +51,7 @@ LEVEL_DICT[log_level]?}
 
 1.  **LogInlet (生产者)**:
     -   包装类，被各个 Worker 线程持有。
-    -   提供丰富的语义化方法（如 `task_success`, `start_graph` 等）。
+    -   提供丰富的语义化方法（如 `task_success`, `graph_start` 等）。
     -   将日志消息和级别封装后放入线程安全队列 (`queue.Queue`)。
     -   支持基于日志级别的过滤，减少不必要的通信。
 
@@ -65,13 +65,13 @@ LEVEL_DICT[log_level]?}
 
 | 级别 | 值 | 说明 |
 |------|----|------|
-| TRACE | 0 | 最详细的追踪信息，如队列的 `put`/`get` 操作 |
-| DEBUG | 10 | 调试信息，如任务输入等 |
-| SUCCESS | 20 | 关键操作成功，如任务完成、拆分成功 |
-| INFO | 30 | 一般信息，如阶段启动/结束、图结构打印 |
-| WARNING | 40 | 警告信息，如任务重试、队列操作异常 |
+| TRACE | 0 | 最详细的追踪信息，如终止信号合并 |
+| DEBUG | 10 | 调试信息，如任务输入、上报器停止 |
+| SUCCESS | 20 | 关键操作成功，如任务完成 |
+| INFO | 30 | 一般信息，如节点启停、图结构打印 |
+| WARNING | 40 | 警告信息，如任务重试、上报失败 |
 | ERROR | 50 | 错误信息，如任务失败、循环异常 |
-| CRITICAL | 60 | 严重错误 |
+| CRITICAL | 60 | 严重错误，如节点 / 工作器崩溃 |
 
 ## LogSpout
 
@@ -84,7 +84,7 @@ listener = LogSpout()
 listener.start()
 ```
 
-启动后，日志将写入 `logs/flow_log({date}).log` 文件。
+启动后，日志将写入 `logs/flow_log({date}).log` 文件，并以行缓冲（`buffering=1`）方式打开，便于读取方及时看到新增日志。
 
 ### 文件路径
 
@@ -104,7 +104,7 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 ```
 
 -   `log_queue`: 也就是 `LogSpout.get_queue()` 返回的队列。
--   `log_level`: 设置该 Inlet 的最低日志级别，低于此级别的日志将不会被发送到队列。
+-   `log_level`: 设置该 Inlet 的最低日志级别，低于此级别的日志将不会被发送到队列；非法级别会抛 `InvalidOptionError`。
 
 ### 方法分类
 
@@ -114,21 +114,16 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `start_graph(graph_name, graph_mode, structure_list)` | INFO | 记录任务图启动及结构信息 |
-| `end_graph(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
+| `graph_start(graph_name, graph_mode, structure_list)` | INFO | 记录任务图启动及结构信息 |
+| `graph_end(graph_name, use_time)` | INFO | 记录任务图结束及耗时 |
 
-#### 执行器 (Executor)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `start_executor(executor_name, task_num, execution_mode_desc)` | INFO | 记录执行器启动 |
-| `end_executor(executor_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录执行器结束及统计 |
-
-#### 执行器崩溃
+#### 节点 (Node)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `executor_crash(executor_name, exception)` | CRITICAL | 记录执行器崩溃 |
+| `node_start(node_name, task_num, execution_mode_desc)` | INFO | 记录节点启动及执行模式 |
+| `node_end(node_name, execution_mode_desc, use_time, success_num, failed_num, duplicated_num)` | INFO | 记录节点结束及统计 |
+| `node_crash(node_name, exception)` | CRITICAL | 记录节点崩溃 |
 
 #### 工作线程 (Worker)
 
@@ -140,31 +135,19 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `task_input(executor_name, task_repr, input_id)` | DEBUG | 记录任务进入输入队列 |
-| `task_success(executor_name, task_repr, execution_mode, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
-| `task_retry(executor_name, task_repr, retry_times, exception, task_id)` | WARNING | 记录任务失败但触发重试 |
-| `task_fail(executor_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
-| `task_duplicate(executor_name, task_repr, parent_id, duplicate_id)` | WARNING | 记录检测到重复任务 |
+| `task_input(node_name, task_repr, input_id)` | DEBUG | 记录任务进入输入队列 |
+| `task_success(node_name, task_repr, result_repr, use_time, parent_id, success_id)` | SUCCESS | 记录任务成功完成 |
+| `task_retry(node_name, task_repr, fail_times, exception, task_id)` | WARNING | 记录任务失败但触发重试 |
+| `task_fail(node_name, task_repr, exception, parent_id, error_id)` | ERROR | 记录任务失败且无法重试 |
 
-#### Split 拆分 (Splitter)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `split_trace(executor_name, part_index, part_total, parent_id, split_id)` | TRACE | 记录 split 子任务分发 |
-| `split_success(executor_name, task_repr, split_count, use_time)` | SUCCESS | 记录 split 成功 |
-
-#### Router 路由 (Router)
-
-| 方法 | 日志级别 | 说明 |
-|------|---------|------|
-| `route_success(executor_name, task_repr, target_node, use_time, parent_id, route_id)` | SUCCESS | 记录任务路由成功 |
+> 拆分（Split）与路由（Router）不再有专属日志方法：`TaskSplitter` / `TaskRouter` 的输入分发统一走 `task_input`，成功统一走 `task_success`。重复任务日志 `task_duplicate` 亦已移除。
 
 #### 终止信号 (Termination)
 
 | 方法 | 日志级别 | 说明 |
 |------|---------|------|
-| `termination_input(executor_name, termination_id)` | DEBUG | 记录终止信号输入 |
-| `termination_merge(executor_name, parent_ids, termination_id)` | TRACE | 记录终止信号合并 |
+| `termination_input(node_name, termination_id)` | DEBUG | 记录终止信号输入 |
+| `termination_merge(node_name, parent_ids, termination_id)` | TRACE | 记录终止信号合并 |
 
 #### 上报器 (Reporter)
 
@@ -178,36 +161,43 @@ sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
 | `inject_tasks_failed(target_node, task_datas, exception)` | WARNING | 记录任务注入失败 |
 | `push_errors_failed(exception)` | WARNING | 记录推送错误信息失败 |
 | `push_status_failed(exception)` | WARNING | 记录推送状态信息失败 |
-| `push_structure_failed(exception)` | WARNING | 记录推送结构信息失败 |
-| `push_analysis_failed(exception)` | WARNING | 记录推送分析信息失败 |
+| `push_graph_meta_failed(exception)` | WARNING | 记录推送图元信息失败 |
 
 ### 使用示例
 
 ```python
-# 图生命周期
-sinker.start_graph("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
-sinker.end_graph("my_graph", 12.34)
+from celestialflow.persistence import LogSpout, LogInlet
 
-# 执行器周期
-sinker.start_executor("Executor1", 50, "thread")
-sinker.end_executor("Executor1", "thread", 4.8, 48, 1, 1)
+log_spout = LogSpout()
+log_spout.start()
+sinker = LogInlet(log_level="SUCCESS").bind_spout(log_spout)
+
+# 图生命周期
+sinker.graph_start("my_graph", "thread", ["NodeA -> NodeB", "NodeB -> NodeC"])
+sinker.graph_end("my_graph", 12.34)
+
+# 节点周期
+sinker.node_start("NodeA", 50, "thread")
+sinker.node_end("NodeA", "thread", 4.8, 48, 1, 1)
 
 # 任务生命周期
-sinker.task_input("Executor1", "task_1", 1)
-sinker.task_success("Executor1", "task_1", "thread", "OK", 0.05, 1, 2)
-sinker.task_retry("Executor1", "task_2", 1, TimeoutError("timeout"), 1)
-sinker.task_fail("Executor1", "task_3", ValueError("bad"), 1, 4)
-sinker.task_duplicate("Executor1", "task_2", 1, 5)
+sinker.task_input("NodeA", "task_1", 1)
+sinker.task_success("NodeA", "task_1", "OK", 0.05, 1, 2)
+sinker.task_retry("NodeA", "task_2", 1, TimeoutError("timeout"), 1)
+sinker.task_fail("NodeA", "task_3", ValueError("bad"), 1, 4)
 
 # 终止信号
-sinker.termination_input("Executor1", 1)
-sinker.termination_merge("Executor1", [1, 2], 3)
+sinker.termination_input("NodeA", 1)
+sinker.termination_merge("NodeA", [1, 2], 3)
 
 # 上报器事件
-sinker.inject_tasks_success("StageA", ["task_10", "task_11"])
-sinker.inject_tasks_failed("StageA", ["task_10"], RuntimeError("conflict"))
+sinker.inject_tasks_success("NodeA", ["task_10", "task_11"])
+sinker.inject_tasks_failed("NodeA", ["task_10"], RuntimeError("conflict"))
 sinker.push_errors_failed(ConnectionError("timeout"))
 sinker.push_status_failed(ConnectionError("timeout"))
+sinker.push_graph_meta_failed(ConnectionError("timeout"))
+
+log_spout.stop()
 ```
 
 通过使用这些专用方法，而不是通用的 `info()` 或 `debug()`，可以确保生成的日志易于阅读和机器解析。

@@ -1,6 +1,6 @@
-# Runtime 模块
+# src/celestialflow/runtime/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 Runtime 模块提供了 CelestialFlow 任务运行时的核心基础设施，包括任务信封（Envelope）、队列（Queue）、指标统计（Metrics）等组件。
 
@@ -19,7 +19,9 @@ from celestialflow.runtime import (
 )
 ```
 
-> **注意**：`util_constant`、`util_errors`、`util_estimators`、`util_event`、`util_hash`、`util_types`、`util_config`、`util_format` 等工具模块的符号**不在** `runtime/__init__.py` 的 `__all__` 中，需要通过完整路径导入（如 `from celestialflow.runtime.util_errors import ConfigurationError`）。
+`__all__ = ["TaskEnvelope", "TaskInQueue", "TaskMetrics", "TaskOutQueue"]`
+
+> **注意**：`util_constant`、`util_errors`、`util_event`、`util_types`、`util_config`、`util_format` 等工具模块的符号**不在** `runtime/__init__.py` 的 `__all__` 中，需要通过完整路径导入（如 `from celestialflow.runtime.util_errors import ConfigurationError`）。
 
 ## 文件说明
 
@@ -33,13 +35,13 @@ from celestialflow.runtime import (
    - **关键功能**: 终止信号合并、来源名称管理、动态添加队列通道
 
 2. **core_envelope.py** (`TaskEnvelope`)
-   - **作用**: 任务数据包装器，封装原始任务及其哈希、ID 等元信息
-   - **包含信息**: 任务数据、SHA1 哈希值（惰性计算）、任务 ID
-   - **关键功能**: 数据封装、惰性哈希计算、不可 hash 任务兜底
+   - **作用**: 任务数据包装器，封装原始任务及其 ID
+   - **包含信息**: 任务数据（`_task`）、任务 ID（`_id`）
+   - **关键功能**: 数据封装与访问
 
 3. **core_metrics.py** (`TaskMetrics`)
-   - **作用**: 任务执行指标统计，管理成功/失败/重复计数和去重逻辑
-   - **关键功能**: 线程安全计数器、重复任务检查、可重试异常配置、任务完成判断
+   - **作用**: 任务执行指标统计，管理外部注入/上游接收/成功/失败/重复计数
+   - **关键功能**: 线程安全计数器、上游/下游分节点计数、观察者回调、可重试异常配置、任务完成判断、实测忙碌耗时
 
 ### 工具模块
 
@@ -50,35 +52,26 @@ from celestialflow.runtime import (
 
 5. **util_types.py**
    - **作用**: 运行时类型定义和数据结构
-   - **包含类型**: `TerminationSignal`、`TerminationIdPool`、`ValueWrapper`、`SumCounter`、`NoOpContext`、`StageStatus`、`CTreeEvent`
+   - **包含类型**: `TerminationSignal`、`TERMINATION_SIGNAL`、`TerminationIdPool`、`NoOpContext`、`ValueWrapper`、`StageStatus`、`CTreeEvent`
 
-6. **util_hash.py**
-   - **作用**: 对象哈希计算，用于任务去重
-   - **关键函数**: `make_hashable()`、`object_to_hash()`
-
-7. **util_estimators.py**
-   - **作用**: 执行时间估算和进度计算
-   - **关键函数**: `calc_remaining()`、`calc_elapsed()`、`format_avg_time()`
-
-8. **util_event.py**
+6. **util_event.py**
    - **作用**: 事件客户端抽象接口和本地实现
    - **关键类**: `EventClient`（Protocol）、`LocalEventClient`、`clone_event_client()`
 
-9. **util_constant.py**
+7. **util_constant.py**
    - **作用**: 运行时常量定义（如日志级别映射）
 
-10. **util_config.py**
-    - **作用**: 运行时配置加载（如从 pyproject.toml 读取日志级别）
+8. **util_config.py**
+   - **作用**: 运行时配置加载（如从 pyproject.toml 读取日志级别）
 
-11. **util_format.py**
-    - **作用**: 通用格式化工具（字符串截断、表格渲染、时间格式化等）
+9. **util_format.py**
+   - **作用**: 通用格式化工具（字符串截断、表格渲染、按值聚类）
 
 ## 模块关联
 
 ### 内部关联
-- `TaskEnvelope` 使用 `util_hash` 计算任务哈希
 - `TaskInQueue`/`TaskOutQueue` 使用 `util_types` 中的 `TerminationSignal`/`TerminationIdPool`
-- `TaskMetrics` 使用 `util_types` 中的 `ValueWrapper`/`SumCounter`
+- `TaskMetrics` 使用 `util_types` 中的 `ValueWrapper`，并通过 `StageStatus` 表达生命周期状态
 - 所有错误通过 `CelestialFlowError` 及其子类统一处理
 
 ### 外部关联
@@ -92,28 +85,31 @@ from celestialflow.runtime import (
 ```python
 from celestialflow.runtime import TaskEnvelope, TaskMetrics, TaskInQueue, TaskOutQueue
 
-# 1. TaskEnvelope：创建和操作任务信封
+# 1. TaskEnvelope：创建和访问任务信封
 envelope = TaskEnvelope(task={"data": 42}, id=1)
 print(f"任务数据: {envelope.get_task()}")
-print(f"任务哈希: {envelope.get_hash().hex()[:8]}...")
 print(f"任务ID: {envelope.get_id()}")
 ```
 
 ```python
-# 2. TaskMetrics：指标统计
-metrics = TaskMetrics(enable_duplicate_check=True)
+from celestialflow.runtime import TaskMetrics
+from celestialflow.runtime.util_types import ValueWrapper
 
-# 模拟任务处理过程
-metrics.add_task_count(5)
+# 2. TaskMetrics：指标统计
+metrics = TaskMetrics()
+
+# 模拟任务处理过程：外部注入 3 个 + 上游接收 2 个
+metrics.add_external_input_count(3)
+metrics.set_upstream_counter("upstream", ValueWrapper(value=2))
 metrics.add_success_count(3)
 metrics.add_fail_count(1)
 metrics.add_duplicate_count(1)
 
 # 查询各项计数
-print(f"输入: {metrics.get_task_count()}")
-print(f"成功: {metrics.get_success_count()}")
-print(f"失败: {metrics.get_fail_count()}")
-print(f"重复: {metrics.get_duplicate_count()}")
+print(f"输入: {metrics.get_input_count()}")  # 5
+print(f"成功: {metrics.get_success_count()}")  # 3
+print(f"失败: {metrics.get_fail_count()}")  # 1
+print(f"重复: {metrics.get_duplicate_count()}")  # 1
 print(f"全部完成: {metrics.is_tasks_finished()}")
 
 # 获取快照字典
@@ -132,7 +128,7 @@ in_queue.add_source_name("producer")
 # 创建输出队列
 out_queue = TaskOutQueue(in_name="processor")
 consumer_queue = ThreadQueue()
-out_queue.add_queue(consumer_queue, "consumer")
+out_queue.add_queue("consumer", consumer_queue)
 
 # 生产任务
 envelope_a = TaskEnvelope(task="hello", id=1)
@@ -146,6 +142,6 @@ print(f"出队任务: {retrieved.get_task()}")
 
 ## 最佳实践
 
-1. **关键任务**: 配置适当的 `set_retry_exceptions`
-2. **重复敏感场景**: 开启 `enable_duplicate_check=True`
+1. **关键任务**: 通过 `set_retry_exceptions()` 配置可重试异常类型
+2. **分节点统计**: 使用 `set_upstream_counter()` / `set_downstream_counter()` 追踪节点间流量
 3. **队列通信**: 合理设置 `maxsize` 避免内存溢出

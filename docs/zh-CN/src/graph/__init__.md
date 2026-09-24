@@ -1,6 +1,6 @@
-# Graph 模块
+# src/celestialflow/graph/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
 
@@ -31,7 +31,7 @@ from celestialflow.graph import (
    - **关键功能**:
      - 建立节点间的依赖关系（`set_nodes` / `connect`）
      - 执行任务图（`start` / `start_async`，按 `graph_mode` 串行/线程/异步执行）
-     - 运行时监控快照和全局剩余时间估算（`collect_runtime_snapshot`）
+     - 构建期节点元信息与图分析信息导出（`get_node_meta` / `get_graph_analysis` / `get_structure_list`）
      - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db`）
      - 错误持久化和未消费任务处理（`drain_task_queue`）
 
@@ -53,12 +53,13 @@ from celestialflow.graph import (
      - `OrderGraph`: 最小有序有向图，维护稳定节点顺序、入边和出边邻接表
      - `is_dag()` / `topo_sort()`: DAG 判定与拓扑排序
      - `tarjan_scc()` / `get_condensation()`: 强连通分量分析与凝聚图构建
+     - `source_sccs()` / `source_nodes()`: 定位源 SCC 并提取代表性源节点
      - `compute_node_levels()`: 基于 SCC 凝聚图计算节点层级
 
 4. **util_render.py**
    - **作用**: 将图结构渲染为带边框的树形文本列表
    - **关键函数**:
-     - `render_structure_list()`: 从节点字典、邻接表和源节点生成带边框的树形文本
+     - `render_structure_list()`: 从节点名称列表、邻接表和源节点生成带边框的树形文本
 
 ## 模块关联
 
@@ -81,7 +82,7 @@ from celestialflow.graph import (
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
 3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
 4. **执行**: 调用 `run()` 或 `run_async()`
-5. **监控**: 使用 `collect_runtime_snapshot()` 获取状态快照
+5. **监控**: 由 `TaskReporter` 周期性调用各节点的 `get_snapshot()` 采集运行时状态
 
 ## 使用示例
 
@@ -140,10 +141,10 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 监控：通过 collect_runtime_snapshot 采集一次运行时快照
-snapshot, ts = chain.collect_runtime_snapshot()
-print(f"快照时间戳: {ts}")
-print(f"节点 0 快照: {snapshot[nodes[0].get_name()]}")
+# 图分析：查看 DAG 判定与层级结构
+analysis = chain.get_graph_analysis()
+print(f"是DAG: {analysis['isDAG']}")
+print(f"层级: {analysis['layersDict']}")
 ```
 
 ### TaskCross 交叉层
@@ -163,7 +164,7 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.collect_runtime_snapshot())
+print(cross.get_structure_list())
 ```
 
 ### TaskGrid 网格
@@ -178,7 +179,7 @@ s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.collect_runtime_snapshot())
+print(grid.get_structure_list())
 ```
 
 ### TaskLoop 环形图

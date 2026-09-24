@@ -1,6 +1,6 @@
-# bench_funnel_vs_lock.py 基准测试说明
+# bench/bench_funnel_vs_lock.py
 
-> 📅 最后更新日期: 2026/09/14
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -83,7 +83,7 @@ flowchart LR
 脚本内常量：
 
 - `PENDING_SAMPLE_INTERVAL = 0.0005`：采样队列积压的间隔（秒）。受平台定时器精度限制，`peak_pending` 是真实峰值的**下界**。
-- 工作负载函数 `apply_work(seed, iters)`：对 `seed` 做 `iters` 次 `((acc * 33) ^ i) & 0x7FFF_FFFF` 变换。在 `lock` 场景中它发生在生产者线程，在 `funnel` 场景中它发生在消费线程——这正是两种机制差异的来源。
+- 工作负载函数 `apply_work(seed, iters)`：对 `seed` 做 `iters` 次 `((acc * 33) ^ (i + seed)) & 0x7FFF_FFFF` 变换。在 `lock` 场景中它发生在生产者线程，在 `funnel` 场景中它发生在消费线程——这正是两种机制差异的来源。
 
 参数合法性由 `validate_args()` 校验（`--items >= 0`、`--producers >= 1`、`--readers >= 0`、`--work-iters >= 0`、`--repeats >= 1`），非法值在打印配置头之前直接报错退出。
 
@@ -220,4 +220,4 @@ python bench/bench_funnel_vs_lock.py --repeats 5
 
 - Python 标准库：`argparse`、`statistics`、`sys`、`threading`、`time`、`dataclasses`、`pathlib`
 - 项目源码中的 `celestialflow.funnel`（`BaseInlet`、`BaseSpout`）
-- 项目源码中的 `celestialflow.runtime.util_types`（`ValueWrapper`）
+- 项目源码中的 `celestialflow.runtime.util_types`（`ValueWrapper`、`NoOpContext`）

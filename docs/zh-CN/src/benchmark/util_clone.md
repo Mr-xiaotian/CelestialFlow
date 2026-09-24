@@ -1,6 +1,6 @@
-# benchmark/util_clone.py
+# src/celestialflow/benchmark/util_clone.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `benchmark/util_clone.py` 提供了克隆执行器与任务图的功能，用于性能测试和配置复用。
 
@@ -35,7 +35,6 @@ def clone_executor[T, R](
 - `max_workers`: 并发限制
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
-- `enable_duplicate_check`: 重复检查开关
 - `retry_exceptions`: 可重试异常列表（通过 `set_retry_exceptions()` 设置）
 
 ### clone_graph

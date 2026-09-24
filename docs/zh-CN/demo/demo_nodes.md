@@ -1,6 +1,6 @@
-# demo_nodes.py 演示说明
+# demo/demo_nodes.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -26,7 +26,7 @@ flowchart TD
 - `Downloader` → 下载资源
 - `Parser` → 解析新 URL 并回环到 `GenURLs`
 
-**图结构**：含环图（`parse_stage → generate_stage`）
+**图结构**：含环图（`Parser → GenURLs`）
 
 ### `demo_splitter_1`
 演示大数据包拆分：输入 `range(100_000)` 被包装在列表中传入 `TaskSplitter`，下游逐个接收处理，避免一次性加载过多任务到内存。
@@ -41,14 +41,14 @@ flowchart LR
     Router -->|奇数 n % 2 != 0| StageB["StageB<br/>thread | 2 workers"]
 ```
 
-路由逻辑：`Origin` 阶段只原样产出输入整数，`TaskRouter` 持有 `router_even(n) -> str`，在 `_route()` 中根据奇偶性选择 `StageA`（偶数）或 `StageB`（奇数），再把原始任务继续分发下去。
+路由逻辑：`Origin` 阶段只原样产出输入整数，`TaskRouter` 持有 `router_even(n) -> dict[str, int]`，由其 `func` 根据奇偶性返回目标名到任务的映射，框架据此把原始任务分发到 `StageA`（偶数）或 `StageB`（奇数）。
 
 ## 关键配置
 
 - `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_node_execution_mode("thread")` 两条独立调用统一将各 `TaskExecutor` 节点设为 `"thread"` 模式（`max_workers=4`）；`TaskSplitter` 不显式设置执行模式，仅作为拆分节点透传任务
 - `demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`（`Process` 阶段）
 - `demo_router_0` 中 `Origin` / `StageA` / `StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不消耗 `execution_mode`
-- 监控通过 `graph.set_reporter(TaskReporter(report_host, report_port, graph))` 接入 `REPORT_HOST`/`REPORT_PORT` 环境变量对应的远端 Reporter；`graph.set_ctree(ctree_client)` 默认被注释掉，不启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并取消对应注释
+- 监控通过 `graph.set_reporter(TaskReporter(report_host, report_port, graph))` 接入 `REPORT_HOST`/`REPORT_PORT` 环境变量对应的远端 Reporter；`demo_splitter_0` 与 `demo_router_0` 的 `graph.set_ctree(ctree_client)` 均被注释掉，而 `demo_splitter_1` 通过 `chain.set_ctree(ctree_client)` 启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并确认对应调用未被注释
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
 ## 可能出现的问题
@@ -64,11 +64,11 @@ flowchart LR
 # 运行默认演示（demo_splitter_0）
 python demo/demo_nodes.py
 
-# 修改 main() 后可运行其他场景
+# 修改 __main__ 后可运行其他场景
 # 如将 demo_splitter_0() 替换为 demo_router_0()
 ```
 
-> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用，需要手动在 `main()` 中执行或取消注释才能运行。
+> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用（`demo_router_0()` 在源码中被注释），需要手动在 `__main__` 中执行或取消注释才能运行。
 
 ## 预期行为
 

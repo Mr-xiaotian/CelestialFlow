@@ -1,12 +1,10 @@
-# node/__init__.py
+# src/celestialflow/node/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 
 `celestialflow.node` 包对外暴露节点层的全部公共 API。它从 `core_nodes` 模块重新导出 `TaskExecutor`、`TaskSplitter` 与 `TaskRouter`，为任务图提供"执行、拆分、路由"三类可直接作为图节点使用的流水线组件。
-
-> 该模块的 docstring 仍保留历史名称 "CelestialFlow 阶段模块"，可继续保留。
 
 ## 公开导出符号（`__all__`）
 
@@ -34,9 +32,11 @@ __all__ = [
 
 | 导出符号 | 源模块 | 父类 | 用途 |
 |---------|-------|------|------|
-| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R]` | 通用任务执行器，把单个输入映射为单个结果 |
-| `TaskSplitter` | `core_nodes` | `BaseTaskNode[Iterable[TItem], Iterable[RItem]]` | 拆分器，将单个任务拆为多个子任务（1→N） |
-| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, tuple[str, T]]` | 路由器，根据用户自定义的 `router` 函数将任务分发到不同下游 |
+| `TaskExecutor` | `core_nodes` | `BaseTaskNode[T, R, R]` | 通用任务执行器，把单个输入映射为单个结果 |
+| `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | 拆分器，将单个任务拆为多个子任务（1→N） |
+| `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | 路由器，`func` 返回 `{下游名称: 载荷}` 映射并据此分发 |
+
+> 三个节点类均未定义自己的 `__init__`，直接复用 `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)`；`func` 必填。
 
 ## 使用示例
 
@@ -62,12 +62,16 @@ for task, result in executor.get_success_pairs():
 ```python
 from celestialflow.node import TaskSplitter
 
-# 把字符串拆成单个字符
-splitter = TaskSplitter("CharSplitter")
+
+def split_chars(text: str) -> list[str]:
+    return list(text)
+
+
+splitter = TaskSplitter("CharSplitter", split_chars)
 
 # 配合下游 TaskGraph:
 # graph.connect([splitter], [downstream])
-# splitter.run([["abc", "de"]])
+# splitter.run(["abc"])
 ```
 
 ### TaskRouter — 按条件路由到不同下游
@@ -76,11 +80,12 @@ splitter = TaskSplitter("CharSplitter")
 from celestialflow.node import TaskRouter
 
 
-def by_length(text: str) -> str:
-    return "LongPath" if len(text) > 5 else "ShortPath"
+def route_by_length(text: str) -> dict[str, str]:
+    target = "LongPath" if len(text) > 5 else "ShortPath"
+    return {target: text}
 
 
-router = TaskRouter("LengthRouter", router=by_length)
+router = TaskRouter("LengthRouter", route_by_length)
 # graph.connect([router], [long_node, short_node])
 ```
 
@@ -94,6 +99,6 @@ router = TaskRouter("LengthRouter", router=by_length)
 
 ## 注意事项
 
-1. **基类非公共 API**：`BaseTaskNode` 与 `TaskDispatch` 不会出现在 `__all__` 中。如需自定义节点行为，请继承 `TaskExecutor` 并覆写 `process_task_success` / `get_binding_counter`。
+1. **基类非公共 API**：`BaseTaskNode` 与 `TaskDispatch` 不会出现在 `__all__` 中。如需自定义节点行为，请继承 `TaskExecutor` 并覆写 `process_task_success`。
 2. **入口层一致性**：从 `celestialflow` 顶层包入口（`docs/zh-CN/src/__init__.md`）也可直接 `import` 上述三个符号。
 3. **生命周期**：所有节点 `start()` / `start_async()` 是一次性调用，执行完毕后应新建实例而不是复位复用。

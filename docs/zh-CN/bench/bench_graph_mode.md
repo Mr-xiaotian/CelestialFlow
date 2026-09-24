@@ -1,6 +1,6 @@
-# bench_graph_mode.py 基准测试说明
+# bench/bench_graph_mode.py
 
-> 📅 最后更新日期: 2026/09/19
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -9,17 +9,17 @@
 ## 测试内容
 
 ### `bench_graph_0`
-- **结构**：4 节点 DAG，`stage1 → stage2 → stage4`，`stage1 → stage3`（stage3 为不汇入 stage4 的独立分支）
+- **结构**：4 节点 DAG，`NodeA → NodeB1 → NodeC`，`NodeA → NodeB2`（`NodeB2` 为不汇入 `NodeC` 的独立分支）
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
 - **输入**：`range(25, 32)`（7 个纯成功任务；早期版本含异常输入，已移除）
-- **重试设置**：`stage1`、`stage2` 对 `ValueError` 启用 `max_retries=1`（当前输入下不触发）
-- **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
+- **重试设置**：`NodeA`、`NodeB1` 对 `ValueError` 启用 `max_retries=1`（当前输入下不触发）
+- **Reporter**：未启用（脚本中没有任何 `set_reporter(...)` / `add_observer(...)` 调用）
 
 ### `bench_graph_1`
 - **结构**：6 节点多层 DAG（A → [B, C]；B → [D, E]；C → E；D → F）
 - **任务**：随机 0-2 秒睡眠（模拟不均匀负载）
 - **输入**：`range(10)`
-- **Reporter**：默认关闭（代码中已注释，可通过取消注释启用）
+- **Reporter**：未启用（脚本中没有任何 `set_reporter(...)` / `add_observer(...)` 调用）
 
 ### `bench_graph_2`
 - **结构**：3 节点 DAG（NodeA → [NodeB, NodeC]），节点直接使用 `TaskExecutor`，不再包 `TaskSplitter`（早期版本含 Splitter，已移除）

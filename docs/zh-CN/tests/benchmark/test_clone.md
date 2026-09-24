@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 
@@ -69,7 +69,7 @@ pytest tests/benchmark/test_clone.py -k "graph" -v
 - `clone_graph` 测试构造了有向无环图 `A → B → C`，验证图结构完整性。
 - `LocalEventClient` 独立验证确保克隆图拥有独立的事件总线，避免运行时状态互相干扰。
 - 带 `TaskReporter` 的图在克隆后应绑定新的 reporter 实例，`cloned.reporter.task_graph` 指向克隆图。
-- 文件末尾的 `# 运行方式` 注释与上方 `pytest` 命令一致，便于直接复制运行。
+- 源码文件末尾保留了一行历史遗留的 `# 运行方式` 注释（指向已不存在的 `tests/utils/test_utils_clone.py`）；请以上方 `pytest` 命令为准。
 
 ## 注意事项
 

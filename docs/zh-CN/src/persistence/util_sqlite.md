@@ -1,6 +1,6 @@
-# PersistenceSQLite
+# src/celestialflow/persistence/util_sqlite.py
 
-> 📅 最后更新日期: 2026/08/31
+> 📅 最后更新日期: 2026/09/24
 
 `persistence/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `LifecycleSpout` 和 `TaskReporter` 的底层存储引擎。
 
@@ -9,9 +9,12 @@
 | 函数 | 说明 |
 |------|------|
 | `connect_db(db_path)` | 创建 SQLite 连接，配置 WAL 模式，确保表结构 |
+| `normalize_record(record)` | 将记录归一化为 sqlite 可写格式（缺少 `event_id` 时返回 `None`） |
+| `row_to_record_dict(row)` | 将 sqlite 行转换为对外记录字典 |
 | `insert_record(conn, record)` | 插入一条记录 |
 | `promote_record_to_failed_by_event_id(...)` | 将记录晋升为 failed 并切换到新事件 ID |
 | `promote_record_to_success_by_event_id(...)` | 将记录晋升为 success 并写入结果 |
+| `update_retry_by_event_id(conn, event_id, *, ts, retry_times, ...)` | 更新 pending 记录的重试次数与最近一次错误信息 |
 | `delete_record_by_event_id(conn, event_id)` | 按 event_id 删除记录 |
 | `clear_records(db_path)` | 清空数据库中的全部记录 |
 | `append_records(db_path, records)` | 批量追加写入，event_id 冲突时跳过（幂等） |
@@ -36,9 +39,12 @@ CREATE TABLE IF NOT EXISTS records (
     error_type TEXT NOT NULL DEFAULT '',
     error_message TEXT NOT NULL DEFAULT '',
     task_json TEXT NOT NULL,
-    result_json TEXT NOT NULL DEFAULT 'null'
+    result_json TEXT NOT NULL DEFAULT 'null',
+    retry_times INTEGER NOT NULL DEFAULT 0
 )
 ```
+
+> 兼容旧库：`_ensure_table` 会在启动时检查 `retry_times` 列，缺失时自动 `ALTER TABLE` 补齐。
 
 **索引：**
 - `idx_records_event_id` (UNIQUE)：按 event_id 快速定位
@@ -75,6 +81,7 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 | `insert_record` | `(conn, record: dict) -> bool` | 归一化后 INSERT |
 | `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | 更新 event_id、status='failed' 和错误信息 |
 | `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | 更新 status='success' + result_json |
+| `update_retry_by_event_id` | `(conn, event_id, *, ts, retry_times, error_type="", error_message="") -> bool` | 保持 pending 状态，更新重试次数与最近一次错误信息 |
 | `delete_record_by_event_id` | `(conn, event_id) -> bool` | 删除记录 |
 
 ### 读取操作（自行管理连接）
@@ -169,3 +176,4 @@ for item in items:
 - `insert_record` 使用 `INSERT`，基于 `event_id` 唯一索引保证唯一性；外部批量写入时通常配合 `append_records` 捕获 `IntegrityError` 实现幂等。
 - 归一化函数 `normalize_record` 会过滤掉缺少 `event_id` 的记录（返回 `None`）。
 - `task_json` 和 `result_json` 存储的是 `json.dumps` 后的字符串，读取时通过 `json.loads` 还原。
+- `retry_times` 由 `update_retry_by_event_id` 维护，用于记录任务在晋升前的重试次数。

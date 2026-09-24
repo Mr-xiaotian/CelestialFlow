@@ -1,6 +1,6 @@
 # tests/persistence/test_scope.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 
@@ -25,7 +25,7 @@
 验证 `funnel_scope()` 进入时启动两个全局 spout 的后台线程，退出时自动停止并清理线程引用。
 
 - 在作用域内断言 `log_spout._thread` 和 `lifecycle_spout._thread` 不为空且存活。
-- 通过 `get_log_inlet().start_graph("scope_graph", "thread", ["hello scope"])` 写入日志。
+- 通过 `get_log_inlet().graph_start("scope_graph", "thread", ["hello scope"])` 写入日志。
 - 通过 `get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")` + `task_success(event_id=1, result="ok")` 写 sqlite。
 - 退出作用域后断言 `_thread` 为 `None`，且日志文件与 sqlite 文件已持久化并包含正确内容。
 - 验证 sqlite 中 `records` 表内容为 `[("scope_stage", "success", '"data"', '"ok"')]`。

@@ -1,6 +1,6 @@
-# OrderGraph 与图算法工具
+# src/celestialflow/graph/util_order_graph.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `graph/util_order_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
 
@@ -8,7 +8,7 @@
 
 - 为框架内部提供轻量、稳定顺序的图结构。
 - 承担一部分图分析能力，减少对第三方图结构的耦合。
-- 为 `TaskGraph`、运行时估算和测试提供统一的图分析基础能力。
+- 为 `TaskGraph` 与测试提供统一的图分析基础能力。
 
 ## 主要能力
 
@@ -78,7 +78,6 @@
 - 源节点识别
 - DAG 判定
 - 节点层级计算
-- 运行时全局 pending 估算所需的拓扑与前驱访问
 
 ## 使用示例
 
@@ -93,7 +92,7 @@ graph.add_edge("A", "C")
 graph.add_edge("B", "D")
 graph.add_edge("C", "D")
 
-print(graph.nodes)  # ('A', 'B', 'C', 'D')
+print(graph.nodes)  # ['A', 'B', 'C', 'D']
 print(graph.successors("A"))  # ('B', 'C')
 print(graph.predecessors("D"))  # ('B', 'C')
 print(is_dag(graph))  # True

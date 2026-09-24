@@ -1,6 +1,6 @@
-# BaseInlet
+# src/celestialflow/funnel/core_inlet.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `BaseInlet` 是所有入口类（Inlet）的基类，负责将记录通过队列发送到对应的 `BaseSpout`。
 
@@ -71,21 +71,22 @@ classDiagram
         +_funnel(record: Any) None
     }
     class LogInlet {
-        +start_graph()
-        +end_graph()
-        +start_executor()
-        +end_executor()
+        +graph_start()
+        +graph_end()
+        +node_start()
+        +node_end()
         +task_input()
         +task_success()
         +task_fail()
         +task_retry()
         +termination_input()
+        +termination_merge()
     }
     class LifecycleInlet {
         +task_input()
         +task_success()
         +task_fail()
-        +task_duplicate()
+        +task_retry()
     }
     BaseInlet <|-- LogInlet
     BaseInlet <|-- LifecycleInlet
@@ -96,7 +97,7 @@ classDiagram
 | 子类 | 所在文件 | 职责 |
 |------|---------|------|
 | `LogInlet` | `persistence/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | 生命周期记录，将任务进入/成功/失败/判重持久化到 SQLite |
+| `LifecycleInlet` | `persistence/core_lifecycle.py` | 生命周期记录，将任务进入/成功/失败/重试持久化到 SQLite |
 
 ## 使用示例
 

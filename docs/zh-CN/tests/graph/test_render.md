@@ -1,6 +1,6 @@
-# 图结构渲染测试 (test_render.py)
+# tests/graph/test_render.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 验证 `celestialflow.graph.util_render.render_structure_list` 能够将图结构（节点元信息、邻接表、源节点）渲染为带边框的树形文本列表，覆盖普通 DAG、含环图、空图与超深链等场景，并确保深度图渲染不会触发 Python 默认递归上限。
@@ -13,12 +13,12 @@
 
 | 测试类 | 用例数 | 覆盖目标 | 关键断言 |
 |--------|--------|---------|---------|
-| `TestUtilRender` | 4 | 普通 DAG 渲染、空结构、环图引用标记、超深链渲染 | 空结构返回 `"+ No stages defined +"`；环图重复节点只展开一次并标记 `[Ref]`；深链长度 = `DEEP + 2` 且不抛 `RecursionError` |
+| `TestUtilRender` | 4 | 普通 DAG 渲染、空结构、环图引用标记、超深链渲染 | 空结构返回 `"+ No nodes defined +"`；环图重复节点只展开一次并标记 `[Ref]`；深链长度 = `DEEP + 2` 且不抛 `RecursionError` |
 
 ## 关键测试场景
 
 1. **普通 DAG 渲染** (`test_render_structure_list`): 4 节点钻石形结构（s1→{s2,s3}→s4），验证节点标签格式正确、列表中含 `[Ref]` 标记。
-2. **空结构** (`test_render_structure_list_no_nodes`): 空 `nodes` 应返回占位提示 `"+ No stages defined +"`。
+2. **空结构** (`test_render_structure_list_no_nodes`): 空 `nodes` 应返回占位提示 `"+ No nodes defined +"`。
 3. **环图引用标记** (`test_render_structure_list_cycle`): 三节点闭环（c1→c2→c3→c1），验证 `c1` 出现 2 次（首次展开 + `[Ref]` 回指），整段输出含 `[Ref]`。
 4. **超深链不触发递归上限** (`test_render_deep_chain_no_recursion_error`): 5000 节点线性链，验证渲染行数恰好为 `DEEP + 2`（上边框 + 节点行 + 下边框），首末节点标签均正确。
 

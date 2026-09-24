@@ -1,6 +1,6 @@
-# bench_execution_mode.py 基准测试说明
+# bench/bench_execution_mode.py
 
-> 📅 最后更新日期: 2026/09/23
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -204,4 +204,4 @@ bench_task_1: list[Any] = list(range(20, 35))
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`benchmark_executor`，以及可选的 `TaskProgress`，本脚本未启用）
+- `celestialflow`（`TaskExecutor`、`benchmark_executor`，以及可选的观察者 `PrintObserver`，本脚本未启用）

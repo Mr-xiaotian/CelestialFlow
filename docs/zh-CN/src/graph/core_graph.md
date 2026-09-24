@@ -1,14 +1,23 @@
-# TaskGraph
+# src/celestialflow/graph/core_graph.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组任务节点（`BaseTaskNode` 派生对象，公共 API 包括 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的依赖关系、执行流程、资源分配和生命周期。
 
-> 注意：`TaskGraph` 是一次性对象。一次 `run()` 完成后，不保证当前实例可被安全重置并再次启动；如需重复执行同一流程，请重新创建新的 `TaskGraph` 和关联任务节点。
+> 注意：`TaskGraph` 是一次性对象。一次 `start()` / `start_async()` / `run()` 完成后，不保证当前实例可被安全重置并再次启动；如需重复执行同一流程，请重新创建新的 `TaskGraph` 和关联任务节点。
 
 ## 关键数据结构
 
-`TaskGraph` 内部使用 `node_dict: dict[str, AnyTaskNode]` 维护所有节点的映射，队列连接在 `connect()` 阶段直接建立。图分析基于内部维护的 `OrderGraph` 实例（`self.order_graph`），其 `out_edges` / `in_edges` 是入/出边邻接表引用视图。
+`TaskGraph` 内部使用 `node_dict: dict[str, AnyTaskNode]` 维护所有节点的映射，队列连接在 `connect()` 阶段通过节点的 `connect_to()` 建立。图分析基于内部维护的 `OrderGraph` 实例（`self.order_graph`），其 `out_edges` / `in_edges` 是入/出边邻接表引用视图。
+
+实例上的图分析结果字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `source_names` | `list[str]` | 源节点列表（由 `_build_analysis` 计算） |
+| `is_dag` | `bool` | 是否为有向无环图 |
+| `layers_dict` | `dict[int, list[str]]` | 层级 → 节点名称列表 |
+| `_analysis_dirty` | `bool` | 分析缓存是否需要重建 |
 
 ## 初始化
 
@@ -25,6 +34,8 @@ class TaskGraph:
   - `thread`: 线程并发执行，每个节点在独立线程中启动
   - `async`: 异步并发执行，需要在已运行事件循环的上下文中调用（见 [`start_async`](#start_async)）
 
+`__init__` 依次调用 `_set_name`、`set_graph_mode`、`set_reporter(NullTaskReporter())`、`set_ctree(LocalEventClient())` 与 `_init_state()`。
+
 ## 图构建
 
 ### set_nodes
@@ -32,12 +43,14 @@ class TaskGraph:
 ```python
 def set_nodes(self, nodes: list[AnyTaskNode]) -> None:
     """
-    添加节点到任务图中。注册节点并注入图级事件客户端。
+    添加节点到任务图中。注册节点、写入 OrderGraph，并注入图级事件客户端。
 
-    :param nodes: 节点列表
-    :raises DuplicateNodeError: 如果节点名称重复
+    :param nodes: 待添加的节点列表
+    :raises DuplicateNodeError: 存在重复的节点名称
     """
 ```
+
+注册后会将 `_analysis_dirty` 置为 `True`。
 
 ### connect
 
@@ -49,11 +62,43 @@ def connect[R](
 ) -> None:
     """
     建立超边连接：from_nodes 中的每个节点连接到 to_nodes 中的每个节点。
-    操作的是 self.order_graph 的 out_edges / in_edges 字典，队列连接在 connect() 内直接完成。
+    内部调用 from_node.connect_to(to_node) 完成队列连接，并向 order_graph 添加边。
+
+    :param from_nodes: 上游节点列表
+    :param to_nodes: 下游节点列表
+    :raises NodeNotFoundError: 任一端节点未注册
     """
 ```
 
 ## 配置方法
+
+### _set_name
+
+```python
+def _set_name(self, name: str) -> None:
+    """设置任务图名称，并生成 graph_id = f"{name}@{int(time.time() * 1000)}"。"""
+```
+
+### set_graph_mode
+
+```python
+def set_graph_mode(self, graph_mode: str) -> None:
+    """
+    设置图执行模式，可选值为 'serial'、'thread' 或 'async'。
+
+    :raises InvalidOptionError: graph_mode 不在合法集合中
+    """
+```
+
+### set_node_execution_mode
+
+```python
+def set_node_execution_mode(self, execution_mode: str) -> None:
+    """
+    批量设置所有节点的 execution_mode（'serial'、'thread' 或 'async'）。
+    会触发 _build_analysis() 重建分析数据。
+    """
+```
 
 ### set_reporter
 
@@ -80,23 +125,33 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 >
 > 如果你希望把事件上报到 CelestialTree，需要先额外安装 `celestialtree`，再自行构造对应客户端实例并传给 `set_ctree()`。
 
-### set_graph_mode
+## 图分析
+
+### _ensure_analysis
 
 ```python
-def set_graph_mode(self, graph_mode: str) -> None:
+def _ensure_analysis(self) -> None:
+    """按需重建图分析缓存：仅在 _analysis_dirty 为 True 时调用 _build_analysis()。"""
+```
+
+### _build_analysis
+
+```python
+def _build_analysis(self) -> None:
     """
-    设置图执行模式，可选值为 'serial'、'thread' 或 'async'。
+    分析任务图，计算源节点、是否为 DAG 与层级信息。
+
+    :raises ConfigurationError: serial 模式下图含环（非 DAG）时触发
     """
 ```
 
-### set_node_execution_mode
+分析过程：`source_nodes()` → `is_dag()` → `compute_node_levels()` → `cluster_by_value_sorted()` 得到 `layers_dict`；随后若图含环且 `graph_mode == "serial"`，抛出 `ConfigurationError`，提示改用 `thread` 或 `async`。
+
+### put_source_signal
 
 ```python
-def set_node_execution_mode(self, execution_mode: str) -> None:
-    """
-    批量设置所有节点的 execution_mode（'serial'、'thread' 或 'async'）。
-    会触发 _build_analysis() 重建分析数据。
-    """
+def put_source_signal(self) -> None:
+    """将终止信号放入所有源节点的队列中。"""
 ```
 
 ## 启动执行
@@ -112,9 +167,10 @@ def run(
 ) -> None:
     """
     运行任务图。流程：
-    1. 注入初始任务到各节点
-    2. if_put_signal=True 时自动向源节点注入终止信号
-    3. 调用 start() 启动执行
+    1. 调用 _build_analysis() 构建图分析
+    2. 在 funnel_scope() 下，把 init_tasks_dict 中每个任务注入对应节点（node.put_task）
+    3. if_put_signal=True 时自动向源节点注入终止信号
+    4. 调用 start() 启动执行
     """
 ```
 
@@ -127,7 +183,7 @@ async def run_async(
     *,
     if_put_signal: bool = True,
 ) -> None:
-    """异步版本的 run()。"""
+    """异步版本的 run()，注入后调用 start_async()。"""
 ```
 
 ### restore_db
@@ -142,19 +198,19 @@ def restore_db(
     if_put_signal: bool = True,
 ) -> None:
     """
-    从 sqlite 持久化库中读取任务，按节点分组后启动任务图。
+    从 sqlite 持久化库中读取任务，按持久化记录中的节点名分组后启动任务图。
 
     :param db_path: sqlite 数据库文件路径
     :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
     :param filter_by_error_type: 是否按各节点的 ``retry_exceptions`` 过滤
         ``error_type``，默认 ``False``
-    :param if_put_signal: 是否注入终止信号，默认 True
+    :param if_put_signal: 是否在恢复任务注入后为所有源节点补发终止信号，默认 True
     """
 ```
 
 该方法内部调用 `load_tasks_grouped_by_stage()` 加载持久化任务记录，
-通过 `node.metrics.get_retry_error_type_names()` 过滤可恢复的错误类型，
-最终复用 `start()` 执行。
+通过 `node.metrics.get_retry_error_type_names()` 过滤可恢复的错误类型（`pending` 记录始终保留），
+最终复用 `run()` 执行。
 
 ### 生命周期约束
 
@@ -176,6 +232,7 @@ def start(self) -> None:
     """
     启动任务图（同步入口）。
     根据 graph_mode 选择 _execute_nodes_serial() 或 _execute_nodes_thread()。
+    启动与收尾阶段的异常会聚合为 ExceptionGroup 抛出。
     """
 ```
 
@@ -185,14 +242,36 @@ def start(self) -> None:
 async def start_async(self) -> None:
     """
     异步启动任务图。要求 graph_mode='async'，否则抛出 InvalidOptionError。
+    与同步 start() 的区别：
+    - async 执行模式的节点走协程（node.start_async()），不会在节点内部再调用 asyncio.run；
+    - serial / thread 执行模式的节点通过 asyncio.to_thread 在独立线程中运行。
     """
 ```
+
+### _prepare_start / _finish_start
+
+```python
+def _prepare_start(self) -> None:
+    """
+    启动前准备：记录图启动日志（get_log_inlet().graph_start），并调用 reporter.start()。
+    本方法会创建线程与文件句柄等运行时资源。
+    """
+
+
+def _finish_start(self, start_perf: float) -> list[Exception]:
+    """
+    启动后收尾：遍历所有节点调用 drain_task_queue() 收集未消费任务，
+    停止 reporter，记录图结束日志，清理线程引用，返回收集到的异常列表。
+    """
+```
+
+`lifecycle` / `log` spout 的启停由外层 `funnel_scope()` 统一管理。
 
 ### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
 ```python
 def _execute_nodes_serial(self) -> None:
-    """按层级（layers_dict）拓扑序逐层、逐个串行执行。"""
+    """按层级（layers_dict）拓扑序逐层、逐个串行执行（层内按注册顺序）。"""
 
 
 def _execute_nodes_thread(self) -> None:
@@ -200,7 +279,7 @@ def _execute_nodes_thread(self) -> None:
 
 
 async def _execute_nodes_async(self) -> None:
-    """全图并发执行。"""
+    """全图并发执行（asyncio.gather）。"""
 ```
 
 ### _execute_node / _execute_node_async
@@ -220,44 +299,6 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
     """
 ```
 
-## 运行时监控
-
-### collect_runtime_snapshot
-
-```python
-def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
-    """
-    收集所有节点的运行时快照，计算 DAG 感知的全局 pending 估算值，
-    并补充到每个节点的快照（total_tasks_pending / total_remaining_time）中。
-
-    :return: (status_dict, status_timestamp) —— 各节点快照字典与统一采集时间戳
-    """
-```
-
-该方法遍历所有节点调用 `node.snapshot(interval)` 采集各节点快照，然后计算 DAG 感知的全局 pending 估算值，并补充到每个节点的快照中。
-
-下表列出完整快照中包含的所有字段：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `name` | `str` | 节点名称 |
-| `func_name` | `str` | 函数名 |
-| `execution_mode` | `str` | 执行模式 |
-| `max_workers` | `int` | 最大并发工作数 |
-| `status` | `StageStatus` | 运行状态 |
-| `tasks_input` | `int` | 输入任务数 |
-| `tasks_succeeded` | `int` | 成功数 |
-| `tasks_failed` | `int` | 失败数 |
-| `tasks_duplicated` | `int` | 重复数 |
-| `tasks_processed` | `int` | 已处理数 |
-| `tasks_pending` | `int` | 待处理数 |
-| `total_tasks_pending` | `int` | 全局预计待处理数 |
-| `elapsed_time` | `float` | 已消耗时间 |
-| `remaining_time` | `float` | 预计剩余时间 |
-| `total_remaining_time` | `float` | 全局预计剩余时间 |
-| `task_avg_time` | `str` | 平均时间（格式化） |
-| `start_time` | `float` | 启动时间戳 |
-
 ## 查询接口
 
 | 方法 | 返回类型 | 说明 |
@@ -265,11 +306,26 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 | `get_graph_id()` | `str` | 获取当前任务图实例的唯一标识 |
 | `get_nodes()` | `list[str]` | 按注册顺序返回所有节点名称 |
 | `get_edges()` | `dict[str, list[str]]` | 出边邻接表（与内部 `OrderGraph` 共享引用，调用方应只读） |
-| `get_source_nodes()` | `list[str]` | 源节点名称列表 |
+| `get_node_meta()` | `dict[str, dict[str, Any]]` | 各节点的构建期元信息 |
+| `get_source_nodes()` | `list[str]` | 源节点名称列表（按需触发图分析） |
 | `get_graph_analysis()` | `dict` | 图分析信息（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
 | `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
 | `get_lifecycle_path()` | `Path` | 任务生命周期持久化 sqlite 文件的绝对路径，未设置时返回空 Path |
+
+### get_node_meta 说明
+
+返回各节点的构建期元信息，这些字段在 reporter 启动前已冻结，因此随图结构一次性上报，不进入每轮状态推送：
+
+```python
+{
+    node_name: {
+        "class_name": ...,      # 节点类名
+        "execution_mode": ...,  # 执行模式
+        "max_workers": ...,     # 最大并发工作数
+    }
+}
+```
 
 ### get_graph_analysis 说明
 
@@ -287,6 +343,12 @@ def collect_runtime_snapshot(self) -> tuple[dict[str, Any], float]:
 }
 ```
 
+### 运行时状态采集
+
+`TaskGraph` 本身不聚合运行时快照。每个节点通过 `BaseTaskNode.get_snapshot()` 采集自身状态，
+`TaskReporter` 在状态推送周期中遍历节点调用它；全局视角的 `total_*` 等派生指标由前端
+（`celestialflow-web`）聚合计算。
+
 ## 生命周期图
 
 ```mermaid
@@ -302,10 +364,7 @@ flowchart TD
     THR --> FINISH
     ASY --> FINISH
     FINISH -->|drain_task_queue| DRAIN[收集未消费任务]
-    DRAIN --> SNAP[collect_runtime_snapshot]
-    SNAP --> END[图执行完成]
-
-    SNAP --> STATUS[collect_runtime_snapshot]
+    DRAIN --> END[图执行完成]
 
     RUN[run / run_async] -->|注入初始任务| PUT[node.put_task]
     RUN -->|注入终止信号| SIGNAL[put_source_signal]

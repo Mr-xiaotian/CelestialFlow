@@ -1,6 +1,6 @@
-# 特定图结构测试 (test_structure.py)
+# tests/graph/test_structure.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 验证 `TaskLoop` 和 `TaskWheel` 两种预定义含环图结构的专用分析能力，以及各类预定义图结构（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）的输入校验，确保空/非法输入不会导致静默构造或崩溃。
@@ -16,7 +16,7 @@
 |--------|--------|---------|
 | `TestTaskLoop` | 2 | isDAG 识别为 False、环内节点同层、源节点推导返回一个代表点 |
 | `TestTaskWheel` | 2 | Center 在第 0 层、Ring 在第 1 层、源节点仅返回 Center |
-| `TestStructureValidation` | 10 | 空 stages/空 layers/空网格/首行为空/行长度不一致/单节点 Complete/各结构空输入校验 |
+| `TestStructureValidation` | 10 | 空节点列表/空 layers/空网格/首行为空/行长度不一致/单节点 Complete/各结构空输入校验 |
 | **合计** | **14** | |
 
 ## 关键测试流程
@@ -35,16 +35,16 @@
 
 | 用例 | 验证点 |
 |------|--------|
-| `test_chain_empty_stages_raises` | `TaskChain` 空 stages 抛出 `InvalidStructureError` |
+| `test_chain_empty_nodes_raises` | `TaskChain` 空节点列表抛出 `InvalidStructureError` |
 | `test_cross_empty_layers_raises` | `TaskCross` 空 layers 抛出 `InvalidStructureError` |
 | `test_cross_empty_layer_raises` | `TaskCross` 包含空层抛出 `InvalidStructureError` |
 | `test_grid_empty_raises` | `TaskGrid` 空网格抛出 `InvalidStructureError` |
 | `test_grid_empty_row_raises` | `TaskGrid` 首行为空抛出 `InvalidStructureError` |
 | `test_grid_ragged_rows_raises` | `TaskGrid` 行长度不一致抛出 `InvalidStructureError` |
-| `test_loop_empty_stages_raises` | `TaskLoop` 空 stages 抛出 `InvalidStructureError` |
+| `test_loop_empty_nodes_raises` | `TaskLoop` 空节点列表抛出 `InvalidStructureError` |
 | `test_wheel_empty_ring_raises` | `TaskWheel` 空 ring 抛出 `InvalidStructureError` |
 | `test_complete_single_node_raises` | `TaskComplete` 单节点抛出 `InvalidStructureError` |
-| `test_complete_empty_stages_raises` | `TaskComplete` 空 stages 抛出 `InvalidStructureError` |
+| `test_complete_empty_nodes_raises` | `TaskComplete` 空节点列表抛出 `InvalidStructureError` |
 
 ## 测试重点
 - **非 DAG 识别**: 确保含环结构不会被错误地当作 DAG 处理。

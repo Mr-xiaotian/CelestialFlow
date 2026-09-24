@@ -1,10 +1,10 @@
 # tests/observability/test_reporter.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 
-验证 `celestialflow.observability.core_report` 中 `TaskReporter` 的任务注入与错误推送逻辑：Reporter 从远端拉取拆分后的任务与终止符载荷后，能否正确按节点分别调用 `put_task` / `put_signal` 注入；同时验证错误推送的端点选择与基于服务端水位线的增量推送行为。
+验证 `celestialflow.observability.core_report` 中 `TaskReporter` 的任务注入、错误推送、图元信息推送与状态推送逻辑：Reporter 从远端拉取拆分后的任务与终止符载荷后，能否正确按节点分别调用 `put_task` / `put_signal` 注入；同时验证错误推送的端点选择与基于服务端水位线的增量推送、图元信息一次性推送，以及状态快照的去重与上下文切换强制推送行为。
 
 ## 核心测试对象
 
@@ -14,7 +14,8 @@
 | `FakeSession` / `FakePushSession` | Mock | 模拟 `requests.Session` 的 GET/POST 方法并记录调用 |
 | `FakeTaskGraph` / `FakeErrorGraph` | Mock | 模拟图注入接口与错误查询接口 |
 | `FakeNode` | Mock | 记录单节点 `put_task` / `put_signal` 调用 |
-| `FakeLogInlet` | Mock | 记录注入成功/失败、拉取失败、推送失败日志 |
+| `FakeStatusNode` / `FakeStatusGraph` | Mock | 提供可手动变更的 `get_snapshot()` 与 `get_graph_id()` |
+| `FakeLogInlet` | Mock | 记录注入成功/失败、拉取失败、错误推送失败、状态推送失败日志 |
 | `TaskReporter` | 被测类 | `celestialflow.observability` 中的注入与上报器 |
 
 ## 关键测试场景
@@ -59,12 +60,12 @@ sequenceDiagram
 
 ### `test_reporter_pushes_errors_via_push_errors_endpoint_only`
 
-**覆盖目标**：验证 `TaskReporter._push_errors()` 只通过 `/api/push_errors` 端点推送错误（不再使用旧的 `/api/push_errors_meta`）。
+**覆盖目标**：验证 `TaskReporter._push_errors()` 只通过 `/api/push_errors` 端点推送错误。
 
 - 写入一条 sqlite 错误记录。
 - 设置 `_server_has_current_graph = False`（触发全量推送）。
 - 断言 POST 目标 URL 末尾为 `/api/push_errors`。
-- 断言 payload 包含 `graph_id` 和 `errors` 字段，错误记录字段与 sqlite 记录一致（包含 `id` / `event_id` / `stage` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json`）。
+- 断言 payload 包含 `graph_id` 和 `errors` 字段，错误记录字段与 sqlite 记录一致（包含 `id` / `event_id` / `stage` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json` / `retry_times`）。
 
 ### `test_reporter_pushes_only_errors_after_server_max_event_id`
 
@@ -74,6 +75,31 @@ sequenceDiagram
 - 设置 `_server_has_current_graph = True`、`_server_max_event_id_in_fail = 3`。
 - 断言仅推送 `event_id` 为 5 和 7 的记录。
 
+### `test_reporter_pushes_graph_meta_in_one_request`
+
+**覆盖目标**：图结构、节点元信息与分析结果随单次 `_push_graph_meta()` 推送，状态推送与它们互不相交。
+
+- 构造含 `StageA`（`thread`、`max_workers=3`）与 `StageB`（默认 `serial`）的 `TaskGraph`。
+- 依次调用 `_push_graph_meta()` 与 `_push_status()`，断言共产生两次 POST：`/api/push_graph_meta` 与 `/api/push_status`。
+- 断言元信息 payload 的 `nodes == ["StageA", "StageB"]`，`analysis["graphId"]` 与 `analysis["layersDict"]` 存在。
+- 断言 `node_meta["StageA"] == {"class_name": "TaskExecutor", "execution_mode": "thread", "max_workers": 3}`，`StageB` 为 `serial`。
+- 断言状态 payload 中每个节点的字段与 `node_meta` 对应项**互斥**（构建期字段不重复出现）。
+
+### `test_reporter_pushes_status_only_when_snapshot_changes`
+
+**覆盖目标**：状态快照未变时不重复推送，变化后才推送新快照。
+
+- 设置 `_server_has_current_graph = True`，连续调用两次 `_push_status()`，断言只产生 1 次 POST。
+- 修改 `FakeStatusNode.snapshot` 后再推送，断言产生第 2 次 POST，payload 为最新快照。
+- 再次以相同快照推送，断言仍保持 2 次 POST（回到静默）。
+
+### `test_reporter_forces_status_push_on_context_switch`
+
+**覆盖目标**：服务端刚切换图上下文时，即使快照未变也必须强制推送一次。
+
+- `_push_status()` 首次推送后断言 1 次 POST。
+- 将 `_server_has_current_graph` 置为 `False`（模拟服务端刚切换到本图、缓存被清空）后再次 `_push_status()`，断言产生第 2 次 POST。
+
 ## 测试覆盖矩阵
 
 | 测试函数 | 覆盖目标 |
@@ -82,6 +108,9 @@ sequenceDiagram
 | `test_reporter_merges_tasks_and_termination_for_same_stage` | 同节点任务与终止符的合并规则 |
 | `test_reporter_pushes_errors_via_push_errors_endpoint_only` | 错误推送端点统一为 `/api/push_errors`、全量推送 payload 结构 |
 | `test_reporter_pushes_only_errors_after_server_max_event_id` | 基于服务端水位线的增量错误推送 |
+| `test_reporter_pushes_graph_meta_in_one_request` | 图结构 / 节点元信息 / 分析结果单请求推送，与状态推送职责互斥 |
+| `test_reporter_pushes_status_only_when_snapshot_changes` | 状态快照去重推送 |
+| `test_reporter_forces_status_push_on_context_switch` | 图上下文切换后强制推送状态 |
 
 ## 运行方式
 
@@ -97,6 +126,9 @@ pytest tests/observability/test_reporter.py -k "merges" -v
 
 # 仅运行错误推送测试
 pytest tests/observability/test_reporter.py -k "push_errors" -v
+
+# 仅运行图元信息与状态推送测试
+pytest tests/observability/test_reporter.py -k "graph_meta or status" -v
 ```
 
 ## 注意事项
@@ -104,4 +136,5 @@ pytest tests/observability/test_reporter.py -k "push_errors" -v
 - 测试使用 Fake 对象完全隔离网络依赖，`TaskReporter` 的实际 HTTP 行为在其他测试中验证。
 - 任务载荷与终止符在远端已拆分，Reporter 端负责分别调用 `put_task` / `put_signal`，并在日志中将终止符记为 `[TERMINATION_SIGNAL]` 单例列表。
 - `FakePushSession` 会记录每次 POST 的 URL、JSON payload 与 timeout，便于断言推送内容而不依赖真实网络。
+- 状态推送通过比较 `_last_status_dict` 去重；`_server_has_current_graph` 为 `False` 时会绕过去重强制推送一次，用于图上下文切换后的首次同步。
 - 相关实现位于 `src/celestialflow/observability/core_report.py`。

@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ---
 
@@ -11,7 +11,7 @@
 **下一代 Python 任务编排引擎**
 
 - 轻量级 · 图驱动 · 高性能 · 可观测
-- 版本 3.1.4 | Python 3.12+
+- 版本 3.3.1 | Python 3.12+
 - 支持 DAG / 环形图 / 分布式执行 / 可观测执行链路
 
 ---
@@ -40,7 +40,7 @@
 ### 核心特性
 
 - **图拓扑丰富**：Chain / Cross / Grid / Loop / Wheel / Complete 六种预置结构
-- **多维执行模型**：Stage 级 (serial/thread) × Task 级 (serial/thread/async) 组合
+- **多维执行模型**：图级 (serial/thread/async) × 节点级 (serial/thread/async) 组合
 - **外部协作示例**：可用普通 `TaskExecutor` 对接 Redis / Go Worker 等外部系统
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
 - **状态上报链路**：通过 `TaskReporter` 与 `celestialflow-web` 服务交换状态和控制指令
@@ -57,15 +57,15 @@
   - 编排逻辑与业务逻辑彻底分离
 
 - **信封模式 (Envelope Pattern)**
-  - `TaskEnvelope` 封装任务 + 哈希 + 事件 ID + 来源信息
-  - 透明地提供去重、溯源、路由能力
+  - `TaskEnvelope` 封装原始任务 + CelestialTree 事件 ID
+  - 透明地提供溯源与路由能力
 
 - **终止信号协议 (Termination Protocol)**
   - `TerminationSignal` → `TerminationIdPool` 逐级合并
   - 确保 DAG 和环形图均能正确终止
 
 - **指标即公民 (Metrics as First-Class)**
-  - 每个 Stage 内建 `TaskMetrics`，线程安全的实时计数
+  - 每个节点内建 `TaskMetrics`，线程安全的实时计数
 
 ---
 
@@ -81,11 +81,11 @@ graph TB
     end
 
     subgraph CelestialFlow 核心
-        C --> D[init_resources<br/>创建队列/连接]
-        D --> E[init_analysis<br/>DAG检测/分层]
+        C --> D[_build_analysis<br/>DAG检测/图分析]
+        D --> E[_prepare_start<br/>启动上报与资源]
         E --> F{graph_mode}
-        F -->|eager| G[并发启动所有节点]
-        F -->|staged| H[逐层顺序执行]
+        F -->|serial| G[串行启动节点]
+        F -->|thread/async| H[并发启动节点]
         G --> I[TaskDispatch 执行任务]
         H --> I
     end
@@ -118,16 +118,16 @@ graph TB
 
 ```python
 TaskGraph(
-    graph_mode: str = "eager",   # "eager" | "staged"
-    log_level: str = "SUCCESS"
+    name: str,
+    graph_mode: str = "serial",   # "serial" | "thread" | "async"
 )
 ```
 
-- **初始化**: 构造后通过 `graph.set_nodes(stages=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
+- **初始化**: 构造后通过 `graph.set_nodes(nodes=[...])` 设置节点，通过 `graph.connect(...)` 建立连接。源节点通过 SCC 凝聚自动计算
 - **调度模式**：
-  - `eager`：所有节点并发启动，依赖关系由队列自然保证
-  - `staged`：仅 DAG 可用，逐层执行，层间同步阻塞
-- **状态管理**：`node_dict`（节点对象集合）、`status_dict`（运行时状态）、`snapshot()`（最近 20 快照）
+  - `serial`：节点串行启动，依赖关系由队列自然保证
+  - `thread` / `async`：节点并发启动，通过线程或协程并行执行
+- **状态管理**：`node_dict`（节点对象集合）、`node.get_snapshot()`（节点运行时状态快照）、`get_node_meta()`（节点元信息）
 - **图分析**：基于 NetworkX 构建有向图，检测 DAG 性质，计算拓扑层级
 
 ---
@@ -139,16 +139,16 @@ TaskGraph(
 ```mermaid
 classDiagram
     BaseTaskNode <|-- TaskExecutor
-    TaskExecutor <|-- TaskSplitter
-    TaskExecutor <|-- TaskRouter
+    BaseTaskNode <|-- TaskSplitter
+    BaseTaskNode <|-- TaskRouter
     class BaseTaskNode {
         +func: Callable
         +execution_mode: str
         +max_workers: int
         +max_retries: int
         +metrics: TaskMetrics
-        +start(task_source)
-        +start_async(task_source)
+        +run(init_tasks_dict)
+        +run_async(init_tasks_dict)
     }
 
     class TaskExecutor {
@@ -157,8 +157,8 @@ classDiagram
 ```
 
 - **BaseTaskNode**：所有运行节点的基类，定义共性骨架（队列、metrics、生命周期）
-- **TaskExecutor**：通用任务执行器，管理重试、去重、缓存、并发策略；用户直接构造使用
-- **TaskSplitter / TaskRouter**：图结构型特化节点，改变下游分发语义
+- **TaskExecutor**：通用任务执行器，管理重试、缓存、并发策略；用户直接构造使用
+- **TaskSplitter / TaskRouter**：图结构型特化节点，均直接继承 `BaseTaskNode`，改变下游分发语义
 - **`graph.connect()`** 建立节点间的连接关系（上下游依赖）
 - **`name` / `execution_mode`** 通过 `__init__()` 构造参数传入
 
@@ -172,8 +172,8 @@ classDiagram
 |------|-------------|------------|
 | 语义 | 1 → N（一对多拆分） | 1 → 1（条件路由） |
 | 输入 | 单任务 | 单任务 |
-| 输出 | tuple 中的每个元素成为独立任务 | `(target_tag, task)` 路由到指定下游 |
-| 计数器 | `split_counter` 传播至下游 `task_counter` | `route_counters[tag]` 分别传播 |
+| 输出 | tuple 中的每个元素成为独立任务 | `dict[str, Y]`（目标名 → 任务）路由到指定下游 |
+| 计数器 | 拆分结果逐个计入下游 `downstream_counter` | 按每个路由目标分别计入 `downstream_counter` |
 | 执行模式 | 默认 serial，可在创建时指定 | 默认 serial，可在创建时指定 |
 | 重试 | 默认 0，可在创建时指定 | 默认 0，可在创建时指定 |
 
@@ -197,56 +197,49 @@ graph LR
     style Q2 fill:#f9f,stroke:#333
 ```
 
-- **TaskEnvelope**：`task` + `hash`(SHA1) + `id`(CelestialTree 事件) + `source_name`(来源节点名)
+- **TaskEnvelope**：`task`(原始任务) + `id`(CelestialTree 事件)
 - **TaskInQueue**：
-  - 多上游汇聚，按 `source_tag` 追踪终止信号
+  - 多上游汇聚，按 `source` 名称追踪终止信号（`add_source_name`）
   - 所有上游均发送 `TerminationSignal` 后，合并为 `TerminationIdPool` 返回
 - **TaskOutQueue**：
-  - 广播模式 `put()` → 所有下游
-  - 定向模式 `put_target(item, tag)` → 指定下游（Router 使用）
+  - 广播模式 `put(item)` → 所有下游
+  - 定向模式 `put_target(name, item)` → 指定下游（Router 使用）
 - **终止协议**：保证无论 DAG 还是环形图，所有节点都能优雅退出
 
 ---
 
 ## Slide 10: 执行模型
 
-### 三层执行维度
+### 两层执行维度
 
 ```mermaid
 graph TD
     subgraph 图级调度 graph_mode
-        A[eager: 全部并发]
-        B[staged: 逐层执行]
+        A[serial: 节点串行启动]
+        B[thread / async: 节点并发启动]
     end
 
     subgraph 节点级 execution_mode
-        C[serial: 主线程内运行]
-        D[thread: 独立线程]
-    end
-
-    subgraph 任务级 execution_mode
-        E[serial: 串行逐个]
-        F[thread: ThreadPoolExecutor]
-        H[async: asyncio + Semaphore]
+        C[serial: 主线程内串行处理任务]
+        D[thread: ThreadPoolExecutor]
+        E[async: asyncio + Semaphore]
     end
 
     A --> C
     A --> D
+    A --> E
     B --> C
     B --> D
-    C --> E
-    C --> F
-    D --> E
-    D --> F
+    B --> E
 ```
 
 | 层级 | 选项 | 说明 |
 |------|------|------|
-| 图级 `graph_mode` | `eager` / `staged` | 控制节点间并发 vs 顺序 |
+| 图级 `graph_mode` | `serial` / `thread` / `async` | 控制节点间串行 vs 并发启动 |
 | 节点级 `execution_mode` | `serial` / `thread` / `async` | 节点内任务的并发策略 |
 
 备注：
-注意在 TaskGraph 模式下，节点级的 `async` 也可使用（每个节点都持有自己的 `TaskDispatch`）。
+每个节点都持有自己的 `TaskDispatch`，因此节点级 `async` 在任务图模式下同样可用。
 
 ---
 
@@ -254,20 +247,16 @@ graph TD
 
 ### TaskMetrics — 线程安全的实时计数
 
-- **四大核心计数器**：
-  - `task_counter`：总输入任务数（含 Splitter/Router 追加）
+- **核心计数器**：
+  - `external_input_counter`：外部注入任务数（经 `put_task` 进入）
+  - `upstream_counter` / `downstream_counter`：与各上下游节点之间的任务计数（按名称分别记录）
   - `success_counter`：成功处理数
-  - `error_counter`：最终失败数（超出重试次数）
-  - `duplicate_counter`：去重拦截数
+  - `fail_counter`：最终失败数（超出重试次数）
+  - `duplicate_counter`：重复任务计数（框架保留的计数维度）
 
-- **终止判定**：`is_tasks_finished()` = `total == success + error + duplicate`
+- **终止判定**：`is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
 
-- **去重机制**：
-  - `TaskEnvelope.hash` = `SHA1(pickle.dumps(task))`
-  - `processed_set` 记录已处理哈希
-  - 零成本去重——哈希在封装阶段一次性计算
-
-- **SumCounter 聚合**：支持 Splitter/Router 场景下多来源计数器的准确合并
+- **忙碌时间实测**：`begin_task()` / `end_task()` 记录节点真实忙碌墙钟时间，`get_elapsed()` 返回累计值
 
 ---
 
@@ -346,9 +335,9 @@ graph LR
 
 - **日志分级**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **错误持久化**：SQLite 格式，含 `stage_name`、`error_type`、`error_message`、`task_json`、`result_json` 等字段
+- **错误持久化**：SQLite 格式，含 `stage`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` 等字段
 
-- **错误分析工具**：`load_records()`、`load_records_grouped_by_stage()` 按维度聚合失败任务
+- **错误分析工具**：`load_records()`、`load_tasks_grouped_by_stage()` 按维度聚合失败任务
 
 ---
 
@@ -359,15 +348,24 @@ graph LR
 ```
 CelestialFlowError (基类)
 ├── ConfigurationError
-│   └── InvalidOptionError
-│       ├── ExecutionModeError    (serial/thread/async)
-│       ├── StageModeError        (serial/thread)
-│       └── LogLevelError         (TRACE~CRITICAL)
-├── RemoteWorkerError             (Redis 远程执行失败)
-└── UnconsumedError               (未消费的队列任务)
+│   ├── InvalidOptionError
+│   │   └── CallableParameterKindError   (可调用对象参数 kind 非法)
+│   └── GraphStructureError
+│       ├── DuplicateNodeError           (重复节点名)
+│       ├── UnknownNodeError             (未知节点名)
+│       ├── NodeNotFoundError            (图中未找到节点)
+│       └── InvalidStructureError        (无效图结构输入)
+├── RuntimeStateError
+│   └── InitializationError              (初始化错误)
+├── CelestialFlowTimeoutError            (超时错误)
+├── RemoteWorkerError                    (Redis 远程执行失败)
+├── ReporterError                        (上报器错误)
+├── PersistedError                       (持久化恢复的错误摘要)
+├── TerminationMergeError                (终止信号合并错误)
+└── UnconsumedError                      (未消费的队列任务)
 ```
 
-- **InvalidOptionError**：自动生成 "field=value, allowed=[...]" 提示信息
+- **InvalidOptionError**：自动生成 "Invalid field: value. Valid options are (...)" 提示信息
 - **快速反馈**：配置级错误在图启动前就抛出，而非运行时
 
 ---
@@ -412,11 +410,10 @@ CelestialFlowError (基类)
 
 | 方向 | 端点 | 数据 |
 |------|------|------|
-| Pull | `/api/pull_server_state` | 当前图同步状态、结构状态、分析状态、最大 `event_id` |
+| Pull | `/api/pull_server_state` | 当前图同步状态、图元信息状态、最大 `event_id` |
 | Pull | `/api/pull_injection` | 待注入任务与终止信号 |
-| Push | `/api/push_status` | 更新状态 |
-| Push | `/api/push_structure` | 更新图结构 |
-| Push | `/api/push_analysis` | 更新图分析数据 |
+| Push | `/api/push_status` | 更新节点状态快照 |
+| Push | `/api/push_graph_meta` | 更新图结构 + 图分析元信息 |
 | Push | `/api/push_errors` | 更新错误记录 |
 
 - **主仓不再内建 Web 前端**：这里只定义 `TaskReporter` 实际使用的同步接口
@@ -431,20 +428,16 @@ CelestialFlowError (基类)
 - **零拷贝终止检测**
   - `is_tasks_finished()` = 原子计数器比较，无需遍历队列或扫描状态
 
-- **哈希一次、去重终身**
-  - `TaskEnvelope.hash` 在封装阶段计算一次 SHA1，后续去重仅 set lookup (O(1))
-
 - **工厂化队列后端**
-  - 框架内部按 `execution_mode` 选择 `ThreadQueue` / `AsyncQueue`
+  - 框架内部按 `execution_mode` 选择 `TaskInQueue` / `TaskOutQueue` 的串行或并发实现
   - 串行模式零同步开销
 
 - **指标计数器分级**
-  - serial/async：`ValueWrapper` 普通 int
-  - thread：`ValueWrapper` + `threading.Lock`
-  - 按需选择最轻量的同步机制
+  - `ValueWrapper` 默认自建真实 `threading.Lock`，保证线程安全
+  - 也可传入共享锁，或传入 `NoOpContext` 在单线程下关闭加锁
 
-- **前端增量渲染**
-  - `JSON.stringify` 对比蜘蛛侠式变更检测，仅 re-render 变化的 DOM 区域
+- **前端增量渲染（celestialflow-web）**
+  - 外部 Web 项目对状态做变更检测，仅 re-render 变化的 DOM 区域
 
 ---
 
@@ -483,8 +476,8 @@ graph LR
 | `TaskWheel` | 环形+Hub | 中心节点连接环上所有节点 |
 | `TaskComplete` | 全连接 | 所有节点互连 |
 
-- **强制 DAG**：Chain 和 Grid 构造时设置 `graph_mode="staged"` 可用
-- **环形图**：Loop / Wheel / Complete 必须使用 `graph_mode="eager"`
+- **强制 DAG**：Chain 和 Grid 支持 `graph_mode="serial"`（节点串行启动）
+- **环形图**：Loop / Wheel / Complete 必须使用 `graph_mode="thread"` 或 `"async"`（串行启动会因存在环而报错）
 
 ---
 
@@ -502,7 +495,6 @@ graph LR
 | **进程级隔离** | 无（线程级隔离） | Executor 级 | Dispatch 级 | 默认隔离 |
 | **外部监控对接** | HTTP 上报接口 | 内置 Web UI | 内置 Cloud UI | Ray Dashboard |
 | **事件溯源** | CelestialTree 集成 | 无原生支持 | 无原生支持 | 无原生支持 |
-| **任务去重** | 内置 SHA1 哈希去重 | 无原生支持 | 无原生支持 | 无原生支持 |
 | **学习曲线** | 低（纯 Python API） | 中高 | 中 | 中高 |
 | **部署形态** | 库 / CLI | 独立平台 | 独立平台/SaaS | 独立集群 |
 
@@ -514,7 +506,7 @@ graph LR
 
 - **数据采集 Pipeline**
   - 多阶段爬虫：URL 发现 → 页面下载 → 内容提取 → 数据入库
-  - 天然去重能力避免重复请求
+  - 多阶段天然并发，配合失败重试提升抓取稳定性
 
 - **ETL / 数据处理**
   - Splitter 拆分大批量 → 多 Worker 并发处理 → Router 分流结果
@@ -565,9 +557,9 @@ extract_image = TaskExecutor(
 )
 store = TaskExecutor("save_to_db", save_to_db, execution_mode="serial")
 
-graph = TaskGraph(graph_mode="eager")
+graph = TaskGraph("crawler", graph_mode="thread")
 graph.set_nodes(
-    stages=[discover, download, router, extract_article, extract_image, store]
+    nodes=[discover, download, router, extract_article, extract_image, store]
 )
 graph.connect([discover], [download])
 graph.connect([download], [router])
@@ -619,7 +611,6 @@ graph LR
 | 环形图支持 | 信号合并协议 | 增加终止逻辑复杂度，换取拓扑灵活性 |
 | 节点 `execution_mode` | serial/thread/async | 保持简单可靠的线程模型 |
 | 日志架构 | Queue + Spout 线程 | 增加一个守护线程，换取线程安全写入 |
-| 去重策略 | SHA1(pickle) | pickle 不稳定性风险，换取通用对象哈希能力 |
 | 外部结果获取 | 轮询 HGET (0.1s) | Demo 层实现简单可靠，但非实时推送 |
 | 状态上报 | Reporter pull/push 协议 | 增加远端接口约定，换取监控与控制解耦 |
 | CelestialTree 集成 | 可选依赖 + NullClient | 不追踪时零开销，但需要额外配置 |
@@ -638,11 +629,11 @@ graph LR
   - 内置 Splitter / Router 是 Executor 的特化；Redis 协作由 demo 展示接入方式
 
 - **Queue 后端可替换**
-  - 框架内部按 `execution_mode` 选择 `ThreadQueue` / `AsyncQueue`
+  - 框架内部按 `execution_mode` 选择 `TaskInQueue` / `TaskOutQueue` 的串行或并发实现
 
 - **指标后端可扩展**
-  - `ValueWrapper` 按执行模式适配
-  - `SumCounter` 透明聚合多来源计数器
+  - `ValueWrapper` 可传入共享锁或 `NoOpContext` 适配不同并发模型
+  - 上游/下游计数器按节点名分别记录，便于扩展
 
 - **持久化可定制**
   - Spout-Inlet 模式，只需实现 `_handle_record()` 即可自定义输出目标
@@ -704,7 +695,7 @@ graph LR
 
 **CelestialFlow** — 图驱动 · 轻量级 · 高性能 · 可观测
 
-- 版本：3.1.4
+- 版本：3.3.1
 - Python：3.12+
 - 依赖：`pip install celestialflow`
 

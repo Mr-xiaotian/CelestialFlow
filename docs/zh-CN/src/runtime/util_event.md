@@ -1,6 +1,6 @@
-# RuntimeEvent
+# src/celestialflow/runtime/util_event.py
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/24
 
 `runtime/util_event.py` 提供事件客户端抽象接口和本地实现，用于任务图中的事件 ID 生成和追踪。
 

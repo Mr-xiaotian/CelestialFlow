@@ -1,6 +1,6 @@
-# Observability 模块
+# src/celestialflow/observability/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行状态监控、Observer 模式和远程状态上报。它使任务执行过程变得透明、可监控。
 
@@ -8,10 +8,23 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 
 | 导出符号 | 来源模块 | 说明 |
 |---------|---------|------|
-| `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`, `on_task_success`, `on_task_fail`, `on_task_duplicate`, `on_tasks_added`, `on_finish` 等事件接口 |
+| `BaseObserver` | `core_observer` | 执行器生命周期观察者基类，定义 `on_start`、`on_task_success`、`on_task_fail`、`on_task_duplicate`、`on_task_added`、`on_finish` 等事件接口 |
 | `NullTaskReporter` | `core_report` | 空实现的任务上报器，作为关闭上报功能时的占位对象 |
+| `PrintObserver` | `core_observer_print` | 基于 `print` 的观察者，将任务进度输出到控制台；构造时需传入 `name` 作为输出前缀 |
 | `ReporterProtocol` | `core_report` | Reporter 依赖方所需的最小接口协议 |
 | `TaskReporter` | `core_report` | 任务状态上报器，后台线程周期性向 `celestialflow-web` 服务推送运行状态并拉取控制指令 |
+
+完整 `__all__`：
+
+```python
+__all__ = [
+    "BaseObserver",
+    "NullTaskReporter",
+    "PrintObserver",
+    "ReporterProtocol",
+    "TaskReporter",
+]
+```
 
 ## 文件说明
 
@@ -22,10 +35,16 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
    - **关键功能**:
      - `BaseObserver`: 定义生命周期事件接口，子类按需覆写
 
-2. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
+2. **core_observer_print.py** (`PrintObserver`)
+   - **作用**: 开箱即用的控制台观察者
+   - **关键功能**:
+     - 统计 `total` / `succeeded` / `failed` / `duplicated`，并以 `[name] ...` 前缀打印
+     - 所有计数器为线程安全的 `ValueWrapper`
+
+3. **core_report.py** (`TaskReporter`, `NullTaskReporter`)
    - **作用**: 任务状态上报器及其空实现
    - **关键功能**:
-     - **状态上报**: 周期性推送任务图的结构、拓扑、运行状态、错误信息
+     - **状态上报**: 周期性推送任务图的图元信息、运行状态、错误信息
      - **任务注入**: 从 `celestialflow-web` 服务拉取待注入任务，动态插入到运行中的任务图
      - **参数调整**: 从 `celestialflow-web` 服务拉取配置，动态调整上报间隔等参数
      - **错误同步**: 基于 `event_id` 增量推送错误记录
@@ -48,7 +67,7 @@ Observability 模块提供了 CelestialFlow 的可观测性功能，包括运行
 
 ### Observer 模式
 - **多播**: `BaseTaskNode` 内部的 `TaskMetrics` 维护 `list[BaseObserver]`，在计数变化与启停节点广播事件
-- **同步分发**: 在 `add_success_count` / `add_fail_count` / `add_task_count` / `on_start` / `on_finish` 等方法中同步调用所有已注册观察者的对应回调
+- **同步分发**: 在 `add_success_count` / `add_fail_count` / `add_duplicate_count` / `add_external_input_count` / `on_start` / `on_finish` 等方法中同步调用所有已注册观察者的对应回调
 - **异常隔离**: 子类覆写的回调会被 `__init_subclass__` 自动包装，异常统一交给 `observer_error()` 兜底，不会逃逸到框架
 
 ### 双向通信（TaskReporter）

@@ -1,6 +1,6 @@
-# node/util_types.py
+# src/celestialflow/node/util_types.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `util_types.py` 为 `node` 模块提供节点层特有的类型别名。当前仅定义一个 `AnyTaskNode` 类型别名，供 `TaskGraph` 等上层结构以"任意节点"的形式引用节点对象。
 
@@ -14,7 +14,7 @@
 from typing import Any
 from .core_node import BaseTaskNode
 
-type AnyTaskNode = BaseTaskNode[Any, Any]
+type AnyTaskNode = BaseTaskNode[Any, Any, Any]
 ```
 
 含义：

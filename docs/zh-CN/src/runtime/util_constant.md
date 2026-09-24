@@ -1,6 +1,6 @@
-# RuntimeConstant
+# src/celestialflow/runtime/util_constant.py
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/09/24
 
 `runtime/util_constant.py` 定义运行时全局常量，主要是日志级别映射表 `LEVEL_DICT`。
 

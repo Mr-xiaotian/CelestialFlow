@@ -1,6 +1,6 @@
-# 格式工具测试 (test_format.py)
+# tests/runtime/test_format.py
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 验证 `celestialflow.runtime.util_format` 中的 `format_repr` 和 `format_table` 两个格式化函数，确保字符串截断表示和表格渲染输出的正确性。

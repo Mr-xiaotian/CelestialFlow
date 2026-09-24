@@ -1,6 +1,6 @@
-# bench_lock_overhead.py 基准测试说明
+# bench/bench_lock_overhead.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 

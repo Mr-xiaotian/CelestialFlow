@@ -1,8 +1,8 @@
-# observability/core_report.py
+# src/celestialflow/observability/core_report.py
 
-> 📅 最后更新日期: 2026/09/10
+> 📅 最后更新日期: 2026/09/24
 
-`core_report.py` 实现了与 `celestialflow-web` 服务对接的上报器组件。它通过后台线程周期性地把任务图的结构、状态、错误信息等推送到远端，同时拉取需要注入的任务与终止信号并动态写入运行中的任务图。文件包含三个主要类型：
+`core_report.py` 实现了与 `celestialflow-web` 服务对接的上报器组件。它通过后台线程周期性地把任务图的图元信息、状态、错误信息等推送到远端，同时拉取需要注入的任务与终止信号并动态写入运行中的任务图。文件包含三个主要类型：
 
 - `ReporterProtocol`：依赖方声明"具备 reporter 启停能力"的最小接口协议。
 - `TaskReporter`：真实的上报器实现，负责 HTTP 拉取 / 推送。
@@ -26,11 +26,10 @@ classDiagram
         -Thread _thread
         -Session _session
         -bool _server_has_current_graph
-        -bool _server_has_structure
-        -bool _server_has_analysis
+        -bool _server_has_graph_meta
         -int _server_max_event_id_in_fail
+        -dict _last_status_dict
         +int interval
-        +int history_limit
         +start()
         +stop()
         -_pull_timeout()
@@ -41,12 +40,10 @@ classDiagram
         -_pull_injection()
         -_push_errors()
         -_push_status()
-        -_push_structure()
-        -_push_analysis()
+        -_push_graph_meta()
     }
     class NullTaskReporter {
         +int interval
-        +int history_limit
         +start()
         +stop()
     }
@@ -99,11 +96,10 @@ def __init__(
 | `_thread` | `Thread | None` | 后台线程引用 |
 | `_session` | `requests.Session` | 复用的 HTTP 会话 |
 | `_server_has_current_graph` | `bool` | 服务器是否已经持有当前 `graph_id` |
-| `_server_has_structure` | `bool` | 服务器是否已收到过结构推送 |
-| `_server_has_analysis` | `bool` | 服务器是否已收到过分析推送 |
+| `_server_has_graph_meta` | `bool` | 服务器是否已收到过图元信息（图结构 + 分析）推送 |
 | `_server_max_event_id_in_fail` | `int | None` | 服务端已知的最大失败 `event_id` 水位线 |
-| `interval` | `int` | 上报周期（秒），由 `_pull_server_state` 动态调整，范围 `[1, 60]` |
-| `history_limit` | `int` | 历史快照保留上限，默认 20 |
+| `_last_status_dict` | `dict[str, dict[str, Any]] | None` | 上一次成功推送的逐节点快照，用于变化门控 |
+| `interval` | `int` | 上报周期（秒），默认 `5`，由 `_pull_server_state` 动态调整，范围 `[1, 60]` |
 
 ### 生命周期
 
@@ -148,10 +144,8 @@ def _refresh_all(self) -> None:
         self._pull_injection()  # GET /api/pull_injection
 
         # 2. 推送（按需）
-        if (not self._server_has_current_graph) or (not self._server_has_structure):
-            self._push_structure()  # POST /api/push_structure
-        if (not self._server_has_current_graph) or (not self._server_has_analysis):
-            self._push_analysis()  # POST /api/push_analysis
+        if (not self._server_has_current_graph) or (not self._server_has_graph_meta):
+            self._push_graph_meta()  # POST /api/push_graph_meta
         self._push_status()  # POST /api/push_status
         self._push_errors()  # POST /api/push_errors
     except Exception as e:
@@ -168,7 +162,7 @@ Reporter 通过 HTTP 与 `celestialflow-web` 服务的以下端点交互：
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
-| `GET` | `/api/pull_server_state?graph_id=...` | 获取同步决策状态（interval、`is_current_graph`、结构 / 分析是否已存在、failed 记录最大 event_id） |
+| `GET` | `/api/pull_server_state?graph_id=...` | 获取同步决策状态（interval、`is_current_graph`、图元信息是否已存在、failed 记录最大 event_id） |
 | `GET` | `/api/pull_injection` | 获取本轮要注入的任务列表与终止符节点列表 |
 
 ### 推送接口（Push）
@@ -177,8 +171,7 @@ Reporter 通过 HTTP 与 `celestialflow-web` 服务的以下端点交互：
 |------|------|------|
 | `POST` | `/api/push_errors` | 推送错误（failed 记录） |
 | `POST` | `/api/push_status` | 推送运行时状态快照 |
-| `POST` | `/api/push_structure` | 推送图结构（节点 / 边 / 源节点） |
-| `POST` | `/api/push_analysis` | 推送图分析数据 |
+| `POST` | `/api/push_graph_meta` | 推送图结构、节点元信息与图分析数据 |
 
 ### 非 2xx 响应处理
 
@@ -193,7 +186,7 @@ GET /api/pull_server_state?graph_id={graph_id}
 读取远端同步状态，更新：
 
 - `interval`（范围 `[1, 60]`）；
-- `_server_has_current_graph` / `_server_has_structure` / `_server_has_analysis`；
+- `_server_has_current_graph` / `_server_has_graph_meta`；
 - `_server_max_event_id_in_fail`（无值时为 `None`）。
 
 失败时由 `log_inlet.pull_interval_failed(e)` 记录，不影响后续推送。
@@ -243,7 +236,7 @@ for target_node in injection_payload.get("terminations", []):
         self.log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
 ```
 
-> ⚠️ **逐条入队是协议硬性要求**：`for task in task_datas: node.put_task(task)` 必须逐条调用 `put_task`；若把整个 `task_datas` 列表当成单条任务注入，会破坏 `BaseTaskNode` 的入队语义并产生不可预期的下游行为。回归测试见 `tests/observability/test_reporter.py::test_reporter_accepts_split_task_and_termination_payload`。
+> ⚠️ **逐条入队是协议硬性要求**：`for task in task_datas: node.put_task(task)` 必须逐条调用 `put_task`；若把整个 `task_datas` 列表当成单条任务注入，会破坏 `BaseTaskNode` 的入队语义并产生不可预期的下游行为。回归测试见 `tests/observability/test_reporter.py`。
 
 载荷解析失败（非 2xx / JSON 异常）由 `log_inlet.pull_tasks_failed(e)` 记录，**不会中断**后续推送。
 
@@ -265,23 +258,33 @@ for target_node in injection_payload.get("terminations", []):
 
 非 2xx 响应 → `ReporterError` → `log_inlet.push_errors_failed(e)`。
 
-## `_push_status`
+## `_push_status`（变化门控）
+
+逐节点采集快照并推送：
 
 ```python
-status_dict, now = self.task_graph.collect_runtime_snapshot()
+status_dict: dict[str, dict[str, Any]] = {}
+for node_name, node in self.task_graph.node_dict.items():
+    status_dict[node_name] = node.get_snapshot()
+
+# 门控：服务器持有当前图，且快照与上次成功推送一致时跳过
+if self._server_has_current_graph and status_dict == self._last_status_dict:
+    return
 
 payload = {
     "graph_id": self.task_graph.get_graph_id(),
     "status": status_dict,
-    "timestamp": now,
+    "timestamp": time.time(),
 }
 ```
 
+推送成功后将 `_last_status_dict` 更新为本次的 `status_dict`。时间戳不参与比较（每轮必然不同），比较对象是逐节点采集的快照本身；服务端刚切换上下文（`_server_has_current_graph` 为假）时其状态缓存已被清空，此时无论快照是否相同都强制推送一次。
+
 非 2xx 响应 → `ReporterError` → `log_inlet.push_status_failed(e)`。
 
-## `_push_structure`
+## `_push_graph_meta`
 
-仅在 `not _server_has_current_graph` 或 `not _server_has_structure` 时触发：
+仅在 `not _server_has_current_graph` 或 `not _server_has_graph_meta` 时触发：
 
 ```python
 payload = {
@@ -289,24 +292,14 @@ payload = {
     "nodes": self.task_graph.get_nodes(),
     "edges": self.task_graph.get_edges(),
     "source_nodes": self.task_graph.get_source_nodes(),
+    "node_meta": self.task_graph.get_node_meta(),
+    "analysis": self.task_graph.get_graph_analysis(),
 }
 ```
 
-非 2xx 响应 → `ReporterError` → `log_inlet.push_structure_failed(e)`。
+即把原 `structure`（节点 / 边 / 源节点）与 `analysis` 合并为一次图元信息推送，并附带各节点的构建期元信息 `node_meta`（`class_name` / `execution_mode` / `max_workers`）。
 
-## `_push_analysis`
-
-仅在 `not _server_has_current_graph` 或 `not _server_has_analysis` 时触发：
-
-```python
-analysis = self.task_graph.get_graph_analysis()
-payload = {
-    "graph_id": self.task_graph.get_graph_id(),
-    "analysis": analysis,
-}
-```
-
-非 2xx 响应 → `ReporterError` → `log_inlet.push_analysis_failed(e)`。
+非 2xx 响应 → `ReporterError` → `log_inlet.push_graph_meta_failed(e)`。
 
 ## 关键数据流
 
@@ -322,7 +315,7 @@ sequenceDiagram
         alt 非 2xx
             R->>L: pull_interval_failed(e)
         else 2xx
-            S-->>R: {interval, is_current_graph, has_structure, has_analysis, max_event_id_in_fail}
+            S-->>R: {interval, is_current_graph, has_graph_meta, max_event_id_in_fail}
         end
 
         R->>S: GET /api/pull_injection
@@ -342,16 +335,10 @@ sequenceDiagram
             end
         end
 
-        alt 服务器无图 或 无结构
-            R->>S: POST /api/push_structure
+        alt 服务器无图 或 无图元信息
+            R->>S: POST /api/push_graph_meta
             alt 非 2xx
-                R->>L: push_structure_failed(e)
-            end
-        end
-        alt 服务器无图 或 无分析
-            R->>S: POST /api/push_analysis
-            alt 非 2xx
-                R->>L: push_analysis_failed(e)
+                R->>L: push_graph_meta_failed(e)
             end
         end
 
@@ -378,8 +365,7 @@ sequenceDiagram
 | `pull_interval_failed(error)` | `/api/pull_server_state` 失败 |
 | `push_errors_failed(error)` | `/api/push_errors` 非 2xx / payload 构造失败 |
 | `push_status_failed(error)` | `/api/push_status` 失败 |
-| `push_structure_failed(error)` | `/api/push_structure` 失败 |
-| `push_analysis_failed(error)` | `/api/push_analysis` 失败 |
+| `push_graph_meta_failed(error)` | `/api/push_graph_meta` 失败 |
 | `loop_failed(error)` | `_refresh_all` 顶层未捕获异常（不影响下一轮循环） |
 | `stop_reporter()` | `stop()` 收尾时记录 reporter 已停止 |
 | `worker_crash(error)` | 调度器 worker 崩溃（仅在 `core_dispatch` 调用） |
@@ -393,7 +379,6 @@ sequenceDiagram
 ```python
 class NullTaskReporter:
     interval: int = 1
-    history_limit: int = 20
 
     def start(self) -> None: ...
     def stop(self) -> None: ...
@@ -436,6 +421,7 @@ placeholder.stop()
 2. **非 2xx 响应必须检查**：所有 `GET` / `POST` 请求**必须**在拿到响应后判断 `res.ok`，并把失败抛到对应 `_pull_*_failed` / `_push_*_failed` 日志。
 3. **`stop()` 后 `_thread` 必须置 `None`**：以便支持二次 `start()`，否则会因 `Thread` 引用泄漏导致重复 join。
 4. **`interval` 收敛范围 `[1, 60]`**：从远端拉到的 `interval` 会被 `int(max(1.0, min(float(interval), 60.0)))` 夹紧。
-5. **结构 / 分析推送是按需的**：仅在服务器首次持有当前图、或对应字段缺失时触发，避免每轮重复上传。
-6. **增量错误推送以 failed 记录的最大 `event_id` 为水位线**：要求客户端的 `event_id` 单调递增（由 `LocalEventClient` / `ctree_client` 保证）。
-7. **依赖图协议而非具体类**：`TaskReporter` 通过 `ReporterTaskGraph` / `ReporterTaskNode` 协议访问任务图，可在不引入 `celestialflow.graph` 依赖的前提下独立测试。
+5. **图元信息推送是按需的**：仅在服务器首次持有当前图、或图元信息缺失时触发，避免每轮重复上传；`node_meta` 已并入 `_push_graph_meta`，不再进入每轮状态推送。
+6. **状态推送带变化门控**：`_push_status` 仅在逐节点快照发生变化（或服务端刚切换上下文）时才发送，避免无意义的重复请求。
+7. **增量错误推送以 failed 记录的最大 `event_id` 为水位线**：要求客户端的 `event_id` 单调递增（由 `LocalEventClient` / `ctree_client` 保证）。
+8. **依赖图协议而非具体类**：`TaskReporter` 通过 `ReporterTaskGraph` / `ReporterTaskNode` 协议访问任务图，可在不引入 `celestialflow.graph` 依赖的前提下独立测试。

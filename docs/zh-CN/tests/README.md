@@ -1,6 +1,6 @@
 # tests/ 测试总览
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 说明
 
@@ -33,7 +33,7 @@
 | `graph/test_graph.md` 等 | `TaskGraph`、拓扑分析与结构导出相关测试 |
 | `observability/test_observer.md` / `test_reporter.md` | 观察者、Reporter、注入与上报相关测试 |
 | `persistence/test_lifecycle.md` 等 | 生命周期 / 日志 / sqlite 工具等持久化相关测试 |
-| `runtime/test_envelope.md` 等 | 队列、信封、异常、估算器、计数器等基础运行时测试 |
+| `runtime/test_envelope.md` 等 | 队列、信封、异常、计数器等基础运行时测试 |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` 基准测试与 clone 工具测试 |
 
 ## 如何使用

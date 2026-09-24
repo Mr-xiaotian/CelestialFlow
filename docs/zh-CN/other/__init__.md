@@ -1,6 +1,6 @@
 # Other 模块
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/24
 
 ## 概述
 
@@ -13,7 +13,7 @@ Other 模块包含 CelestialFlow 框架的扩展组件和外部集成，这些�
 **作用**: 集成 CelestialTree 事件溯源系统，实现任务全链路追踪和事件记录。
 
 **核心功能**:
-- **事件记录**: 自动记录任务生命周期中的关键事件（输入、成功、失败、重试、分裂、路由等）
+- **事件记录**: 自动记录任务生命周期中的关键事件（输入、成功、失败、重试、终止合并等）
 - **数据血缘追踪**: 查询结果的数据来源和生成路径
 - **错误根因定位**: 追踪错误任务的完整调用链
 - **执行树可视化**: 生成任务执行的调用树结构
@@ -22,7 +22,7 @@ Other 模块包含 CelestialFlow 框架的扩展组件和外部集成，这些�
 - 与 CelestialTree 服务集成，支持 HTTP 和 gRPC 通信
 - 自动事件发射，无需手动埋点
 - 提供简化的溯源查询接口
-- 支持任务分裂、路由、重复检测等复杂场景
+- 支持任务分裂、路由等复杂场景
 
 **使用模式**:
 ```python
@@ -36,10 +36,6 @@ ctree_client = CelestialTreeClient(
 )
 
 graph.set_ctree(ctree_client)
-
-# 查询溯源信息
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-error_trace = graph.get_error_trace(error_id=12345)
 ```
 
 ### 2. go_worker.md - Go Worker 任务消费者
@@ -135,17 +131,14 @@ CelestialTree Client → CelestialTree Service
 graph.set_ctree(ctree_client)
 
 # 运行任务图
-graph.start_graph(init_tasks)
-
-# 查询任务溯源
-trace = graph.get_stage_input_trace("ProcessingStage")
+graph.run(init_tasks)
 ```
 
 ### 2. 跨语言执行模式
 ```python
-# Python 端：用普通 TaskStage 封装 demo_redis helper
-transport_stage = TaskStage("RedisTransport", redis_push)
-ack_stage = TaskStage("RedisAck", redis_wait)
+# Python 端：用普通 TaskExecutor 封装 demo_redis helper
+transport_node = TaskExecutor("RedisTransport", redis_push)
+ack_node = TaskExecutor("RedisAck", redis_wait)
 
 # Go 端：启动 Worker Pool 消费任务
 # go_worker/main.go 中配置相同的 Redis key

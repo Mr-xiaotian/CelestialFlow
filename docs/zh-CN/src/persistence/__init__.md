@@ -1,6 +1,6 @@
-# Persistence 模块
+# src/celestialflow/persistence/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任务生命周期（Lifecycle）记录与执行日志（Log）。它确保任务执行的关键数据能够可靠地保存和检索。
 
@@ -23,10 +23,10 @@ Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任�
 ### 生命周期持久化
 
 1. **core_lifecycle.py** (`LifecycleSpout`, `LifecycleInlet`)
-   - **作用**: 任务生命周期的持久化，统一记录任务的 pending / success / failed / duplicate 状态
+   - **作用**: 任务生命周期的持久化，统一记录任务的 pending / success / failed / 重试状态
    - **核心组件**:
      - `LifecycleSpout`: 继承 `BaseSpout`，通过 SQLite 持久化任务生命周期事件
-     - `LifecycleInlet`: 线程安全收集器，提供 `task_input`/`task_success`/`task_fail`/`task_duplicate` 方法
+     - `LifecycleInlet`: 线程安全收集器，提供 `task_input`/`task_success`/`task_fail`/`task_retry` 方法
    - **存储格式**: SQLite 数据库（WAL 模式），文件位于 `lifecycles/` 目录
 
 ### 日志持久化
@@ -35,7 +35,7 @@ Persistence 模块提供了 CelestialFlow 的数据持久化能力，包括任�
    - **作用**: 日志记录和存储的基础架构
    - **核心组件**:
      - `LogSpout`: 日志监听线程，从队列接收日志消息并写入 `logs/` 目录下的文本文件
-     - `LogInlet`: 线程安全日志收集器，提供语义化日志方法（任务成功/失败/重试、图/分层启停、上报器事件等）
+     - `LogInlet`: 线程安全日志收集器，提供语义化日志方法（任务成功/失败/重试、图/节点启停、上报器事件等）
    - **日志格式**: 纯文本格式，每行包含 `timestamp level message`
 
 ### 作用域管理
@@ -128,13 +128,14 @@ from celestialflow.persistence import get_log_inlet
 
 log_inlet = get_log_inlet()
 
-# 记录执行器启停
-log_inlet.start_executor("StageA", 100, "thread")
-log_inlet.end_executor("StageA", "thread", 12.5, 98, 2, 0)
+# 记录节点启停
+log_inlet.node_start("NodeA", 100, "thread")
+log_inlet.node_end("NodeA", "thread", 12.5, 98, 2, 0)
 
 # 记录任务生命周期
-log_inlet.task_success("func", "task1", "thread", "result", 0.05, 1, 2)
-log_inlet.task_fail("func", "task2", ValueError("bad"), 3, 4)
+log_inlet.task_success("NodeA", "task1", "result", 0.05, 1, 2)
+log_inlet.task_fail("NodeA", "task2", ValueError("bad"), 3, 4)
+log_inlet.task_retry("NodeA", "task2", 1, ValueError("bad"), 3)
 ```
 
 ### 记录生命周期

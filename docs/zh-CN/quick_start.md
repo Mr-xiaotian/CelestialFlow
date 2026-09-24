@@ -1,6 +1,6 @@
 # 快速开始（Quick Start）
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
@@ -10,7 +10,7 @@
 
 ```bash
 # 创建项目虚拟环境（默认生成 .venv）
-uv venv --python 3.10
+uv venv --python 3.12
 
 # 激活环境（Windows）
 . .\.venv\Scripts\Activate.ps1
@@ -53,10 +53,12 @@ uv sync --group dev
 
 当前主仓已不再内置 Web 服务。如果示例代码中启用了 `TaskReporter`，你可以把它指向自建 HTTP 服务或独立的 `celestialflow-web` 项目；如果你只想体验 CelestialFlow 的核心调度能力，这一节可以直接跳过。
 
-配置状态上报可以通过 `set_reporter` 来实现:
+配置状态上报可以通过 `set_reporter` 传入一个 `TaskReporter` 实例来实现：
 
 ```python
-graph.set_reporter(True, host="127.0.0.1", port=5005)
+from celestialflow import TaskReporter
+
+graph.set_reporter(TaskReporter("127.0.0.1", 5005, graph))
 ```
 
 如果你启用了 `TaskReporter`，但目标服务没有启动，
@@ -85,6 +87,6 @@ pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
-- `tests/node/test_node.py` 包含节点相关测试：类型、估算器、计数器等。
+- `tests/node/test_node.py` 包含节点相关测试：类型、计数器、快照等。
 
-在代码运行过程中，你可以通过日志、`BaseObserver`（如 `TqdmObserver` 进度条）或状态快照查看运行情况。
+在代码运行过程中，你可以通过日志、`BaseObserver`（如 `PrintObserver` 控制台观察者）或节点 `get_snapshot()` 快照查看运行情况。

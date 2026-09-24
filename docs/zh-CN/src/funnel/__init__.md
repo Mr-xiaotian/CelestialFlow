@@ -1,6 +1,6 @@
-# Funnel 模块
+# src/celestialflow/funnel/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet` 和 `LifecycleSpout`/`LifecycleInlet` 的底层基类。
 

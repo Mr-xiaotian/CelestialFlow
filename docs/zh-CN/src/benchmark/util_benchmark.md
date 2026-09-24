@@ -1,6 +1,6 @@
-# benchmark/util_benchmark.py
+# src/celestialflow/benchmark/util_benchmark.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -67,7 +67,11 @@ async def benchmark_graph(
     execution_modes: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    对任务图进行基准测试。
+    对任务图进行基准测试，覆盖 ``graph_mode × execution_mode`` 的全部组合。
+
+    - ``sync_graph`` 用于 ``execution_mode in {"serial", "thread"}`` 的单元格；
+    - ``async_graph`` 用于 ``execution_mode == "async"`` 的单元格；
+    - ``graph_mode`` 决定当前单元格使用 ``run()`` 还是 ``run_async()`` 启动。
 
     :param sync_graph: 同步任务图模板（用于 serial/thread execution_mode）
     :param async_graph: 异步任务图模板（用于 async execution_mode）

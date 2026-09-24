@@ -1,6 +1,6 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -10,7 +10,7 @@
 1. 分析任务流程并拆解
 2. 编写各阶段的处理函数
 3. 组装任务图并运行
-4. 通过日志、进度条与状态快照监控执行状态
+4. 通过日志、观察者与状态快照监控执行状态
 
 ---
 
@@ -208,6 +208,14 @@ if __name__ == "__main__":
 ```python
 from celestialflow import TaskExecutor, TaskSplitter
 
+
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """将 HTML 解析为多个图片 URL 任务。"""
+    urls = parse_image_urls(html)
+    print(f"解析到 {len(urls)} 个图片 URL")
+    return tuple(urls)
+
+
 # 搜索阶段：输入关键词，输出 HTML
 stage_search = TaskExecutor(
     "搜索页面",
@@ -216,19 +224,8 @@ stage_search = TaskExecutor(
     max_retries=2,
 )
 
-
-# 解析阶段：输入 HTML，输出多个图片 URL（需要拆分）
-# 这里需要自定义 Splitter 来拆分 URL 列表
-class URLSplitter(TaskSplitter):
-    """将 URL 列表拆分为多个独立任务。"""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"解析到 {len(urls)} 个图片 URL")
-        return tuple(urls)
-
-
-stage_parse = URLSplitter("解析图片")
+# 解析阶段：输入 HTML，输出多个图片 URL（TaskSplitter 会把可迭代结果逐个分发到下游）
+stage_parse = TaskSplitter("解析图片", split_image_urls)
 
 # 下载阶段：输入 URL，输出图片数据
 stage_download = TaskExecutor(
@@ -244,7 +241,6 @@ stage_save = TaskExecutor(
     "存储文件",
     func=lambda data: save_image(data, "猫咪") if data else None,
     execution_mode="serial",
-    enable_duplicate_check=False,  # 允许保存重复数据（用于重试）
 )
 ```
 
@@ -254,10 +250,10 @@ stage_save = TaskExecutor(
 from celestialflow import TaskGraph
 
 # 创建任务图
-graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
+graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
 
 # 设置节点
-graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
 
 # 设置节点间的连接关系
 graph.connect([stage_search], [stage_parse])
@@ -355,16 +351,14 @@ def save_image(image_data: bytes, keyword: str) -> str | None:
     return file_path
 
 
-# ========== 自定义节点 ==========
+# ========== 拆分函数 ==========
 
 
-class URLSplitter(TaskSplitter):
-    """URL 列表拆分器。"""
-
-    def _split(self, html: str):
-        urls = parse_image_urls(html)
-        print(f"解析到 {len(urls)} 个图片 URL")
-        return tuple(urls)
+def split_image_urls(html: str) -> tuple[str, ...]:
+    """将 HTML 解析为多个图片 URL 任务。"""
+    urls = parse_image_urls(html)
+    print(f"解析到 {len(urls)} 个图片 URL")
+    return tuple(urls)
 
 
 # ========== 构建任务图 ==========
@@ -381,7 +375,7 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         max_retries=2,
     )
 
-    stage_parse = URLSplitter("解析图片")
+    stage_parse = TaskSplitter("解析图片", split_image_urls)
 
     stage_download = TaskExecutor(
         "下载图片",
@@ -396,12 +390,11 @@ def build_crawler_graph(keyword: str) -> TaskGraph:
         "存储文件",
         func=lambda data: save_image(data, keyword),
         execution_mode="serial",
-        enable_duplicate_check=False,
     )
 
     # 设置连接
-    graph = TaskGraph(name="ImageCrawler", graph_mode="eager", log_level="SUCCESS")
-    graph.set_nodes(stages=[stage_search, stage_parse, stage_download, stage_save])
+    graph = TaskGraph(name="ImageCrawler", graph_mode="thread")
+    graph.set_nodes(nodes=[stage_search, stage_parse, stage_download, stage_save])
     graph.connect([stage_search], [stage_parse])
     graph.connect([stage_parse], [stage_download])
     graph.connect([stage_download], [stage_save])
@@ -441,10 +434,10 @@ python crawler.py
 
 ### 5.2 查看运行状态
 
-运行过程中，你可以通过日志、进度条或节点 `snapshot()` 快照查看：
+运行过程中，你可以通过日志、观察者或节点 `get_snapshot()` 快照查看：
 
-1. **节点处理进度**：每个阶段的成功、失败、待处理统计（通过 `get_counts()` 或 `snapshot()` 获取）
-2. **图结构信息**：通过 `graph.get_structure_list()` 或 `graph.get_structure_graph()` 查看
+1. **节点处理进度**：每个阶段的成功、失败、待处理统计（通过 `get_counts()` 或 `get_snapshot()` 获取）
+2. **图结构信息**：通过 `graph.get_structure_list()` 或 `graph.get_order_graph()` 查看
 3. **错误信息**：下载失败的图片 URL 和异常日志
 4. **任务注入**：通过 `node.put_task()` 继续注入新的关键词，或 `node.put_signal()` 注入终止信号
 
@@ -485,7 +478,7 @@ stage_search.put_signal()
 2. **函数编写**: 为每个层级编写处理函数并单独测试
 3. **节点创建**: 将函数包装为 `TaskExecutor`
 4. **图组装**: 用 `TaskGraph` 组织节点关系
-5. **监控运行**: 通过日志、进度条与状态快照观察执行状态
+5. **监控运行**: 通过日志、观察者与状态快照观察执行状态
 
 ### 关键概念回顾
 
@@ -494,7 +487,7 @@ stage_search.put_signal()
 | `TaskExecutor` | 任务节点，包装处理函数 |
 | `TaskSplitter` | 分裂器，将一个任务拆分为多个 |
 | `TaskGraph` | 任务图，组织节点关系和执行流程 |
-| `graph_mode` | 图运行模式（serial/thread） |
+| `graph_mode` | 图运行模式（serial/thread/async） |
 | `execution_mode` | 节点内部执行模式（serial/thread/async） |
 
 ### 下一步

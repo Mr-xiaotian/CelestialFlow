@@ -1,8 +1,8 @@
-# TaskQueue
+# src/celestialflow/runtime/core_queue.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
-`TaskQueue` 模块提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接任务图中不同节点的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
+`core_queue.py` 提供了 `TaskInQueue` 和 `TaskOutQueue` 两个类，用于连接任务图中不同节点的管道。它们支持多生产者、多消费者模型，并集成了终止信号合并功能。
 
 ## 概述
 
@@ -15,22 +15,31 @@
 
 ## TaskInQueue
 
-任务输入队列，用于接收、去重和合并来自多个上游的任务。
+任务输入队列，用于接收来自多个上游的任务并合并终止信号。
 
 ### 初始化
 
 ```python
-class TaskInQueue:
+class TaskInQueue[T]:
     def __init__(
         self,
         out_name: str,
         maxsize: int = 0,
-    ):
+    ) -> None:
         """
         :param out_name: 当前节点唯一名称
         :param maxsize: 队列最大容量，默认为 0（无限制）
         """
 ```
+
+内部属性：
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `out_name` | `str` | 当前节点唯一名称 |
+| `queue` | `Queue[TaskEnvelope[T] \| TerminationSignal]` | 底层线程安全队列 |
+| `source_names` | `list[str]` | 上游来源名称列表 |
+| `termination_dict` | `dict[str, int]` | 已记录的终止信号来源 → ID |
 
 队列在内部自动创建，无需外部传入。上游来源通过 `add_source_name()` 动态添加。
 
@@ -39,30 +48,32 @@ class TaskInQueue:
 #### put
 
 ```python
-def put(self, item: TaskEnvelope | TerminationSignal) -> None:
-    """
-    入队任务或终止信号。
-    """
+def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
+    """入队任务或终止信号。"""
 ```
 
 #### get
 
 ```python
-def get(self) -> TaskEnvelope | TerminationIdPool:
+def get(self) -> TaskEnvelope[T] | TerminationIdPool:
     """
-    出队任务或终止信号 ID 池。
-
-    终止信号合并逻辑：
-    - 收到来自 "input" 的终止信号 → 立即返回 TerminationIdPool
-    - 收到来自所有 source_names 的终止信号 → 合并后返回
-    - 仅收到部分上游信号 → 继续等待（内部循环重试）
+    出队任务或终止符号 id 池。
     """
 ```
+
+`get()` 内部循环消费底层队列，直到 `_process_item()` 返回非 `None`。
+
+终止信号合并逻辑：
+
+- 收到来自 `"input"` 的终止信号 → 立即返回 `TerminationIdPool(ids=[...])`
+- 收到来自所有 `source_names` 的终止信号 → 合并后返回
+- 仅收到部分上游信号 → 继续等待（`_process_item` 返回 `None`，外层循环继续）
+- 收到 `TerminationIdPool` 本身（上游已合并的池）→ 直接返回，不再经上游汇合逻辑
 
 #### drain
 
 ```python
-def drain(self) -> list[TaskEnvelope]:
+def drain(self) -> list[TaskEnvelope[T]]:
     """
     清空队列中的所有任务，返回任务列表。
     记录终止信号但不会返回 TerminationIdPool（仅用于同步环境，如 _finish_start）。
@@ -74,12 +85,29 @@ def drain(self) -> list[TaskEnvelope]:
 ```python
 def add_source_name(self, name: str) -> None:
     """
-    动态添加上游来源名称。
+    添加入队来源名称。
 
-    :param name: 上游节点名称
+    :param name: 入队来源名称
     :raises DuplicateNodeError: 如果名称已存在
     """
 ```
+
+内部终止处理辅助方法：
+
+```python
+def _record_termination(self, signal: TerminationSignal) -> None:
+    """记录入队来源的终止信号；来源不在 source_names ∪ {"input"} 时抛 UnknownNodeError。"""
+
+
+def _can_merge_termination(self) -> bool:
+    """所有 source_names 都已发出终止信号时返回 True。"""
+
+
+def _merge_termination(self) -> TerminationIdPool:
+    """合并所有 source_names 的终止信号；存在遗漏来源时抛 TerminationMergeError。"""
+```
+
+> `_merge_termination()` 只合并来自 `source_names` 的终止信号，不处理 `"input"` 注入的直接终止，也不处理 `self.out_name` 的合并后终止。
 
 ## TaskOutQueue
 
@@ -88,35 +116,36 @@ def add_source_name(self, name: str) -> None:
 ### 初始化
 
 ```python
-class TaskOutQueue:
+class TaskOutQueue[T]:
     def __init__(
         self,
         in_name: str,
-    ):
+    ) -> None:
         """
         :param in_name: 当前节点唯一名称，用于记录日志
         """
 ```
 
-输出队列列表初始为空，通过 `add_queue()` 动态添加下游通道。
+输出队列字典 `_queues` 初始为空，通过 `add_queue()` 动态添加下游通道。
 
 ### 主要方法
 
 #### put
 
 ```python
-def put(self, item: TaskEnvelope | TerminationSignal) -> None:
-    """入队任务或终止信号到所有输出通道。"""
+def put(self, item: TaskEnvelope[T] | TerminationSignal) -> None:
+    """入队任务或终止信号到所有输出队列通道（遍历所有目标逐个转发）。"""
 ```
 
 #### put_target
 
 ```python
-def put_target(self, item: TaskEnvelope | TerminationSignal, name: str) -> None:
+def put_target(self, name: str, item: TaskEnvelope[T] | TerminationSignal) -> None:
     """
-    入队到指定名称的输出通道。
+    入队任务或终止信号到指定的输出队列。
 
-    :param name: 下游节点名称
+    :param name: 输出队列目标节点名称
+    :param item: 要入队的任务或终止信号
     """
 ```
 
@@ -131,18 +160,16 @@ def get_target_names(self) -> list[str]:
 
 返回当前所有已注册下游通道的名称列表（即 `_queues` 的键）。
 
-
-
 ### 辅助方法
 
 ```python
-def add_queue(self, queue: Any, name: str) -> None:
+def add_queue(self, name: str, queue: Any) -> None:
     """
-    动态添加输出队列。
+    添加一个输出队列到队列列表中。
 
-    :param queue: 队列实例
-    :param name: 目标节点名称
-    :raises DuplicateNodeError: 如果名称已存在
+    :param name: 队列的目标节点名称，用于标识该队列
+    :param queue: 要添加的输出队列
+    :raises DuplicateNodeError: 如果名称已存在于队列列表中
     """
 ```
 
@@ -182,7 +209,7 @@ def add_queue(self, queue: Any, name: str) -> None:
 ```python
 from queue import Queue as ThreadQueue
 from celestialflow.runtime import TaskEnvelope, TaskInQueue, TaskOutQueue
-from celestialflow.runtime.util_types import TerminationSignal
+from celestialflow.runtime.util_types import TerminationSignal, TerminationIdPool
 
 # ===== TaskInQueue 使用示例 =====
 
@@ -217,11 +244,11 @@ out_queue = TaskOutQueue(
     in_name="processor",
 )
 
-# 动态添加下游队列通道
+# 动态添加下游队列通道（注意参数顺序：先名称，后队列）
 consumer_q1 = ThreadQueue()
 consumer_q2 = ThreadQueue()
-out_queue.add_queue(consumer_q1, "consumer1")
-out_queue.add_queue(consumer_q2, "consumer2")
+out_queue.add_queue("consumer1", consumer_q1)
+out_queue.add_queue("consumer2", consumer_q2)
 
 # 广播任务到所有下游
 env3 = TaskEnvelope(task="broadcast_msg", id=3)
@@ -233,24 +260,28 @@ print(f"consumer2 收到: {consumer_q2.get().get_task()}")
 
 # 定向发送到指定下游
 consumer_q3 = ThreadQueue()
-out_queue.add_queue(consumer_q3, "consumer3")
+out_queue.add_queue("consumer3", consumer_q3)
 
 env4 = TaskEnvelope(task="targeted_msg", id=4)
-out_queue.put_target(env4, "consumer3")
+out_queue.put_target("consumer3", env4)
 print(f"consumer3 收到: {consumer_q3.get().get_task()}")
 
 # ===== 终止信号合并 =====
 
+# 新建一个只用于演示合并的输入队列
+merge_queue = TaskInQueue(out_name="merger")
+merge_queue.add_source_name("producer1")
+merge_queue.add_source_name("producer2")
+
 # 两个上游都发送终止信号
-in_queue.put(TerminationSignal(_id=1, source="producer1"))
-in_queue.put(TerminationSignal(_id=2, source="producer2"))
+merge_queue.put(TerminationSignal(_id=1, source="producer1"))
+merge_queue.put(TerminationSignal(_id=2, source="producer2"))
 
 # get() 会自动合并所有上游的终止信号并返回 TerminationIdPool
-result = in_queue.get()
-from celestialflow.runtime.util_types import TerminationIdPool
+result = merge_queue.get()
 
 if isinstance(result, TerminationIdPool):
-    print(f"收到合并终止信号，包含 IDs: {result.ids}")
+    print(f"收到合并终止信号，包含 IDs: {result.ids}")  # [1, 2]
 
 # ===== drain 清空队列 =====
 # 创建新队列并放入残留任务

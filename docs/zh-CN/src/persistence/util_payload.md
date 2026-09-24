@@ -1,6 +1,6 @@
-# PersistencePayload
+# src/celestialflow/persistence/util_payload.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `persistence/util_payload.py` 提供任务数据的持久化序列化工具，将任意 Python 对象递归转换为 JSON 友好的结构。
 

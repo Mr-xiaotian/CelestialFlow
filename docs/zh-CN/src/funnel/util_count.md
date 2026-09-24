@@ -1,6 +1,6 @@
-# PendingCounter
+# src/celestialflow/funnel/util_count.py
 
-> 📅 最后更新日期: 2026/06/22
+> 📅 最后更新日期: 2026/09/24
 
 `funnel/util_count.py` 提供了一个线程安全的待处理计数器 `PendingCounter`，用于统计某个 `BaseSpout` 对应记录中尚未完成处理的数量。
 

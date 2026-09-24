@@ -1,6 +1,6 @@
-# bench_mpqueue_vs_shared_memory.py 基准测试说明
+# bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 

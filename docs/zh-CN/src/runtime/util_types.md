@@ -1,19 +1,8 @@
-# TaskTypes
+# src/celestialflow/runtime/util_types.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
-TaskTypes 模块定义了框架中使用的基础数据类型、枚举和辅助类。
-
-## StageStatus
-
-枚举类，表示任务图节点（`BaseTaskNode` 及其子类，如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的运行状态。
-
-```python
-class StageStatus(IntEnum):
-    NOT_STARTED = 0  # 未启动
-    RUNNING = 1  # 运行中
-    STOPPED = 2  # 已停止
-```
+`util_types.py` 定义了框架中使用的基础数据类型、枚举和辅助类。
 
 ## TerminationSignal
 
@@ -22,8 +11,8 @@ class StageStatus(IntEnum):
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id  # 事件 ID
-        self.source = source  # 来源
+        self.id = _id  # 终止信号 ID
+        self.source = source  # 来源标识
 
 
 # 全局单例
@@ -42,64 +31,50 @@ class TerminationIdPool:
 
 ## NoOpContext
 
-空上下文管理器，用于禁用 `with` 逻辑（例如当无需锁时）。
+空上下文管理器，用于禁用 `with` 逻辑。
 
 ```python
 class NoOpContext:
-    def __enter__(self) -> "NoOpContext": ...
+    def __enter__(self) -> NoOpContext: ...
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 ```
 
+`__exit__` 忽略所有异常信息，本身不吞掉异常（返回 `None`）。
+
 ## ValueWrapper
 
-线程内/单进程的计数器包装，可选配锁。
+线程内/单进程的计数器包装，**默认自建一把线程锁**，也可显式关闭加锁。
 
 ```python
 class ValueWrapper:
     def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
+        """
+        :param value: 初始值
+        :param lock: 可选的线程锁。默认 None 表示自建一把锁；
+            传入已存在的 Lock 可让多个计数器共用同一把锁；
+            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
+        """
         self.value = value
-        self._lock = lock or NoOpContext()
-
-    def get_lock(self) -> Lock | NoOpContext:
-        """返回锁对象或 NoOpContext（无锁时）。"""
+        self._lock = lock if lock is not None else Lock()
 ```
-
-## SumCounter
-
-累加多个 counter（ValueWrapper）的总和计数器。
-
-```python
-class SumCounter:
-    def __init__(self, lock: Lock | NoOpContext | None = None):
-        """
-        :param lock: 可选的线程锁，默认 None（使用 NoOpContext）
-        """
-        self.init_value = ValueWrapper(value=0, lock=self.lock)
-        self.counters = []
-```
-
-### 方法
 
 | 方法 | 说明 |
 |------|------|
-| `add(value)` | 增加初始计数值（加到 `init_value`） |
-| `append_counter(counter)` | 追加外部计数器 |
-| `reset()` | 重置所有计数器归零 |
-| `get()` | 获取所有计数器的累加值 |
-| `value`（属性） | 累加所有计数器的总值 |
+| `get_lock()` | 获取锁对象；关闭加锁时返回 `NoOpContext` |
+| `add(value)` | 在持锁状态下增加 `value` |
+| `get()` | 在持锁状态下读取当前值 |
 
-### 使用示例
+> 因为 `lock=None` 时会自建一把真实 `Lock`，`ValueWrapper` 默认就是线程安全的；只有在明确单线程访问时才应显式传入 `NoOpContext` 关闭加锁。
+
+## StageStatus
+
+任务图节点（`BaseTaskNode` 及其子类，如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的运行状态枚举。
 
 ```python
-from celestialflow.runtime.util_types import SumCounter, ValueWrapper
-
-counter = SumCounter()
-counter.add(10)
-
-sub_counter = ValueWrapper(value=5)
-counter.append_counter(sub_counter)
-
-print(counter.get())  # 15
+class StageStatus(IntEnum):
+    NOT_STARTED = 0  # 未启动
+    RUNNING = 1  # 运行中
+    STOPPED = 2  # 已停止
 ```
 
 ## CTreeEvent
@@ -112,11 +87,8 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 | `TASK_SUCCESS` | `"task.success"` | 任务执行成功 |
 | `TASK_ERROR` | `"task.error"` | 任务执行失败 |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | 重试前缀（拼接重试次数） |
-| `TASK_DUPLICATE` | `"task.duplicate"` | 检测到重复任务 |
 | `TERMINATION_INPUT` | `"termination.input"` | 注入终止信号 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 合并终止信号 |
-
-
 
 ## 使用示例
 
@@ -162,43 +134,39 @@ status = StageStatus.NOT_STARTED
 print(f"初始状态: {status.name}")
 ```
 
-### ValueWrapper 和 SumCounter
+### ValueWrapper
 
 ```python
-from celestialflow.runtime.util_types import ValueWrapper, SumCounter
+from celestialflow.runtime.util_types import ValueWrapper
 
-# ValueWrapper：带可选锁的计数器
+# 默认带真实线程锁
 counter = ValueWrapper(value=10)
 print(f"初始值: {counter.value}")  # 10
-with counter.get_lock():
-    counter.value += 5
-print(f"加锁递增后: {counter.value}")  # 15
 
-# SumCounter：多计数器累加
-sum_counter = SumCounter()
-sum_counter.add(100)
+counter.add(5)
+print(f"递增后: {counter.get()}")  # 15
 
-sub1 = ValueWrapper(value=20)
-sub2 = ValueWrapper(value=30)
-sum_counter.append_counter(sub1)
-sum_counter.append_counter(sub2)
+# 与其它计数器共用同一把锁
+from threading import Lock
 
-print(f"总和 (100 + 20 + 30): {sum_counter.value}")  # 150
-
-# 重置
-sum_counter.reset()
-print(f"重置后: {sum_counter.value}")  # 0
+shared = Lock()
+a = ValueWrapper(value=0, lock=shared)
+b = ValueWrapper(value=0, lock=shared)
+print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
 ```
 
 ### NoOpContext
 
 ```python
-from celestialflow.runtime.util_types import NoOpContext
+from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
 # 空上下文管理器，用于禁用 with 逻辑
 ctx = NoOpContext()
 with ctx:
     print("这是一个无操作上下文")
+
+# 单线程场景下显式关闭加锁
+single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```
 
 ### CTreeEvent 常量
@@ -211,14 +179,12 @@ print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
 print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
 print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
 print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
-print(f"重复任务事件: {CTreeEvent.TASK_DUPLICATE}")  # "task.duplicate"
 print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
 print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
-
-
 ## 注意事项
 
-- `ValueWrapper` 和 `SumCounter` 的线程安全依赖于调用方传入正确的 `Lock` 对象。
-- `NoOpContext` 用于 `serial`/`async` 模式下替代真实锁，避免不必要的锁开销。
+- `ValueWrapper` 默认使用真实 `Lock`，因此默认线程安全；`NoOpContext` 用于单线程模式下显式关闭锁开销。
+- `TERMINATION_SIGNAL` 是模块级单例，默认 `id=-1`、`source="input"`。
+- `StageStatus` 为 `IntEnum`，可直接与整数比较。

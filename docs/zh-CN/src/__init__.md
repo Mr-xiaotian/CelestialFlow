@@ -1,6 +1,6 @@
-# CelestialFlow 包入口
+# src/celestialflow/__init__.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 简介
 
@@ -60,6 +60,7 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `BaseObserver` | 观察者基类，定义 on_start / on_success / on_failure 等接口 |
+| `PrintObserver` | 基于 print 的控制台进度观察者，线程安全地输出任务执行计数 |
 | `TaskReporter` | 任务报告器，通过 HTTP 上报任务执行事件 |
 
 ---
@@ -93,7 +94,6 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `format_table` | 格式化表格输出，用于控制台展示对比数据 |
-| `make_hashable` | 将不可哈希对象（如 dict、list）转为可哈希形式 |
 | `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
 ---
@@ -107,6 +107,7 @@ __all__ = [
     "BaseInlet",
     "BaseObserver",
     "BaseSpout",
+    "PrintObserver",
     "TaskChain",
     "TaskComplete",
     "TaskCross",
@@ -124,7 +125,6 @@ __all__ = [
     "format_table",
     "load_records",
     "load_tasks_grouped_by_stage",
-    "make_hashable",
 ]
 ```
 
@@ -222,7 +222,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>TaskReporter"]
+        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
     end
 
     subgraph benchmark
@@ -234,7 +234,7 @@ graph TD
     end
 
     subgraph runtime
-        R["format_table<br/>make_hashable<br/>TerminationSignal"]
+        R["format_table<br/>TerminationSignal"]
     end
 
     Init --> F

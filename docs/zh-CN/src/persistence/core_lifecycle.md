@@ -1,8 +1,8 @@
-# 任务生命周期持久化 (Lifecycle Persistence)
+# src/celestialflow/persistence/core_lifecycle.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
-`persistence/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / 删除），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
+`persistence/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed，以及重试次数更新），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
 
 ## 架构设计
 
@@ -16,7 +16,7 @@ flowchart LR
     end
     Funnel --> Queue[queue.Queue]
     Queue -->|守护线程轮询| Spout[LifecycleSpout._handle_record]
-    Spout -->|操作: insert / delete / promote| SQLite[lifecycles/**/*.sqlite3]
+    Spout -->|操作: insert / promote / update_retry| SQLite[lifecycles/**/*.sqlite3]
     SQLite --> Read[get_task_error_pairs<br/>get_task_result_pairs<br/>读取已持久化记录]
 ```
 
@@ -55,11 +55,11 @@ lifecycle_spout.start()
 | 操作 | 触发方法 | 说明 |
 |------|---------|------|
 | `insert` | `LifecycleInlet.task_input()` | 新任务进入 stage，写入一条 `pending` 记录 |
-| `delete` | `LifecycleInlet.task_duplicate()` | 删除重复任务对应的 pending 记录 |
 | `promote_success` | `LifecycleInlet.task_success()` | 将 pending 晋升为 `success`，写入结果 JSON |
 | `promote_failed` | `LifecycleInlet.task_fail()` | 将 pending 晋升为 `failed`，更新 event_id 并写入错误类型与消息 |
+| `update_retry` | `LifecycleInlet.task_retry()` | 保持 pending 状态，仅更新 `retry_times` 与最近一次失败的错误类型 / 消息 |
 
-每次操作实际改动记录后会立即 `commit()`。
+每次操作实际改动记录后会立即 `commit()`；未知的 `__op__` 会抛出 `ValueError`。
 
 ### 文件路径
 
@@ -101,17 +101,18 @@ class LifecycleInlet(BaseInlet):
     def task_success(self, event_id: int, result: Any) -> None:
         """将 pending 记录晋升为 success 并写入结果。"""
 
-    def task_duplicate(self, event_id: int) -> None:
-        """删除已判重任务对应的 pending 记录。"""
-
     def task_fail(self, event_id: int, error_id: int, error: Exception) -> None:
         """将 pending 晋升为 failed，绑定最终错误信息。"""
+
+    def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
+        """更新 pending 记录的重试次数与最近一次失败的错误信息。"""
 ```
 
 说明：
 
 - `task_input` 中 `task` 通过 `to_persisted_payload()` 序列化为 JSON 友好结构后存入 `task_json` 字段。
 - `task_fail` 会将 `error_type`（异常类名）与 `error_message`（`str(error)`）一并持久化。
+- `task_retry` 只更新 `retry_times` 与最近一次错误信息，记录保持 `pending` 状态，最终仍由 `task_success` / `task_fail` 晋升。
 - `LifecycleInlet` 只写队列，不直接操作数据库；所有 I/O 都在 `LifecycleSpout` 的后台线程中完成。
 
 ## 全局单例
@@ -145,6 +146,9 @@ lifecycle_inlet.task_success(event_id=1, result="OK")
 
 # 任务失败：pending -> failed
 lifecycle_inlet.task_fail(event_id=2, error_id=10, error=ValueError("bad input"))
+
+# 任务重试：更新 pending 记录的重试次数（状态仍为 pending）
+lifecycle_inlet.task_retry(event_id=2, retry_times=1, error=ValueError("bad input"))
 
 # 4. 获取持久化数据
 errors = lifecycle_spout.get_task_error_pairs("StageA")

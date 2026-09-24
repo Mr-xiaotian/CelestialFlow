@@ -1,6 +1,6 @@
-# RuntimeConfig
+# src/celestialflow/runtime/util_config.py
 
-> 📅 最后更新日期: 2026/08/12
+> 📅 最后更新日期: 2026/09/24
 
 `runtime/util_config.py` 提供运行时配置加载功能，目前用于从项目级配置文件中读取日志级别。
 

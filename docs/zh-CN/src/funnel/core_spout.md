@@ -1,6 +1,6 @@
-# BaseSpout
+# src/celestialflow/funnel/core_spout.py
 
-> 📅 最后更新日期: 2026/08/26
+> 📅 最后更新日期: 2026/09/24
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 

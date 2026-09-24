@@ -1,6 +1,6 @@
 # CelestialTree Client
 
-> 📅 最后更新日期: 2026/06/18
+> 📅 最后更新日期: 2026/09/24
 
 CelestialFlow 支持接入 `celestialtree` 客户端，用于实现细粒度的任务全链路追踪（Provenance）和事件记录。
 
@@ -49,33 +49,12 @@ graph.set_ctree(ctree_client)
 
 框架会自动发出以下类型的事件：
 
-- `task.input`: 任务进入 Stage。
+- `task.input`: 任务进入节点。
 - `task.success`: 任务处理成功。
 - `task.error`: 任务处理失败。
 - `task.retry.N`: 任务第 N 次重试。
-- `task.split`: 任务分裂。
-- `task.route`: 任务路由。
-- `task.duplicate`: 重复任务检测。
 - `termination.input` / `termination.merge`: 终止信号流转。
 
 ## 溯源查询
 
-`TaskGraph` 提供了简化的封装方法来查询溯源信息：
-
-### get_stage_input_trace
-
-获取某个 Stage 当前所有输入任务的溯源树（即这些任务分别来自哪里）。
-
-```python
-trace_str = graph.get_stage_input_trace(stage_tag="Stage1")
-print(trace_str)
-```
-
-### get_error_trace
-
-获取特定错误 ID 的溯源树。
-
-```python
-trace_str = graph.get_error_trace(error_id=12345)
-print(trace_str)
-```
+`TaskGraph` 不再内建 `get_stage_input_trace` / `get_error_trace` 等便捷查询方法，框架只负责将事件通过注入的客户端发送到 CelestialTree 服务。需要查询溯源信息时，请直接使用 `celestialtree` 客户端自身的查询接口。

@@ -1,6 +1,6 @@
-# 运行时异常测试 (test_errors.py)
+# tests/runtime/test_errors.py
 
-> 📅 最后更新日期: 2026/08/19
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 验证 `celestialflow.runtime.util_errors` 中的自定义异常体系，确保异常继承关系、默认消息和附加字段都符合预期。

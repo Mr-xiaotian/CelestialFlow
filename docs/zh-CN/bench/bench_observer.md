@@ -1,10 +1,10 @@
-# bench_observer.py 基准测试说明
+# bench/bench_observer.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
-对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（`PrintObserver`）与 **tqdm 进度条**（`TqdmObserver`，由 `bench_observer.py` 内定义）三种场景的执行耗时，量化观察者回调带来的性能开销。
+对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（框架内置的 `PrintObserver`，构造时需传入 `name` 前缀）与 **tqdm 进度条**（`TqdmObserver`，由 `bench_observer.py` 内定义）三种场景的执行耗时，量化观察者回调带来的性能开销。
 
 帮助用户根据任务规模与实时反馈需求，选择合适的观察策略。
 
@@ -15,7 +15,7 @@
 | 场景 | 观察者 | 说明 |
 |------|--------|------|
 | **无观察者** | `None` | 裸执行器，没有任何回调输出，作为基准线 |
-| **print 日志** | `PrintObserver` | 每个生命周期事件都执行一次 `print()`，模拟简单日志输出 |
+| **print 日志** | `PrintObserver` | 每个生命周期事件都执行一次带 `name` 前缀的 `print()`，模拟简单日志输出 |
 | **tqdm 进度条** | `TqdmObserver` | 每个生命周期事件都更新 `tqdm` 进度条，提供可视化反馈 |
 
 ### 任务负载
@@ -41,7 +41,7 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 ## 可能出现的问题
 
 1. **print 的 TTY 缓冲**：`print()` 默认行缓冲，当输出到实际终端时可能触发屏幕刷新，速度慢于重定向到文件。不同终端环境下 print 的开销可能有差异。
-2. **tqdm 的 `total=0` 初始值**：`TaskExecutor` 在 `add_observer` 时尚未解析任务总数，`on_start` 中 `total` 为 0，直到 `on_tasks_added` 才更新。`TqdmObserver` 处理了此场景（初始设 `total=0` 后在 `on_tasks_added` 中动态扩展），但不影响基准结果的正确性。
+2. **tqdm 的 `total` 延迟创建**：`TqdmObserver` 延迟到 `on_start` 才创建进度条，并在 `on_task_added` 中累加总量（该回调可能先于 `on_start` 到达）。由于 `run()` 会先注入全部任务再启动，`on_start` 时 `total` 已包含启动前注入的任务数；后续若再有 `on_task_added`，进度条会动态扩展，但不影响基准结果的正确性。
 3. **热启动效应**：首次运行可能受字节码缓存预热、import 初始化或系统缓存影响，后续轮次会更快。`bench_observer_multirun()` 通过多轮取均值来缓解该问题。
 4. **斐波那契计算本身已足够小**：在轻量任务下，观察者回调的 I/O 开销可能占主导，基准结果的绝对数值会因机器而异，但**相对比例**在不同平台上应保持一致。
 
@@ -129,5 +129,5 @@ runs = 10  # 从 5 改为 10，获得更稳定的均值
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`BaseObserver`）
+- `celestialflow`（`TaskExecutor`、`BaseObserver`、`PrintObserver`）
 - `tqdm`（`TqdmObserver` 使用）

@@ -1,6 +1,6 @@
-# GraphRender
+# src/celestialflow/graph/util_render.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 `graph/util_render.py` 提供将图结构渲染为带边框的树形文本列表的工具，被 `TaskGraph.get_structure_list()` 直接调用，用于在日志/CLI 中可视化任务图拓扑。
 
@@ -78,7 +78,7 @@ for line in lines:
 from celestialflow.graph.util_render import render_structure_list
 
 print(render_structure_list([], {}, []))
-# ['+ No stages defined +']
+# ['+ No nodes defined +']
 ```
 
 ### 通过 TaskGraph 内置方法

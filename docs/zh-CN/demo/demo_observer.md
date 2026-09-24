@@ -1,6 +1,6 @@
-# demo_observer.py 演示说明
+# demo/demo_observer.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 目标
 
@@ -8,8 +8,8 @@
 
 当前文件同时展示两种方式：
 
-- 使用本文件内自定义的 `TaskProgress`（基于 `tqdm` 的进度条观察者）
-- 直接继承 `BaseObserver`，实现自定义 `PrintObserver`
+- 使用本文件内自定义的 `TaskProgress`（继承 `BaseObserver`，基于 `tqdm` 的进度条观察者）
+- 直接使用 `celestialflow` 内置的 `PrintObserver`（构造时传入 `name` 作为输出前缀，示例中传 `executor.get_name()`）
 
 ## 演示内容
 
@@ -18,7 +18,7 @@
 | 函数 | 说明 |
 |------|------|
 | `demo_progress_observer` | 创建 `TaskExecutor`，注册 `TaskProgress`，显示进度条 |
-| `demo_print_observer` | 创建 `TaskExecutor`，注册 `PrintObserver`，打印 observer 生命周期日志 |
+| `demo_print_observer` | 创建 `TaskExecutor`，注册内置 `PrintObserver(executor.get_name())`，打印 observer 生命周期日志 |
 
 两种 observer 的定位如下：
 
@@ -26,9 +26,9 @@
 flowchart TB
     Input["输入任务<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
     Progress["TaskProgress"] -.监听.-> Executor
-    Custom["PrintObserver"] -.监听.-> Executor
+    Custom["PrintObserver<br/>celestialflow 内置"] -.监听.-> Executor
     Executor --> Start["on_start"]
-    Executor --> Added["on_tasks_added"]
+    Executor --> Added["on_task_added"]
     Executor --> Success["on_task_success"]
     Executor --> Finish["on_finish"]
 ```
@@ -40,28 +40,29 @@ flowchart TB
 - `max_retries=1`
 - 两个示例都通过 `executor.add_observer(...)` 注册 observer
 
-内置 observer：
+observer 一览：
 
-| observer | 作用 |
-|----------|------|
-| `TaskProgress` | 用 `tqdm` 展示执行进度，适合命令行交互场景 |
+| observer | 来源 | 作用 |
+|----------|------|------|
+| `TaskProgress` | 本文件本地定义 | 用 `tqdm` 展示执行进度，适合命令行交互场景 |
+| `PrintObserver` | `celestialflow` 内置 | 用 `print` 输出各回调计数，构造参数 `name` 作为输出前缀 |
 
-当前 `PrintObserver` 实现了以下回调：
+`PrintObserver` 实现了以下回调（`name` 为构造时传入的前缀）：
 
-| 回调 | 作用 |
+| 回调 | 输出 / 作用 |
 |------|------|
-| `on_start` | 记录执行器名称和初始总任务数 |
-| `on_tasks_added` | 接收新增任务数量并更新总数 |
-| `on_task_success` | 统计成功任务数 |
-| `on_task_fail` | 统计失败任务数 |
-| `on_task_duplicate` | 统计重复任务数 |
-| `on_finish` | 输出最终汇总信息 |
+| `on_start` | 打印 `[{name}] start total={total}` |
+| `on_task_added` | 累加总数并打印 `[{name}] total={total}(+{count})` |
+| `on_task_success` | 统计成功数并打印 `[{name}] succeeded={n}(+{count}), total={total}` |
+| `on_task_fail` | 统计失败数并打印 `[{name}] failed={n}(+{count}), total={total}` |
+| `on_task_duplicate` | 统计重复数并打印 `[{name}] duplicated={n}(+{count}), total={total}` |
+| `on_finish` | 打印 `[{name}] finish total=..., succeeded=..., failed=..., duplicated=...` |
 
 ## 可能出现的问题
 
-1. **默认 `main()` 同时运行 `demo_progress_observer` 和 `demo_print_observer`**：两个 observer 依次执行，先显示 tqdm 进度条，再输出日志。
-2. **当前示例只展示成功路径**：`test_task` 现在是 `range(25, 32)`，因此运行时通常只会看到 `on_start`、`on_tasks_added`、`on_task_success` 和 `on_finish`。
-3. **`on_start` 初始 total 可能为 0**：执行器会先触发启动事件，再通过 `on_tasks_added` 告知真正加入的任务数，这是当前通知顺序决定的正常现象。
+1. **`__main__` 同时运行 `demo_progress_observer` 和 `demo_print_observer`**：两个 observer 依次执行，先显示 tqdm 进度条，再输出日志。
+2. **当前示例只展示成功路径**：`test_task` 现在是 `range(25, 32)`，因此运行时通常只会看到 `on_task_added`、`on_start`、`on_task_success` 和 `on_finish`。
+3. **`on_task_added` 先于 `on_start` 到达**：`run()` 会先注入全部任务再启动执行器，因此 `on_start` 触发时 `total` 已累加到最终值（`PrintObserver` 会先打印若干条 `total=...(+1)`，再打印 `start total=7`）。`TaskProgress` 也正是依赖这一点，在 `on_start` 时用累计的 `_total` 创建进度条。
 4. **无断言**：这是演示脚本，不验证结果数值，只用于展示 observer 调用时机。
 5. **计算耗时受输入影响**：当前为迭代 O(n) 斐波那契，单任务耗时随 `n` 线性增长，但 `fibonacci(31)` 与 `fibonacci(25)` 的差异仍在微秒级，不会显著影响总时长。
 
@@ -77,27 +78,27 @@ python demo/demo_observer.py
 
 ### `demo_progress_observer`
 
-如果把入口切到 `demo_progress_observer()`，终端会看到类似这样的进度条：
+运行 `demo_progress_observer()` 时，终端会看到类似这样的进度条（`TaskProgress` 未设置 `desc`，因此无前缀）：
 
 ```text
-FibonacciSerial2(serial): 100%|████████████████████████████| 7/7 [00:00<00:00, ...it/s]
+ 0%|          | 0/7 [00:00<?, ?it/s]100%|████████████████████████████| 7/7 [00:00<00:00, ...it/s]
 ```
 
 ### `demo_print_observer`
 
-如果运行 `demo_print_observer()`，会打印类似如下的 observer 生命周期日志：
+运行 `demo_print_observer()` 时，会打印类似如下的 observer 生命周期日志（前缀为 `executor.get_name()` 返回的 `FibonacciSerial2`）：
 
 ```text
-[observer] start executor=FibonacciSerial2(serial), total=0
-[observer] tasks added +7, total=7
-[observer] success +1, succeeded=1
-[observer] success +1, succeeded=2
-[observer] success +1, succeeded=3
-[observer] success +1, succeeded=4
-[observer] success +1, succeeded=5
-[observer] success +1, succeeded=6
-[observer] success +1, succeeded=7
-[observer] finish executor=FibonacciSerial2(serial), total=7, succeeded=7, failed=0, duplicated=0
+[FibonacciSerial2] total=1(+1)
+[FibonacciSerial2] total=2(+1)
+...
+[FibonacciSerial2] total=7(+1)
+[FibonacciSerial2] start total=7
+[FibonacciSerial2] succeeded=1(+1), total=7
+[FibonacciSerial2] succeeded=2(+1), total=7
+...
+[FibonacciSerial2] succeeded=7(+1), total=7
+[FibonacciSerial2] finish total=7, succeeded=7, failed=0, duplicated=0
 ```
 
 如果你想观察失败和重复事件，可以把输入改回包含异常值或重复值的列表，例如：
@@ -113,5 +114,6 @@ test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 
 ## 依赖
 
-- `celestialflow`（`BaseObserver`、`TaskExecutor`；`TaskProgress` 由本仓库同目录的 `demo_observer.py` 本地定义）
+- `celestialflow`（`BaseObserver`、`PrintObserver`、`TaskExecutor`；`TaskProgress` 由本仓库同目录的 `demo_observer.py` 本地定义）
 - `demo_utils`（`fibonacci`）
+- `tqdm`（`TaskProgress` 进度条依赖）

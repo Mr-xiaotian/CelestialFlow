@@ -1,12 +1,12 @@
-# 图分析工具测试 (test_order_graph.py)
+# tests/graph/test_order_graph.py
 
-> 📅 最后更新日期: 2026/09/09
+> 📅 最后更新日期: 2026/09/24
 
 ## 作用
 验证 `celestialflow.graph.util_order_graph` 中的基础图分析能力，包括 `OrderGraph` 构建、层级计算（`compute_node_levels`）、源节点查找（`source_nodes`）、SCC 划分（`tarjan_scc`），以及深度超过 Python 默认递归上限（约 1000）时的迭代算法回归。
 
 ## 核心测试对象
-- `OrderGraph.from_edges` / `add_node` / `add_edge` / `successors`: 构造与查询有序图结构。
+- `OrderGraph` / `add_node` / `add_edge` / `successors`: 构造与查询有序图结构（`add_edge` 自动补全缺失端点节点）。
 - `compute_node_levels`: 计算图中各节点的逻辑层级（SCC 内共享层级）。
 - `source_nodes`: 查找图的入口节点（源节点，SCC 只返回一个代表点）。
 - `tarjan_scc`: 强连通分量划分（迭代实现）。
