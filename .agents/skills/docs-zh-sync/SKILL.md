@@ -36,10 +36,10 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 | # | 子任务 | 负责扫描的代码目录/文件 |
 |---|--------|------------------------|
 | 1 | src/runtime + graph | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
-| 2 | src/funnel + stage + observability + persistence | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/stage/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
+| 2 | src/funnel + node + observability + persistence | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/node/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
 | 3 | src/包入口 + benchmark | `src/celestialflow/__init__.py`<br>`src/celestialflow/benchmark/*.py` |
 | 4 | tests/runtime + graph | `tests/runtime/*.py`<br>`tests/graph/*.py` |
-| 5 | tests/其余 | `tests/__init__.py`<br>`tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/stage/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/benchmark/*.py` |
+| 5 | tests/其余 | `tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/node/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/benchmark/*.py` |
 | 6 | bench | `bench/*.py` |
 | 7 | demo | `demo/*.py` |
 
@@ -49,10 +49,13 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 
    ```bash
    # 单行调用。$HOME 在 Bash 与 PowerShell 下均会自动展开为主目录（Windows 下为 %USERPROFILE%）。
-   uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --project-root . --pairs src/celestialflow/runtime:docs/zh-CN/src/runtime src/celestialflow/graph:docs/zh-CN/src/graph ...
+   # 建议 --output 写文件（强制 UTF-8）；PowerShell 下 `> x.json` 会写成 UTF-16/BOM 导致读文件失败。
+   uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --project-root . --output temp/manifest.md --pairs src/celestialflow/runtime:docs/zh-CN/src/runtime src/celestialflow/graph:docs/zh-CN/src/graph src/celestialflow/funnel:docs/zh-CN/src/funnel src/celestialflow/node:docs/zh-CN/src/node src/celestialflow/observability:docs/zh-CN/src/observability src/celestialflow/persistence:docs/zh-CN/src/persistence src/celestialflow/benchmark:docs/zh-CN/src/benchmark tests/runtime:docs/zh-CN/tests/runtime tests/graph:docs/zh-CN/tests/graph tests/funnel:docs/zh-CN/tests/funnel tests/node:docs/zh-CN/tests/node tests/observability:docs/zh-CN/tests/observability tests/persistence:docs/zh-CN/tests/persistence tests/benchmark:docs/zh-CN/tests/benchmark bench:docs/zh-CN/bench demo:docs/zh-CN/demo
    ```
 
-   脚本输出 Markdown 三表格式（`exists` / `missing` / `orphans`）或 JSON，可直接复制进子代理 prompt。多 pair 场景直接在 `--pairs` 后空格分隔追加。
+   > 以上为**完整 pair 列表**（与 7 个子任务一一对应），可直接复制。
+   > 若脚本输出 `WARNING: 代码目录不存在`，说明本表目录已与代码脱节（历史上 `stage/` 曾改名为 `node/`），请以实际代码目录为准更新本表后再继续。
+   > `scan_manifest.py` 会把 `README.md` 这类总览文档单列为「总览文档（保留，勿删）」，不会误报为孤立文档。
 
 2. **核对 Manifest 分类**：
    - `exists`：代码与文档都存在 → 需审计内容一致性。
@@ -81,7 +84,7 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 > **退化策略**：如果当前环境限制子代理读取外部 Skill 目录，可临时将通用文件和项目文件合并写入项目内的临时文件（如 `temp/docs-zh-sync/instructions-{子任务}.md`），让子代理读取该临时文件，执行完毕后删除。
 
 **推荐并行度**：
-- 正常环境下分批委派，可一次性并行委派 5-6 个代理。若环境受限，可分批执行，但需在最终汇总中明确已完成和剩余子任务。
+- 本技能固定 7 个子任务，正常环境下**一次性并行委派 7 个代理**即可。若环境受限，可分批执行，但需在最终汇总中明确已完成和剩余子任务。
 
 **跨子任务边界协调**：
 
@@ -91,7 +94,7 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 - 主 agent 在委派消息中标注"该文件由 XX 子任务处理"，避免重复操作。
 - 汇总时主 agent 交叉确认所有跨边界文档无遗漏、无冲突。
 
-> 典型场景：`docs/zh-CN/src/runtime/core_dispatch.md` 的源码在 `stage/`——由子任务 #2 负责处理。
+> 典型场景：`docs/zh-CN/src/node/core_dispatch.md` 的源码在 `node/`——由子任务 #2 负责处理。
 
 **对照清单模板**：
 
@@ -126,6 +129,12 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 如果只完成了部分区域，要明确列出已完成范围和剩余范围。
 
 汇总完成后，由主 agent 直接处理 `docs/zh-CN/` 顶层文件（README.md、tutorial.md、quick_start.md、presentation.md、change_log.md 等）和 `docs/zh-CN/other/`：
+
+> **无源码总览文档归属**：以下子目录总览文档没有 1:1 源码，**统一由主 agent 负责**（子代理遇到时只保留、不删、不强行套用 H1 规范）：
+> `docs/zh-CN/bench/README.md`、`docs/zh-CN/demo/README.md`、`docs/zh-CN/tests/README.md`。
+> 它们仍可能引用本次变更的旧名（历史上出现过 `demo_stages`、`TqdmObserver`、`TaskProgress` 等），主 agent 需修正其正文并刷新日期。
+>
+> **H1 存量策略**：本项目默认对 7 个子任务区域内所有镜像文档**全量纠正 H1**（见通用 `SKILL.md` 硬性约束）；仅改 H1 也要刷新 `最后更新日期`。
 
 1. **列出所有顶层文档**。可使用 `scan_manifest.py` 的 `--top-level` 选项（如 `uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --top-level docs/zh-CN --top-level docs/zh-CN/other`），或直接 `Get-ChildItem docs/zh-CN/*.md docs/zh-CN/other/*.md`。
 2. **本次变更中涉及的旧名集合**（重命名/删除的 API、异常、路径、文件名、测试名等）由主 agent 从子代理汇报中汇总得出。
