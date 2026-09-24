@@ -475,3 +475,34 @@
     - 修复任务重试日志中 `retry_times` 的含义模糊, 现在使用 `fail_times`
     - 修复 reporter 的 `_push_*` 方法中, 不处理返回值的问题
     - 修复 `TaskReporter._pull_injection` 中, 对拉取的任务列表错误 `put_task` 的问题
+- 3.3.1
+  - feat:
+    - [IMPORTANT] 在 `TaskMetrics` 中添加 `upstream_counter` / `downstream_counter` 细致化记录上下游传输数据量
+      - 在 `reporter` 中传送节点的 `upstream_counter` / `downstream_counter`
+      - 同步更新web端, 现在web端的结构图中可以显示精确的上下游传送任务数量
+    - [IMPORTANT] 删除 `duplocate` 机制
+      - 这是非常 非常艰难的选择, `duplocate` 机制极其古老, 但在我的仔细评估后我认为问题有三:
+        - 1. 传入的任务未必hash able, 现有的hash函数不确定性极大
+        - 2. 如果要确保任务可hash, 最好单独传一个处理任务的func, 但这会添加node的参数复杂度
+        - 3. 同时duplocate在单node时完全可以被任务输入前的筛选来取代, 而graph时的收益的则非常不明显
+      - 反复考虑认为还是遵从简洁的第一性原则
+    - 简化 `log.task_success` 输出, 不再显示 `execution_mode`
+    - 在 `lifecycle` 中添加 `retry_time` 字段
+    - 添加一个开箱即用的 `observer`,  `ObserverPrint`
+      - 在graph环境下显示的 `total` 会有问题, 下个版本解决
+  - refactor:
+    - [IMPORTANT] 大幅简化 `reporter` 中的数据, 现在只传输原始状态数据, 具体的分析交给前端完成
+    - 移除 `log.split_trace` / `log.split_success` / `log.route_success`, 并统一使用 `log.task_in` 来表达下游任务成功
+    - 移除 `node.get_binding_counter` 和 `node.prev_binding`, 并添加 `node.connect_to` 统一负责绑定上下游节点
+    - 在 `TaskNode` 中添加新的泛型 `Y`, 表示向下游传输的任务类型
+      - 这是为了优化 `splitter` 和 `router`
+    - 节点的 `elapsed_time` 现在由 `dispatch` 来自行计算, 保证精准
+      - 话说我之前为什么要弄那么一套即麻烦又不准的算法?
+    - 在 `reporter` 中为 `status` 添加门控, 如果当前状态与上一次发送状态一致, 则不进行发送
+      - 至此 `reporter` 中所有的 `push_*` 都拥有门控, 避免无效的数据发送
+  - fix:
+  - chore:
+    - 添加 `bench_funnel_vs_lock`, 用来测试并发环境下, 使用funnel和使用locl记录数据的性能差
+      - 前者发送延迟低, 但内存占用高
+      - ![bench/bench_funnel_vs_lock.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/bench_funnel_vs_lock.md)
+    - 添加 `demo_web`, 用于进行复杂结构的web演示
