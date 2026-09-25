@@ -115,7 +115,8 @@ class TestUtilTypes:
     def test_value_wrapper_defaults_to_real_lock(self):
         """不传 Lock 时 get_lock 返回自建的真实锁"""
         v = ValueWrapper(0)
-        assert isinstance(v.get_lock(), threading.Lock)
+        # 3.13 之前 threading.Lock 是工厂函数而非类型，不能直接用于 isinstance
+        assert isinstance(v.get_lock(), type(threading.Lock()))
 
     def test_value_wrapper_default_locks_are_independent(self):
         """每个 ValueWrapper 自建的锁互相独立，不跨实例共享"""
