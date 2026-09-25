@@ -320,9 +320,9 @@ Returns build-time metadata for each node. These fields are frozen before the re
 ```python
 {
     node_name: {
-        "class_name": ...,      # Node class name
+        "class_name": ...,  # Node class name
         "execution_mode": ...,  # Execution mode
-        "max_workers": ...,     # Maximum concurrent worker count
+        "max_workers": ...,  # Maximum concurrent worker count
     }
 }
 ```

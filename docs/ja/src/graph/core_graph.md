@@ -319,9 +319,9 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 ```python
 {
     node_name: {
-        "class_name": ...,      # ノードクラス名
+        "class_name": ...,  # ノードクラス名
         "execution_mode": ...,  # 実行モード
-        "max_workers": ...,     # 最大並行ワーカー数
+        "max_workers": ...,  # 最大並行ワーカー数
     }
 }
 ```

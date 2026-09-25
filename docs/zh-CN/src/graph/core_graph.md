@@ -320,9 +320,9 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 ```python
 {
     node_name: {
-        "class_name": ...,      # 节点类名
+        "class_name": ...,  # 节点类名
         "execution_mode": ...,  # 执行模式
-        "max_workers": ...,     # 最大并发工作数
+        "max_workers": ...,  # 最大并发工作数
     }
 }
 ```

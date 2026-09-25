@@ -28,8 +28,8 @@ class TaskMetrics:
     duplicate_counter: ValueWrapper
     upstream_counter: dict[str, ValueWrapper]
     downstream_counter: dict[str, ValueWrapper]
-    busy_seconds: float        # 已闭合的忙碌时间片之和
-    _in_flight: int            # 正在执行的任务数
+    busy_seconds: float  # 已闭合的忙碌时间片之和
+    _in_flight: int  # 正在执行的任务数
     _busy_since: float | None  # 当前时间片起点
 
     # ==== 初始化 ====
@@ -347,7 +347,9 @@ class TaskMetrics:
         """一个任务执行结束（含重试全部结束）。"""
         with self.lock:
             self._in_flight -= 1
-            if self._in_flight == 0 and self._busy_since is not None:  # 1 → 0：节点从忙变闲
+            if (
+                self._in_flight == 0 and self._busy_since is not None
+            ):  # 1 → 0：节点从忙变闲
                 self.busy_seconds += time.perf_counter() - self._busy_since
                 self._busy_since = None
 
