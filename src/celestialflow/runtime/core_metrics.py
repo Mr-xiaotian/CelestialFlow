@@ -114,7 +114,7 @@ class TaskMetrics:
 
     # ==== 任务计数器 ====
 
-    def add_external_input_count(self, add_count: int = 1) -> None:
+    def add_external_input_count(self, add_count: int) -> None:
         """
         更新外部注入任务计数器
 
@@ -126,7 +126,7 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_added(add_count)
 
-    def add_success_count(self, count: int = 1) -> None:
+    def add_success_count(self, count: int) -> None:
         """
         更新成功任务计数器
 
@@ -138,7 +138,7 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_success(count)
 
-    def add_fail_count(self, count: int = 1) -> None:
+    def add_fail_count(self, count: int) -> None:
         """
         更新失败任务计数器
 
@@ -150,7 +150,7 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_fail(count)
 
-    def add_duplicate_count(self, count: int = 1) -> None:
+    def add_duplicate_count(self, count: int) -> None:
         """
         更新重复任务计数器
 
@@ -162,7 +162,7 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_duplicate(count)
 
-    def add_downstream_count(self, name: str, count: int = 1) -> None:
+    def add_downstream_count(self, name: str, count: int) -> None:
         """
         更新下游任务计数器
 

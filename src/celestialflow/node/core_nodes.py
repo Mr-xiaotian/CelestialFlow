@@ -43,7 +43,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count()
+        self.metrics.add_success_count(1)
 
         get_lifecycle_inlet().task_success(task_id, result)
         get_log_inlet().task_success(
@@ -56,7 +56,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
         )
 
         for target_name in self.yield_queue.get_target_names():
-            self.metrics.add_downstream_count(target_name)
+            self.metrics.add_downstream_count(target_name, 1)
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
@@ -104,7 +104,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count()
+        self.metrics.add_success_count(1)
 
         get_lifecycle_inlet().task_success(task_id, result_list)
         get_log_inlet().task_success(
@@ -169,7 +169,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count()
+        self.metrics.add_success_count(1)
 
         get_lifecycle_inlet().task_success(task_id, task)
         get_log_inlet().task_success(
@@ -182,7 +182,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         )
 
         for target, yie in result.items():
-            self.metrics.add_downstream_count(target)
+            self.metrics.add_downstream_count(target, 1)
 
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,

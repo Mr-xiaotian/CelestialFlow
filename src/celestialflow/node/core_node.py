@@ -219,18 +219,6 @@ class BaseTaskNode[T, R, Y]:
         """
         return self.__class__.__name__
 
-    def _get_execution_mode_desc(self) -> str:
-        """
-        获取当前节点执行模式
-
-        :return: 当前节点执行模式
-        """
-        return (
-            self.execution_mode
-            if self.execution_mode == "serial"
-            else f"{self.execution_mode}-{self.max_workers}"
-        )
-
     def get_lifecycle_path(self) -> Path:
         """
         获取任务生命周期持久化路径。
@@ -306,7 +294,7 @@ class BaseTaskNode[T, R, Y]:
         )
         envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
-        self.metrics.add_external_input_count()
+        self.metrics.add_external_input_count(1)
 
         get_lifecycle_inlet().task_input(self.get_name(), input_id, task)
         get_log_inlet().task_input(
@@ -379,7 +367,7 @@ class BaseTaskNode[T, R, Y]:
             parents=[task_id],
         )
 
-        self.metrics.add_fail_count()
+        self.metrics.add_fail_count(1)
 
         get_lifecycle_inlet().task_fail(task_id, error_id, exception)
         get_log_inlet().task_fail(
@@ -502,7 +490,8 @@ class BaseTaskNode[T, R, Y]:
         get_log_inlet().node_start(
             self.get_name(),
             self.metrics.get_input_count(),
-            self._get_execution_mode_desc(),
+            self.execution_mode,
+            self.max_workers,
         )
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
@@ -516,7 +505,8 @@ class BaseTaskNode[T, R, Y]:
         try:
             get_log_inlet().node_end(
                 self.get_name(),
-                self._get_execution_mode_desc(),
+                self.execution_mode,
+                self.max_workers,
                 time.perf_counter() - start_perf,
                 self.metrics.get_success_count(),
                 self.metrics.get_fail_count(),

@@ -123,25 +123,27 @@ class LogInlet(BaseInlet):
     # ==== 节点 ====
 
     def node_start(
-        self, node_name: str, task_num: int, execution_mode_desc: str
+        self, node_name: str, task_num: int, execution_mode: str, max_workers: int,
     ) -> None:
         """
         记录节点启动
 
         :param node_name: 节点名称
         :param task_num: 任务数量
-        :param execution_mode_desc: 执行模式描述
+        :param execution_mode: 执行模式
+        :param max_workers: 最大工作线程数
         """
         text = (
             f"Node '{node_name}' start; "
-            + f"execute {task_num} tasks by {execution_mode_desc}."
+            + f"execute {task_num} tasks by {execution_mode}-{max_workers}."
         )
         self._log("INFO", text)
 
     def node_end(
         self,
         node_name: str,
-        execution_mode_desc: str,
+        execution_mode: str,
+        max_workers: int,
         use_time: float,
         success_num: int,
         failed_num: int,
@@ -151,7 +153,8 @@ class LogInlet(BaseInlet):
         记录节点结束及统计
 
         :param node_name: 节点名称
-        :param execution_mode_desc: 执行模式描述
+        :param execution_mode: 执行模式
+        :param max_workers: 最大工作线程数
         :param use_time: 节点运行耗时（秒）
         :param success_num: 成功任务数量
         :param failed_num: 失败任务数量
@@ -159,7 +162,7 @@ class LogInlet(BaseInlet):
         """
         self._log(
             "INFO",
-            f"Node '{node_name}' end; execute tasks by {execution_mode_desc}. Use {use_time:.2f}s. "
+            f"Node '{node_name}' end; execute tasks by {execution_mode}-{max_workers}. Use {use_time:.2f}s. "
             + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
         )
 

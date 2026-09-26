@@ -129,7 +129,7 @@ class TestTaskMetricsBinding:
         """未注册的下游名称应抛出 ``KeyError``。"""
         metrics = TaskMetrics()
         with pytest.raises(KeyError):
-            metrics.add_downstream_count("ghost")
+            metrics.add_downstream_count("ghost", 1)
 
     def test_get_upstream_counts(self):
         """``get_upstream_counts`` 应返回各上游到当前节点的数量映射。"""
