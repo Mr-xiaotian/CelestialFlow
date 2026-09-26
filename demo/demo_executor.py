@@ -3,8 +3,7 @@ from typing import Any
 
 from demo_utils import fibonacci, fibonacci_async
 
-from celestialflow import TaskExecutor, TaskProgress
-
+from celestialflow import TaskExecutor, PrintObserver
 
 def demo_fibonacci_serial() -> None:
     test_task_1: list[Any] = [*list(range(25, 32)), 0, 27, None, 0, ""]
@@ -17,7 +16,7 @@ def demo_fibonacci_serial() -> None:
         max_retries=1,
     )
     executor.set_retry_exceptions(ValueError)
-    executor.add_observer(TaskProgress())
+    executor.add_observer(PrintObserver(executor.get_name()))
 
     executor.run(test_task_1)
 
@@ -33,7 +32,7 @@ def demo_fibonacci_thread() -> None:
         max_retries=1,
     )
     executor.set_retry_exceptions(ValueError)
-    executor.add_observer(TaskProgress())
+    executor.add_observer(PrintObserver(executor.get_name()))
 
     executor.run(test_task_1)
 
@@ -49,7 +48,7 @@ async def demo_fibonacci_async() -> None:
         max_retries=1,
     )
     executor.set_retry_exceptions(ValueError)
-    executor.add_observer(TaskProgress())
+    executor.add_observer(PrintObserver(executor.get_name()))
 
     await executor.run_async(test_task_1)
 

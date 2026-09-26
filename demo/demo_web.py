@@ -211,7 +211,7 @@ def demo_topology_topology() -> None:
       启用"边标签"配置后可观察每条边累计/增量传输量
     - 节点状态卡: 不同执行模式 (serial / thread) 与并行度展示
     - 错误日志: ValueError (重试后失败, retry=2) 与 RuntimeError (不可重试) 两类错误
-    - 进度条: 成功 / 失败 / 重复四段比例
+    - 进度条: 成功 / 失败 / 跳过四段比例
     - 生命周期: 重试次数 (retry_times) 随失败记录持久化
 
     若未设置 REPORT_HOST / REPORT_PORT 环境变量, demo 仍可独立运行 (跳过上报)。
