@@ -9,7 +9,7 @@ _OBSERVER_METHODS = frozenset(
         "on_start",
         "on_task_success",
         "on_task_fail",
-        "on_task_duplicate",
+        "on_task_skip",
         "on_task_added",
         "on_finish",
     }
@@ -41,11 +41,11 @@ class BaseObserver:
         """
         ...
 
-    def on_task_duplicate(self, _count: int = 1) -> None:
+    def on_task_skip(self, _count: int = 1) -> None:
         """
-        重复任务回调
+        任务跳过回调
 
-        :param _count: 重复任务数量，默认 1
+        :param _count: 跳过任务数量，默认 1
         """
         ...
 

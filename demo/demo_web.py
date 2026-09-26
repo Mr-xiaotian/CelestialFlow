@@ -301,9 +301,9 @@ def demo_topology_topology() -> None:
     else:
         print("[demo] 未设置 REPORT_HOST/REPORT_PORT，跳过 web 上报（可独立运行）")
 
-    # 输入：20 个唯一任务 + 4 个重复任务（展示重复判重计数）。
+    # 输入：24 个任务（其中 3 / 5 / 8 / 12 与前面的值重复）。
     seeds = [*range(1, 21), 3, 5, 8, 12]
-    print(f"[demo] 注入 {len(seeds)} 个任务（含 4 个重复）")
+    print(f"[demo] 注入 {len(seeds)} 个任务（含 4 个重复值）")
     graph.run({"Ingest": seeds})
 
     # 结果摘要。
@@ -316,7 +316,7 @@ def demo_topology_topology() -> None:
             f"  {name:<9} input={counts['tasks_input']:<4} "
             f"ok={counts['tasks_succeeded']:<4} "
             f"fail={counts['tasks_failed']:<3} "
-            f"dup={counts['tasks_duplicated']}"
+            f"skip={counts['tasks_skipped']}"
         )
 
 

@@ -64,6 +64,7 @@ class BaseTaskNode[T, R, Y]:
     dispatch: TaskDispatch[T, R, Y]
     execution_mode: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
+    skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
 
     # ==== 初始化 ====
@@ -78,6 +79,7 @@ class BaseTaskNode[T, R, Y]:
         max_retries: int = 1,
         max_queue_size: int = 0,
         max_info: int = 50,
+        skip_func: Callable[[T], bool] | None = None,
     ):
         """
         初始化 BaseTaskNode
@@ -89,6 +91,8 @@ class BaseTaskNode[T, R, Y]:
         :param max_retries: 任务的最大重试次数, 默认值为 1，表示每个任务最多执行两次（一次正常执行 + 一次重试）
         :param max_queue_size: 任务输入队列的最大容量，默认为 0，表示无限制
         :param max_info: 日志中每条信息的最大长度，默认 50
+        :param skip_func: 任务跳过判定函数，接受单个任务参数并返回 ``bool``；
+            返回 ``True`` 时该任务不执行 ``func`` 而直接记为跳过，默认 ``None`` 表示不跳过任何任务
         :note:
             ``start()`` / ``start_async()`` 为一次性调用；启动前的 setter 与 observer
             注册允许重复调用。
@@ -96,6 +100,7 @@ class BaseTaskNode[T, R, Y]:
 
         self.set_name(name)
         self._set_func(func)
+        self.set_skip_func(skip_func)
 
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
@@ -158,6 +163,28 @@ class BaseTaskNode[T, R, Y]:
             )
 
         self.func = func
+
+    def set_skip_func(self, skip_func: Callable[[T], bool] | None) -> None:
+        """
+        设置任务跳过判定函数。
+
+        :param skip_func: 接受单个任务参数并返回 ``bool`` 的判定函数；
+            ``True`` 表示该任务应被跳过；``None`` 表示不跳过任何任务
+        :raises ConfigurationError: 判定函数未接受恰好一个位置参数
+        :raises CallableParameterKindError: 判定函数包含 VAR/KEYWORD 参数
+        """
+        if skip_func is None:
+            self.skip_func = None
+            return
+
+        parameter_count = validate_executor_func_signature(skip_func)
+        if parameter_count != 1:
+            raise ConfigurationError(
+                f"BaseTaskNode skip_func '{getattr(skip_func, '__name__', type(skip_func).__name__)}' "
+                "must accept exactly one positional task argument."
+            )
+
+        self.skip_func = skip_func
 
     def set_execution_mode(self, execution_mode: str) -> None:
         """
@@ -378,6 +405,30 @@ class BaseTaskNode[T, R, Y]:
             error_id,
         )
 
+    def handle_task_skip(self, task_envelope: TaskEnvelope[T]) -> None:
+        """
+        记录被跳过的任务：发布跳过事件并持久化跳过信息。
+
+        :param task_envelope: 被跳过的任务
+        """
+        task = task_envelope.get_task()
+        task_id = task_envelope.get_id()
+
+        skip_id = self.ctree_client.emit(
+            CTreeEvent.TASK_SKIP,
+            parents=[task_id],
+        )
+
+        self.metrics.add_skip_count(1)
+
+        get_lifecycle_inlet().task_skip(task_id, skip_id)
+        get_log_inlet().task_skip(
+            self.get_name(),
+            self._get_repr(task),
+            task_id,
+            skip_id,
+        )
+
     def log_task_retry(
         self,
         task_envelope: TaskEnvelope[T],
@@ -510,7 +561,7 @@ class BaseTaskNode[T, R, Y]:
                 time.perf_counter() - start_perf,
                 self.metrics.get_success_count(),
                 self.metrics.get_fail_count(),
-                self.metrics.get_duplicate_count(),
+                self.metrics.get_skip_count(),
             )
         except Exception as exception:
             error_list.append(exception)

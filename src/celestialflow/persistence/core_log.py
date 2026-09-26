@@ -147,7 +147,7 @@ class LogInlet(BaseInlet):
         use_time: float,
         success_num: int,
         failed_num: int,
-        duplicated_num: int,
+        skip_num: int,
     ) -> None:
         """
         记录节点结束及统计
@@ -158,12 +158,12 @@ class LogInlet(BaseInlet):
         :param use_time: 节点运行耗时（秒）
         :param success_num: 成功任务数量
         :param failed_num: 失败任务数量
-        :param duplicated_num: 重复任务数量
+        :param skip_num: 跳过任务数量
         """
         self._log(
             "INFO",
             f"Node '{node_name}' end; execute tasks by {execution_mode}-{max_workers}. Use {use_time:.2f}s. "
-            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {duplicated_num} tasks duplicated.",
+            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {skip_num} tasks skipped.",
         )
 
     def node_crash(self, node_name: str, exception: Exception) -> None:
@@ -256,6 +256,26 @@ class LogInlet(BaseInlet):
         self._log(
             "ERROR",
             f"In '{node_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
+        )
+
+    def task_skip(
+        self,
+        node_name: str,
+        task_repr: str,
+        parent_id: int,
+        skip_id: int,
+    ) -> None:
+        """
+        记录任务被跳过
+
+        :param node_name: 任务节点名称
+        :param task_repr: 任务表示
+        :param parent_id: 父记录 ID
+        :param skip_id: 跳过记录 ID
+        """
+        self._log(
+            "INFO",
+            f"In '{node_name}', Task {task_repr} skipped. [{parent_id}->{skip_id}*]",
         )
 
     def task_retry(

@@ -37,11 +37,11 @@ class TaskProgress(BaseObserver):
         """
         self._advance(count)
 
-    def on_task_duplicate(self, count: int = 1) -> None:
+    def on_task_skip(self, count: int = 1) -> None:
         """
-        更新重复进度
+        更新跳过进度
 
-        :param count: 重复任务数量，默认 1
+        :param count: 跳过任务数量，默认 1
         """
         self._advance(count)
 

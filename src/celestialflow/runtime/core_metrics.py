@@ -16,7 +16,7 @@ class TaskMetrics:
     """
     任务指标统计类
 
-    负责管理任务执行过程中的各项指标统计，包括成功、失败、重复任务的计数，
+    负责管理任务执行过程中的各项指标统计，包括成功、失败、跳过任务的计数，
     以及可重试异常类型。
     """
 
@@ -25,7 +25,7 @@ class TaskMetrics:
     external_input_counter: ValueWrapper
     success_counter: ValueWrapper
     fail_counter: ValueWrapper
-    duplicate_counter: ValueWrapper
+    skip_counter: ValueWrapper
     upstream_counter: dict[str, ValueWrapper]
     downstream_counter: dict[str, ValueWrapper]
     busy_seconds: float  # 已闭合的忙碌时间片之和
@@ -57,7 +57,7 @@ class TaskMetrics:
         self.external_input_counter = ValueWrapper(value=0, lock=self.lock)
         self.success_counter = ValueWrapper(value=0, lock=self.lock)
         self.fail_counter = ValueWrapper(value=0, lock=self.lock)
-        self.duplicate_counter = ValueWrapper(value=0, lock=self.lock)
+        self.skip_counter = ValueWrapper(value=0, lock=self.lock)
 
         self.upstream_counter = {}
         self.downstream_counter = {}
@@ -150,17 +150,17 @@ class TaskMetrics:
         for observer in self._observers:
             observer.on_task_fail(count)
 
-    def add_duplicate_count(self, count: int) -> None:
+    def add_skip_count(self, count: int) -> None:
         """
-        更新重复任务计数器
+        更新跳过任务计数器
 
-        线程安全地增加重复任务的数量。
+        线程安全地增加被跳过任务的数量。
 
-        :param count: 增加的重复任务数量，默认值为 1。
+        :param count: 增加的跳过任务数量，默认值为 1。
         """
-        self.duplicate_counter.add(count)
+        self.skip_counter.add(count)
         for observer in self._observers:
-            observer.on_task_duplicate(count)
+            observer.on_task_skip(count)
 
     def add_downstream_count(self, name: str, count: int) -> None:
         """
@@ -242,19 +242,19 @@ class TaskMetrics:
         """
         return self.fail_counter.get()
 
-    def get_duplicate_count(self) -> int:
+    def get_skip_count(self) -> int:
         """
-        获取当前的重复任务数
+        获取当前的跳过任务数
 
-        :return: 当前的重复任务数
+        :return: 当前的跳过任务数
         """
-        return self.duplicate_counter.get()
+        return self.skip_counter.get()
 
     def is_tasks_finished(self) -> bool:
         """
         检查所有任务是否已完成
 
-        通过比较总输入任务数与已处理（成功+失败+重复）的任务数来判断。
+        通过比较总输入任务数与已处理（成功+失败+跳过）的任务数来判断。
 
         :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
         """
@@ -264,7 +264,7 @@ class TaskMetrics:
             processed = (
                 self.success_counter.value
                 + self.fail_counter.value
-                + self.duplicate_counter.value
+                + self.skip_counter.value
             )
         return total == processed
 
@@ -276,7 +276,7 @@ class TaskMetrics:
                 - tasks_input: 输入任务总数（外部注入与上游提供之和）
                 - tasks_succeeded: 成功任务数
                 - tasks_failed: 失败任务数
-                - tasks_duplicated: 重复任务数
+                - tasks_skipped: 跳过任务数
                 - tasks_processed: 已处理任务总数
                 - tasks_pending: 等待处理任务数
         """
@@ -285,16 +285,16 @@ class TaskMetrics:
         with self.lock:
             succeeded = self.success_counter.value
             failed = self.fail_counter.value
-            duplicated = self.duplicate_counter.value
+            skipped = self.skip_counter.value
 
-        processed = succeeded + failed + duplicated
+        processed = succeeded + failed + skipped
         pending = max(0, input_count - processed)
 
         return {
             "tasks_input": input_count,
             "tasks_succeeded": succeeded,
             "tasks_failed": failed,
-            "tasks_duplicated": duplicated,
+            "tasks_skipped": skipped,
             "tasks_processed": processed,
             "tasks_pending": pending,
         }

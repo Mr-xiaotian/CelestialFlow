@@ -12,7 +12,7 @@ class TestTaskMetricsBasic:
         assert counts["tasks_input"] == 0
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 0
-        assert counts["tasks_duplicated"] == 0
+        assert counts["tasks_skipped"] == 0
         assert counts["tasks_processed"] == 0
         assert counts["tasks_pending"] == 0
         assert metrics.get_external_input_count() == 0
@@ -63,24 +63,38 @@ class TestTaskMetricsBasic:
         assert metrics.get_fail_count() == 2
         assert metrics.get_counts()["tasks_failed"] == 2
 
-    def test_add_duplicate_count(self):
-        """测试重复任务计数的累加逻辑"""
+    def test_add_skip_count(self):
+        """测试跳过任务计数的累加逻辑"""
         metrics = TaskMetrics()
-        metrics.add_duplicate_count(4)
-        assert metrics.get_duplicate_count() == 4
-        assert metrics.get_counts()["tasks_duplicated"] == 4
+        metrics.add_skip_count(3)
+        assert metrics.get_skip_count() == 3
+        assert metrics.get_counts()["tasks_skipped"] == 3
 
     def test_processed_equals_sum(self):
-        """测试已处理任务数的计算公式：Processed = Success + Failed + Duplicate"""
+        """测试已处理任务数的计算公式：Processed = Success + Failed + Skip"""
         metrics = TaskMetrics()
         metrics.add_external_input_count(10)
         metrics.add_success_count(5)
         metrics.add_fail_count(2)
-        metrics.add_duplicate_count(1)
+        metrics.add_skip_count(1)
 
         counts = metrics.get_counts()
         assert counts["tasks_processed"] == 8
         assert counts["tasks_pending"] == 2
+
+    def test_processed_includes_skipped(self):
+        """跳过任务应计入已处理数，并影响任务完成判定"""
+        metrics = TaskMetrics()
+        metrics.add_external_input_count(4)
+        metrics.add_success_count(1)
+        metrics.add_fail_count(1)
+        metrics.add_skip_count(2)
+
+        counts = metrics.get_counts()
+        assert counts["tasks_skipped"] == 2
+        assert counts["tasks_processed"] == 4
+        assert counts["tasks_pending"] == 0
+        assert metrics.is_tasks_finished() is True
 
     def test_is_tasks_finished_true(self):
         """测试任务完成状态判定：当已处理数等于总数时应返回 True"""

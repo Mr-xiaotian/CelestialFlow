@@ -31,3 +31,27 @@ class TestLogPersistence:
         assert 'hello world' in content
         assert 'INFO' in content
         assert 'WARNING' in content
+
+    def test_skip_log(self, tmp_path, monkeypatch):
+        """`LogInlet.task_skip` 应在 INFO 级别写入跳过日志。"""
+        monkeypatch.chdir(tmp_path)
+
+        spout = LogSpout()
+        inlet = LogInlet(log_level='INFO').bind_spout(spout)
+
+        spout.start()
+        try:
+            inlet.task_skip("stage", "hello world", 7, 8)
+            wait_until(
+                lambda: spout.log_path.exists()
+                and 'hello world' in spout.log_path.read_text(encoding='utf-8'),
+                message='timeout waiting for log_spout to write skip record',
+            )
+        finally:
+            spout.stop()
+
+        content = spout.log_path.read_text(encoding='utf-8')
+        assert 'hello world' in content
+        assert 'skipped' in content
+        assert '[7->8*]' in content
+        assert 'INFO' in content

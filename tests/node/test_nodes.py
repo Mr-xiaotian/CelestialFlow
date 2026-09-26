@@ -1,5 +1,6 @@
 """Tests for :mod:`celestialflow.node.core_nodes`."""
 
+import sqlite3
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -7,11 +8,14 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
+from celestialflow.persistence import get_lifecycle_spout
 from celestialflow.persistence.util_sqlite import append_records
+from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
     PersistedError,
 )
+from celestialflow.runtime.util_types import CTreeEvent
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
@@ -356,6 +360,207 @@ class TestTaskExecutor:
         executor = TaskExecutor("AddOneSummary", add_one, execution_mode="serial")
         assert executor.get_name() == "AddOneSummary"
         assert executor.execution_mode == "serial"
+
+
+class TestTaskSkip:
+    """覆盖 ``skip_func`` / ``handle_task_skip`` 的跳过行为。"""
+
+    def test_no_skip_func_executes_all_tasks(self) -> None:
+        """未配置 ``skip_func`` 时任何任务都不应被跳过。"""
+        executor = TaskExecutor("SkipDefault", add_one, execution_mode="serial")
+        executor.run([1, 2, 3])
+
+        counts = executor.metrics.get_counts()
+        assert counts["tasks_skipped"] == 0
+        assert counts["tasks_succeeded"] == 3
+
+    def test_serial_skip_matching_tasks(self) -> None:
+        """命中跳过的任务不执行 func，且计入 tasks_skipped。"""
+        executed: list[int] = []
+
+        def record_exec(x: int) -> int:
+            executed.append(x)
+            return x + 1
+
+        executor = TaskExecutor(
+            "SkipSerial",
+            record_exec,
+            execution_mode="serial",
+            skip_func=lambda x: x % 2 == 0,
+        )
+        executor.run([1, 2, 3, 4, 5])
+
+        assert executed == [1, 3, 5]
+        counts = executor.metrics.get_counts()
+        assert counts["tasks_skipped"] == 2
+        assert counts["tasks_succeeded"] == 3
+        assert counts["tasks_failed"] == 0
+        assert counts["tasks_pending"] == 0
+        assert executor.metrics.is_tasks_finished() is True
+
+    def test_thread_skip(self) -> None:
+        """线程模式下跳过判定同样生效。"""
+        executor = TaskExecutor(
+            "SkipThread",
+            double,
+            execution_mode="thread",
+            max_workers=4,
+            skip_func=lambda x: x < 0,
+        )
+        executor.run([1, -1, 2, -2, 3])
+
+        counts = executor.metrics.get_counts()
+        assert counts["tasks_skipped"] == 2
+        assert counts["tasks_succeeded"] == 3
+
+    @pytest.mark.asyncio
+    async def test_async_skip(self) -> None:
+        """异步模式下跳过判定同样生效。"""
+        executor = TaskExecutor(
+            "SkipAsync",
+            async_add_one,
+            execution_mode="async",
+            max_workers=4,
+            skip_func=lambda x: x == 0,
+        )
+        await executor.run_async([0, 1, 2])
+
+        counts = executor.metrics.get_counts()
+        assert counts["tasks_skipped"] == 1
+        assert counts["tasks_succeeded"] == 2
+
+    def test_skip_does_not_consume_retries(self) -> None:
+        """被跳过的任务不调用 func，也不触发重试或失败处理。"""
+        call_count = 0
+
+        def always_fail(x: int) -> int:
+            nonlocal call_count
+            call_count += 1
+            raise ValueError("boom")
+
+        executor = TaskExecutor(
+            "SkipNoRetry",
+            always_fail,
+            execution_mode="serial",
+            max_retries=3,
+            skip_func=lambda x: x == 0,
+        )
+        executor.set_retry_exceptions(ValueError)
+        executor.run([0])
+
+        assert call_count == 0
+        counts = executor.metrics.get_counts()
+        assert counts["tasks_skipped"] == 1
+        assert counts["tasks_failed"] == 0
+
+    def test_set_skip_func_none_disables_skip(self) -> None:
+        """``set_skip_func(None)`` 应清除跳过判定，任务恢复正常执行。"""
+        executed: list[int] = []
+
+        def record_exec(x: int) -> int:
+            executed.append(x)
+            return x + 1
+
+        executor = TaskExecutor(
+            "SkipReset",
+            record_exec,
+            execution_mode="serial",
+            skip_func=lambda x: True,
+        )
+        executor.set_skip_func(None)
+        executor.run([1, 2])
+
+        assert executed == [1, 2]
+        assert executor.metrics.get_counts()["tasks_skipped"] == 0
+
+    def test_skip_func_signature_validation(self) -> None:
+        """``skip_func`` 必须接受恰好一个位置参数。"""
+
+        def zero_args() -> bool:
+            return True
+
+        def two_args(x: int, y: int) -> bool:
+            return True
+
+        with pytest.raises(ConfigurationError):
+            TaskExecutor("SkipZeroArgs", add_one, skip_func=zero_args)
+
+        with pytest.raises(ConfigurationError):
+            TaskExecutor("SkipTwoArgs", add_one, skip_func=two_args)
+
+    def test_skip_overridden_handler_receives_envelope(self) -> None:
+        """``handle_task_skip`` 可被覆写并拿到被跳过的任务。"""
+
+        class RecordingSkipExecutor(TaskExecutor[int, int]):
+            def __init__(self) -> None:
+                super().__init__(
+                    "SkipOverride",
+                    add_one,
+                    execution_mode="serial",
+                    skip_func=lambda x: x < 0,
+                )
+                self.skipped: list[int] = []
+
+            def handle_task_skip(self, task_envelope: TaskEnvelope[int]) -> None:
+                self.skipped.append(task_envelope.get_task())
+                super().handle_task_skip(task_envelope)
+
+        executor = RecordingSkipExecutor()
+        executor.run([-1, 1, -2])
+
+        assert executor.skipped == [-1, -2]
+        assert executor.metrics.get_counts()["tasks_skipped"] == 2
+
+    def test_skip_full_chain(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """跳过任务应发布 ``task.skip`` 事件，并在 lifecycle 中留下 skipped 记录。"""
+        monkeypatch.chdir(tmp_path)
+
+        class RecordingEventClient:
+            """记录事件类型的最小事件客户端，结构上满足 ``EventClient`` 协议。"""
+
+            def __init__(self) -> None:
+                self.events: list[str] = []
+                self._next_id = 1000
+
+            def emit(
+                self,
+                type_: str,
+                parents: list[int] | None = None,
+                message: str | None = None,
+                payload: list[Any] | dict[str, Any] | None = None,
+            ) -> int:
+                self.events.append(type_)
+                self._next_id += 1
+                return self._next_id
+
+        ctree = RecordingEventClient()
+        executor = TaskExecutor(
+            "SkipChain",
+            add_one,
+            execution_mode="serial",
+            skip_func=lambda x: x < 0,
+        )
+        executor.set_ctree(ctree)
+        executor.run([-1, 1, -2])
+
+        assert ctree.events.count(CTreeEvent.TASK_SKIP) == 2
+
+        spout = get_lifecycle_spout()
+        assert spout.db_path is not None
+        conn = sqlite3.connect(spout.db_path)
+        try:
+            statuses = [
+                str(row[0])
+                for row in conn.execute(
+                    "SELECT status FROM records WHERE stage = 'SkipChain' ORDER BY id ASC"
+                ).fetchall()
+            ]
+        finally:
+            conn.close()
+
+        assert statuses == ["skipped", "success", "skipped"]
 
 
 class TestTaskSplitter:

@@ -114,13 +114,18 @@ class TaskDispatch[T, R, Y]:
     # ==== 工作执行 ====
     def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
-        同步执行单个任务（计时、成功/失败处理）
+        同步执行单个任务（跳过判定、计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
         self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
+
+            if self.task_node.skip_func is not None and self.task_node.skip_func(task):
+                self.task_node.handle_task_skip(task_envelope)
+                return
+
             max_retries: int = self.task_node.max_retries
 
             for fail_times in range(1, max_retries + 2):
@@ -149,13 +154,18 @@ class TaskDispatch[T, R, Y]:
 
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
-        异步执行单个任务（计时、成功/失败处理）
+        异步执行单个任务（跳过判定、计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
         self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
+
+            if self.task_node.skip_func is not None and self.task_node.skip_func(task):
+                self.task_node.handle_task_skip(task_envelope)
+                return
+
             max_retries: int = self.task_node.max_retries
 
             for fail_times in range(1, max_retries + 2):

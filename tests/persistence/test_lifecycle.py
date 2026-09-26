@@ -112,6 +112,37 @@ class TestLifecyclePersistence:
         assert rows[0][2:6] == ("", "", '"retry_ok"', '"ok"')
         assert rows[1][2:6] == ("ValueError", "final boom", '"retry_fail"', "null")
 
+    def test_skip_persistence(self, tmp_path, monkeypatch):
+        """`LifecycleInlet.task_skip` 应将 pending 记录晋升为 skipped 并切换事件 ID。"""
+        monkeypatch.chdir(tmp_path)
+        spout = LifecycleSpout()
+        inlet = LifecycleInlet().bind_spout(spout)
+
+        spout.start()
+        try:
+            inlet.task_input("s1", event_id=1, task="skip_me")
+            inlet.task_skip(event_id=1, skip_id=31)
+            inlet.task_input("s2", event_id=2, task="run_me")
+            inlet.task_success(event_id=2, result="ok")
+        finally:
+            spout.stop()
+
+        assert spout.db_path is not None
+        conn = sqlite3.connect(spout.db_path)
+        try:
+            rows = conn.execute(
+                """
+                SELECT event_id, status, error_type, error_message, task_json, result_json
+                FROM records
+                ORDER BY id ASC
+                """
+            ).fetchall()
+        finally:
+            conn.close()
+
+        assert [(row[0], row[1]) for row in rows] == [(31, "skipped"), (2, "success")]
+        assert rows[0][2:6] == ("", "", '"skip_me"', "null")
+
     def test_old_db_gets_retry_times_column(self, tmp_path, monkeypatch):
         """旧库缺 retry_times 列时，`connect_db` 应自动 ALTER 补列。"""
         monkeypatch.chdir(tmp_path)

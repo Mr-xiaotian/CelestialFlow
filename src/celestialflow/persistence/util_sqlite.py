@@ -224,6 +224,34 @@ def promote_record_to_success_by_event_id(
     return cursor.rowcount > 0
 
 
+def promote_record_to_skipped_by_event_id(
+    conn: sqlite3.Connection,
+    event_id: int,
+    new_event_id: int,
+    *,
+    ts: float,
+) -> bool:
+    """
+    在给定连接上按 ``event_id`` 将记录晋升为 skipped，并切换到新的事件 ID。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 当前事件 ID
+    :param new_event_id: 晋升 skipped 后的新事件 ID
+    :param ts: 生命周期更新时间戳
+    :return: 是否更新到记录
+    :rtype: bool
+    """
+    cursor = conn.execute(
+        """
+        UPDATE records
+        SET event_id = ?, ts = ?, status = 'skipped', error_type = '', error_message = ''
+        WHERE event_id = ?
+        """,
+        [int(new_event_id), ts, int(event_id)],
+    )
+    return cursor.rowcount > 0
+
+
 def update_retry_by_event_id(
     conn: sqlite3.Connection,
     event_id: int,

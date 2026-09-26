@@ -25,7 +25,7 @@ class PrintObserver(BaseObserver):
         self.total: ValueWrapper = ValueWrapper(0, lock)
         self.succeeded: ValueWrapper = ValueWrapper(0, lock)
         self.failed: ValueWrapper = ValueWrapper(0, lock)
-        self.duplicated: ValueWrapper = ValueWrapper(0, lock)
+        self.skipped: ValueWrapper = ValueWrapper(0, lock)
 
         self.name: str = name
 
@@ -37,8 +37,8 @@ class PrintObserver(BaseObserver):
         """任务执行器完成后的回调，打印最终统计结果"""
         print(
             f"[{self.name}] finish "
-            f"total={self.total.get()}, "
-            f"succeeded={self.succeeded.get()}, failed={self.failed.get()}, duplicated={self.duplicated.get()}"
+            f"total={self.total.get()}, skipped={self.skipped.get()}, "
+            f"succeeded={self.succeeded.get()}, failed={self.failed.get()}"
         )
 
     def on_task_added(self, count: int) -> None:
@@ -74,13 +74,13 @@ class PrintObserver(BaseObserver):
             f"[{self.name}] failed={self.failed.get()}(+{count}), total={self.total.get()}"
         )
 
-    def on_task_duplicate(self, count: int = 1) -> None:
+    def on_task_skip(self, count: int = 1) -> None:
         """
-        检测到重复任务时的回调
+        任务被跳过时的回调
 
-        :param count: 本次去重的任务数量，默认 1
+        :param count: 本次跳过的任务数量，默认 1
         """
-        self.duplicated.add(count)
+        self.skipped.add(count)
         print(
-            f"[{self.name}] duplicated={self.duplicated.get()}(+{count}), total={self.total.get()}"
+            f"[{self.name}] skipped={self.skipped.get()}(+{count}), total={self.total.get()}"
         )

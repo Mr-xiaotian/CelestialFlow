@@ -45,9 +45,9 @@ class TestExecutorObserver:
                 """记录任务失败事件。"""
                 self.events.append(("fail", count))
 
-            def on_task_duplicate(self, count=1):
-                """记录重复任务事件。"""
-                self.events.append(("duplicate", count))
+            def on_task_skip(self, count=1):
+                """记录跳过任务事件。"""
+                self.events.append(("skip", count))
 
             def on_task_added(self, count):
                 """记录新增任务事件。"""
@@ -113,6 +113,30 @@ class TestExecutorObserver:
 
         assert observer.successes == 2
         assert observer.failures == 1
+
+    def test_observer_receives_skip_callback(self):
+        """observer 收到跳过任务回调"""
+
+        class SkipObserver(BaseObserver):
+            def __init__(self):
+                """初始化跳过计数。"""
+                self.skipped = 0
+
+            def on_task_skip(self, count=1):
+                """累计跳过任务数量。"""
+                self.skipped += count
+
+        observer = SkipObserver()
+        executor = TaskExecutor(
+            "ObserverSkipTest",
+            add_one,
+            execution_mode="serial",
+            skip_func=lambda x: x == 0,
+        )
+        executor.add_observer(observer)
+        executor.run([0, 1, 2])
+
+        assert observer.skipped == 1
 
     def test_no_observer_works(self):
         """没有 observer 时正常运行"""

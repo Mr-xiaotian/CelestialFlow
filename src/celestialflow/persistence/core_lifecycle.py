@@ -15,6 +15,7 @@ from .util_sqlite import (
     load_task_error_records,
     load_task_result_records,
     promote_record_to_failed_by_event_id,
+    promote_record_to_skipped_by_event_id,
     promote_record_to_success_by_event_id,
     update_retry_by_event_id,
 )
@@ -83,6 +84,14 @@ class LifecycleSpout(BaseSpout):
                 retry_times=int(record["retry_times"]),
                 error_type=str(record["error_type"]),
                 error_message=str(record["error_message"]),
+            )
+        elif op == "promote_skipped":
+            # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
+            changed = promote_record_to_skipped_by_event_id(
+                self._conn,
+                int(record["event_id"]),
+                int(record["skip_id"]),
+                ts=float(record["ts"]),
             )
         else:
             raise ValueError(f"unsupported lifecycle operation: {op}")
@@ -187,6 +196,23 @@ class LifecycleInlet(BaseInlet):
             "ts": now.timestamp(),
         }
         self._funnel(fail_item)
+
+    def task_skip(self, event_id: int, skip_id: int) -> None:
+        """
+        将 pending 记录晋升为 skipped，表示任务被跳过而未执行。
+
+        :param event_id: 当前任务事件 ID
+        :param skip_id: 跳过事件 ID
+        """
+        now = datetime.now()
+        self._funnel(
+            {
+                "__op__": "promote_skipped",
+                "event_id": event_id,
+                "skip_id": skip_id,
+                "ts": now.timestamp(),
+            }
+        )
 
     def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
         """

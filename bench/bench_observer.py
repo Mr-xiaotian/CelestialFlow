@@ -73,11 +73,11 @@ class TqdmObserver(BaseObserver):
         """
         self._advance(count)
 
-    def on_task_duplicate(self, count: int = 1) -> None:
+    def on_task_skip(self, count: int = 1) -> None:
         """
-        重复回调
+        跳过回调
 
-        :param count: 重复数量
+        :param count: 跳过数量
         """
         self._advance(count)
 
