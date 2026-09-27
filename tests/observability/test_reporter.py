@@ -27,9 +27,11 @@ class FakeSession:
 
     def __init__(self, payload: dict[str, Any]) -> None:
         self.payload = payload
+        self.gets: list[tuple[str, dict[str, Any]]] = []
 
-    def get(self, *_args: Any, **_kwargs: Any) -> FakeResponse:
-        """返回固定注入任务响应。"""
+    def get(self, url: str, params: dict[str, Any] | None = None, **_kwargs: Any) -> FakeResponse:
+        """返回固定注入任务响应，并记录请求参数。"""
+        self.gets.append((url, params or {}))
         return FakeResponse(self.payload)
 
 
@@ -82,6 +84,10 @@ class FakeTaskGraph:
             "StageB": FakeNode(),
         }
 
+    def get_graph_id(self) -> str:
+        """返回固定 graph_id，便于断言拉取与注入携带的会话标识。"""
+        return "pull@1000"
+
 
 class FakeErrorGraph:
     """提供 reporter 推送错误所需的最小图接口。"""
@@ -108,6 +114,7 @@ class FakeLogInlet:
         self.pull_failures: list[Exception] = []
         self.push_error_failures: list[Exception] = []
         self.push_status_failures: list[Exception] = []
+        self.shutdown_failures: list[Exception] = []
 
     def inject_tasks_success(self, target_node: str, task_datas: list[Any]) -> None:
         """记录节点注入成功。"""
@@ -130,6 +137,10 @@ class FakeLogInlet:
     def push_status_failed(self, error: Exception) -> None:
         """记录状态推送失败。"""
         self.push_status_failures.append(error)
+
+    def shutdown_failed(self, error: Exception) -> None:
+        """记录会话结束通知失败。"""
+        self.shutdown_failures.append(error)
 
 
 class FakeStatusNode:
@@ -187,6 +198,10 @@ def test_reporter_accepts_split_task_and_termination_payload(
     ]
     assert log_inlet.failures == []
     assert log_inlet.pull_failures == []
+    # 拉取注入时必须携带当前会话标识，避免注入到其它会话。
+    url, params = reporter._session.gets[0]
+    assert url.endswith("/api/pull_injection")
+    assert params["graph_id"] == "pull@1000"
 
 
 def test_reporter_merges_tasks_and_termination_for_same_stage(
@@ -442,3 +457,25 @@ def test_reporter_forces_status_push_on_context_switch(
 
     assert log_inlet.push_status_failures == []
     assert len(reporter._session.posts) == 2
+
+
+def test_reporter_notifies_shutdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reporter 停止前会向服务端发送会话结束通知。"""
+    graph = FakeStatusGraph()
+    log_inlet = FakeLogInlet()
+    monkeypatch.setattr(
+        "celestialflow.observability.core_report.get_log_inlet",
+        lambda: log_inlet,
+    )
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
+    reporter._session = FakePushSession()
+
+    reporter._notify_shutdown()
+
+    assert log_inlet.shutdown_failures == []
+    assert len(reporter._session.posts) == 1
+    url, payload, _timeout = reporter._session.posts[0]
+    assert url.endswith("/api/shutdown_session")
+    assert payload == {"graph_id": "demo@status"}

@@ -85,6 +85,7 @@ class TaskReporter:
             raise ReporterError("Reporter thread is still running.")
 
         self._thread = None
+        self._notify_shutdown()  # 通知服务端本图已结束
         self._refresh_all()  # 最后一次
         self._session.close()
         self.log_inlet.stop_reporter()
@@ -96,6 +97,19 @@ class TaskReporter:
     def _push_timeout(self) -> float:
         """计算推送请求的超时时间"""
         return max(1.0, min(self.interval * 0.2, 3.0))
+
+    def _notify_shutdown(self) -> None:
+        """通知远程服务端当前任务图已结束，将其会话标记为非活跃。"""
+        try:
+            res = self._session.post(
+                f"{self.base_url}/api/shutdown_session",
+                json={"graph_id": self.task_graph.get_graph_id()},
+                timeout=self._push_timeout(),
+            )
+            if not res.ok:
+                raise ReporterError(f"Failed to notify shutdown: {res.status_code}")
+        except Exception as e:
+            self.log_inlet.shutdown_failed(e)
 
     # ==== 循环 ====
     def _loop(self) -> None:
@@ -112,9 +126,7 @@ class TaskReporter:
             self._pull_injection()
 
             # 推送逻辑
-            if (not self._server_has_current_graph) or (
-                not self._server_has_graph_meta
-            ):
+            if not (self._server_has_current_graph and self._server_has_graph_meta):
                 self._push_graph_meta()
             self._push_status()
             self._push_errors()
@@ -151,7 +163,9 @@ class TaskReporter:
         """从远程服务拉取任务与终止符注入信息并注入任务图。"""
         try:
             res = self._session.get(
-                f"{self.base_url}/api/pull_injection", timeout=self._pull_timeout()
+                f"{self.base_url}/api/pull_injection",
+                params={"graph_id": self.task_graph.get_graph_id()},
+                timeout=self._pull_timeout(),
             )
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")

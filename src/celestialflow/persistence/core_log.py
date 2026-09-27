@@ -429,6 +429,17 @@ class LogInlet(BaseInlet):
             f"[Reporter] Push 'graph_meta' failed: {type(exception).__name__}({exception}).",
         )
 
+    def shutdown_failed(self, exception: Exception) -> None:
+        """
+        记录通知服务端会话结束失败
+
+        :param exception: 通知时发生的异常
+        """
+        self._log(
+            "WARNING",
+            f"[Reporter] Notify 'shutdown' failed: {type(exception).__name__}({exception}).",
+        )
+
 
 # ==== 全局单例 ====
 
