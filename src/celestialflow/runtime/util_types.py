@@ -96,8 +96,8 @@ class ValueWrapper:
             return self.value
 
 
-class StageStatus(IntEnum):
-    """Stage 生命周期状态枚举。"""
+class NodeStatus(IntEnum):
+    """Node 生命周期状态枚举。"""
 
     NOT_STARTED = 0
     RUNNING = 1

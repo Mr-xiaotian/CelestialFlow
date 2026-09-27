@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError
 from celestialflow.runtime.util_types import (
     CTreeEvent,
     NoOpContext,
-    StageStatus,
+    NodeStatus,
     TerminationIdPool,
     TerminationSignal,
     ValueWrapper,
@@ -135,24 +135,24 @@ class TestUtilTypes:
         v = ValueWrapper(-100)
         assert v.value == -100
 
-    # ---- StageStatus ----
+    # ---- NodeStatus ----
 
     def test_stage_status_values(self):
         """枚举值正确"""
-        assert StageStatus.NOT_STARTED == 0
-        assert StageStatus.RUNNING == 1
-        assert StageStatus.STOPPED == 2
+        assert NodeStatus.NOT_STARTED == 0
+        assert NodeStatus.RUNNING == 1
+        assert NodeStatus.STOPPED == 2
 
     def test_stage_status_intenum_behavior(self):
         """IntEnum 可与整数比较"""
-        assert isinstance(StageStatus.NOT_STARTED, int)
-        assert StageStatus.NOT_STARTED < StageStatus.RUNNING
-        assert StageStatus.RUNNING < StageStatus.STOPPED
-        assert StageStatus.STOPPED > 1
+        assert isinstance(NodeStatus.NOT_STARTED, int)
+        assert NodeStatus.NOT_STARTED < NodeStatus.RUNNING
+        assert NodeStatus.RUNNING < NodeStatus.STOPPED
+        assert NodeStatus.STOPPED > 1
 
     def test_stage_status_len(self):
         """枚举成员数量"""
-        assert len(StageStatus) == 3
+        assert len(NodeStatus) == 3
 
     # ---- CTreeEvent ----
 

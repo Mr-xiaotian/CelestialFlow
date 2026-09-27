@@ -5,7 +5,7 @@ import time
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from ..runtime.util_types import StageStatus
+from ..runtime.util_types import NodeStatus
 from .util_types import ValueWrapper
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ class TaskMetrics:
         """
         self.retry_exceptions = ()
         self._observers: list[BaseObserver] = []
-        self._status = int(StageStatus.NOT_STARTED)
+        self._status = int(NodeStatus.NOT_STARTED)
         self.busy_seconds = 0.0
         self._in_flight = 0
         self._busy_since = None
@@ -181,7 +181,7 @@ class TaskMetrics:
 
         :return: ``None``
         """
-        self._status = int(StageStatus.RUNNING)
+        self._status = int(NodeStatus.RUNNING)
         for observer in self._observers:
             observer.on_start()
 
@@ -191,7 +191,7 @@ class TaskMetrics:
 
         :return: ``None``
         """
-        self._status = int(StageStatus.STOPPED)
+        self._status = int(NodeStatus.STOPPED)
         for observer in self._observers:
             observer.on_finish()
 
@@ -330,9 +330,9 @@ class TaskMetrics:
         """
         return {exception_type.__name__ for exception_type in self.retry_exceptions}
 
-    def get_status(self) -> StageStatus:
-        """读取当前状态（返回 StageStatus 枚举）。"""
-        return StageStatus(self._status)
+    def get_status(self) -> NodeStatus:
+        """读取当前状态（返回 NodeStatus 枚举）。"""
+        return NodeStatus(self._status)
 
     # ==== 消耗时间 ====
 
