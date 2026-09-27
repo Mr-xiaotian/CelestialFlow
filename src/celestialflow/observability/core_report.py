@@ -59,7 +59,7 @@ class TaskReporter:
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
         self._session: requests.Session = requests.Session()
-        self._server_has_current_graph: bool = False
+        self._server_has_status: bool = False
         self._server_has_graph_meta: bool = False
         self._server_max_event_id_in_fail: int | None = None
         self._last_status_dict: dict[str, dict[str, Any]] | None = None
@@ -126,7 +126,7 @@ class TaskReporter:
             self._pull_injection()
 
             # 推送逻辑
-            if not (self._server_has_current_graph and self._server_has_graph_meta):
+            if not self._server_has_graph_meta:
                 self._push_graph_meta()
             self._push_status()
             self._push_errors()
@@ -148,9 +148,7 @@ class TaskReporter:
             payload = res.json()
             interval: Any = payload.get("interval", 5)
             self.interval = int(max(1.0, min(float(interval), 60.0)))
-            self._server_has_current_graph = bool(
-                payload.get("is_current_graph", False)
-            )
+            self._server_has_status = bool(payload.get("has_status", False))
             self._server_has_graph_meta = bool(payload.get("has_graph_meta", False))
             max_event_id = payload.get("max_event_id_in_fail")
             self._server_max_event_id_in_fail = (
@@ -201,12 +199,9 @@ class TaskReporter:
                 return
 
             all_errors = []
-            if (
-                not self._server_has_current_graph
-                or self._server_max_event_id_in_fail is None
-            ):
+            if self._server_max_event_id_in_fail is None:
                 all_errors = load_records(db_path=lifecycle_path)
-            elif self._server_has_current_graph:
+            else:
                 all_errors = load_records_after_event_id_in_fail(
                     lifecycle_path, self._server_max_event_id_in_fail
                 )
@@ -236,7 +231,8 @@ class TaskReporter:
         门控：仅当节点快照较上次成功推送发生变化时才发送请求。
 
         时间戳不参与比较（每轮必然不同），比较对象是逐节点采集的快照本身；
-        服务端刚切换上下文时其状态缓存已被清空，此时无论快照是否相同都强制推送一次。
+        服务端会话尚无状态缓存时（如会话被移除后重建），此时无论快照是否相同
+        都强制推送一次。
         """
         try:
             # 收集最新的任务图状态快照，确保推送的数据是最新的
@@ -244,7 +240,7 @@ class TaskReporter:
             for node_name, node in self.task_graph.node_dict.items():
                 status_dict[node_name] = node.get_snapshot()
 
-            if self._server_has_current_graph and status_dict == self._last_status_dict:
+            if self._server_has_status and status_dict == self._last_status_dict:
                 return
 
             payload: dict[str, Any] = {

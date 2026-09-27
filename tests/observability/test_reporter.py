@@ -263,7 +263,6 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
-    reporter._server_has_current_graph = False
 
     reporter._push_errors()
 
@@ -335,7 +334,6 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
-    reporter._server_has_current_graph = True
     reporter._server_max_event_id_in_fail = 3
 
     reporter._push_errors()
@@ -413,7 +411,7 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
-    reporter._server_has_current_graph = True
+    reporter._server_has_status = True
 
     reporter._push_status()
     reporter._push_status()
@@ -437,7 +435,7 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
 def test_reporter_forces_status_push_on_context_switch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """服务端刚切换图上下文时，即使快照未变也必须强制推送一次。"""
+    """服务端会话尚无状态缓存时，即使快照未变也必须强制推送一次。"""
     graph = FakeStatusGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
@@ -446,13 +444,13 @@ def test_reporter_forces_status_push_on_context_switch(
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
-    reporter._server_has_current_graph = True
+    reporter._server_has_status = True
 
     reporter._push_status()
     assert len(reporter._session.posts) == 1
 
-    # 服务端刚切换到本图（缓存被清空），此时 is_current_graph 返回 False。
-    reporter._server_has_current_graph = False
+    # 服务端会话被移除后重建，has_status 返回 False。
+    reporter._server_has_status = False
     reporter._push_status()
 
     assert log_inlet.push_status_failures == []
