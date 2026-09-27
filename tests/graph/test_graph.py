@@ -176,7 +176,7 @@ class TestTaskGraphBasic:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -185,7 +185,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 2,
                     "error_type": "ValueError",
@@ -194,7 +194,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "failed",
                     "task_json": 10,
                     "error_type": "ValueError",
@@ -203,7 +203,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 4,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "pending",
                     "task_json": 20,
                     "error_type": "",
@@ -232,7 +232,7 @@ class TestTaskGraphBasic:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -241,7 +241,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 2,
                     "error_type": "RuntimeError",
@@ -250,7 +250,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "failed",
                     "task_json": 10,
                     "error_type": "ValueError",
@@ -259,7 +259,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 4,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "failed",
                     "task_json": 20,
                     "error_type": "RuntimeError",
@@ -290,7 +290,7 @@ class TestTaskGraphBasic:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -299,7 +299,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "pending",
                     "task_json": 2,
                     "error_type": "",
@@ -308,7 +308,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "failed",
                     "task_json": 10,
                     "error_type": "RuntimeError",
@@ -317,7 +317,7 @@ class TestTaskGraphBasic:
                 },
                 {
                     "event_id": 4,
-                    "stage": "s2",
+                    "node": "s2",
                     "status": "pending",
                     "task_json": 20,
                     "error_type": "",
@@ -1088,9 +1088,9 @@ class TestTaskGraphReporterCapabilities:
         append_records(
             db_path,
             [
-                {"event_id": 1, "stage": "s1", "status": "failed", "task_json": 1},
-                {"event_id": 2, "stage": "s1", "status": "success", "task_json": 2},
-                {"event_id": 5, "stage": "s1", "status": "failed", "task_json": 5},
+                {"event_id": 1, "node": "s1", "status": "failed", "task_json": 1},
+                {"event_id": 2, "node": "s1", "status": "success", "task_json": 2},
+                {"event_id": 5, "node": "s1", "status": "failed", "task_json": 5},
             ],
         )
         monkeypatch.setattr(get_lifecycle_spout(), "db_path", db_path)

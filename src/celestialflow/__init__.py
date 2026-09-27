@@ -23,7 +23,7 @@ from .node import (
 from .observability import BaseObserver, PrintObserver, TaskReporter
 from .persistence.util_sqlite import (
     load_records,
-    load_tasks_grouped_by_stage,
+    load_tasks_grouped_by_node,
 )
 from .runtime.util_format import format_table
 from .runtime.util_types import TerminationSignal
@@ -49,5 +49,5 @@ __all__ = [
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_tasks_grouped_by_stage",
+    "load_tasks_grouped_by_node",
 ]

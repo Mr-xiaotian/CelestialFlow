@@ -85,36 +85,35 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     # 通过广度优先遍历收集所有节点（沿用任务图有序图的出边顺序）
     visited: set[str] = set()
-    ordered_stages: list[TaskExecutor[Any, Any]] = []
+    ordered_nodes: list[TaskExecutor[Any, Any]] = []
     queue: deque[AnyTaskNode] = deque(
         graph.node_dict[source_name] for source_name in graph.get_source_nodes()
     )
     while queue:
-        stage_node: AnyTaskNode = queue.popleft()
-        if not isinstance(stage_node, TaskExecutor):
+        node: AnyTaskNode = queue.popleft()
+        if not isinstance(node, TaskExecutor):
             raise ConfigurationError(
                 "clone_graph() only supports graphs composed of TaskExecutor nodes"
             )
-        stage = stage_node
-        stage_name: str = stage.get_name()
-        if stage_name in visited:
+        node_name: str = node.get_name()
+        if node_name in visited:
             continue
-        visited.add(stage_name)
-        ordered_stages.append(stage)
-        for next_stage_name in graph.order_graph.out_edges.get(stage_name, []):
-            next_stage: AnyTaskNode = graph.node_dict[next_stage_name]
-            queue.append(next_stage)
+        visited.add(node_name)
+        ordered_nodes.append(node)
+        for next_node_name in graph.order_graph.out_edges.get(node_name, []):
+            next_node: AnyTaskNode = graph.node_dict[next_node_name]
+            queue.append(next_node)
 
     # 建立原节点名到克隆节点的映射
     name_map: dict[str, TaskExecutor[Any, Any]] = {}
-    for stage in ordered_stages:
-        name_map[stage.get_name()] = clone_executor(stage)
+    for node in ordered_nodes:
+        name_map[node.get_name()] = clone_executor(node)
 
     # 构建新的任务图
-    all_cloned_stages: list[AnyTaskNode] = list(name_map.values())
+    all_cloned_nodes: list[AnyTaskNode] = list(name_map.values())
 
     cloned_graph: TaskGraph = TaskGraph(name=graph.name, graph_mode=graph.graph_mode)
-    cloned_graph.set_nodes(all_cloned_stages)
+    cloned_graph.set_nodes(all_cloned_nodes)
 
     # 重建连接
     for from_name, to_names in graph.order_graph.out_edges.items():

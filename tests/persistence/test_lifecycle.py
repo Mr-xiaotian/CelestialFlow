@@ -34,7 +34,7 @@ class TestLifecyclePersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, ts, stage, status, error_type, error_message, task_json, result_json
+                SELECT event_id, ts, node, status, error_type, error_message, task_json, result_json
                 FROM records
                 ORDER BY id ASC
                 """
@@ -154,7 +154,7 @@ class TestLifecyclePersistence:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_id INTEGER NOT NULL,
                 ts REAL,
-                stage TEXT NOT NULL,
+                node TEXT NOT NULL,
                 status TEXT NOT NULL,
                 error_type TEXT NOT NULL DEFAULT '',
                 error_message TEXT NOT NULL DEFAULT '',

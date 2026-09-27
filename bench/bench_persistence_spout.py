@@ -56,7 +56,7 @@ def build_lifecycle_insert_records(count: int) -> list[dict[str, Any]]:
             "__op__": "insert",
             "record": {
                 "event_id": i,
-                "stage": "BenchStage",
+                "node": "BenchStage",
                 "status": "pending",
                 "task_json": i,
             },

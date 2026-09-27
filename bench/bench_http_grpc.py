@@ -25,13 +25,13 @@ ctree_grpc_port = int(os.getenv("CTREE_GRPC_PORT", "7778"))
 def bench_no_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
-    process_stage = TaskExecutor(
+    process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
     chain = TaskChain(
         "bench_no_ctree",
-        [task_splitter, process_stage],
+        [task_splitter, process_node],
     )
     # chain.set_ctree(False)
 
@@ -44,13 +44,13 @@ def bench_no_ctree() -> None:
 def bench_http_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
-    process_stage = TaskExecutor(
+    process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
     chain = TaskChain(
         "bench_http_ctree",
-        [task_splitter, process_stage],
+        [task_splitter, process_node],
     )
     http_ctree_client = CelestialTreeClient(
         host=ctree_host,
@@ -69,13 +69,13 @@ def bench_http_ctree() -> None:
 def bench_grpc_ctree() -> None:
     # 定义任务节点
     task_splitter = TaskSplitter("splitter")
-    process_stage = TaskExecutor(
+    process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
 
     chain = TaskChain(
         "bench_grpc_ctree",
-        [task_splitter, process_stage],
+        [task_splitter, process_node],
     )
     grpc_ctree_client = CelestialTreeClient(
         host=ctree_host,

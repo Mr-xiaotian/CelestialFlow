@@ -182,7 +182,7 @@ class TestTaskExecutor:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -191,7 +191,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 2,
                     "error_type": "ValueError",
@@ -200,7 +200,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "pending",
                     "task_json": 3,
                     "error_type": "",
@@ -209,7 +209,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 4,
-                    "stage": "other",
+                    "node": "other",
                     "status": "failed",
                     "task_json": 99,
                     "error_type": "ValueError",
@@ -237,7 +237,7 @@ class TestTaskExecutor:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -246,7 +246,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 2,
                     "error_type": "RuntimeError",
@@ -255,7 +255,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 3,
                     "error_type": "RuntimeError",
@@ -286,7 +286,7 @@ class TestTaskExecutor:
             [
                 {
                     "event_id": 1,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 1,
                     "error_type": "ValueError",
@@ -295,7 +295,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 2,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "failed",
                     "task_json": 2,
                     "error_type": "RuntimeError",
@@ -304,7 +304,7 @@ class TestTaskExecutor:
                 },
                 {
                     "event_id": 3,
-                    "stage": "s1",
+                    "node": "s1",
                     "status": "pending",
                     "task_json": 3,
                     "error_type": "",
@@ -554,7 +554,7 @@ class TestTaskSkip:
             statuses = [
                 str(row[0])
                 for row in conn.execute(
-                    "SELECT status FROM records WHERE stage = 'SkipChain' ORDER BY id ASC"
+                    "SELECT status FROM records WHERE node = 'SkipChain' ORDER BY id ASC"
                 ).fetchall()
             ]
         finally:

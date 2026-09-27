@@ -172,7 +172,7 @@ def test_reporter_accepts_split_task_and_termination_payload(
     assert params["graph_id"] == "pull@1000"
 
 
-def test_reporter_forwards_tasks_and_termination_for_same_stage(
+def test_reporter_forwards_tasks_and_termination_for_same_node(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """同一节点同时存在任务与终止符时，两者都应被转交（先任务后终止符）。"""
@@ -203,7 +203,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     """Reporter 只通过 push_errors 推送错误内容。"""
     record = {
         "event_id": 1,
-        "stage": "s1",
+        "node": "s1",
         "status": "failed",
         "error_type": "ValueError",
         "error_message": "bad value",
@@ -237,9 +237,9 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
     graph = FakeErrorGraph(
         [
-            {"event_id": 1, "stage": "s1", "status": "failed", "task_json": {}},
-            {"event_id": 5, "stage": "s1", "status": "failed", "task_json": {}},
-            {"event_id": 7, "stage": "s2", "status": "failed", "task_json": {}},
+            {"event_id": 1, "node": "s1", "status": "failed", "task_json": {}},
+            {"event_id": 5, "node": "s1", "status": "failed", "task_json": {}},
+            {"event_id": 7, "node": "s2", "status": "failed", "task_json": {}},
         ]
     )
     log_inlet = FakeLogInlet()

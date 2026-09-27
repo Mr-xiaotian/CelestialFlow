@@ -15,7 +15,7 @@ class TestLogPersistence:
             inlet.graph_start("test_graph", "thread", ['test message'])
             inlet.task_retry("func", "hello world", 1, ValueError("oops"), 0)
             inlet.graph_end("test_graph", 1.0)
-            inlet.node_start('stage', 1, 'parallel', 4)
+            inlet.node_start('node', 1, 'parallel', 4)
             wait_until(
                 lambda: spout.log_path.exists()
                 and 'test message' in spout.log_path.read_text(encoding='utf-8')
@@ -41,7 +41,7 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.task_skip("stage", "hello world", 7, 8)
+            inlet.task_skip("node", "hello world", 7, 8)
             wait_until(
                 lambda: spout.log_path.exists()
                 and 'hello world' in spout.log_path.read_text(encoding='utf-8'),

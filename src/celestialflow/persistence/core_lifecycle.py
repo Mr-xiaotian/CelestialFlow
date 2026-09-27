@@ -55,7 +55,7 @@ class LifecycleSpout(BaseSpout):
 
         op = str(record["__op__"])
         if op == "insert":
-            # 新任务进入某个 stage，写入一条 pending 记录。
+            # 新任务进入某个 node，写入一条 pending 记录。
             changed = insert_record(self._conn, cast(dict[str, Any], record["record"]))
         elif op == "promote_success":
             # 任务成功时，将 pending 记录晋升为 success 并写入结果。
@@ -105,27 +105,27 @@ class LifecycleSpout(BaseSpout):
             self._conn.close()
             self._conn = None
 
-    def get_task_error_pairs(self, stage: str) -> list[tuple[Any, tuple[str, str]]]:
+    def get_task_error_pairs(self, node: str) -> list[tuple[Any, tuple[str, str]]]:
         """
-        从 sqlite 文件中读取指定 stage 的错误记录
+        从 sqlite 文件中读取指定 node 的错误记录
 
-        :param stage: 待读取的 stage 名称
+        :param node: 待读取的 node 名称
         :return: (task, error_record) 元组列表
         """
         if self.db_path is None:
             return []
-        return load_task_error_records(str(self.db_path), stage)
+        return load_task_error_records(str(self.db_path), node)
 
-    def get_task_result_pairs(self, stage: str) -> list[tuple[Any, Any]]:
+    def get_task_result_pairs(self, node: str) -> list[tuple[Any, Any]]:
         """
-        从 sqlite 文件中读取指定 stage 的成功结果记录。
+        从 sqlite 文件中读取指定 node 的成功结果记录。
 
-        :param stage: 待读取的 stage 名称
+        :param node: 待读取的 node 名称
         :return: (task, result) 元组列表
         """
         if self.db_path is None:
             return []
-        return load_task_result_records(str(self.db_path), stage)
+        return load_task_result_records(str(self.db_path), node)
 
 
 class LifecycleInlet(BaseInlet):
@@ -133,11 +133,11 @@ class LifecycleInlet(BaseInlet):
     线程安全 lifecycle 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
     """
 
-    def task_input(self, stage_name: str, event_id: int, task: Any) -> None:
+    def task_input(self, node_name: str, event_id: int, task: Any) -> None:
         """
-        写入一条 pending 记录，表示任务已进入某个 stage。
+        写入一条 pending 记录，表示任务已进入某个 node。
 
-        :param stage_name: 阶段唯一名称
+        :param node_name: 节点唯一名称
         :param event_id: 当前输入事件 ID
         :param task: 任务数据
         """
@@ -147,7 +147,7 @@ class LifecycleInlet(BaseInlet):
             "record": {
                 "event_id": event_id,
                 "ts": now.timestamp(),
-                "stage": stage_name,
+                "node": node_name,
                 "status": "pending",
                 "task_json": to_persisted_payload(task),
             },

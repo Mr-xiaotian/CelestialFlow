@@ -15,7 +15,7 @@ from ..persistence import (
     get_lifecycle_spout,
     get_log_inlet,
 )
-from ..persistence.util_sqlite import load_tasks_grouped_by_stage
+from ..persistence.util_sqlite import load_tasks_grouped_by_node
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
@@ -512,7 +512,7 @@ class BaseTaskNode[T, R, Y]:
             ``error_type``，默认 ``False``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
-        grouped_tasks = load_tasks_grouped_by_stage(db_path, statuses)
+        grouped_tasks = load_tasks_grouped_by_node(db_path, statuses)
         records = grouped_tasks.get(self.get_name(), [])
         tasks: Iterable[T] = []
 

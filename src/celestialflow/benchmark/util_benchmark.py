@@ -82,7 +82,7 @@ async def benchmark_graph(
     execution_modes = execution_modes or ["serial", "thread", "async"]
 
     base_tasks: dict[str, list[Any]] = {
-        stage_name: list(tasks) for stage_name, tasks in init_tasks_dict.items()
+        node_name: list(tasks) for node_name, tasks in init_tasks_dict.items()
     }
 
     test_table_list: list[list[float]] = []
@@ -100,7 +100,7 @@ async def benchmark_graph(
             cloned_graph.set_node_execution_mode(execution_mode)
 
             run_tasks: dict[str, Iterable[Any]] = {
-                stage_name: list(tasks) for stage_name, tasks in base_tasks.items()
+                node_name: list(tasks) for node_name, tasks in base_tasks.items()
             }
             start_time = time.perf_counter()
             if graph_mode == "async":

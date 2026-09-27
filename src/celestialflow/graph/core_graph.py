@@ -14,7 +14,7 @@ from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import (
     load_records,
     load_records_after_event_id_in_fail,
-    load_tasks_grouped_by_stage,
+    load_tasks_grouped_by_node,
 )
 from ..runtime.util_errors import (
     ConfigurationError,
@@ -303,7 +303,7 @@ class TaskGraph:
             默认 ``True``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
-        grouped_records = load_tasks_grouped_by_stage(db_path, statuses)
+        grouped_records = load_tasks_grouped_by_node(db_path, statuses)
         tasks: dict[str, Iterable[Any]] = {}
 
         for name, records in grouped_records.items():

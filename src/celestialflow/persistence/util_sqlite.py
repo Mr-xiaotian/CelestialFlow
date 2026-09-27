@@ -47,7 +47,7 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_id INTEGER NOT NULL,
             ts REAL,
-            stage TEXT NOT NULL,
+            node TEXT NOT NULL,
             status TEXT NOT NULL,
             error_type TEXT NOT NULL DEFAULT '',
             error_message TEXT NOT NULL DEFAULT '',
@@ -83,7 +83,7 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     """
     将记录归一化为 sqlite 可写格式。
 
-    非业务记录会返回 ``None``。业务记录必须显式提供 ``stage`` 与
+    非业务记录会返回 ``None``。业务记录必须显式提供 ``node`` 与
     ``status``，由调用方保证写入语义完整。
 
     :param record: 原始记录字典
@@ -96,7 +96,7 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
 
     return {
         "event_id": int(event_id),
-        "stage": str(record["stage"]),
+        "node": str(record["node"]),
         "status": str(record["status"]),
         "error_type": str(record.get("error_type", "") or ""),
         "error_message": str(record.get("error_message", "") or ""),
@@ -119,7 +119,7 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
         "id": int(row["id"]),
         "event_id": int(row["event_id"]),
         "ts": float(row["ts"]),
-        "stage": str(row["stage"]),
+        "node": str(row["node"]),
         "status": str(row["status"]),
         "error_type": str(row["error_type"]),
         "error_message": str(row["error_message"]),
@@ -151,11 +151,11 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     _ = conn.execute(
         """
         INSERT INTO records (
-            event_id, ts, stage, status, error_type, error_message, task_json, result_json
+            event_id, ts, node, status, error_type, error_message, task_json, result_json
             , retry_times
         )
         VALUES (
-            :event_id, :ts, :stage, :status, :error_type, :error_message, :task_json, :result_json
+            :event_id, :ts, :node, :status, :error_type, :error_message, :task_json, :result_json
             , :retry_times
         )
         """,
@@ -391,7 +391,7 @@ def load_records(
         # 按写入顺序读取指定状态的记录。
         rows = conn.execute(
             """
-            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
+            SELECT id, event_id, ts, node, status, error_type, error_message, task_json
                  , result_json, retry_times
             FROM records
             WHERE status = ?
@@ -404,16 +404,16 @@ def load_records(
         conn.close()
 
 
-def load_tasks_grouped_by_stage(
+def load_tasks_grouped_by_node(
     db_path: str | Path,
     statuses: Iterable[str] = ("failed", "pending"),
 ) -> dict[str, list[dict[str, Any]]]:
     """
-    自行创建并关闭连接，按 stage 分组读取指定状态的记录。
+    自行创建并关闭连接，按 node 分组读取指定状态的记录。
 
     :param db_path: sqlite 数据库文件路径
     :param statuses: 记录状态过滤条件；可传单个状态或状态列表
-    :return: ``{stage_name: [{"task_json": task, "error_type": str, "status": str}, ...], ...}``
+    :return: ``{node_name: [{"task_json": task, "error_type": str, "status": str}, ...], ...}``
     :rtype: dict[str, list[dict[str, Any]]]
     """
     conn = connect_db(db_path)
@@ -424,23 +424,23 @@ def load_tasks_grouped_by_stage(
         placeholders = ", ".join("?" for _ in statuses)
         rows = conn.execute(
             f"""
-            SELECT stage, task_json, error_type, status
+            SELECT node, task_json, error_type, status
             FROM records
             WHERE status IN ({placeholders})
-            ORDER BY stage ASC, id ASC
+            ORDER BY node ASC, id ASC
             """,
             tuple(statuses),
         ).fetchall()
 
         grouped_records: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
-            stage_name = str(row["stage"])
+            node_name = str(row["node"])
             task_json = str(row["task_json"])
             error_type = str(row["error_type"])
             status = str(row["status"])
 
-            stage_tasks = grouped_records.setdefault(stage_name, [])
-            stage_tasks.append(
+            node_tasks = grouped_records.setdefault(node_name, [])
+            node_tasks.append(
                 {
                     "task_json": json.loads(task_json),
                     "error_type": error_type,
@@ -468,7 +468,7 @@ def load_records_after_event_id_in_fail(
     try:
         rows = conn.execute(
             """
-            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
+            SELECT id, event_id, ts, node, status, error_type, error_message, task_json
                     , result_json, retry_times
             FROM records
             WHERE status = 'failed' AND event_id > ?
@@ -482,13 +482,13 @@ def load_records_after_event_id_in_fail(
 
 
 def load_task_error_records(
-    db_path: str | Path, stage: str
+    db_path: str | Path, node: str
 ) -> list[tuple[Any, tuple[str, str]]]:
     """
-    自行创建并关闭连接，读取指定 stage 的失败任务与记录配对列表。
+    自行创建并关闭连接，读取指定 node 的失败任务与记录配对列表。
 
     :param db_path: sqlite 数据库文件路径
-    :param stage: 待读取的 stage 名称
+    :param node: 待读取的 node 名称
     :return: ``[(task, error_record), ...]``
     :rtype: list[tuple[Any, tuple[str, str]]]
     """
@@ -499,10 +499,10 @@ def load_task_error_records(
             """
             SELECT error_type, error_message, task_json
             FROM records
-            WHERE status = 'failed' AND stage = ?
+            WHERE status = 'failed' AND node = ?
             ORDER BY id ASC
             """,
-            [stage],
+            [node],
         ).fetchall()
         return [
             (
@@ -515,12 +515,12 @@ def load_task_error_records(
         conn.close()
 
 
-def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any, Any]]:
+def load_task_result_records(db_path: str | Path, node: str) -> list[tuple[Any, Any]]:
     """
-    自行创建并关闭连接，读取指定 stage 的任务与成功结果配对列表。
+    自行创建并关闭连接，读取指定 node 的任务与成功结果配对列表。
 
     :param db_path: sqlite 数据库文件路径
-    :param stage: 待读取的 stage 名称
+    :param node: 待读取的 node 名称
     :return: ``[(task, result), ...]``
     :rtype: list[tuple[Any, Any]]
     """
@@ -530,10 +530,10 @@ def load_task_result_records(db_path: str | Path, stage: str) -> list[tuple[Any,
             """
             SELECT task_json, result_json
             FROM records
-            WHERE status = 'success' AND stage = ?
+            WHERE status = 'success' AND node = ?
             ORDER BY id ASC
             """,
-            [stage],
+            [node],
         ).fetchall()
         return [
             (
@@ -577,7 +577,7 @@ def query_records(
         where_clauses: list[str] = ["status = ?"]
         params: list[Any] = [status]
         if node:
-            where_clauses.append("stage = ?")
+            where_clauses.append("node = ?")
             params.append(node)
         if keyword:
             like_pattern = f"%{keyword.lower()}%"
@@ -602,7 +602,7 @@ def query_records(
         # 查询当前页数据；按 ts 和 id 排序以保持稳定顺序。
         rows = conn.execute(
             f"""
-            SELECT id, event_id, ts, stage, status, error_type, error_message, task_json
+            SELECT id, event_id, ts, node, status, error_type, error_message, task_json
                  , result_json, retry_times
             FROM records
             {where_sql}
@@ -637,7 +637,7 @@ def query_error_type_counts(
         where_clauses: list[str] = ["status = ?"]
         params: list[Any] = [status]
         if node:
-            where_clauses.append("stage = ?")
+            where_clauses.append("node = ?")
             params.append(node)
 
         where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""

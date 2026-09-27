@@ -56,7 +56,7 @@ class TestFunnelScope:
             assert lifecycle_spout._thread.is_alive()
 
             get_log_inlet().graph_start("scope_graph", "thread", ["hello scope"])
-            get_lifecycle_inlet().task_input("scope_stage", event_id=1, task="data")
+            get_lifecycle_inlet().task_input("scope_node", event_id=1, task="data")
             get_lifecycle_inlet().task_success(event_id=1, result="ok")
 
         assert get_log_spout()._thread is None
@@ -75,7 +75,7 @@ class TestFunnelScope:
         try:
             rows = conn.execute(
                 """
-                SELECT stage, status, task_json, result_json
+                SELECT node, status, task_json, result_json
                 FROM records
                 ORDER BY id ASC
                 """
@@ -83,7 +83,7 @@ class TestFunnelScope:
         finally:
             conn.close()
 
-        assert rows == [("scope_stage", "success", '"data"', '"ok"')]
+        assert rows == [("scope_node", "success", '"data"', '"ok"')]
 
     def test_funnel_scope_is_reusable(
         self, tmp_path, monkeypatch: pytest.MonkeyPatch
