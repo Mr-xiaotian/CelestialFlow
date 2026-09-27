@@ -1,18 +1,16 @@
 # observability/util_types.py
 from __future__ import annotations
 
-from collections.abc import Mapping
-from pathlib import Path
+from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 
 class ReporterTaskGraph(Protocol):
-    """TaskReporter 依赖的最小任务图接口。"""
+    """TaskReporter 依赖的最小任务图接口。
 
-    @property
-    def node_dict(self) -> Mapping[str, ReporterTaskNode]:
-        """返回按名称索引的只读节点映射。"""
-        ...
+    只暴露语义能力，不暴露内部节点容器与持久化文件路径，
+    从而让 reporter 与图结构、sqlite 表结构解耦。
+    """
 
     def get_graph_id(self) -> str: ...
 
@@ -24,18 +22,20 @@ class ReporterTaskGraph(Protocol):
 
     def get_source_nodes(self) -> list[str]: ...
 
-    def get_lifecycle_path(self) -> Path: ...
-
     def get_graph_analysis(self) -> dict[str, Any]: ...
 
+    def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
+        """采集各节点当前的运行时快照。"""
+        ...
 
-class ReporterTaskNode(Protocol):
-    """TaskReporter 依赖的最小节点接口。"""
+    def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
+        """读取待上报的失败记录；``after_event_id`` 为 ``None`` 时表示全量。"""
+        ...
 
-    def put_task(self, task: Any) -> None: ...
+    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+        """按节点名将注入任务写入待执行队列。"""
+        ...
 
-    def put_signal(self) -> None: ...
-
-    def get_meta(self) -> dict[str, Any]: ...
-
-    def get_snapshot(self) -> dict[str, Any]: ...
+    def inject_terminations(self, nodes: Sequence[str]) -> None:
+        """向指定节点注入终止信号。"""
+        ...

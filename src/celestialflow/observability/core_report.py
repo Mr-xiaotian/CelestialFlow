@@ -6,12 +6,7 @@ from typing import Any, Protocol
 import requests
 
 from ..persistence import LogInlet, get_log_inlet
-from ..persistence.util_sqlite import (
-    load_records,
-    load_records_after_event_id_in_fail,
-)
 from ..runtime.util_errors import ReporterError
-from ..runtime.util_types import TERMINATION_SIGNAL
 from .util_types import ReporterTaskGraph
 
 
@@ -172,40 +167,17 @@ class TaskReporter:
             return
 
         injection_payload: dict[str, Any] = res.json()
-        for target_node, task_datas in injection_payload.get("tasks", {}).items():
-            try:
-                node = self.task_graph.node_dict[target_node]
-                for task in task_datas:
-                    node.put_task(task)
-                self.log_inlet.inject_tasks_success(target_node, task_datas)
-            except Exception as e:
-                self.log_inlet.inject_tasks_failed(target_node, task_datas, e)
-
-        for target_node in injection_payload.get("terminations", []):
-            try:
-                node = self.task_graph.node_dict[target_node]
-                node.put_signal()
-                self.log_inlet.inject_tasks_success(target_node, [TERMINATION_SIGNAL])
-            except Exception as e:
-                self.log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
+        self.task_graph.inject_tasks(injection_payload.get("tasks", {}))
+        self.task_graph.inject_terminations(injection_payload.get("terminations", []))
 
     # ==== 推送 ====
     def _push_errors(self) -> None:
         """推送错误信息"""
         try:
-            lifecycle_path = self.task_graph.get_lifecycle_path()
             graph_id = self.task_graph.get_graph_id()
-            if not lifecycle_path:
-                return
-
-            all_errors = []
-            if self._server_max_event_id_in_fail is None:
-                all_errors = load_records(db_path=lifecycle_path)
-            else:
-                all_errors = load_records_after_event_id_in_fail(
-                    lifecycle_path, self._server_max_event_id_in_fail
-                )
-
+            all_errors = self.task_graph.load_failed_records(
+                self._server_max_event_id_in_fail
+            )
             if not all_errors:
                 return
 
@@ -235,10 +207,8 @@ class TaskReporter:
         都强制推送一次。
         """
         try:
-            # 收集最新的任务图状态快照，确保推送的数据是最新的
-            status_dict: dict[str, dict[str, Any]] = {}
-            for node_name, node in self.task_graph.node_dict.items():
-                status_dict[node_name] = node.get_snapshot()
+            # 采集最新的任务图状态快照，确保推送的数据是最新的
+            status_dict: dict[str, dict[str, Any]] = self.task_graph.get_status_snapshot()
 
             if self._server_has_status and status_dict == self._last_status_dict:
                 return

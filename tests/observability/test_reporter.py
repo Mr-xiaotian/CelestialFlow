@@ -1,12 +1,10 @@
-from pathlib import Path
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph
 from celestialflow.observability import TaskReporter
-from celestialflow.persistence.util_sqlite import append_records
-from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 
 
 class FakeResponse:
@@ -59,72 +57,56 @@ class FakePushSession:
         return FakePostResponse()
 
 
-class FakeNode:
-    """记录显式任务注入调用。"""
-
-    def __init__(self) -> None:
-        self.task_calls: list[Any] = []
-        self.signal_calls = 0
-
-    def put_task(self, task: Any) -> None:
-        """记录单次任务注入。"""
-        self.task_calls.append(task)
-
-    def put_signal(self) -> None:
-        """记录终止信号注入。"""
-        self.signal_calls += 1
-
-
 class FakeTaskGraph:
-    """提供 reporter 拉取注入所需的最小图接口。"""
+    """记录 reporter 转交的任务与终止符注入调用。"""
 
     def __init__(self) -> None:
-        self.node_dict: dict[str, FakeNode] = {
-            "StageA": FakeNode(),
-            "StageB": FakeNode(),
-        }
+        self.injected_tasks: list[dict[str, list[Any]]] = []
+        self.injected_terminations: list[list[str]] = []
 
     def get_graph_id(self) -> str:
         """返回固定 graph_id，便于断言拉取与注入携带的会话标识。"""
         return "pull@1000"
 
+    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+        """记录按节点名转交的注入任务。"""
+        self.injected_tasks.append({name: list(items) for name, items in tasks.items()})
+
+    def inject_terminations(self, nodes: Sequence[str]) -> None:
+        """记录转交的终止符注入节点。"""
+        self.injected_terminations.append(list(nodes))
+
 
 class FakeErrorGraph:
     """提供 reporter 推送错误所需的最小图接口。"""
 
-    def __init__(self, lifecycle_path: Path, graph_id: str = "demo@1000") -> None:
-        self._lifecycle_path = str(lifecycle_path)
+    def __init__(
+        self, records: list[dict[str, Any]] | None = None, graph_id: str = "demo@1000"
+    ) -> None:
+        self._records = list(records or [])
         self._graph_id = graph_id
-
-    def get_lifecycle_path(self) -> str:
-        """返回 lifecycle sqlite 路径。"""
-        return self._lifecycle_path
+        self.after_event_ids: list[int | None] = []
 
     def get_graph_id(self) -> str:
         """返回当前 graph_id。"""
         return self._graph_id
 
+    def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
+        """按水位线返回预设的失败记录，并记录调用参数。"""
+        self.after_event_ids.append(after_event_id)
+        if after_event_id is None:
+            return list(self._records)
+        return [r for r in self._records if int(r["event_id"]) > after_event_id]
+
 
 class FakeLogInlet:
-    """记录 reporter 注入成功/失败日志。"""
+    """记录 reporter 上报过程中的失败日志。"""
 
     def __init__(self) -> None:
-        self.successes: list[tuple[str, list[Any]]] = []
-        self.failures: list[tuple[str, list[Any], Exception]] = []
         self.pull_failures: list[Exception] = []
         self.push_error_failures: list[Exception] = []
         self.push_status_failures: list[Exception] = []
         self.shutdown_failures: list[Exception] = []
-
-    def inject_tasks_success(self, target_node: str, task_datas: list[Any]) -> None:
-        """记录节点注入成功。"""
-        self.successes.append((target_node, task_datas))
-
-    def inject_tasks_failed(
-        self, target_node: str, task_datas: list[Any], error: Exception
-    ) -> None:
-        """记录节点注入失败。"""
-        self.failures.append((target_node, task_datas, error))
 
     def pull_tasks_failed(self, error: Exception) -> None:
         """记录拉取失败。"""
@@ -143,29 +125,22 @@ class FakeLogInlet:
         self.shutdown_failures.append(error)
 
 
-class FakeStatusNode:
-    """提供可手动变更快照的节点。"""
-
-    def __init__(self, snapshot: dict[str, Any]) -> None:
-        self.snapshot = snapshot
-
-    def get_snapshot(self) -> dict[str, Any]:
-        """返回当前快照的浅拷贝。"""
-        return dict(self.snapshot)
-
-
 class FakeStatusGraph:
     """提供 reporter 推送状态所需的最小图接口。"""
 
     def __init__(self, snapshot: dict[str, Any] | None = None) -> None:
-        self.node_dict: dict[str, FakeStatusNode] = {
-            "StageA": FakeStatusNode(snapshot or {"status": 0, "tasks_processed": 0})
+        self.snapshots: dict[str, dict[str, Any]] = {
+            "StageA": dict(snapshot or {"status": 0, "tasks_processed": 0})
         }
         self._graph_id = "demo@status"
 
     def get_graph_id(self) -> str:
         """返回当前 graph_id。"""
         return self._graph_id
+
+    def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
+        """返回各节点快照的浅拷贝。"""
+        return {name: dict(snap) for name, snap in self.snapshots.items()}
 
 
 def test_reporter_accepts_split_task_and_termination_payload(
@@ -188,15 +163,8 @@ def test_reporter_accepts_split_task_and_termination_payload(
 
     reporter._pull_injection()
 
-    assert graph.node_dict["StageA"].task_calls == [1, 2, 3]
-    assert graph.node_dict["StageA"].signal_calls == 0
-    assert graph.node_dict["StageB"].task_calls == []
-    assert graph.node_dict["StageB"].signal_calls == 1
-    assert log_inlet.successes == [
-        ("StageA", [1, 2, 3]),
-        ("StageB", [TERMINATION_SIGNAL]),
-    ]
-    assert log_inlet.failures == []
+    assert graph.injected_tasks == [{"StageA": [1, 2, 3]}]
+    assert graph.injected_terminations == [["StageB"]]
     assert log_inlet.pull_failures == []
     # 拉取注入时必须携带当前会话标识，避免注入到其它会话。
     url, params = reporter._session.gets[0]
@@ -204,10 +172,10 @@ def test_reporter_accepts_split_task_and_termination_payload(
     assert params["graph_id"] == "pull@1000"
 
 
-def test_reporter_merges_tasks_and_termination_for_same_stage(
+def test_reporter_forwards_tasks_and_termination_for_same_stage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """同一节点同时存在任务与终止符时，应保留任务并在末尾追加终止符。"""
+    """同一节点同时存在任务与终止符时，两者都应被转交（先任务后终止符）。"""
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
@@ -224,38 +192,25 @@ def test_reporter_merges_tasks_and_termination_for_same_stage(
 
     reporter._pull_injection()
 
-    assert graph.node_dict["StageA"].task_calls == [1, 2, 3]
-    assert graph.node_dict["StageA"].signal_calls == 1
-    assert log_inlet.successes == [
-        ("StageA", [1, 2, 3]),
-        ("StageA", [TERMINATION_SIGNAL]),
-    ]
-    assert log_inlet.failures == []
+    assert graph.injected_tasks == [{"StageA": [1, 2, 3]}]
+    assert graph.injected_terminations == [["StageA"]]
     assert log_inlet.pull_failures == []
 
 
 def test_reporter_pushes_errors_via_push_errors_endpoint_only(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reporter 只通过 push_errors 推送错误内容。"""
-    sqlite_path = tmp_path / "lifecycle.sqlite3"
-    appended = append_records(
-        sqlite_path,
-        [
-            {
-                "event_id": 1,
-                "stage": "s1",
-                "status": "failed",
-                "error_type": "ValueError",
-                "error_message": "bad value",
-                "ts": 1.0,
-                "task_json": {"value": 1},
-            }
-        ],
-    )
-    assert appended == 1
-
-    graph = FakeErrorGraph(sqlite_path)
+    record = {
+        "event_id": 1,
+        "stage": "s1",
+        "status": "failed",
+        "error_type": "ValueError",
+        "error_message": "bad value",
+        "ts": 1.0,
+        "task_json": {"value": 1},
+    }
+    graph = FakeErrorGraph([record])
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
         "celestialflow.observability.core_report.get_log_inlet",
@@ -267,66 +222,26 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     reporter._push_errors()
 
     assert log_inlet.push_error_failures == []
+    # 服务端尚无水位线时应全量读取。
+    assert graph.after_event_ids == [None]
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
     assert url.endswith("/api/push_errors")
     assert payload["graph_id"] == "demo@1000"
-    assert payload["errors"] == [
-        {
-            "id": 1,
-            "event_id": 1,
-            "stage": "s1",
-            "status": "failed",
-            "error_type": "ValueError",
-            "error_message": "bad value",
-            "ts": 1.0,
-            "task_json": {"value": 1},
-            "result_json": None,
-            "retry_times": 0,
-        }
-    ]
+    assert payload["errors"] == [record]
 
 
 def test_reporter_pushes_only_errors_after_server_max_event_id(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
-    sqlite_path = tmp_path / "lifecycle.sqlite3"
-    appended = append_records(
-        sqlite_path,
+    graph = FakeErrorGraph(
         [
-            {
-                "event_id": 1,
-                "stage": "s1",
-                "status": "failed",
-                "error_type": "ValueError",
-                "error_message": "old",
-                "ts": 1.0,
-                "task_json": {"value": 1},
-            },
-            {
-                "event_id": 5,
-                "stage": "s1",
-                "status": "failed",
-                "error_type": "RuntimeError",
-                "error_message": "newer",
-                "ts": 5.0,
-                "task_json": {"value": 5},
-            },
-            {
-                "event_id": 7,
-                "stage": "s2",
-                "status": "failed",
-                "error_type": "TypeError",
-                "error_message": "latest",
-                "ts": 7.0,
-                "task_json": {"value": 7},
-            },
-        ],
+            {"event_id": 1, "stage": "s1", "status": "failed", "task_json": {}},
+            {"event_id": 5, "stage": "s1", "status": "failed", "task_json": {}},
+            {"event_id": 7, "stage": "s2", "status": "failed", "task_json": {}},
+        ]
     )
-    assert appended == 3
-
-    graph = FakeErrorGraph(sqlite_path)
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
         "celestialflow.observability.core_report.get_log_inlet",
@@ -339,6 +254,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     reporter._push_errors()
 
     assert log_inlet.push_error_failures == []
+    assert graph.after_event_ids == [3]
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
     assert url.endswith("/api/push_errors")
@@ -419,7 +335,7 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
     assert log_inlet.push_status_failures == []
     assert len(reporter._session.posts) == 1
 
-    graph.node_dict["StageA"].snapshot = {"status": 1, "tasks_processed": 3}
+    graph.snapshots["StageA"] = {"status": 1, "tasks_processed": 3}
     reporter._push_status()
 
     assert len(reporter._session.posts) == 2

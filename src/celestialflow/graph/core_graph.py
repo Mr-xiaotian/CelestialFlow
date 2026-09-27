@@ -4,14 +4,18 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from ..node.util_types import AnyTaskNode
 from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
-from ..persistence.util_sqlite import load_tasks_grouped_by_stage
+from ..persistence.util_sqlite import (
+    load_records,
+    load_records_after_event_id_in_fail,
+    load_tasks_grouped_by_stage,
+)
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -20,6 +24,7 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
+from ..runtime.util_types import TERMINATION_SIGNAL
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
 
@@ -567,6 +572,68 @@ class TaskGraph:
             "isDAG": self.is_dag,
             "layersDict": self.layers_dict,
         }
+
+    # ==== Reporter 能力接口 ====
+
+    def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
+        """
+        采集各节点当前的运行时快照。
+
+        :return: ``{node_name: snapshot}``
+        """
+        return {
+            node_name: node.get_snapshot() for node_name, node in self.node_dict.items()
+        }
+
+    def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
+        """
+        读取待上报的失败记录。
+
+        持久化文件路径与 records 表结构知识都收敛在本方法内，
+        调用方（reporter）无需感知。
+
+        :param after_event_id: 仅返回 ``event_id`` 大于该值的记录；``None`` 表示全量
+        :return: 失败记录列表
+        """
+        db_path = get_lifecycle_spout().db_path
+        if db_path is None:
+            return []
+        if after_event_id is None:
+            return load_records(db_path)
+        return load_records_after_event_id_in_fail(db_path, after_event_id)
+
+    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+        """
+        按节点名将注入任务写入待执行队列，并记录注入结果。
+
+        单个节点注入失败不会影响其余节点。
+
+        :param tasks: 节点名到任务序列的映射
+        """
+        log_inlet = get_log_inlet()
+        for target_node, task_datas in tasks.items():
+            task_list = list(task_datas)
+            try:
+                node = self.node_dict[target_node]
+                for task in task_list:
+                    node.put_task(task)
+                log_inlet.inject_tasks_success(target_node, task_list)
+            except Exception as e:
+                log_inlet.inject_tasks_failed(target_node, task_list, e)
+
+    def inject_terminations(self, nodes: Sequence[str]) -> None:
+        """
+        向指定节点注入终止信号，并记录注入结果。
+
+        :param nodes: 待注入终止符的节点名序列
+        """
+        log_inlet = get_log_inlet()
+        for target_node in nodes:
+            try:
+                self.node_dict[target_node].put_signal()
+                log_inlet.inject_tasks_success(target_node, [TERMINATION_SIGNAL])
+            except Exception as e:
+                log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
 
     def get_structure_list(self) -> list[str]:
         """
