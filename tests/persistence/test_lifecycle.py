@@ -1,5 +1,11 @@
 import sqlite3
 
+from celestialflow.observability import (
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskSkipEvent,
+    TaskSuccessEvent,
+)
 from celestialflow.persistence.core_lifecycle import LifecycleInlet, LifecycleSpout
 
 
@@ -13,11 +19,21 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_input("s1", event_id=1, task="data1")
-            inlet.task_fail(event_id=1, error_id=21, error=ValueError("oops"))
+            inlet.on_task_input(
+                TaskInputEvent("s1", "data1", "(data1)", 1, "external")
+            )
+            inlet.on_task_fail(
+                TaskFailEvent(
+                    "s1", "data1", "(data1)", ValueError("oops"), 1, 21
+                )
+            )
 
-            inlet.task_input("s2", event_id=2, task="data2")
-            inlet.task_success(event_id=2, result="ok2")
+            inlet.on_task_input(
+                TaskInputEvent("s2", "data2", "(data2)", 2, "external")
+            )
+            inlet.on_task_success(
+                TaskSuccessEvent("s2", "data2", "(data2)", "ok2", "(ok2)", 0.0, 2, 3)
+            )
         finally:
             spout.stop()
 
@@ -58,10 +74,18 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_input("s1", event_id=1, task="task1")
-            inlet.task_success(event_id=1, result=100)
-            inlet.task_input("s2", event_id=2, task="task2")
-            inlet.task_success(event_id=2, result=200)
+            inlet.on_task_input(
+                TaskInputEvent("s1", "task1", "(task1)", 1, "external")
+            )
+            inlet.on_task_success(
+                TaskSuccessEvent("s1", "task1", "(task1)", 100, "(100)", 0.0, 1, 2)
+            )
+            inlet.on_task_input(
+                TaskInputEvent("s2", "task2", "(task2)", 2, "external")
+            )
+            inlet.on_task_success(
+                TaskSuccessEvent("s2", "task2", "(task2)", 200, "(200)", 0.0, 2, 3)
+            )
         finally:
             spout.stop()
 
@@ -77,16 +101,33 @@ class TestLifecyclePersistence:
         spout.start()
         try:
             # 重试后最终成功：错误信息应在晋升 success 时清空
-            inlet.task_input("s1", event_id=1, task="retry_ok")
+            inlet.on_task_input(
+                TaskInputEvent("s1", "retry_ok", "(retry_ok)", 1, "external")
+            )
             inlet.task_retry(event_id=1, retry_times=1, error=ValueError("try 1"))
             inlet.task_retry(event_id=1, retry_times=2, error=ValueError("try 2"))
-            inlet.task_success(event_id=1, result="ok")
+            inlet.on_task_success(
+                TaskSuccessEvent(
+                    "s1", "retry_ok", "(retry_ok)", "ok", "(ok)", 0.0, 1, 3
+                )
+            )
 
             # 重试后最终失败：保留最新错误信息
-            inlet.task_input("s2", event_id=2, task="retry_fail")
+            inlet.on_task_input(
+                TaskInputEvent("s2", "retry_fail", "(retry_fail)", 2, "external")
+            )
             inlet.task_retry(event_id=2, retry_times=1, error=ValueError("try 1"))
             inlet.task_retry(event_id=2, retry_times=2, error=ValueError("try 2"))
-            inlet.task_fail(event_id=2, error_id=22, error=ValueError("final boom"))
+            inlet.on_task_fail(
+                TaskFailEvent(
+                    "s2",
+                    "retry_fail",
+                    "(retry_fail)",
+                    ValueError("final boom"),
+                    2,
+                    22,
+                )
+            )
         finally:
             spout.stop()
 
@@ -120,10 +161,18 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.task_input("s1", event_id=1, task="skip_me")
-            inlet.task_skip(event_id=1, skip_id=31)
-            inlet.task_input("s2", event_id=2, task="run_me")
-            inlet.task_success(event_id=2, result="ok")
+            inlet.on_task_input(
+                TaskInputEvent("s1", "skip_me", "(skip_me)", 1, "external")
+            )
+            inlet.on_task_skip(
+                TaskSkipEvent("s1", "skip_me", "(skip_me)", 1, 31)
+            )
+            inlet.on_task_input(
+                TaskInputEvent("s2", "run_me", "(run_me)", 2, "external")
+            )
+            inlet.on_task_success(
+                TaskSuccessEvent("s2", "run_me", "(run_me)", "ok", "(ok)", 0.0, 2, 3)
+            )
         finally:
             spout.stop()
 

@@ -7,6 +7,15 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
+from ..observability.core_event import (
+    NodeEndEvent,
+    NodeStartEvent,
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskSkipEvent,
+    TaskSuccessEvent,
+)
+from ..observability.core_observer import Observer
 from ..runtime.util_errors import InitializationError
 from .util_payload import to_persisted_payload
 from .util_sqlite import (
@@ -128,88 +137,93 @@ class LifecycleSpout(BaseSpout):
         return load_task_result_records(str(self.db_path), node)
 
 
-class LifecycleInlet(BaseInlet):
+class LifecycleInlet(BaseInlet, Observer):
     """
-    线程安全 lifecycle 记录包装类，所有生命周期变更通过队列发送到监听线程写入。
+    线程安全 lifecycle 记录包装类，以观察者形式消费任务事件。
+
+    节点启动/结束事件不产生生命周期记录，因此显式空实现对应回调；
+    重试事件仍由执行路径直接调用 :meth:`task_retry`。
     """
 
-    def task_input(self, node_name: str, event_id: int, task: Any) -> None:
+    def on_node_start(self, event: NodeStartEvent) -> None:
+        """
+        节点启动不产生生命周期记录。
+
+        :param event: 节点启动事件
+        """
+
+    def on_node_end(self, event: NodeEndEvent) -> None:
+        """
+        节点结束不产生生命周期记录。
+
+        :param event: 节点结束事件
+        """
+
+    def on_task_input(self, event: TaskInputEvent) -> None:
         """
         写入一条 pending 记录，表示任务已进入某个 node。
 
-        :param node_name: 节点唯一名称
-        :param event_id: 当前输入事件 ID
-        :param task: 任务数据
+        :param event: 任务输入事件
         """
         now = datetime.now()
         pending_item = {
             "__op__": "insert",
             "record": {
-                "event_id": event_id,
+                "event_id": event.input_id,
                 "ts": now.timestamp(),
-                "node": node_name,
+                "node": event.node,
                 "status": "pending",
-                "task_json": to_persisted_payload(task),
+                "task_json": to_persisted_payload(event.task),
             },
         }
         self._funnel(pending_item)
 
-    def task_success(self, event_id: int, result: Any) -> None:
+    def on_task_success(self, event: TaskSuccessEvent) -> None:
         """
         将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。
 
-        :param event_id: 当前任务事件 ID
-        :param result: 任务结果
+        :param event: 任务成功事件
         """
         now = datetime.now()
         self._funnel(
             {
                 "__op__": "promote_success",
-                "event_id": event_id,
+                "event_id": event.task_id,
                 "ts": now.timestamp(),
-                "result_json": to_persisted_payload(result),
+                "result_json": to_persisted_payload(event.result),
             }
         )
 
-    def task_fail(
-        self,
-        event_id: int,
-        error_id: int,
-        error: Exception,
-    ) -> None:
+    def on_task_fail(self, event: TaskFailEvent) -> None:
         """
         将 pending 记录晋升为 failed，并绑定最终的 error_id。
 
-        :param event_id: 当前任务事件 ID
-        :param error_id: 最终错误事件 ID
-        :param error: 错误信息
+        :param event: 任务失败事件
         """
         now = datetime.now()
-        error_type = type(error).__name__
-        error_message = str(error)
+        error = event.exception
         fail_item = {
             "__op__": "promote_failed",
-            "event_id": event_id,
-            "error_id": error_id,
-            "error_type": error_type,
-            "error_message": error_message,
+            "event_id": event.task_id,
+            "error_id": event.error_id,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
             "ts": now.timestamp(),
         }
         self._funnel(fail_item)
 
-    def task_skip(self, event_id: int, skip_id: int) -> None:
+    def on_task_skip(self, event: TaskSkipEvent) -> None:
         """
         将 pending 记录晋升为 skipped，表示任务被跳过而未执行。
 
-        :param event_id: 当前任务事件 ID
-        :param skip_id: 跳过事件 ID
+        :param event: 任务跳过事件
         """
         now = datetime.now()
         self._funnel(
             {
                 "__op__": "promote_skipped",
-                "event_id": event_id,
-                "skip_id": skip_id,
+                "event_id": event.task_id,
+                "skip_id": event.skip_id,
                 "ts": now.timestamp(),
             }
         )
@@ -242,7 +256,7 @@ class LifecycleInlet(BaseInlet):
 # ==== 全局单例 ====
 
 _lifecycle_spout = LifecycleSpout()
-_lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
+_lifecycle_inlet: LifecycleInlet | None = None
 
 
 def get_lifecycle_spout() -> LifecycleSpout:
@@ -255,5 +269,10 @@ def get_lifecycle_spout() -> LifecycleSpout:
 def get_lifecycle_inlet() -> LifecycleInlet:
     """
     获取全局唯一的 LifecycleInlet 实例（已绑定到全局 LifecycleSpout）。
+
+    实例在首次访问时创建，避免模块导入阶段产生副作用。
     """
+    global _lifecycle_inlet
+    if _lifecycle_inlet is None:
+        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
     return _lifecycle_inlet

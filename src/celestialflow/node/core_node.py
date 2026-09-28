@@ -18,10 +18,13 @@ from ..observability import (
     TaskSkipEvent,
 )
 from ..persistence import (
-    funnel_scope,
+    attach_funnel_observers,
+    close_funnel,
+    detach_funnel_observers,
     get_lifecycle_inlet,
     get_lifecycle_spout,
     get_log_inlet,
+    open_funnel,
 )
 from ..persistence.util_sqlite import load_tasks_grouped_by_node
 from ..runtime import (
@@ -56,8 +59,9 @@ class BaseTaskNode[T, R, Y]:
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列、metrics 状态与 ctree 客户端由节点自身持有；全局
-      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，BaseTaskNode
-      自身不直接持有 spout/inlet 实例。
+      ``LifecycleSpout`` / ``LogSpout`` 的启停与全局 funnel 观察者的注册由
+      :meth:`run` / :meth:`run_async` 统一负责，BaseTaskNode 自身不直接持有
+      spout 实例。
     """
 
     # ==== 类级类型注解 ====
@@ -377,13 +381,6 @@ class BaseTaskNode[T, R, Y]:
             )
         )
 
-        get_lifecycle_inlet().task_input(self.get_name(), input_id, task)
-        get_log_inlet().task_input(
-            self.get_name(),
-            task_repr,
-            input_id,
-        )
-
     def put_signal(self) -> None:
         """
         放入终止信号到队列。
@@ -462,15 +459,6 @@ class BaseTaskNode[T, R, Y]:
             )
         )
 
-        get_lifecycle_inlet().task_fail(task_id, error_id, exception)
-        get_log_inlet().task_fail(
-            self.get_name(),
-            task_repr,
-            exception,
-            task_id,
-            error_id,
-        )
-
     def handle_task_skip(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         记录被跳过的任务：发布跳过事件并持久化跳过信息。
@@ -496,14 +484,6 @@ class BaseTaskNode[T, R, Y]:
                 task_id=task_id,
                 skip_id=skip_id,
             )
-        )
-
-        get_lifecycle_inlet().task_skip(task_id, skip_id)
-        get_log_inlet().task_skip(
-            self.get_name(),
-            task_repr,
-            task_id,
-            skip_id,
         )
 
     def log_task_retry(
@@ -540,18 +520,34 @@ class BaseTaskNode[T, R, Y]:
         if_put_signal: bool = True,
     ) -> None:
         """
-        执行任务
+        执行任务。
+
+        本方法负责实例化运行期资源：注册全局 funnel 观察者、启动全局
+        ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
+        最后统一收尾。
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        with funnel_scope():
+        observers = attach_funnel_observers(self.observers)
+        error_list: list[Exception] = []
+
+        try:
+            open_funnel()
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
                 self.put_signal()
             self.start()
+        except Exception as exception:
+            error_list.append(exception)
+        finally:
+            error_list.extend(close_funnel())
+            detach_funnel_observers(observers, self.observers)
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during run", error_list)
 
     async def run_async(
         self,
@@ -560,18 +556,32 @@ class BaseTaskNode[T, R, Y]:
         if_put_signal: bool = True,
     ) -> None:
         """
-        异步启动任务节点
+        异步启动任务节点。
+
+        运行期资源的实例化与收尾同 :meth:`run`，区别仅在于以协程方式启动。
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        with funnel_scope():
+        observers = attach_funnel_observers(self.observers)
+        error_list: list[Exception] = []
+
+        try:
+            open_funnel()
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
                 self.put_signal()
             await self.start_async()
+        except Exception as exception:
+            error_list.append(exception)
+        finally:
+            error_list.extend(close_funnel())
+            detach_funnel_observers(observers, self.observers)
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during run", error_list)
 
     def restore_db(
         self,
@@ -609,7 +619,7 @@ class BaseTaskNode[T, R, Y]:
 
     def _prepare_start(self) -> None:
         """
-        启动前准备：重置运行期状态并记录启动日志。
+        启动前准备：重置运行期状态并广播启动事件。
 
         :return: ``None``
         """
@@ -624,34 +634,14 @@ class BaseTaskNode[T, R, Y]:
             )
         )
 
-        get_log_inlet().node_start(
-            self.get_name(),
-            self.metrics.get_input_count(),
-            self.execution_mode,
-            self.max_workers,
-        )
-
     def _finish_start(self, start_perf: float) -> list[Exception]:
         """
-        启动后清理：记录结束日志并广播执行结束事件。
+        启动后清理：广播执行结束事件。
 
         :param start_perf: 启动时的时间戳
         """
         error_list: list[Exception] = []
         elapsed = time.perf_counter() - start_perf
-
-        try:
-            get_log_inlet().node_end(
-                self.get_name(),
-                self.execution_mode,
-                self.max_workers,
-                elapsed,
-                self.metrics.get_success_count(),
-                self.metrics.get_fail_count(),
-                self.metrics.get_skip_count(),
-            )
-        except Exception as exception:
-            error_list.append(exception)
 
         try:
             self.observers.on_node_end(

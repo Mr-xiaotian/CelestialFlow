@@ -6,6 +6,15 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
+from ..observability.core_event import (
+    NodeEndEvent,
+    NodeStartEvent,
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskSkipEvent,
+    TaskSuccessEvent,
+)
+from ..observability.core_observer import Observer
 from ..runtime.util_config import load_log_level_from_pyproject
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
@@ -58,9 +67,12 @@ class LogSpout(BaseSpout):
             self._file = None
 
 
-class LogInlet(BaseInlet):
+class LogInlet(BaseInlet, Observer):
     """
-    线程安全日志包装类，所有日志通过队列发送到监听线程写入
+    线程安全日志包装类，所有日志通过队列发送到监听线程写入。
+
+    节点主链路事件（节点启停、任务输入/成功/失败/跳过）以观察者形式消费；
+    图结构、终止信号、崩溃与上报器日志仍由执行路径直接调用对应方法。
     """
 
     def __init__(self, log_level: str = "INFO") -> None:
@@ -122,48 +134,31 @@ class LogInlet(BaseInlet):
 
     # ==== 节点 ====
 
-    def node_start(
-        self, node_name: str, task_num: int, execution_mode: str, max_workers: int,
-    ) -> None:
+    def on_node_start(self, event: NodeStartEvent) -> None:
         """
         记录节点启动
 
-        :param node_name: 节点名称
-        :param task_num: 任务数量
-        :param execution_mode: 执行模式
-        :param max_workers: 最大工作线程数
+        :param event: 节点启动事件
         """
         text = (
-            f"Node '{node_name}' start; "
-            + f"execute {task_num} tasks by {execution_mode}-{max_workers}."
+            f"Node '{event.node}' start; "
+            + f"execute {event.task_count} tasks by "
+            + f"{event.execution_mode}-{event.max_workers}."
         )
         self._log("INFO", text)
 
-    def node_end(
-        self,
-        node_name: str,
-        execution_mode: str,
-        max_workers: int,
-        use_time: float,
-        success_num: int,
-        failed_num: int,
-        skip_num: int,
-    ) -> None:
+    def on_node_end(self, event: NodeEndEvent) -> None:
         """
         记录节点结束及统计
 
-        :param node_name: 节点名称
-        :param execution_mode: 执行模式
-        :param max_workers: 最大工作线程数
-        :param use_time: 节点运行耗时（秒）
-        :param success_num: 成功任务数量
-        :param failed_num: 失败任务数量
-        :param skip_num: 跳过任务数量
+        :param event: 节点结束事件
         """
         self._log(
             "INFO",
-            f"Node '{node_name}' end; execute tasks by {execution_mode}-{max_workers}. Use {use_time:.2f}s. "
-            + f"{success_num} tasks succeeded, {failed_num} tasks failed, {skip_num} tasks skipped.",
+            f"Node '{event.node}' end; execute tasks by "
+            + f"{event.execution_mode}-{event.max_workers}. Use {event.elapsed:.2f}s. "
+            + f"{event.succeeded} tasks succeeded, {event.failed} tasks failed, "
+            + f"{event.skipped} tasks skipped.",
         )
 
     def node_crash(self, node_name: str, exception: Exception) -> None:
@@ -197,85 +192,55 @@ class LogInlet(BaseInlet):
 
     # ==== 任务 ====
 
-    def task_input(self, node_name: str, task_repr: str, input_id: int) -> None:
+    def on_task_input(self, event: TaskInputEvent) -> None:
         """
         记录任务输入
 
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param input_id: 输入记录 ID
+        :param event: 任务输入事件
         """
         self._log(
             "DEBUG",
-            f"In '{node_name}', Task {task_repr} input. [{input_id}*]",
+            f"In '{event.node}', Task {event.task_repr} input. [{event.input_id}*]",
         )
 
-    def task_success(
-        self,
-        node_name: str,
-        task_repr: str,
-        result_repr: str,
-        use_time: float,
-        parent_id: int,
-        success_id: int,
-    ) -> None:
+    def on_task_success(self, event: TaskSuccessEvent) -> None:
         """
         记录任务成功
 
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param result_repr: 结果表示
-        :param use_time: 任务耗时（秒）
-        :param parent_id: 父记录 ID
-        :param success_id: 成功记录 ID
+        :param event: 任务成功事件
         """
         self._log(
             "SUCCESS",
-            f"In '{node_name}', Task {task_repr} succeeded. Result is {result_repr}. Used {use_time:.2f}s. [{parent_id}->{success_id}*]",
+            f"In '{event.node}', Task {event.task_repr} succeeded. "
+            + f"Result is {event.result_repr}. Used {event.elapsed:.2f}s. "
+            + f"[{event.task_id}->{event.success_id}*]",
         )
 
-    def task_fail(
-        self,
-        node_name: str,
-        task_repr: str,
-        exception: Exception,
-        parent_id: int,
-        error_id: int,
-    ) -> None:
+    def on_task_fail(self, event: TaskFailEvent) -> None:
         """
         记录任务失败
 
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param exception: 导致失败的异常
-        :param parent_id: 父记录 ID
-        :param error_id: 错误记录 ID
+        :param event: 任务失败事件
         """
-        exception_type = type(exception).__name__
-        exception_text = str(exception).replace("\n", " ")
+        exception_type = type(event.exception).__name__
+        exception_text = str(event.exception).replace("\n", " ")
         self._log(
             "ERROR",
-            f"In '{node_name}', Task {task_repr} failed and can't retry: ({exception_type}){exception_text}. [{parent_id}->{error_id}*]",
+            f"In '{event.node}', Task {event.task_repr} failed and can't retry: "
+            + f"({exception_type}){exception_text}. "
+            + f"[{event.task_id}->{event.error_id}*]",
         )
 
-    def task_skip(
-        self,
-        node_name: str,
-        task_repr: str,
-        parent_id: int,
-        skip_id: int,
-    ) -> None:
+    def on_task_skip(self, event: TaskSkipEvent) -> None:
         """
         记录任务被跳过
 
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param parent_id: 父记录 ID
-        :param skip_id: 跳过记录 ID
+        :param event: 任务跳过事件
         """
         self._log(
             "INFO",
-            f"In '{node_name}', Task {task_repr} skipped. [{parent_id}->{skip_id}*]",
+            f"In '{event.node}', Task {event.task_repr} skipped. "
+            + f"[{event.task_id}->{event.skip_id}*]",
         )
 
     def task_retry(
@@ -444,7 +409,7 @@ class LogInlet(BaseInlet):
 # ==== 全局单例 ====
 
 _log_spout = LogSpout()
-_log_inlet = LogInlet(load_log_level_from_pyproject()).bind_spout(_log_spout)
+_log_inlet: LogInlet | None = None
 
 
 def get_log_spout() -> LogSpout:
@@ -459,6 +424,9 @@ def get_log_inlet() -> LogInlet:
     获取全局唯一的 LogInlet 实例（已绑定到全局 LogSpout）。
 
     log_level 从 ``pyproject.toml`` 的 ``[tool.celestialflow]`` 节读取，
-    默认 ``"INFO"``。
+    默认 ``"INFO"``；实例在首次访问时创建，避免模块导入阶段产生副作用。
     """
+    global _log_inlet
+    if _log_inlet is None:
+        _log_inlet = LogInlet(load_log_level_from_pyproject()).bind_spout(_log_spout)
     return _log_inlet

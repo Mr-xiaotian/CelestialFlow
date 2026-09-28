@@ -3,7 +3,6 @@ import time
 from collections.abc import Iterable
 
 from ..observability import TaskSuccessEvent
-from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import CTreeEvent
@@ -20,8 +19,9 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
-      ``LifecycleSpout`` / ``LogSpout`` 由 :func:`funnel_scope` 负责启停，TaskExecutor
-      自身不直接持有 spout/inlet 实例。
+      ``LifecycleSpout`` / ``LogSpout`` 的启停与全局 funnel 观察者的注册由
+      :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 统一负责，TaskExecutor
+      自身不直接持有 spout 实例。
     """
 
     # ==== 覆写方法 ====
@@ -62,16 +62,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             )
         )
 
-        get_lifecycle_inlet().task_success(task_id, result)
-        get_log_inlet().task_success(
-            self.get_name(),
-            task_repr,
-            result_repr,
-            elapsed,
-            task_id,
-            result_id,
-        )
-
         for target_name in self.yield_queue.get_target_names():
             self.metrics.add_downstream_count(target_name, 1)
             downstream_input_id = self.ctree_client.emit(
@@ -81,12 +71,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             self._notify_downstream_input(
                 target_name, result, result_repr, downstream_input_id
             )
-            get_log_inlet().task_input(
-                target_name,
-                result_repr,
-                downstream_input_id,
-            )
-            get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
                 id=downstream_input_id,
@@ -142,16 +126,6 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
             )
         )
 
-        get_lifecycle_inlet().task_success(task_id, result_list)
-        get_log_inlet().task_success(
-            self.get_name(),
-            task_repr,
-            result_repr,
-            elapsed,
-            task_id,
-            result_id,
-        )
-
         for target_name in self.yield_queue.get_target_names():
             self.metrics.add_downstream_count(target_name, len(result_list))
             for item in result_list:
@@ -162,12 +136,6 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                 item_repr = self._get_repr(item)
                 self._notify_downstream_input(
                     target_name, item, item_repr, downstream_input_id
-                )
-                get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
-                get_log_inlet().task_input(
-                    target_name,
-                    item_repr,
-                    downstream_input_id,
                 )
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
                     item,
@@ -227,16 +195,6 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
             )
         )
 
-        get_lifecycle_inlet().task_success(task_id, task)
-        get_log_inlet().task_success(
-            self.get_name(),
-            task_repr,
-            result_repr,
-            elapsed,
-            task_id,
-            result_id,
-        )
-
         for target, yie in result.items():
             self.metrics.add_downstream_count(target, 1)
 
@@ -247,12 +205,6 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
             yie_repr = self._get_repr(yie)
             self._notify_downstream_input(
                 target, yie, yie_repr, downstream_input_id
-            )
-            get_lifecycle_inlet().task_input(target, downstream_input_id, yie)
-            get_log_inlet().task_input(
-                target,
-                yie_repr,
-                downstream_input_id,
             )
             downstream_envelope: TaskEnvelope[Y] = TaskEnvelope(
                 yie,

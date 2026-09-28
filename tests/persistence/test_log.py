@@ -1,3 +1,4 @@
+from celestialflow.observability import NodeStartEvent, TaskSkipEvent
 from celestialflow.persistence.core_log import LogInlet, LogSpout
 from conftest import wait_until
 
@@ -15,7 +16,9 @@ class TestLogPersistence:
             inlet.graph_start("test_graph", "thread", ['test message'])
             inlet.task_retry("func", "hello world", 1, ValueError("oops"), 0)
             inlet.graph_end("test_graph", 1.0)
-            inlet.node_start('node', 1, 'parallel', 4)
+            inlet.on_node_start(
+                NodeStartEvent('node', 'parallel', 4, task_count=1)
+            )
             wait_until(
                 lambda: spout.log_path.exists()
                 and 'test message' in spout.log_path.read_text(encoding='utf-8')
@@ -33,7 +36,7 @@ class TestLogPersistence:
         assert 'WARNING' in content
 
     def test_skip_log(self, tmp_path, monkeypatch):
-        """`LogInlet.task_skip` 应在 INFO 级别写入跳过日志。"""
+        """`LogInlet.on_task_skip` 应在 INFO 级别写入跳过日志。"""
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()
@@ -41,7 +44,9 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.task_skip("node", "hello world", 7, 8)
+            inlet.on_task_skip(
+                TaskSkipEvent("node", "hello world", "hello world", 7, 8)
+            )
             wait_until(
                 lambda: spout.log_path.exists()
                 and 'hello world' in spout.log_path.read_text(encoding='utf-8'),

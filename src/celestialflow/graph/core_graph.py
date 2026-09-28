@@ -11,7 +11,14 @@ from typing import Any
 
 from ..node.util_types import AnyTaskNode
 from ..observability import Observer, ObserverHub
-from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
+from ..persistence import (
+    attach_funnel_observers,
+    close_funnel,
+    detach_funnel_observers,
+    get_lifecycle_spout,
+    get_log_inlet,
+    open_funnel,
+)
 from ..persistence.util_sqlite import (
     load_records,
     load_records_after_event_id_in_fail,
@@ -284,19 +291,36 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
+        本方法负责实例化运行期资源：注入图级观察者、注册全局 funnel 观察者、
+        启动全局 ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
+        最后统一收尾。
+
         :param init_tasks_dict: 任务列表字典，键为节点名称，值为任务列表
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
         self._build_analysis()
         self._inject_observers()
-        with funnel_scope():
+        node_hubs = [node.observers for node in self.node_dict.values()]
+        observers = attach_funnel_observers(*node_hubs)
+        error_list: list[Exception] = []
+
+        try:
+            open_funnel()
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
                     self.node_dict[node_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             self.start()
+        except Exception as exception:
+            error_list.append(exception)
+        finally:
+            error_list.extend(close_funnel())
+            detach_funnel_observers(observers, *node_hubs)
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during run", error_list)
 
     async def run_async(
         self,
@@ -307,19 +331,34 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
+        运行期资源的实例化与收尾同 :meth:`run`，区别仅在于以协程方式启动。
+
         :param init_tasks_dict: 初始任务字典，键为节点名称，值为任务可迭代对象
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
         self._build_analysis()
         self._inject_observers()
-        with funnel_scope():
+        node_hubs = [node.observers for node in self.node_dict.values()]
+        observers = attach_funnel_observers(*node_hubs)
+        error_list: list[Exception] = []
+
+        try:
+            open_funnel()
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
                     self.node_dict[node_name].put_task(task)
             if if_put_signal:
                 self.put_source_signal()
             await self.start_async()
+        except Exception as exception:
+            error_list.append(exception)
+        finally:
+            error_list.extend(close_funnel())
+            detach_funnel_observers(observers, *node_hubs)
+
+        if error_list:
+            raise ExceptionGroup("Errors occurred during run", error_list)
 
     def restore_db(
         self,
@@ -379,8 +418,8 @@ class TaskGraph:
         """
         启动后收尾：回收图内状态、停止上报器并记录结束日志。
 
-        ``lifecycle`` / ``log`` spout 的启停由外层 ``funnel_scope()`` 统一管理，
-        本方法只负责图对象自身的收尾逻辑。
+        ``lifecycle`` / ``log`` spout 的启停由外层 :meth:`run` / :meth:`run_async`
+        统一管理，本方法只负责图对象自身的收尾逻辑。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
         :return: 收集到的收尾阶段异常列表

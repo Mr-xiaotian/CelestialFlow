@@ -16,16 +16,24 @@ from .core_log import (
     get_log_inlet,
     get_log_spout,
 )
-from .core_scope import funnel_scope
+from .core_scope import (
+    attach_funnel_observers,
+    close_funnel,
+    detach_funnel_observers,
+    open_funnel,
+)
 
 __all__ = [
     "LifecycleInlet",
     "LifecycleSpout",
     "LogInlet",
     "LogSpout",
-    "funnel_scope",
+    "attach_funnel_observers",
+    "close_funnel",
+    "detach_funnel_observers",
     "get_lifecycle_inlet",
     "get_lifecycle_spout",
     "get_log_inlet",
     "get_log_spout",
+    "open_funnel",
 ]

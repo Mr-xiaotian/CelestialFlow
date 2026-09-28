@@ -15,7 +15,7 @@ from weakref import WeakKeyDictionary
 
 import pytest
 
-from celestialflow.observability import Observer, TaskFailEvent
+from celestialflow.observability import Observer, TaskFailEvent, TaskInputEvent
 from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
@@ -265,7 +265,11 @@ class TestDispatchSerial:
 
         from celestialflow.persistence import get_lifecycle_inlet
 
-        get_lifecycle_inlet().task_input(executor.get_name(), 0, 3)
+        lifecycle_observer = get_lifecycle_inlet()
+        executor.add_observer(lifecycle_observer)
+        lifecycle_observer.on_task_input(
+            TaskInputEvent(executor.get_name(), 3, "(3)", 0, "external")
+        )
         _put(executor, 3)
         _put_termination(executor)
         dispatch.dispatch_serial()

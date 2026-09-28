@@ -5,14 +5,18 @@ from queue import Empty
 
 import pytest
 
+from celestialflow import TaskExecutor
 from celestialflow.persistence import (
-    funnel_scope,
-    get_lifecycle_inlet,
+    close_funnel,
     get_lifecycle_spout,
-    get_log_inlet,
     get_log_spout,
+    open_funnel,
 )
-from conftest import wait_until
+
+
+def add_one(x: int) -> int:
+    """测试用同步加一函数。"""
+    return x + 1
 
 
 @pytest.fixture(autouse=True)
@@ -39,37 +43,70 @@ def _reset_spout(spout) -> None:
         counter.decrement()
 
 
-class TestFunnelScope:
-    def test_funnel_scope_starts_and_stops_global_spouts(
-        self, tmp_path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """`funnel_scope()` 应自动管理全局 log/lifecycle spout 生命周期。"""
+class TestFunnelLifecycle:
+    def test_open_and_close_funnel(self, tmp_path, monkeypatch: pytest.MonkeyPatch):
+        """`open_funnel()` / `close_funnel()` 应启停全局 log/lifecycle spout。"""
         monkeypatch.chdir(tmp_path)
 
-        with funnel_scope():
-            log_spout = get_log_spout()
-            lifecycle_spout = get_lifecycle_spout()
+        open_funnel()
+        log_spout = get_log_spout()
+        lifecycle_spout = get_lifecycle_spout()
 
-            assert log_spout._thread is not None
-            assert lifecycle_spout._thread is not None
-            assert log_spout._thread.is_alive()
-            assert lifecycle_spout._thread.is_alive()
+        assert log_spout._thread is not None
+        assert lifecycle_spout._thread is not None
+        assert log_spout._thread.is_alive()
+        assert lifecycle_spout._thread.is_alive()
 
-            get_log_inlet().graph_start("scope_graph", "thread", ["hello scope"])
-            get_lifecycle_inlet().task_input("scope_node", event_id=1, task="data")
-            get_lifecycle_inlet().task_success(event_id=1, result="ok")
+        assert close_funnel() == []
 
         assert get_log_spout()._thread is None
         assert get_lifecycle_spout()._thread is None
 
-        log_path = get_log_spout().log_path
-        lifecycle_path = get_lifecycle_spout().db_path
+    def test_funnel_is_reusable(self, tmp_path, monkeypatch: pytest.MonkeyPatch):
+        """`open_funnel()` / `close_funnel()` 应支持多次独立启停。"""
+        monkeypatch.chdir(tmp_path)
 
-        assert log_path is not None
+        open_funnel()
+        assert get_log_spout()._thread is not None
+        close_funnel()
+        assert get_log_spout()._thread is None
+
+        open_funnel()
+        assert get_lifecycle_spout()._thread is not None
+        close_funnel()
+        assert get_lifecycle_spout()._thread is None
+
+    def test_close_funnel_collects_errors(self, monkeypatch: pytest.MonkeyPatch):
+        """`close_funnel()` 应收集 spout 停止异常而不是直接抛出。"""
+
+        def crash_stop() -> None:
+            raise RuntimeError("log stop failed")
+
+        monkeypatch.setattr(get_log_spout(), "stop", crash_stop)
+
+        errors = close_funnel()
+
+        assert [str(error) for error in errors] == ["log stop failed"]
+
+    def test_node_run_manages_funnel_and_persists(
+        self, tmp_path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """节点 `run` 应自动启停 spout 并将生命周期写入 sqlite。"""
+        monkeypatch.chdir(tmp_path)
+
+        executor = TaskExecutor("scope_node", add_one, execution_mode="serial")
+        executor.run([1, 2])
+
+        assert get_log_spout()._thread is None
+        assert get_lifecycle_spout()._thread is None
+
+        lifecycle_path = get_lifecycle_spout().db_path
+        log_path = get_log_spout().log_path
+
         assert lifecycle_path is not None
-        assert log_path.exists()
+        assert log_path is not None
         assert lifecycle_path.exists()
-        assert "hello scope" in log_path.read_text(encoding="utf-8")
+        assert log_path.exists()
 
         conn = sqlite3.connect(lifecycle_path)
         try:
@@ -83,69 +120,7 @@ class TestFunnelScope:
         finally:
             conn.close()
 
-        assert rows == [("scope_node", "success", '"data"', '"ok"')]
-
-    def test_funnel_scope_is_reusable(
-        self, tmp_path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """`funnel_scope()` 应支持多次独立进入与退出。"""
-        monkeypatch.chdir(tmp_path)
-
-        with funnel_scope():
-            first_log_thread = get_log_spout()._thread
-            first_lifecycle_thread = get_lifecycle_spout()._thread
-
-            assert first_log_thread is not None
-            assert first_lifecycle_thread is not None
-            assert first_log_thread.is_alive()
-            assert first_lifecycle_thread.is_alive()
-
-        assert get_log_spout()._thread is None
-        assert get_lifecycle_spout()._thread is None
-
-        with funnel_scope():
-            second_log_thread = get_log_spout()._thread
-            second_lifecycle_thread = get_lifecycle_spout()._thread
-
-            assert second_log_thread is not None
-            assert second_lifecycle_thread is not None
-            assert second_log_thread.is_alive()
-            assert second_lifecycle_thread.is_alive()
-
-        assert get_log_spout()._thread is None
-        assert get_lifecycle_spout()._thread is None
-
-    def test_funnel_scope_wraps_body_error_and_stops_spouts(
-        self, tmp_path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """作用域内部抛异常时，`funnel_scope()` 仍应执行收尾。"""
-        monkeypatch.chdir(tmp_path)
-
-        with pytest.raises(
-            ExceptionGroup, match="Errors occurred during funnel scope"
-        ), funnel_scope():
-            get_log_inlet().graph_start("scope_graph", "thread", ["body failure"])
-            wait_until(
-                lambda: get_log_spout().log_path is not None,
-                message="timeout waiting for log scope to initialize",
-            )
-            raise RuntimeError("body boom")
-
-        assert get_log_spout()._thread is None
-        assert get_lifecycle_spout()._thread is None
-
-    def test_funnel_scope_does_not_claim_nested_reuse(
-        self, tmp_path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """当前 `funnel_scope()` 为单层作用域，不验证嵌套复用语义。"""
-        monkeypatch.chdir(tmp_path)
-
-        with funnel_scope():
-            get_log_inlet().graph_start("scope_graph", "thread", ["single layer"])
-            wait_until(
-                lambda: get_log_spout().log_path is not None,
-                message="timeout waiting for log scope to initialize",
-            )
-
-        assert get_log_spout()._thread is None
-        assert get_lifecycle_spout()._thread is None
+        assert rows == [
+            ("scope_node", "success", "1", "2"),
+            ("scope_node", "success", "2", "3"),
+        ]
