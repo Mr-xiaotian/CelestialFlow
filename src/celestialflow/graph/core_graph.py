@@ -10,13 +10,13 @@ from pathlib import Path
 from typing import Any
 
 from ..node.util_types import AnyTaskNode
-from ..observability import NullTaskReporter, ReporterProtocol
 from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import (
     load_records,
     load_records_after_event_id_in_fail,
     load_tasks_grouped_by_node,
 )
+from ..reporter import NullTaskReporter, ReporterProtocol
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,

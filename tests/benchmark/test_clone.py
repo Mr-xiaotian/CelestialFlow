@@ -2,7 +2,7 @@
 
 import pytest
 
-from celestialflow.observability import TaskReporter
+from celestialflow.reporter import TaskReporter
 from celestialflow.graph import TaskGraph
 from celestialflow import TaskExecutor
 from celestialflow.runtime.util_event import LocalEventClient

@@ -1,4 +1,4 @@
-# observability/util_types.py
+# reporter/util_types.py
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence

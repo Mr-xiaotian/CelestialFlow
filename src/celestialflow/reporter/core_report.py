@@ -1,4 +1,4 @@
-# observability/core_report.py
+# reporter/core_report.py
 import time
 from threading import Event, Thread
 from typing import Any, Protocol

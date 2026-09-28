@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph
-from celestialflow.observability import TaskReporter
+from celestialflow.reporter import TaskReporter
 
 
 class FakeResponse:
@@ -150,7 +150,7 @@ def test_reporter_accepts_split_task_and_termination_payload(
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -179,7 +179,7 @@ def test_reporter_forwards_tasks_and_termination_for_same_node(
     graph = FakeTaskGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -213,7 +213,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     graph = FakeErrorGraph([record])
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -244,7 +244,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     )
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -280,7 +280,7 @@ def test_reporter_pushes_graph_meta_in_one_request(
 
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -322,7 +322,7 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
     graph = FakeStatusGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -355,7 +355,7 @@ def test_reporter_forces_status_push_on_context_switch(
     graph = FakeStatusGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
@@ -380,7 +380,7 @@ def test_reporter_notifies_shutdown(
     graph = FakeStatusGraph()
     log_inlet = FakeLogInlet()
     monkeypatch.setattr(
-        "celestialflow.observability.core_report.get_log_inlet",
+        "celestialflow.reporter.core_report.get_log_inlet",
         lambda: log_inlet,
     )
     reporter = TaskReporter("127.0.0.1", 8000, graph)

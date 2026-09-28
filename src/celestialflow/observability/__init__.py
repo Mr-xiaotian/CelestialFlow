@@ -1,17 +1,13 @@
 # observability/__init__.py
 """CelestialFlow 可观测性模块。
 
-提供任务执行观察者、进度条和远端状态上报能力。
+提供任务执行观察者与进度条输出能力。
 """
 
 from .core_observer import BaseObserver
 from .core_observer_print import PrintObserver
-from .core_report import NullTaskReporter, ReporterProtocol, TaskReporter
 
 __all__ = [
     "BaseObserver",
-    "NullTaskReporter",
     "PrintObserver",
-    "ReporterProtocol",
-    "TaskReporter",
 ]

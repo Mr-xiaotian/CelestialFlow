@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from ..graph import TaskGraph
 from ..node import TaskExecutor
 from ..node.util_types import AnyTaskNode
-from ..observability import NullTaskReporter, ReporterProtocol, TaskReporter
+from ..reporter import NullTaskReporter, ReporterProtocol, TaskReporter
 from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
 

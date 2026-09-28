@@ -20,11 +20,12 @@ from .node import (
     TaskRouter,
     TaskSplitter,
 )
-from .observability import BaseObserver, PrintObserver, TaskReporter
+from .observability import BaseObserver, PrintObserver
 from .persistence.util_sqlite import (
     load_records,
     load_tasks_grouped_by_node,
 )
+from .reporter import TaskReporter
 from .runtime.util_format import format_table
 from .runtime.util_types import TerminationSignal
 
