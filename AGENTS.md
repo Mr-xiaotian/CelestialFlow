@@ -20,7 +20,7 @@
 
 - 如果修改对象是 `src/**/*.py` 文件, 执行 `uv run ruff check --fix .` 与 `uv run pyright .` 检查并修复代码格式与类型错误; 执行 `uv run pytest <相关测试文件>` 运行相关测试。
 - 如果修改对象是代码文件, 为代码添加或者更新reST风格的doc-string, 并保持与代码逻辑一致。
-- 除非特意要求, 不必同步更改docs/下的相应文档。
+- 除非特意要求, 不必同步更改docs/下的相应文档。在版本末期我会一次性更新文档。
 
 ### 关于error
 
@@ -31,6 +31,7 @@
 
 - 所有的测试都应该能够快速完成，也就是不能有 long-running 的测试
 - 相对的，每次执行 `uv run pytest <相关测试文件>` 的执行时间都应该在 10 秒以内，如果超出意味着卡在了某一项中, 应该检查并修复，而不是一直等待
+- 测试文件与 `tests/` 的相对关系应该与待测试文件与 `src/celestialflow/` 的相对关系一致, 也就是如果我在 `src/celestialflow/runtime` 下新添一个 `util_errors.py` 文件, 对应的测试文件应该位于 `tests/runtime` 下, 名为 `test_errors.py`
 
 ### 关于 celestialflow-web
 
