@@ -15,7 +15,7 @@ from weakref import WeakKeyDictionary
 
 import pytest
 
-from celestialflow.observability import BaseObserver
+from celestialflow.observability import Observer, TaskFailEvent
 from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
@@ -346,19 +346,16 @@ class TestDispatchAsync:
 # ── worker 崩溃兜底 ────────────────────────────────────
 
 
-class _CrashOnFailObserver(BaseObserver):
-    """``on_task_fail`` 抛异常，通过 ``observer_error`` 捕获。"""
+class _CrashOnFailObserver(Observer):
+    """``on_task_fail`` 抛异常，用于验证 hub 的异常隔离。"""
 
     def __init__(self) -> None:
-        """初始化错误记录列表。"""
-        self.errors: list[tuple[str, Exception]] = []
+        """初始化调用计数。"""
+        self.calls = 0
 
-    def observer_error(self, method_name: str, exception: Exception) -> None:
-        """记录回调异常。"""
-        self.errors.append((method_name, exception))
-
-    def on_task_fail(self, _count: int = 1) -> None:
-        """失败计数回调，直接抛异常。"""
+    def on_task_fail(self, event: TaskFailEvent) -> None:
+        """失败回调，累加计数后抛出异常。"""
+        self.calls += 1
         msg = "observer boom"
         raise RuntimeError(msg)
 
@@ -418,7 +415,7 @@ class TestWorkerCrashKeepsTerminationSignal:
     def test_fail_handler_crash_keeps_termination(
         self, mode: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """失败处理链崩溃（observer 抛异常）时，异常被 ``on_observer_error`` 捕获，
+        """失败处理链中 observer 抛异常时，异常被 hub 隔离，
         终止信号照常发出，不触发 ``worker_crash``。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
@@ -426,7 +423,7 @@ class TestWorkerCrashKeepsTerminationSignal:
             name="crash_fail",
         )
         observer = _CrashOnFailObserver()
-        executor.metrics.add_observer(observer)
+        executor.add_observer(observer)
         recording = _RecordingLogInlet()
         monkeypatch.setattr(
             "celestialflow.node.core_node.get_log_inlet",
@@ -442,10 +439,8 @@ class TestWorkerCrashKeepsTerminationSignal:
         _put_termination(executor)
         _run_dispatch(dispatch, mode)
 
-        # 异常在 observer 层被捕获，不应到达 worker_crash
-        assert len(observer.errors) == 1
-        assert observer.errors[0][0] == "on_task_fail"
-        assert isinstance(observer.errors[0][1], RuntimeError)
+        # 异常在 observer hub 层被隔离，不应到达 worker_crash
+        assert observer.calls == 1
         assert len(recording.crashes) == 0
 
         results = _collect_results(executor)

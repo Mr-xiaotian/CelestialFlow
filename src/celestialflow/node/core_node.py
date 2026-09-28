@@ -8,7 +8,15 @@ from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
 
-from ..observability import BaseObserver
+from ..observability import (
+    NodeEndEvent,
+    NodeStartEvent,
+    Observer,
+    ObserverHub,
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskSkipEvent,
+)
 from ..persistence import (
     funnel_scope,
     get_lifecycle_inlet,
@@ -66,6 +74,8 @@ class BaseTaskNode[T, R, Y]:
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
+    observers: ObserverHub
+    _downstream_nodes: dict[str, BaseTaskNode[Any, Any, Any]]
 
     # ==== 初始化 ====
 
@@ -99,6 +109,8 @@ class BaseTaskNode[T, R, Y]:
         """
 
         self.set_name(name)
+        self.observers = ObserverHub()
+        self._downstream_nodes = {}
         self._set_func(func)
         self.set_skip_func(skip_func)
 
@@ -128,21 +140,21 @@ class BaseTaskNode[T, R, Y]:
         self.start_time = 0.0
 
     # ==== 观察者 ====
-    def add_observer(self, observer: BaseObserver) -> None:
+    def add_observer(self, observer: Observer) -> None:
         """
         注册观察者。
 
         :param observer: 要注册的观察者实例
         """
-        self.metrics.add_observer(observer)
+        self.observers.add_observer(observer)
 
-    def remove_observer(self, observer: BaseObserver) -> None:
+    def remove_observer(self, observer: Observer) -> None:
         """
         移除观察者。
 
         :param observer: 要移除的观察者实例
         """
-        self.metrics.remove_observer(observer)
+        self.observers.remove_observer(observer)
 
     # ==== 配置 ====
 
@@ -305,8 +317,39 @@ class BaseTaskNode[T, R, Y]:
         self.metrics.set_downstream_counter(next_node.get_name(), counter)
         next_node.metrics.set_upstream_counter(self.get_name(), counter)
 
+        self._downstream_nodes[next_node.get_name()] = next_node
         self.yield_queue.add_queue(next_node.get_name(), next_node.task_queue)
         next_node.task_queue.add_source_name(self.get_name())
+
+    def _notify_downstream_input(
+        self,
+        target_name: str,
+        task: Any,
+        task_repr: str,
+        input_id: int,
+    ) -> None:
+        """
+        向接收方节点分发“上游输入”事件。
+
+        若目标名称只绑定了裸队列（未通过 ``connect_to`` 关联节点），则忽略。
+
+        :param target_name: 接收任务的节点名称
+        :param task: 原始任务数据
+        :param task_repr: 任务的可读表示
+        :param input_id: 任务在接收方的事件 ID
+        """
+        node = self._downstream_nodes.get(target_name)
+        if node is None:
+            return
+        node.observers.on_task_input(
+            TaskInputEvent(
+                node=target_name,
+                task=task,
+                task_repr=task_repr,
+                input_id=input_id,
+                source="upstream",
+            )
+        )
 
     # ==== 任务队列 ====
 
@@ -323,10 +366,21 @@ class BaseTaskNode[T, R, Y]:
         self.task_queue.put(envelope)
         self.metrics.add_external_input_count(1)
 
+        task_repr = self._get_repr(task)
+        self.observers.on_task_input(
+            TaskInputEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                input_id=input_id,
+                source="external",
+            )
+        )
+
         get_lifecycle_inlet().task_input(self.get_name(), input_id, task)
         get_log_inlet().task_input(
             self.get_name(),
-            self._get_repr(task),
+            task_repr,
             input_id,
         )
 
@@ -396,10 +450,22 @@ class BaseTaskNode[T, R, Y]:
 
         self.metrics.add_fail_count(1)
 
+        task_repr = self._get_repr(task)
+        self.observers.on_task_fail(
+            TaskFailEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                exception=exception,
+                task_id=task_id,
+                error_id=error_id,
+            )
+        )
+
         get_lifecycle_inlet().task_fail(task_id, error_id, exception)
         get_log_inlet().task_fail(
             self.get_name(),
-            self._get_repr(task),
+            task_repr,
             exception,
             task_id,
             error_id,
@@ -421,10 +487,21 @@ class BaseTaskNode[T, R, Y]:
 
         self.metrics.add_skip_count(1)
 
+        task_repr = self._get_repr(task)
+        self.observers.on_task_skip(
+            TaskSkipEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                task_id=task_id,
+                skip_id=skip_id,
+            )
+        )
+
         get_lifecycle_inlet().task_skip(task_id, skip_id)
         get_log_inlet().task_skip(
             self.get_name(),
-            self._get_repr(task),
+            task_repr,
             task_id,
             skip_id,
         )
@@ -538,6 +615,15 @@ class BaseTaskNode[T, R, Y]:
         """
         self.metrics.on_start()
 
+        self.observers.on_node_start(
+            NodeStartEvent(
+                node=self.get_name(),
+                execution_mode=self.execution_mode,
+                max_workers=self.max_workers,
+                task_count=self.metrics.get_input_count(),
+            )
+        )
+
         get_log_inlet().node_start(
             self.get_name(),
             self.metrics.get_input_count(),
@@ -552,16 +638,32 @@ class BaseTaskNode[T, R, Y]:
         :param start_perf: 启动时的时间戳
         """
         error_list: list[Exception] = []
+        elapsed = time.perf_counter() - start_perf
 
         try:
             get_log_inlet().node_end(
                 self.get_name(),
                 self.execution_mode,
                 self.max_workers,
-                time.perf_counter() - start_perf,
+                elapsed,
                 self.metrics.get_success_count(),
                 self.metrics.get_fail_count(),
                 self.metrics.get_skip_count(),
+            )
+        except Exception as exception:
+            error_list.append(exception)
+
+        try:
+            self.observers.on_node_end(
+                NodeEndEvent(
+                    node=self.get_name(),
+                    execution_mode=self.execution_mode,
+                    max_workers=self.max_workers,
+                    elapsed=elapsed,
+                    succeeded=self.metrics.get_success_count(),
+                    failed=self.metrics.get_fail_count(),
+                    skipped=self.metrics.get_skip_count(),
+                )
             )
         except Exception as exception:
             error_list.append(exception)

@@ -3,13 +3,9 @@ from __future__ import annotations
 
 import time
 from threading import Lock
-from typing import TYPE_CHECKING
 
 from ..runtime.util_types import NodeStatus
 from .util_types import ValueWrapper
-
-if TYPE_CHECKING:
-    from ..observability import BaseObserver
 
 
 class TaskMetrics:
@@ -39,7 +35,6 @@ class TaskMetrics:
         初始化 TaskMetrics
         """
         self.retry_exceptions = ()
-        self._observers: list[BaseObserver] = []
         self._status = int(NodeStatus.NOT_STARTED)
         self.busy_seconds = 0.0
         self._in_flight = 0
@@ -61,24 +56,6 @@ class TaskMetrics:
 
         self.upstream_counter = {}
         self.downstream_counter = {}
-
-    # ==== 观察者 ====
-
-    def add_observer(self, observer: BaseObserver) -> None:
-        """
-        注册观察者。
-
-        :param observer: 要注册的观察者实例
-        """
-        self._observers.append(observer)
-
-    def remove_observer(self, observer: BaseObserver) -> None:
-        """
-        移除观察者。
-
-        :param observer: 要移除的观察者实例
-        """
-        self._observers.remove(observer)
 
     # ==== 重试 ====
 
@@ -123,8 +100,6 @@ class TaskMetrics:
         :param add_count: 增加的外部注入任务数
         """
         self.external_input_counter.add(add_count)
-        for observer in self._observers:
-            observer.on_task_added(add_count)
 
     def add_success_count(self, count: int) -> None:
         """
@@ -135,8 +110,6 @@ class TaskMetrics:
         :param count: 增加的成功任务数量，默认值为 1。
         """
         self.success_counter.add(count)
-        for observer in self._observers:
-            observer.on_task_success(count)
 
     def add_fail_count(self, count: int) -> None:
         """
@@ -147,8 +120,6 @@ class TaskMetrics:
         :param count: 增加的失败任务数量，默认值为 1。
         """
         self.fail_counter.add(count)
-        for observer in self._observers:
-            observer.on_task_fail(count)
 
     def add_skip_count(self, count: int) -> None:
         """
@@ -159,8 +130,6 @@ class TaskMetrics:
         :param count: 增加的跳过任务数量，默认值为 1。
         """
         self.skip_counter.add(count)
-        for observer in self._observers:
-            observer.on_task_skip(count)
 
     def add_downstream_count(self, name: str, count: int) -> None:
         """
@@ -177,23 +146,19 @@ class TaskMetrics:
 
     def on_start(self) -> None:
         """
-        广播执行器启动事件。
+        标记节点进入运行状态。
 
         :return: ``None``
         """
         self._status = int(NodeStatus.RUNNING)
-        for observer in self._observers:
-            observer.on_start()
 
     def on_finish(self) -> None:
         """
-        广播执行器结束事件。
+        标记节点进入停止状态。
 
         :return: ``None``
         """
         self._status = int(NodeStatus.STOPPED)
-        for observer in self._observers:
-            observer.on_finish()
 
     # ==== 查询 ====
 

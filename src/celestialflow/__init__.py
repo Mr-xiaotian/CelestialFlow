@@ -20,7 +20,7 @@ from .node import (
     TaskRouter,
     TaskSplitter,
 )
-from .observability import BaseObserver, PrintObserver
+from .observability import Observer, ObserverHub, PrintObserver
 from .persistence.util_sqlite import (
     load_records,
     load_tasks_grouped_by_node,
@@ -31,8 +31,9 @@ from .runtime.util_types import TerminationSignal
 
 __all__ = [
     "BaseInlet",
-    "BaseObserver",
     "BaseSpout",
+    "Observer",
+    "ObserverHub",
     "PrintObserver",
     "TaskChain",
     "TaskComplete",

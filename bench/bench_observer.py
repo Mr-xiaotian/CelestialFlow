@@ -12,7 +12,15 @@ from typing import Any
 
 from tqdm import tqdm
 
-from celestialflow import BaseObserver, PrintObserver, TaskExecutor
+from celestialflow import Observer, PrintObserver, TaskExecutor
+from celestialflow.observability import (
+    NodeEndEvent,
+    NodeStartEvent,
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskSkipEvent,
+    TaskSuccessEvent,
+)
 
 # ── 工作函数 ──────────────────────────────────────────────────────────
 
@@ -42,60 +50,64 @@ def cpu_intensive(x: int) -> int:
 # ── TqdmObserver（基于 tqdm）───────────────────────────────────────
 
 
-class TqdmObserver(BaseObserver):
+class TqdmObserver(Observer):
     """基于 tqdm 的进度条观察者"""
 
     _bar: tqdm[Any] | None
     _total: int
 
     def __init__(self) -> None:
-        """初始化进度条观察者，进度条延迟到 on_start 时创建"""
+        """初始化进度条观察者，进度条延迟到 on_node_start 时创建"""
         self._bar = None
         self._total = 0
 
-    def on_start(self) -> None:
-        """启动回调，总量取启动前已注入的任务数"""
+    def on_node_start(self, event: NodeStartEvent) -> None:
+        """节点启动回调，总量取启动前已注入的任务数"""
         self._bar = tqdm(total=self._total)
 
-    def on_task_success(self, count: int = 1) -> None:
+    def on_task_input(self, event: TaskInputEvent) -> None:
+        """
+        任务输入回调
+
+        该回调可能先于 ``on_node_start`` 到达，此时仅累加总量。
+
+        :param event: 任务输入事件
+        """
+        self._total += 1
+        if self._bar is not None:
+            self._bar.total += 1
+            self._bar.refresh()
+
+    def on_task_success(self, event: TaskSuccessEvent) -> None:
         """
         成功回调
 
-        :param count: 成功数量
+        :param event: 任务成功事件
         """
-        self._advance(count)
+        self._advance(1)
 
-    def on_task_fail(self, count: int = 1) -> None:
+    def on_task_fail(self, event: TaskFailEvent) -> None:
         """
         失败回调
 
-        :param count: 失败数量
+        :param event: 任务失败事件
         """
-        self._advance(count)
+        self._advance(1)
 
-    def on_task_skip(self, count: int = 1) -> None:
+    def on_task_skip(self, event: TaskSkipEvent) -> None:
         """
         跳过回调
 
-        :param count: 跳过数量
+        :param event: 任务跳过事件
         """
-        self._advance(count)
+        self._advance(1)
 
-    def on_task_added(self, count: int) -> None:
+    def on_node_end(self, event: NodeEndEvent) -> None:
         """
-        添加任务回调
+        节点结束回调
 
-        该回调可能先于 ``on_start`` 到达，此时仅累加总量。
-
-        :param count: 新增数量
+        :param event: 节点结束事件
         """
-        self._total += count
-        if self._bar is not None:
-            self._bar.total += count
-            self._bar.refresh()
-
-    def on_finish(self) -> None:
-        """结束回调"""
         if self._bar is not None:
             self._bar.close()
 
@@ -117,7 +129,7 @@ def run_benchmark(
     task_data: list[Any],
     func: Any,
     *,
-    observer: BaseObserver | None = None,
+    observer: Observer | None = None,
 ) -> float:
     """
     运行一次 benchmark 并返回耗时

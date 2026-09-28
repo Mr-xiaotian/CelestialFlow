@@ -2,6 +2,7 @@
 import time
 from collections.abc import Iterable
 
+from ..observability import TaskSuccessEvent
 from ..persistence import get_lifecycle_inlet, get_log_inlet
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError
@@ -45,12 +46,28 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
 
         self.metrics.add_success_count(1)
 
+        task_repr = self._get_repr(task)
+        result_repr = self._get_repr(result)
+        elapsed = time.perf_counter() - start_perf
+        self.observers.on_task_success(
+            TaskSuccessEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                result=result,
+                result_repr=result_repr,
+                elapsed=elapsed,
+                task_id=task_id,
+                success_id=result_id,
+            )
+        )
+
         get_lifecycle_inlet().task_success(task_id, result)
         get_log_inlet().task_success(
             self.get_name(),
-            self._get_repr(task),
-            self._get_repr(result),
-            time.perf_counter() - start_perf,
+            task_repr,
+            result_repr,
+            elapsed,
             task_id,
             result_id,
         )
@@ -61,9 +78,12 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
+            self._notify_downstream_input(
+                target_name, result, result_repr, downstream_input_id
+            )
             get_log_inlet().task_input(
                 target_name,
-                self._get_repr(result),
+                result_repr,
                 downstream_input_id,
             )
             get_lifecycle_inlet().task_input(target_name, downstream_input_id, result)
@@ -106,12 +126,28 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
 
         self.metrics.add_success_count(1)
 
+        task_repr = self._get_repr(task)
+        result_repr = self._get_repr(result_list)
+        elapsed = time.perf_counter() - start_perf
+        self.observers.on_task_success(
+            TaskSuccessEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                result=result_list,
+                result_repr=result_repr,
+                elapsed=elapsed,
+                task_id=task_id,
+                success_id=result_id,
+            )
+        )
+
         get_lifecycle_inlet().task_success(task_id, result_list)
         get_log_inlet().task_success(
             self.get_name(),
-            self._get_repr(task),
-            self._get_repr(result_list),
-            time.perf_counter() - start_perf,
+            task_repr,
+            result_repr,
+            elapsed,
             task_id,
             result_id,
         )
@@ -123,10 +159,14 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                     CTreeEvent.TASK_INPUT,
                     parents=[result_id],
                 )
+                item_repr = self._get_repr(item)
+                self._notify_downstream_input(
+                    target_name, item, item_repr, downstream_input_id
+                )
                 get_lifecycle_inlet().task_input(target_name, downstream_input_id, item)
                 get_log_inlet().task_input(
                     target_name,
-                    self._get_repr(item),
+                    item_repr,
                     downstream_input_id,
                 )
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
@@ -171,12 +211,28 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
 
         self.metrics.add_success_count(1)
 
+        task_repr = self._get_repr(task)
+        result_repr = self._get_repr(result)
+        elapsed = time.perf_counter() - start_perf
+        self.observers.on_task_success(
+            TaskSuccessEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=task_repr,
+                result=result,
+                result_repr=result_repr,
+                elapsed=elapsed,
+                task_id=task_id,
+                success_id=result_id,
+            )
+        )
+
         get_lifecycle_inlet().task_success(task_id, task)
         get_log_inlet().task_success(
             self.get_name(),
-            self._get_repr(task),
-            self._get_repr(result),
-            time.perf_counter() - start_perf,
+            task_repr,
+            result_repr,
+            elapsed,
             task_id,
             result_id,
         )
@@ -188,10 +244,14 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
+            yie_repr = self._get_repr(yie)
+            self._notify_downstream_input(
+                target, yie, yie_repr, downstream_input_id
+            )
             get_lifecycle_inlet().task_input(target, downstream_input_id, yie)
             get_log_inlet().task_input(
                 target,
-                self._get_repr(yie),
+                yie_repr,
                 downstream_input_id,
             )
             downstream_envelope: TaskEnvelope[Y] = TaskEnvelope(
