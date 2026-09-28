@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -154,12 +155,12 @@ class TaskGraph:
 
     def _set_name(self, name: str) -> None:
         """
-        设置任务图名称
+        设置任务图名称，并生成该运行实例的不透明唯一标识。
 
         :param name: 任务图名称
         """
         self.name = name
-        self.graph_id = f"{name}@{int(time.time() * 1000)}"
+        self.graph_id = uuid.uuid4().hex
 
     def set_graph_mode(self, graph_mode: str) -> None:
         """
@@ -559,12 +560,11 @@ class TaskGraph:
         """
         获取任务图的分析信息
 
-        :return: 包含 ``graphId``、``graphMode``、``name``、``startTime``、
+        :return: 包含 ``graphMode``、``name``、``startTime``、
             ``className``、``isDAG`` 与 ``layersDict`` 的字典
         """
         self._ensure_analysis()
         return {
-            "graphId": self.graph_id,
             "graphMode": self.graph_mode,
             "name": self.name,
             "startTime": self.start_time,

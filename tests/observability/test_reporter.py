@@ -297,7 +297,7 @@ def test_reporter_pushes_graph_meta_in_one_request(
 
     # 图级与节点级元信息在同一次请求中一并到达，不存在半初始化窗口。
     assert meta_payload["nodes"] == ["StageA", "StageB"]
-    assert meta_payload["analysis"]["graphId"] == graph.get_graph_id()
+    assert meta_payload["analysis"]["name"] == graph.name
     assert meta_payload["analysis"]["layersDict"]
 
     meta = meta_payload["node_meta"]
