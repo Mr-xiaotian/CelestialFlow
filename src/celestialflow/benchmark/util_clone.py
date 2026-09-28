@@ -79,6 +79,9 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     该工具仅用于 benchmark 场景，因此只支持由 ``TaskExecutor`` 组成的任务图，
     并直接复用 :func:`clone_executor` 克隆所有节点。
 
+    克隆体不携带原图 / 原节点的观察者：``clone_executor`` 会创建全新实例，
+    共享带计数器的观察者会导致重复计数。
+
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     :raises ConfigurationError: 图中包含非 ``TaskExecutor`` 节点时抛出

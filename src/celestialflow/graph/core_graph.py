@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..node.util_types import AnyTaskNode
+from ..observability import Observer, ObserverHub
 from ..persistence import funnel_scope, get_lifecycle_spout, get_log_inlet
 from ..persistence.util_sqlite import (
     load_records,
@@ -51,6 +52,7 @@ class TaskGraph:
     source_names: list[str]
     order_graph: OrderGraph
     start_time: float
+    observers: ObserverHub
     reporter: ReporterProtocol
     ctree_client: EventClient
     is_dag: bool
@@ -82,6 +84,7 @@ class TaskGraph:
         self.set_graph_mode(graph_mode)
         self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
+        self.observers = ObserverHub()
 
         self._init_state()
 
@@ -204,6 +207,37 @@ class TaskGraph:
         for node in self.node_dict.values():
             node.set_ctree(ctree_client)
 
+    # ==== 观察者 ====
+
+    def add_observer(self, observer: Observer) -> None:
+        """
+        注册图级观察者。
+
+        图级观察者会收到图中所有节点的事件；该注册仅在 :meth:`run` /
+        :meth:`run_async` 路径下生效（这两个入口会把图级 hub 注入每个节点）。
+
+        :param observer: 要注册的观察者实例
+        """
+        self.observers.add_observer(observer)
+
+    def remove_observer(self, observer: Observer) -> None:
+        """
+        移除图级观察者。
+
+        :param observer: 要移除的观察者实例
+        """
+        self.observers.remove_observer(observer)
+
+    def _inject_observers(self) -> None:
+        """
+        将图级观察者 hub 注入每个节点。
+
+        注入的是 hub 对象本身，因此运行期往图级 hub 增删观察者会立即对所有节点生效。
+        必须在灌入初始任务之前调用，否则初始任务的输入事件不会分发给图级观察者。
+        """
+        for node in self.node_dict.values():
+            node.observers.add_observer(self.observers)
+
     # ==== 分析图 ====
 
     def _ensure_analysis(self) -> None:
@@ -255,6 +289,7 @@ class TaskGraph:
         :return: ``None``
         """
         self._build_analysis()
+        self._inject_observers()
         with funnel_scope():
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
@@ -277,6 +312,7 @@ class TaskGraph:
         :return: ``None``
         """
         self._build_analysis()
+        self._inject_observers()
         with funnel_scope():
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
@@ -383,6 +419,8 @@ class TaskGraph:
         - 若当前线程已运行事件循环，且图中包含 ``execution_mode='async'`` 的节点，
           同步路径仍会通过 ``asyncio.run`` 启动该节点，可能触发 ``asyncio.run`` 的
           嵌套限制；此时更适合使用 :meth:`start_async` 或 :meth:`run_async`。
+        - 图级观察者（:meth:`add_observer`）仅在 :meth:`run` / :meth:`run_async`
+          路径下注入；直接调用本方法时图级观察者不会生效。
 
         :note:
             ``start()`` 为一次性调用；构建期方法在启动前可多次调用。

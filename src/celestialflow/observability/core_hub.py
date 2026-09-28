@@ -19,31 +19,17 @@ from .core_observer import Observer
 class ObserverHub(Observer):
     """观察者分发中心。
 
-    本身即 :class:`Observer`，将收到的每个事件显式转发给已注册的观察者，
-    转发顺序固定为“框架 sink → 用户观察者”。单个观察者回调抛出的异常会被
-    捕获并打印，不会中断其余观察者的分发，也不会逃逸到框架执行路径。
+    本身即 :class:`Observer`，将收到的每个事件按注册顺序显式转发给已注册的观察者。
+    单个观察者回调抛出的异常会被捕获并打印，不会中断其余观察者的分发，
+    也不会逃逸到框架执行路径。
     """
 
     def __init__(self) -> None:
         """初始化分发中心。"""
-        self._framework: list[Observer] = []
         self._observers: list[Observer] = []
         self._lock = Lock()
 
     # ==== 注册 ====
-
-    def add_framework_sink(self, sink: Observer) -> None:
-        """
-        注册框架 sink（如 lifecycle / log 持久化）。
-
-        框架 sink 不提供移除接口，避免用户误删框架关键能力。
-
-        :param sink: 待注册的框架 sink
-        :raises ConfigurationError: 注册会形成 hub 循环引用
-        """
-        self._reject_cycle(sink)
-        with self._lock:
-            self._framework.append(sink)
 
     def add_observer(self, observer: Observer) -> None:
         """
@@ -67,12 +53,12 @@ class ObserverHub(Observer):
 
     def _snapshot(self) -> list[Observer]:
         """
-        按“框架 sink → 用户观察者”的顺序返回当前观察者快照。
+        返回当前观察者快照。
 
         :return: 观察者快照列表
         """
         with self._lock:
-            return [*self._framework, *self._observers]
+            return list(self._observers)
 
     def _reject_cycle(self, observer: Observer) -> None:
         """
@@ -94,7 +80,10 @@ class ObserverHub(Observer):
                 continue
             seen.add(id(hub))
             if hub is self:
-                raise ConfigurationError("cyclic ObserverHub registration detected")
+                raise ConfigurationError(
+                    "cyclic ObserverHub registration detected: cannot register a hub "
+                    "into a hub that already (directly or transitively) contains it"
+                )
             stack.extend(
                 child for child in hub._snapshot() if isinstance(child, ObserverHub)
             )

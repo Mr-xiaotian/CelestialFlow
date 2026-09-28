@@ -3,7 +3,14 @@ from contextlib import redirect_stderr, redirect_stdout
 
 import pytest
 
-from celestialflow import Observer, ObserverHub, PrintObserver, TaskExecutor, TaskGraph
+from celestialflow import (
+    Observer,
+    ObserverHub,
+    PrintObserver,
+    TaskChain,
+    TaskExecutor,
+    TaskGraph,
+)
 from celestialflow.observability import (
     NodeEndEvent,
     NodeStartEvent,
@@ -33,6 +40,11 @@ def raise_on_negative(x):
     if x < 0:
         raise ValueError(f"negative value: {x}")
     return x * 10
+
+
+async def async_add_one(x):
+    """测试用异步加一函数。"""
+    return x + 1
 
 
 class RecordingObserver(Observer):
@@ -257,26 +269,6 @@ class TestObserverHub:
         for name in protocol_methods:
             assert name in vars(ObserverHub), f"ObserverHub must override {name}"
 
-    def test_hub_dispatches_framework_before_users(self):
-        """分发顺序固定为框架 sink 在前、用户 observer 在后"""
-        order = []
-
-        class Recorder(Observer):
-            def __init__(self, tag: str):
-                """记录标签。"""
-                self.tag = tag
-
-            def on_node_start(self, event: NodeStartEvent) -> None:
-                """记录分发顺序。"""
-                order.append(self.tag)
-
-        hub = ObserverHub()
-        hub.add_framework_sink(Recorder("framework"))
-        hub.add_observer(Recorder("user"))
-        hub.on_node_start(NodeStartEvent("node", "serial", 1, 0))
-
-        assert order == ["framework", "user"]
-
     def test_hub_isolates_observer_exception(self):
         """单个 observer 抛异常不会中断其余 observer 的分发"""
 
@@ -319,6 +311,117 @@ class TestObserverHub:
         with pytest.raises(ConfigurationError):
             a.add_observer(a)
 
-    def test_framework_sink_has_no_remove_api(self):
-        """框架 sink 不对外暴露移除接口"""
-        assert not hasattr(ObserverHub(), "remove_framework_sink")
+
+class TestGraphObserver:
+    def test_graph_observer_receives_all_nodes(self):
+        """图级观察者收到所有节点的事件"""
+        upstream = TaskExecutor("up", add_one)
+        downstream = TaskExecutor("down", double)
+        graph = TaskGraph("graph_observer_all_nodes")
+        graph.set_nodes([upstream, downstream])
+        graph.connect([upstream], [downstream])
+
+        observer = RecordingObserver()
+        graph.add_observer(observer)
+        graph.run({"up": [1, 2]})
+
+        starts = _only(observer.events, NodeStartEvent)
+        ends = _only(observer.events, NodeEndEvent)
+        assert {event.node for event in starts} == {"up", "down"}
+        assert {event.node for event in ends} == {"up", "down"}
+
+        sources = [(event.node, event.source) for event in _only(observer.events, TaskInputEvent)]
+        assert sources.count(("up", "external")) == 2
+        assert sources.count(("down", "upstream")) == 2
+        assert len(_only(observer.events, TaskSuccessEvent)) == 4
+
+    def test_node_local_observer_runs_before_graph_observer(self):
+        """同一节点内，节点本地观察者先于图级观察者被调用"""
+        order = []
+
+        class Tagged(Observer):
+            def __init__(self, tag):
+                """记录标签。"""
+                self.tag = tag
+
+            def on_task_success(self, event: TaskSuccessEvent) -> None:
+                """记录调用顺序。"""
+                order.append(self.tag)
+
+        graph = TaskGraph("graph_observer_order")
+        node = TaskExecutor("only", add_one)
+        graph.set_nodes([node])
+        node.add_observer(Tagged("node"))
+        graph.add_observer(Tagged("graph"))
+        graph.run({"only": [1]})
+
+        assert order == ["node", "graph"]
+
+    def test_graph_remove_observer_before_run(self):
+        """run 前移除图级观察者后不再收到事件"""
+        graph = TaskGraph("graph_observer_remove")
+        node = TaskExecutor("only", add_one)
+        graph.set_nodes([node])
+
+        observer = RecordingObserver()
+        graph.add_observer(observer)
+        graph.remove_observer(observer)
+        graph.run({"only": [1]})
+
+        assert observer.events == []
+
+    def test_graph_hub_is_injected_as_object(self):
+        """注入的是 hub 对象本身：run 之后再注册的图级观察者依然生效"""
+        graph = TaskGraph("graph_observer_injected_object")
+        node = TaskExecutor("only", add_one)
+        graph.set_nodes([node])
+        graph.run({"only": [1]})
+
+        late = RecordingObserver()
+        graph.add_observer(late)
+        node.observers.on_task_success(
+            TaskSuccessEvent("only", 1, "(1)", 2, "(2)", 0.0, 1, 2)
+        )
+
+        assert len(_only(late.events, TaskSuccessEvent)) == 1
+
+    @pytest.mark.asyncio
+    async def test_run_async_injects_graph_observers(self):
+        """run_async 路径同样完成注入"""
+        graph = TaskGraph("graph_observer_async", graph_mode="async")
+        node = TaskExecutor("only", async_add_one, execution_mode="async")
+        graph.set_nodes([node])
+
+        observer = RecordingObserver()
+        graph.add_observer(observer)
+        await graph.run_async({"only": [1]})
+
+        assert {event.node for event in _only(observer.events, NodeStartEvent)} == {
+            "only"
+        }
+        assert len(_only(observer.events, TaskSuccessEvent)) == 1
+
+    def test_structure_supports_graph_observer(self):
+        """结构类（TaskChain）同样支持图级观察者"""
+        chain = TaskChain(
+            "chain_observer",
+            [TaskExecutor("a", add_one), TaskExecutor("b", double)],
+        )
+        observer = RecordingObserver()
+        chain.add_observer(observer)
+        chain.run({"a": [1]})
+
+        assert {event.node for event in _only(observer.events, NodeStartEvent)} == {
+            "a",
+            "b",
+        }
+
+    def test_graph_rejects_cycle_between_graph_and_node_hub(self):
+        """把 node hub 注册进 graph hub 后，注入会因循环引用而失败"""
+        graph = TaskGraph("graph_observer_cycle")
+        node = TaskExecutor("only", add_one)
+        graph.set_nodes([node])
+        graph.add_observer(node.observers)
+
+        with pytest.raises(ConfigurationError):
+            graph.run({"only": [1]})
