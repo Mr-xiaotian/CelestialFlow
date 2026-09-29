@@ -13,7 +13,7 @@ from concurrent.futures import (
 )
 from typing import TYPE_CHECKING
 
-from ..persistence import get_log_inlet
+from ..observability import TerminationMergeEvent, WorkerCrashEvent
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import ConfigurationError, InitializationError
 from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal
@@ -106,8 +106,12 @@ class TaskDispatch[T, R, Y]:
             termination_id,
             source=self.task_node.get_name(),
         )
-        get_log_inlet().termination_merge(
-            self.task_node.get_name(), parent_ids, termination_id
+        self.task_node.observers.on_termination_merge(
+            TerminationMergeEvent(
+                node=self.task_node.get_name(),
+                parent_ids=parent_ids,
+                termination_id=termination_id,
+            )
         )
         return signal
 
@@ -147,7 +151,9 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
         except Exception as e:
-            get_log_inlet().worker_crash(e)
+            self.task_node.observers.on_worker_crash(
+                WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
+            )
 
         finally:
             self.task_node.metrics.end_task()
@@ -186,7 +192,9 @@ class TaskDispatch[T, R, Y]:
                     self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
         except Exception as e:
-            get_log_inlet().worker_crash(e)
+            self.task_node.observers.on_worker_crash(
+                WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
+            )
 
         finally:
             self.task_node.metrics.end_task()

@@ -12,8 +12,12 @@ from ..observability.core_event import (
     NodeStartEvent,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
+    WorkerCrashEvent,
 )
 from ..observability.core_observer import Observer
 from ..runtime.util_errors import InitializationError
@@ -159,6 +163,27 @@ class LifecycleInlet(BaseInlet, Observer):
         :param event: 节点结束事件
         """
 
+    def on_termination_input(self, event: TerminationInputEvent) -> None:
+        """
+        终止信号输入不产生生命周期记录。
+
+        :param event: 终止信号输入事件
+        """
+
+    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
+        """
+        终止信号合并不产生生命周期记录。
+
+        :param event: 终止信号合并事件
+        """
+
+    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
+        """
+        工作器崩溃不产生生命周期记录。
+
+        :param event: 工作器崩溃事件
+        """
+
     def on_task_input(self, event: TaskInputEvent) -> None:
         """
         写入一条 pending 记录，表示任务已进入某个 node。
@@ -228,51 +253,25 @@ class LifecycleInlet(BaseInlet, Observer):
             }
         )
 
-    def task_retry(self, event_id: int, retry_times: int, error: Exception) -> None:
+    def on_task_retry(self, event: TaskRetryEvent) -> None:
         """
         更新 pending 记录的重试次数与最近一次失败的错误信息。
 
-        记录保持 pending 状态，最终由 ``task_success`` 或 ``task_fail`` 晋升。
+        记录保持 pending 状态，最终由 ``on_task_success`` 或 ``on_task_fail`` 晋升。
 
-        :param event_id: 当前任务事件 ID
-        :param retry_times: 已重试次数
-        :param error: 导致重试的异常
+        :param event: 任务重试事件
         """
         now = datetime.now()
+        error = event.exception
         error_type = type(error).__name__
         error_message = str(error)
         self._funnel(
             {
                 "__op__": "update_retry",
-                "event_id": event_id,
-                "retry_times": retry_times,
+                "event_id": event.task_id,
+                "retry_times": event.retry_times,
                 "error_type": error_type,
                 "error_message": error_message,
                 "ts": now.timestamp(),
             }
         )
-
-
-# ==== 全局单例 ====
-
-_lifecycle_spout = LifecycleSpout()
-_lifecycle_inlet: LifecycleInlet | None = None
-
-
-def get_lifecycle_spout() -> LifecycleSpout:
-    """
-    获取全局唯一的 LifecycleSpout 实例。
-    """
-    return _lifecycle_spout
-
-
-def get_lifecycle_inlet() -> LifecycleInlet:
-    """
-    获取全局唯一的 LifecycleInlet 实例（已绑定到全局 LifecycleSpout）。
-
-    实例在首次访问时创建，避免模块导入阶段产生副作用。
-    """
-    global _lifecycle_inlet
-    if _lifecycle_inlet is None:
-        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
-    return _lifecycle_inlet

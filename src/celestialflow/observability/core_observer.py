@@ -8,8 +8,12 @@ from .core_event import (
     NodeStartEvent,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
+    WorkerCrashEvent,
 )
 
 
@@ -58,6 +62,38 @@ class Observer(Protocol):
         任务跳过回调。
 
         :param event: 任务跳过事件
+        """
+        ...
+
+    def on_task_retry(self, event: TaskRetryEvent) -> None:
+        """
+        任务重试回调。
+
+        :param event: 任务重试事件
+        """
+        ...
+
+    def on_termination_input(self, event: TerminationInputEvent) -> None:
+        """
+        终止信号输入回调。
+
+        :param event: 终止信号输入事件
+        """
+        ...
+
+    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
+        """
+        终止信号合并回调。
+
+        :param event: 终止信号合并事件
+        """
+        ...
+
+    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
+        """
+        工作器崩溃回调。
+
+        :param event: 工作器崩溃事件
         """
         ...
 

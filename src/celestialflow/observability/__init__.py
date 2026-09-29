@@ -9,9 +9,13 @@ from .core_event import (
     NodeStartEvent,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSource,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
+    WorkerCrashEvent,
 )
 from .core_hub import ObserverHub
 from .core_observer import Observer
@@ -25,7 +29,11 @@ __all__ = [
     "PrintObserver",
     "TaskFailEvent",
     "TaskInputEvent",
+    "TaskRetryEvent",
     "TaskSkipEvent",
     "TaskSource",
     "TaskSuccessEvent",
+    "TerminationInputEvent",
+    "TerminationMergeEvent",
+    "WorkerCrashEvent",
 ]

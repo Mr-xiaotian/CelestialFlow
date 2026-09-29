@@ -10,8 +10,12 @@ from .core_event import (
     NodeStartEvent,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
+    WorkerCrashEvent,
 )
 from .core_observer import Observer
 
@@ -41,15 +45,6 @@ class ObserverHub(Observer):
         self._reject_cycle(observer)
         with self._lock:
             self._observers.append(observer)
-
-    def remove_observer(self, observer: Observer) -> None:
-        """
-        移除用户观察者。
-
-        :param observer: 待移除的观察者
-        """
-        with self._lock:
-            self._observers.remove(observer)
 
     def _snapshot(self) -> list[Observer]:
         """
@@ -147,6 +142,54 @@ class ObserverHub(Observer):
         for observer in self._snapshot():
             try:
                 observer.on_task_skip(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_task_retry(self, event: TaskRetryEvent) -> None:
+        """
+        转发任务重试事件。
+
+        :param event: 任务重试事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_task_retry(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_termination_input(self, event: TerminationInputEvent) -> None:
+        """
+        转发终止信号输入事件。
+
+        :param event: 终止信号输入事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_termination_input(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
+        """
+        转发终止信号合并事件。
+
+        :param event: 终止信号合并事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_termination_merge(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
+        """
+        转发工作器崩溃事件。
+
+        :param event: 工作器崩溃事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_worker_crash(event)
             except Exception:
                 traceback.print_exc()
 

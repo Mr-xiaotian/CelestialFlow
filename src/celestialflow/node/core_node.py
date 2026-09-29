@@ -15,16 +15,15 @@ from ..observability import (
     ObserverHub,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
+    TerminationInputEvent,
 )
 from ..persistence import (
-    attach_funnel_observers,
-    close_funnel,
-    detach_funnel_observers,
-    get_lifecycle_inlet,
-    get_lifecycle_spout,
-    get_log_inlet,
-    open_funnel,
+    LifecycleInlet,
+    LifecycleSpout,
+    LogInlet,
+    LogSpout,
 )
 from ..persistence.util_sqlite import load_tasks_grouped_by_node
 from ..runtime import (
@@ -80,6 +79,9 @@ class BaseTaskNode[T, R, Y]:
     ctree_client: EventClient
     observers: ObserverHub
     _downstream_nodes: dict[str, BaseTaskNode[Any, Any, Any]]
+    _lifecycle_spout: LifecycleSpout
+    _log_spout: LogSpout
+    _log_inlet: LogInlet
 
     # ==== 初始化 ====
 
@@ -113,8 +115,6 @@ class BaseTaskNode[T, R, Y]:
         """
 
         self.set_name(name)
-        self.observers = ObserverHub()
-        self._downstream_nodes = {}
         self._set_func(func)
         self.set_skip_func(skip_func)
 
@@ -139,6 +139,8 @@ class BaseTaskNode[T, R, Y]:
             in_name=self.get_name(),
         )
         self.metrics = TaskMetrics()
+        self.observers = ObserverHub()
+        self._downstream_nodes = {}
 
         # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
@@ -151,14 +153,6 @@ class BaseTaskNode[T, R, Y]:
         :param observer: 要注册的观察者实例
         """
         self.observers.add_observer(observer)
-
-    def remove_observer(self, observer: Observer) -> None:
-        """
-        移除观察者。
-
-        :param observer: 要移除的观察者实例
-        """
-        self.observers.remove_observer(observer)
 
     # ==== 配置 ====
 
@@ -262,17 +256,6 @@ class BaseTaskNode[T, R, Y]:
         """
         return self.__class__.__name__
 
-    def get_lifecycle_path(self) -> Path:
-        """
-        获取任务生命周期持久化路径。
-
-        :return: 生命周期持久化文件的绝对路径，未设置时返回空 Path
-        """
-        db_path = get_lifecycle_spout().db_path
-        if db_path is None:
-            return Path()
-        return Path(db_path).resolve()
-
     def get_meta(self) -> dict[str, Any]:
         """
         获取节点的构建期元信息。
@@ -305,6 +288,14 @@ class BaseTaskNode[T, R, Y]:
             "upstream_counts": self.metrics.get_upstream_counts(),
             "downstream_counts": self.metrics.get_downstream_counts(),
         }
+
+    def get_log_inlet(self) -> LogInlet:
+        """
+        获取当前节点的日志输入口。
+
+        :return: 日志输入口实例
+        """
+        return self._log_inlet
 
     # ==== 绑定 ====
 
@@ -390,9 +381,11 @@ class BaseTaskNode[T, R, Y]:
         )
         signal = TerminationSignal(termination_id, source="input")
         self.task_queue.put(signal)
-        get_log_inlet().termination_input(
-            self.get_name(),
-            termination_id,
+        self.observers.on_termination_input(
+            TerminationInputEvent(
+                node=self.get_name(),
+                termination_id=termination_id,
+            )
         )
 
     def drain_task_queue(self) -> None:
@@ -502,13 +495,15 @@ class BaseTaskNode[T, R, Y]:
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
-        get_lifecycle_inlet().task_retry(task_id, fail_times, exception)
-        get_log_inlet().task_retry(
-            self.get_name(),
-            self._get_repr(task),
-            fail_times,
-            exception,
-            task_id,
+        self.observers.on_task_retry(
+            TaskRetryEvent(
+                node=self.get_name(),
+                task=task,
+                task_repr=self._get_repr(task),
+                exception=exception,
+                task_id=task_id,
+                retry_times=fail_times,
+            )
         )
 
     # ==== 执行 ====
@@ -530,11 +525,21 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        observers = attach_funnel_observers(self.observers)
+        self._lifecycle_spout = LifecycleSpout()
+        self._log_spout = LogSpout()
+
+        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        self._log_inlet = LogInlet().bind_spout(self._log_spout)
+
+        self.observers.add_observer(_lifecycle_inlet)
+        self.observers.add_observer(self._log_inlet)
+
         error_list: list[Exception] = []
 
         try:
-            open_funnel()
+            self._lifecycle_spout.start()
+            self._log_spout.start()
+
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
@@ -543,8 +548,8 @@ class BaseTaskNode[T, R, Y]:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(close_funnel())
-            detach_funnel_observers(observers, self.observers)
+            self._lifecycle_spout.stop()
+            self._log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -564,11 +569,21 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        observers = attach_funnel_observers(self.observers)
+        self._lifecycle_spout = LifecycleSpout()
+        self._log_spout = LogSpout()
+
+        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        self._log_inlet = LogInlet().bind_spout(self._log_spout)
+
+        self.observers.add_observer(_lifecycle_inlet)
+        self.observers.add_observer(self._log_inlet)
+
         error_list: list[Exception] = []
 
         try:
-            open_funnel()
+            self._lifecycle_spout.start()
+            self._log_spout.start()
+
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
@@ -577,8 +592,8 @@ class BaseTaskNode[T, R, Y]:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(close_funnel())
-            detach_funnel_observers(observers, self.observers)
+            self._lifecycle_spout.stop()
+            self._log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -717,7 +732,6 @@ class BaseTaskNode[T, R, Y]:
             self._prepare_start()
             await self.dispatch.dispatch_async()
         except Exception as exception:
-            get_log_inlet().node_crash(self.get_name(), exception)
             error_list.append(exception)
         finally:
             error_list.extend(self._finish_start(start_perf))
@@ -733,7 +747,7 @@ class BaseTaskNode[T, R, Y]:
 
         :return: (task, result) 元组列表
         """
-        return get_lifecycle_spout().get_task_result_pairs(self.get_name())
+        return self._lifecycle_spout.get_task_result_pairs(self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
@@ -741,7 +755,7 @@ class BaseTaskNode[T, R, Y]:
 
         :return: (task, PersistedError) 元组列表
         """
-        task_error_pairs = get_lifecycle_spout().get_task_error_pairs(self.get_name())
+        task_error_pairs = self._lifecycle_spout.get_task_error_pairs(self.get_name())
         return [
             (task, PersistedError(error_type, error_message))
             for task, (error_type, error_message) in task_error_pairs

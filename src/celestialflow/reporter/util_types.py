@@ -4,6 +4,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
+from ..persistence import LogInlet
+
 
 class ReporterTaskGraph(Protocol):
     """TaskReporter 依赖的最小任务图接口。
@@ -26,6 +28,10 @@ class ReporterTaskGraph(Protocol):
 
     def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
         """采集各节点当前的运行时快照。"""
+        ...
+
+    def get_log_inlet(self) -> LogInlet:
+        """获取日志注入器。"""
         ...
 
     def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:

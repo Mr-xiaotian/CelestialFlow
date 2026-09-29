@@ -12,12 +12,10 @@ from typing import Any
 from ..node.util_types import AnyTaskNode
 from ..observability import Observer, ObserverHub
 from ..persistence import (
-    attach_funnel_observers,
-    close_funnel,
-    detach_funnel_observers,
-    get_lifecycle_spout,
-    get_log_inlet,
-    open_funnel,
+    LifecycleInlet,
+    LifecycleSpout,
+    LogInlet,
+    LogSpout,
 )
 from ..persistence.util_sqlite import (
     load_records,
@@ -64,6 +62,8 @@ class TaskGraph:
     ctree_client: EventClient
     is_dag: bool
     layers_dict: dict[int, list[str]]
+    _lifecycle_spout: LifecycleSpout
+    _log_inlet: LogInlet
 
     # ==== 初始化 ====
 
@@ -227,14 +227,6 @@ class TaskGraph:
         """
         self.observers.add_observer(observer)
 
-    def remove_observer(self, observer: Observer) -> None:
-        """
-        移除图级观察者。
-
-        :param observer: 要移除的观察者实例
-        """
-        self.observers.remove_observer(observer)
-
     def _inject_observers(self) -> None:
         """
         将图级观察者 hub 注入每个节点。
@@ -301,12 +293,22 @@ class TaskGraph:
         """
         self._build_analysis()
         self._inject_observers()
-        node_hubs = [node.observers for node in self.node_dict.values()]
-        observers = attach_funnel_observers(*node_hubs)
+
+        self._lifecycle_spout = LifecycleSpout()
+        _log_spout = LogSpout()
+
+        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        self._log_inlet = LogInlet().bind_spout(_log_spout)
+
+        self.observers.add_observer(_lifecycle_inlet)
+        self.observers.add_observer(self._log_inlet)
+
         error_list: list[Exception] = []
 
         try:
-            open_funnel()
+            self._lifecycle_spout.start()
+            _log_spout.start()
+
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
                     self.node_dict[node_name].put_task(task)
@@ -316,8 +318,8 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(close_funnel())
-            detach_funnel_observers(observers, *node_hubs)
+            self._lifecycle_spout.stop()
+            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -339,12 +341,22 @@ class TaskGraph:
         """
         self._build_analysis()
         self._inject_observers()
-        node_hubs = [node.observers for node in self.node_dict.values()]
-        observers = attach_funnel_observers(*node_hubs)
+
+        self._lifecycle_spout = LifecycleSpout()
+        _log_spout = LogSpout()
+
+        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        self._log_inlet = LogInlet().bind_spout(_log_spout)
+
+        self.observers.add_observer(_lifecycle_inlet)
+        self.observers.add_observer(self._log_inlet)
+
         error_list: list[Exception] = []
 
         try:
-            open_funnel()
+            self._lifecycle_spout.start()
+            _log_spout.start()
+
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
                     self.node_dict[node_name].put_task(task)
@@ -354,8 +366,8 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(close_funnel())
-            detach_funnel_observers(observers, *node_hubs)
+            self._lifecycle_spout.stop()
+            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -409,7 +421,7 @@ class TaskGraph:
 
         :return: ``None``
         """
-        get_log_inlet().graph_start(
+        self._log_inlet.graph_start(
             self.name, self.graph_mode, self.get_structure_list()
         )
         self.reporter.start()
@@ -439,7 +451,7 @@ class TaskGraph:
             error_list.append(exception)
 
         try:
-            get_log_inlet().graph_end(self.name, time.perf_counter() - start_perf)
+            self._log_inlet.graph_end(self.name, time.perf_counter() - start_perf)
         except Exception as exception:
             error_list.append(exception)
 
@@ -672,7 +684,7 @@ class TaskGraph:
         :param after_event_id: 仅返回 ``event_id`` 大于该值的记录；``None`` 表示全量
         :return: 失败记录列表
         """
-        db_path = get_lifecycle_spout().db_path
+        db_path = self._lifecycle_spout.db_path
         if db_path is None:
             return []
         if after_event_id is None:
@@ -687,7 +699,7 @@ class TaskGraph:
 
         :param tasks: 节点名到任务序列的映射
         """
-        log_inlet = get_log_inlet()
+        log_inlet = self._log_inlet
         for target_node, task_datas in tasks.items():
             task_list = list(task_datas)
             try:
@@ -704,7 +716,7 @@ class TaskGraph:
 
         :param nodes: 待注入终止符的节点名序列
         """
-        log_inlet = get_log_inlet()
+        log_inlet = self._log_inlet
         for target_node in nodes:
             try:
                 self.node_dict[target_node].put_signal()
@@ -733,13 +745,10 @@ class TaskGraph:
         """
         return self.order_graph
 
-    def get_lifecycle_path(self) -> Path:
+    def get_log_inlet(self) -> LogInlet:
         """
-        获取任务生命周期持久化 sqlite 文件路径。
+        获取日志注入器。
 
-        :return: 生命周期持久化文件的绝对路径，未设置时返回空 Path
+        :return: :class:`LogInlet` 实例
         """
-        db_path = get_lifecycle_spout().db_path
-        if db_path is None:
-            return Path()
-        return Path(db_path).resolve()
+        return self._log_inlet

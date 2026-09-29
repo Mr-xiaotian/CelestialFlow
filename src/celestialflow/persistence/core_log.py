@@ -11,11 +11,14 @@ from ..observability.core_event import (
     NodeStartEvent,
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
+    WorkerCrashEvent,
 )
 from ..observability.core_observer import Observer
-from ..runtime.util_config import load_log_level_from_pyproject
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
 
@@ -177,17 +180,18 @@ class LogInlet(BaseInlet, Observer):
 
     # ==== 工作线程 ====
 
-    def worker_crash(self, exception: Exception) -> None:
+    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
         """
         记录工作器崩溃
 
-        :param exception: 异常对象
+        :param event: 工作器崩溃事件
         """
+        exception = event.exception
         exception_type = type(exception).__name__
         exception_text = str(exception).replace("\n", " ")
         self._log(
             "CRITICAL",
-            f"Worker crashed: ({exception_type}){exception_text}.",
+            f"In '{event.node}', Worker crashed: ({exception_type}){exception_text}.",
         )
 
     # ==== 任务 ====
@@ -243,55 +247,42 @@ class LogInlet(BaseInlet, Observer):
             + f"[{event.task_id}->{event.skip_id}*]",
         )
 
-    def task_retry(
-        self,
-        node_name: str,
-        task_repr: str,
-        fail_times: int,
-        exception: Exception,
-        task_id: int,
-    ) -> None:
+    def on_task_retry(self, event: TaskRetryEvent) -> None:
         """
         记录任务重试
 
-        :param node_name: 任务节点名称
-        :param task_repr: 任务表示
-        :param fail_times: 已失败次数
-        :param exception: 导致重试的异常
-        :param task_id: 任务记录 ID
+        :param event: 任务重试事件
         """
         self._log(
             "WARNING",
-            f"In '{node_name}', Task {task_repr} failed {fail_times} times and will retry: ({type(exception).__name__}). [{task_id}*]",
+            f"In '{event.node}', Task {event.task_repr} failed {event.retry_times} "
+            + f"times and will retry: ({type(event.exception).__name__}). "
+            + f"[{event.task_id}*]",
         )
 
     # ==== 终止信号 ====
 
-    def termination_input(self, node_name: str, termination_id: int) -> None:
+    def on_termination_input(self, event: TerminationInputEvent) -> None:
         """
         记录终止信号输入
 
-        :param node_name: 任务节点名称
-        :param termination_id: 终止记录 ID
+        :param event: 终止信号输入事件
         """
         self._log(
             "DEBUG",
-            f"In '{node_name}', Termination input. [{termination_id}*]",
+            f"In '{event.node}', Termination input. [{event.termination_id}*]",
         )
 
-    def termination_merge(
-        self, node_name: str, parent_ids: list[int], termination_id: int
-    ) -> None:
+    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
         """
         记录终止信号合并
 
-        :param node_name: 任务节点名称
-        :param parent_ids: 父记录 ID 列表
-        :param termination_id: 终止记录 ID
+        :param event: 终止信号合并事件
         """
         self._log(
             "TRACE",
-            f"In '{node_name}', Termination merge. [{parent_ids}->{termination_id}*]",
+            f"In '{event.node}', Termination merge. "
+            + f"[{event.parent_ids}->{event.termination_id}*]",
         )
 
     # ==== 上报器 ====
@@ -404,29 +395,3 @@ class LogInlet(BaseInlet, Observer):
             "WARNING",
             f"[Reporter] Notify 'shutdown' failed: {type(exception).__name__}({exception}).",
         )
-
-
-# ==== 全局单例 ====
-
-_log_spout = LogSpout()
-_log_inlet: LogInlet | None = None
-
-
-def get_log_spout() -> LogSpout:
-    """
-    获取全局唯一的 LogSpout 实例。
-    """
-    return _log_spout
-
-
-def get_log_inlet() -> LogInlet:
-    """
-    获取全局唯一的 LogInlet 实例（已绑定到全局 LogSpout）。
-
-    log_level 从 ``pyproject.toml`` 的 ``[tool.celestialflow]`` 节读取，
-    默认 ``"INFO"``；实例在首次访问时创建，避免模块导入阶段产生副作用。
-    """
-    global _log_inlet
-    if _log_inlet is None:
-        _log_inlet = LogInlet(load_log_level_from_pyproject()).bind_spout(_log_spout)
-    return _log_inlet

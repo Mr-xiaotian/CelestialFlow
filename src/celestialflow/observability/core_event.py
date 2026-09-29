@@ -124,3 +124,61 @@ class TaskSkipEvent:
     task_repr: str
     task_id: int
     skip_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class TaskRetryEvent:
+    """任务重试事件。
+
+    :param node: 节点名称
+    :param task: 原始任务数据
+    :param task_repr: 任务的可读表示
+    :param exception: 导致重试的异常
+    :param task_id: 任务输入事件 ID
+    :param retry_times: 已重试次数
+    """
+
+    node: str
+    task: Any
+    task_repr: str
+    exception: Exception
+    task_id: int
+    retry_times: int
+
+
+@dataclass(frozen=True, slots=True)
+class TerminationInputEvent:
+    """终止信号输入事件。
+
+    :param node: 接收终止信号的节点名称
+    :param termination_id: 终止信号事件 ID
+    """
+
+    node: str
+    termination_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class TerminationMergeEvent:
+    """终止信号合并事件。
+
+    :param node: 执行合并的节点名称
+    :param parent_ids: 参与合并的终止信号事件 ID 列表
+    :param termination_id: 合并后的终止信号事件 ID
+    """
+
+    node: str
+    parent_ids: list[int]
+    termination_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerCrashEvent:
+    """工作器崩溃事件。
+
+    :param node: 崩溃工作器所属的节点名称
+    :param exception: 导致崩溃的异常
+    """
+
+    node: str
+    exception: Exception

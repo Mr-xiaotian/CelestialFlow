@@ -5,7 +5,6 @@ from typing import Any, Protocol
 
 import requests
 
-from ..persistence import LogInlet, get_log_inlet
 from ..runtime.util_errors import ReporterError
 from .util_types import ReporterTaskGraph
 
@@ -50,7 +49,6 @@ class TaskReporter:
         self.base_url: str = f"http://{host}:{port}"
         self.task_graph: ReporterTaskGraph = task_graph
 
-        self.log_inlet: LogInlet = get_log_inlet()
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
         self._session: requests.Session = requests.Session()
@@ -83,7 +81,7 @@ class TaskReporter:
         self._notify_shutdown()  # 通知服务端本图已结束
         self._refresh_all()  # 最后一次
         self._session.close()
-        self.log_inlet.stop_reporter()
+        self.task_graph.get_log_inlet().stop_reporter()
 
     def _pull_timeout(self) -> float:
         """计算拉取请求的超时时间"""
@@ -104,7 +102,7 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to notify shutdown: {res.status_code}")
         except Exception as e:
-            self.log_inlet.shutdown_failed(e)
+            self.task_graph.get_log_inlet().shutdown_failed(e)
 
     # ==== 循环 ====
     def _loop(self) -> None:
@@ -126,7 +124,7 @@ class TaskReporter:
             self._push_status()
             self._push_errors()
         except Exception as e:
-            self.log_inlet.loop_failed(e)
+            self.task_graph.get_log_inlet().loop_failed(e)
 
     # ==== 拉取 ====
     def _pull_server_state(self) -> None:
@@ -150,7 +148,7 @@ class TaskReporter:
                 None if max_event_id is None else int(max_event_id)
             )
         except Exception as e:
-            self.log_inlet.pull_interval_failed(e)
+            self.task_graph.get_log_inlet().pull_interval_failed(e)
 
     def _pull_injection(self) -> None:
         """从远程服务拉取任务与终止符注入信息并注入任务图。"""
@@ -163,7 +161,7 @@ class TaskReporter:
             if not res.ok:
                 raise ReporterError(f"Failed to pull task injection: {res.status_code}")
         except Exception as e:
-            self.log_inlet.pull_tasks_failed(e)
+            self.task_graph.get_log_inlet().pull_tasks_failed(e)
             return
 
         injection_payload: dict[str, Any] = res.json()
@@ -194,7 +192,7 @@ class TaskReporter:
                 raise ReporterError(f"Failed to push errors: {res.status_code}")
 
         except Exception as e:
-            self.log_inlet.push_errors_failed(e)
+            self.task_graph.get_log_inlet().push_errors_failed(e)
 
     def _push_status(self) -> None:
         """
@@ -229,7 +227,7 @@ class TaskReporter:
             self._last_status_dict = status_dict
 
         except Exception as e:
-            self.log_inlet.push_status_failed(e)
+            self.task_graph.get_log_inlet().push_status_failed(e)
 
     def _push_graph_meta(self) -> None:
         """推送图结构、节点元信息与图分析结果"""
@@ -251,7 +249,7 @@ class TaskReporter:
                 raise ReporterError(f"Failed to push graph meta: {res.status_code}")
 
         except Exception as e:
-            self.log_inlet.push_graph_meta_failed(e)
+            self.task_graph.get_log_inlet().push_graph_meta_failed(e)
 
 
 class NullTaskReporter:
