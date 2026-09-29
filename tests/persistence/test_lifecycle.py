@@ -3,6 +3,7 @@ import sqlite3
 from celestialflow.observability import (
     TaskFailEvent,
     TaskInputEvent,
+    TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
 )
@@ -104,8 +105,12 @@ class TestLifecyclePersistence:
             inlet.on_task_input(
                 TaskInputEvent("s1", "retry_ok", "(retry_ok)", 1, "external")
             )
-            inlet.task_retry(event_id=1, retry_times=1, error=ValueError("try 1"))
-            inlet.task_retry(event_id=1, retry_times=2, error=ValueError("try 2"))
+            inlet.on_task_retry(
+                TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 1"), 1, 1)
+            )
+            inlet.on_task_retry(
+                TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 2"), 1, 2)
+            )
             inlet.on_task_success(
                 TaskSuccessEvent(
                     "s1", "retry_ok", "(retry_ok)", "ok", "(ok)", 0.0, 1, 3
@@ -116,8 +121,16 @@ class TestLifecyclePersistence:
             inlet.on_task_input(
                 TaskInputEvent("s2", "retry_fail", "(retry_fail)", 2, "external")
             )
-            inlet.task_retry(event_id=2, retry_times=1, error=ValueError("try 1"))
-            inlet.task_retry(event_id=2, retry_times=2, error=ValueError("try 2"))
+            inlet.on_task_retry(
+                TaskRetryEvent(
+                    "s2", "retry_fail", "(retry_fail)", ValueError("try 1"), 2, 1
+                )
+            )
+            inlet.on_task_retry(
+                TaskRetryEvent(
+                    "s2", "retry_fail", "(retry_fail)", ValueError("try 2"), 2, 2
+                )
+            )
             inlet.on_task_fail(
                 TaskFailEvent(
                     "s2",

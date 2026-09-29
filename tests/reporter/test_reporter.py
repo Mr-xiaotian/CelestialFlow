@@ -4,6 +4,12 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph
+from celestialflow.observability import (
+    Observer,
+    ObserverHub,
+    ReporterFailureEvent,
+    ReporterStopEvent,
+)
 from celestialflow.reporter import TaskReporter
 
 
@@ -63,10 +69,15 @@ class FakeTaskGraph:
     def __init__(self) -> None:
         self.injected_tasks: list[dict[str, list[Any]]] = []
         self.injected_terminations: list[list[str]] = []
+        self.observers = ObserverHub()
 
     def get_graph_id(self) -> str:
         """返回固定 graph_id，便于断言拉取与注入携带的会话标识。"""
         return "pull@1000"
+
+    def get_observers(self) -> ObserverHub:
+        """返回图级观察者 hub。"""
+        return self.observers
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """记录按节点名转交的注入任务。"""
@@ -86,10 +97,15 @@ class FakeErrorGraph:
         self._records = list(records or [])
         self._graph_id = graph_id
         self.after_event_ids: list[int | None] = []
+        self.observers = ObserverHub()
 
     def get_graph_id(self) -> str:
         """返回当前 graph_id。"""
         return self._graph_id
+
+    def get_observers(self) -> ObserverHub:
+        """返回图级观察者 hub。"""
+        return self.observers
 
     def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
         """按水位线返回预设的失败记录，并记录调用参数。"""
@@ -99,30 +115,20 @@ class FakeErrorGraph:
         return [r for r in self._records if int(r["event_id"]) > after_event_id]
 
 
-class FakeLogInlet:
-    """记录 reporter 上报过程中的失败日志。"""
+class RecordingReporterObserver(Observer):
+    """记录 reporter 上报过程中的失败与停止事件。"""
 
     def __init__(self) -> None:
-        self.pull_failures: list[Exception] = []
-        self.push_error_failures: list[Exception] = []
-        self.push_status_failures: list[Exception] = []
-        self.shutdown_failures: list[Exception] = []
+        self.failures: list[tuple[str, Exception]] = []
+        self.stops: int = 0
 
-    def pull_tasks_failed(self, error: Exception) -> None:
-        """记录拉取失败。"""
-        self.pull_failures.append(error)
+    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
+        """记录失败类别与异常。"""
+        self.failures.append((event.kind, event.exception))
 
-    def push_errors_failed(self, error: Exception) -> None:
-        """记录错误推送失败。"""
-        self.push_error_failures.append(error)
-
-    def push_status_failed(self, error: Exception) -> None:
-        """记录状态推送失败。"""
-        self.push_status_failures.append(error)
-
-    def shutdown_failed(self, error: Exception) -> None:
-        """记录会话结束通知失败。"""
-        self.shutdown_failures.append(error)
+    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
+        """记录停止次数。"""
+        self.stops += 1
 
 
 class FakeStatusGraph:
@@ -133,26 +139,26 @@ class FakeStatusGraph:
             "StageA": dict(snapshot or {"status": 0, "tasks_processed": 0})
         }
         self._graph_id = "demo@status"
+        self.observers = ObserverHub()
 
     def get_graph_id(self) -> str:
         """返回当前 graph_id。"""
         return self._graph_id
+
+    def get_observers(self) -> ObserverHub:
+        """返回图级观察者 hub。"""
+        return self.observers
 
     def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
         """返回各节点快照的浅拷贝。"""
         return {name: dict(snap) for name, snap in self.snapshots.items()}
 
 
-def test_reporter_accepts_split_task_and_termination_payload(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_accepts_split_task_and_termination_payload() -> None:
     """Reporter 能消费拆分后的任务与终止符注入载荷。"""
     graph = FakeTaskGraph()
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakeSession(
         {
@@ -165,23 +171,18 @@ def test_reporter_accepts_split_task_and_termination_payload(
 
     assert graph.injected_tasks == [{"StageA": [1, 2, 3]}]
     assert graph.injected_terminations == [["StageB"]]
-    assert log_inlet.pull_failures == []
+    assert recorder.failures == []
     # 拉取注入时必须携带当前会话标识，避免注入到其它会话。
     url, params = reporter._session.gets[0]
     assert url.endswith("/api/pull_injection")
     assert params["graph_id"] == "pull@1000"
 
 
-def test_reporter_forwards_tasks_and_termination_for_same_node(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_forwards_tasks_and_termination_for_same_node() -> None:
     """同一节点同时存在任务与终止符时，两者都应被转交（先任务后终止符）。"""
     graph = FakeTaskGraph()
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakeSession(
         {
@@ -194,12 +195,10 @@ def test_reporter_forwards_tasks_and_termination_for_same_node(
 
     assert graph.injected_tasks == [{"StageA": [1, 2, 3]}]
     assert graph.injected_terminations == [["StageA"]]
-    assert log_inlet.pull_failures == []
+    assert recorder.failures == []
 
 
-def test_reporter_pushes_errors_via_push_errors_endpoint_only(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_pushes_errors_via_push_errors_endpoint_only() -> None:
     """Reporter 只通过 push_errors 推送错误内容。"""
     record = {
         "event_id": 1,
@@ -211,17 +210,14 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
         "task_json": {"value": 1},
     }
     graph = FakeErrorGraph([record])
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
 
     reporter._push_errors()
 
-    assert log_inlet.push_error_failures == []
+    assert recorder.failures == []
     # 服务端尚无水位线时应全量读取。
     assert graph.after_event_ids == [None]
     assert len(reporter._session.posts) == 1
@@ -231,9 +227,7 @@ def test_reporter_pushes_errors_via_push_errors_endpoint_only(
     assert payload["errors"] == [record]
 
 
-def test_reporter_pushes_only_errors_after_server_max_event_id(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_pushes_only_errors_after_server_max_event_id() -> None:
     """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
     graph = FakeErrorGraph(
         [
@@ -242,18 +236,15 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
             {"event_id": 7, "node": "s2", "status": "failed", "task_json": {}},
         ]
     )
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
     reporter._server_max_event_id_in_fail = 3
 
     reporter._push_errors()
 
-    assert log_inlet.push_error_failures == []
+    assert recorder.failures == []
     assert graph.after_event_ids == [3]
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
@@ -262,9 +253,7 @@ def test_reporter_pushes_only_errors_after_server_max_event_id(
     assert [item["event_id"] for item in payload["errors"]] == [5, 7]
 
 
-def test_reporter_pushes_graph_meta_in_one_request(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_pushes_graph_meta_in_one_request() -> None:
     """图结构、节点元信息与分析结果随单次 push_graph_meta 推送，状态推送与它们互不相交。"""
 
     def identity(value: int) -> int:
@@ -278,11 +267,6 @@ def test_reporter_pushes_graph_meta_in_one_request(
     graph.set_nodes(nodes=[source, sink])
     graph.connect([source], [sink])
 
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
 
@@ -315,16 +299,11 @@ def test_reporter_pushes_graph_meta_in_one_request(
         assert set(node_status).isdisjoint(meta[node_name])
 
 
-def test_reporter_pushes_status_only_when_snapshot_changes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_pushes_status_only_when_snapshot_changes() -> None:
     """状态快照未变时不应重复推送，变化后才推送新快照。"""
     graph = FakeStatusGraph()
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
     reporter._server_has_status = True
@@ -332,7 +311,7 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
     reporter._push_status()
     reporter._push_status()
 
-    assert log_inlet.push_status_failures == []
+    assert recorder.failures == []
     assert len(reporter._session.posts) == 1
 
     graph.snapshots["StageA"] = {"status": 1, "tasks_processed": 3}
@@ -348,16 +327,11 @@ def test_reporter_pushes_status_only_when_snapshot_changes(
     assert len(reporter._session.posts) == 2
 
 
-def test_reporter_forces_status_push_on_context_switch(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_forces_status_push_on_context_switch() -> None:
     """服务端会话尚无状态缓存时，即使快照未变也必须强制推送一次。"""
     graph = FakeStatusGraph()
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
     reporter._server_has_status = True
@@ -369,26 +343,21 @@ def test_reporter_forces_status_push_on_context_switch(
     reporter._server_has_status = False
     reporter._push_status()
 
-    assert log_inlet.push_status_failures == []
+    assert recorder.failures == []
     assert len(reporter._session.posts) == 2
 
 
-def test_reporter_notifies_shutdown(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_reporter_notifies_shutdown() -> None:
     """Reporter 停止前会向服务端发送会话结束通知。"""
     graph = FakeStatusGraph()
-    log_inlet = FakeLogInlet()
-    monkeypatch.setattr(
-        "celestialflow.reporter.core_report.get_log_inlet",
-        lambda: log_inlet,
-    )
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
     reporter = TaskReporter("127.0.0.1", 8000, graph)
     reporter._session = FakePushSession()
 
     reporter._notify_shutdown()
 
-    assert log_inlet.shutdown_failures == []
+    assert recorder.failures == []
     assert len(reporter._session.posts) == 1
     url, payload, _timeout = reporter._session.posts[0]
     assert url.endswith("/api/shutdown_session")

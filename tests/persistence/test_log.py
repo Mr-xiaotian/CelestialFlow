@@ -1,6 +1,13 @@
-from celestialflow.observability import NodeStartEvent, TaskSkipEvent
-from celestialflow.persistence.core_log import LogInlet, LogSpout
 from conftest import wait_until
+
+from celestialflow.observability import (
+    GraphEndEvent,
+    GraphStartEvent,
+    NodeStartEvent,
+    TaskRetryEvent,
+    TaskSkipEvent,
+)
+from celestialflow.persistence.core_log import LogInlet, LogSpout
 
 
 class TestLogPersistence:
@@ -13,9 +20,13 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.graph_start("test_graph", "thread", ['test message'])
-            inlet.task_retry("func", "hello world", 1, ValueError("oops"), 0)
-            inlet.graph_end("test_graph", 1.0)
+            inlet.on_graph_start(
+                GraphStartEvent("test_graph", "thread", ["test message"])
+            )
+            inlet.on_task_retry(
+                TaskRetryEvent("func", None, "hello world", ValueError("oops"), 0, 1)
+            )
+            inlet.on_graph_end(GraphEndEvent("test_graph", 1.0))
             inlet.on_node_start(
                 NodeStartEvent('node', 'parallel', 4, task_count=1)
             )

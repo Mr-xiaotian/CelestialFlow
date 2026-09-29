@@ -15,8 +15,14 @@ from weakref import WeakKeyDictionary
 
 import pytest
 
-from celestialflow.observability import Observer, TaskFailEvent, TaskInputEvent
-from celestialflow.persistence import LogInlet, get_lifecycle_spout, get_log_spout
+from celestialflow.observability import (
+    Observer,
+    TaskFailEvent,
+    TaskInputEvent,
+    TaskRetryEvent,
+    WorkerCrashEvent,
+)
+from celestialflow.persistence import LifecycleInlet, LifecycleSpout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
 from celestialflow.node import TaskExecutor
@@ -24,16 +30,6 @@ from celestialflow.node.core_dispatch import TaskDispatch
 from conftest import wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
-
-
-@pytest.fixture(autouse=True)
-def _cleanup_global_spouts() -> None:
-    """为每个用例清理全局 spout，避免后台线程与持久化状态串扰。"""
-    get_log_spout().stop()
-    get_lifecycle_spout().stop()
-    yield
-    get_log_spout().stop()
-    get_lifecycle_spout().stop()
 
 
 # ── 工具函数 ──────────────────────────────────────────
@@ -127,8 +123,6 @@ def _make_executor(
         max_retries=max_retries,
     )
     e.set_retry_exceptions(ValueError)
-    get_lifecycle_spout().start()
-    get_log_spout().start()
     e.ctree_client = _CtreeStub()
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
     # 与 ``connect_to`` 的注册行为保持一致：队列与 metrics 计数器成对绑定。
@@ -263,30 +257,35 @@ class TestDispatchSerial:
         executor.yield_queue.add_queue("downstream_a", collector_a)
         executor.yield_queue.add_queue("downstream_b", collector_b)
 
-        from celestialflow.persistence import get_lifecycle_inlet
-
-        lifecycle_observer = get_lifecycle_inlet()
+        # 直接驱动 dispatch（不经过 node.run），因此手动装配 lifecycle 持久化。
+        lifecycle_spout = LifecycleSpout()
+        lifecycle_observer = LifecycleInlet().bind_spout(lifecycle_spout)
+        executor._lifecycle_spout = lifecycle_spout
         executor.add_observer(lifecycle_observer)
-        lifecycle_observer.on_task_input(
-            TaskInputEvent(executor.get_name(), 3, "(3)", 0, "external")
-        )
-        _put(executor, 3)
-        _put_termination(executor)
-        dispatch.dispatch_serial()
+        lifecycle_spout.start()
+        try:
+            lifecycle_observer.on_task_input(
+                TaskInputEvent(executor.get_name(), 3, "(3)", 0, "external")
+            )
+            _put(executor, 3)
+            _put_termination(executor)
+            dispatch.dispatch_serial()
 
-        item_a = collector_a.get()
-        item_b = collector_b.get()
+            item_a = collector_a.get()
+            item_b = collector_b.get()
 
-        assert isinstance(item_a, TaskEnvelope)
-        assert isinstance(item_b, TaskEnvelope)
-        assert item_a.get_task() == 9
-        assert item_b.get_task() == 9
-        assert item_a.get_id() != item_b.get_id()
-        wait_until(
-            lambda: executor.get_success_pairs() == [(3, 9)],
-            message="timeout waiting for lifecycle store to persist success result",
-        )
-        assert executor.get_success_pairs() == [(3, 9)]
+            assert isinstance(item_a, TaskEnvelope)
+            assert isinstance(item_b, TaskEnvelope)
+            assert item_a.get_task() == 9
+            assert item_b.get_task() == 9
+            assert item_a.get_id() != item_b.get_id()
+            wait_until(
+                lambda: executor.get_success_pairs() == [(3, 9)],
+                message="timeout waiting for lifecycle store to persist success result",
+            )
+            assert executor.get_success_pairs() == [(3, 9)]
+        finally:
+            lifecycle_spout.stop()
 
 
 # ── thread ─────────────────────────────────────────────
@@ -364,36 +363,29 @@ class _CrashOnFailObserver(Observer):
         raise RuntimeError(msg)
 
 
-class _RecordingLogInlet(LogInlet):
-    """记录 ``worker_crash`` 调用，其余日志置为空操作。"""
+class _RecordingCrashObserver(Observer):
+    """记录 ``on_worker_crash`` 事件。"""
 
     def __init__(self) -> None:
         """初始化崩溃记录列表。"""
-        super().__init__("SUCCESS")
         self.crashes: list[Exception] = []
 
-    def _log(self, level: str, message: str | None = None) -> None:
-        """空操作，避免依赖真实 spout 队列。"""
-        return None
-
-    def worker_crash(self, exception: Exception) -> None:
+    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
         """记录崩溃异常。"""
-        self.crashes.append(exception)
+        self.crashes.append(event.exception)
 
 
-class _CrashRetryLogInlet(_RecordingLogInlet):
-    """``task_retry`` 抛异常，模拟重试日志链中的崩溃。"""
+class _CrashOnRetryObserver(Observer):
+    """``on_task_retry`` 抛异常，用于验证 hub 的异常隔离。"""
 
-    def task_retry(
-        self,
-            node_name: str,
-        task_repr: str,
-            fail_times: int,
-        exception: Exception,
-        task_id: int,
-    ) -> None:
-        """重试日志回调，直接抛异常。"""
-        msg = "retry log boom"
+    def __init__(self) -> None:
+        """初始化调用计数。"""
+        self.calls = 0
+
+    def on_task_retry(self, event: TaskRetryEvent) -> None:
+        """重试回调，累加计数后抛出异常。"""
+        self.calls += 1
+        msg = "retry observer boom"
         raise RuntimeError(msg)
 
 
@@ -428,15 +420,8 @@ class TestWorkerCrashKeepsTerminationSignal:
         )
         observer = _CrashOnFailObserver()
         executor.add_observer(observer)
-        recording = _RecordingLogInlet()
-        monkeypatch.setattr(
-            "celestialflow.node.core_node.get_log_inlet",
-            lambda: recording,
-        )
-        monkeypatch.setattr(
-            "celestialflow.node.core_dispatch.get_log_inlet",
-            lambda: recording,
-        )
+        recording = _RecordingCrashObserver()
+        executor.add_observer(recording)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         _put(executor, 42)
@@ -456,22 +441,50 @@ class TestWorkerCrashKeepsTerminationSignal:
     def test_retry_handler_crash_keeps_termination(
         self, mode: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """重试信封生成崩溃（日志抛异常）时，调度不中断且终止信号仍发出。"""
+        """重试回调抛异常时，异常被 hub 隔离，调度继续直到重试耗尽，
+        终止信号照常发出，不触发 ``worker_crash``。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
             max_retries=1,
             name="crash_retry",
         )
-        recording = _CrashRetryLogInlet()
-        monkeypatch.setattr(
-            "celestialflow.node.core_node.get_log_inlet",
-            lambda: recording,
-        )
-        monkeypatch.setattr(
-            "celestialflow.node.core_dispatch.get_log_inlet",
-            lambda: recording,
-        )
+        observer = _CrashOnRetryObserver()
+        executor.add_observer(observer)
+        recording = _RecordingCrashObserver()
+        executor.add_observer(recording)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+
+        _put(executor, 42)
+        _put_termination(executor)
+        _run_dispatch(dispatch, mode)
+
+        results = _collect_results(executor)
+        assert len(results) == 1
+        assert isinstance(results[0], TerminationSignal)
+        assert observer.calls == 1
+        assert len(recording.crashes) == 0
+        # 重试后仍失败，最终计入一次失败
+        assert executor.metrics.get_fail_count() == 1
+
+    @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
+    def test_worker_crash_is_reported(
+        self, mode: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """处理链自身抛出异常时，应发布 ``on_worker_crash`` 事件且终止信号仍发出。"""
+        executor = _make_executor(
+            _async_always_fail if mode == "async" else _always_fail,
+            max_retries=0,
+            name="worker_crash",
+        )
+        recording = _RecordingCrashObserver()
+        executor.add_observer(recording)
+        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
+
+        def _boom(_count: int) -> None:
+            msg = "fail counter boom"
+            raise RuntimeError(msg)
+
+        monkeypatch.setattr(executor.metrics, "add_fail_count", _boom)
 
         _put(executor, 42)
         _put_termination(executor)
@@ -482,7 +495,6 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert isinstance(results[0], TerminationSignal)
         assert len(recording.crashes) == 1
         assert isinstance(recording.crashes[0], RuntimeError)
-        assert executor.metrics.get_fail_count() == 0
 
 
 class TestDispatchCoreBehavior:

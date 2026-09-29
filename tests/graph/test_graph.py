@@ -7,7 +7,12 @@ from celestialflow import (
     TaskGrid,
     TaskExecutor,
 )
-from celestialflow.persistence import get_lifecycle_spout
+from celestialflow.observability import (
+    InjectFailedEvent,
+    InjectSuccessEvent,
+    Observer,
+)
+from celestialflow.persistence import LifecycleSpout
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
@@ -1039,33 +1044,22 @@ class TestCyclicGraph:
 # =========================
 # TaskGraph Reporter 能力接口
 # =========================
-class _RecordingLogInlet:
-    """记录注入成功/失败，并吞掉节点自身的日志调用。"""
+class _RecordingInjectObserver(Observer):
+    """记录注入成功/失败事件。"""
 
     def __init__(self) -> None:
         self.successes: list[tuple[str, list[object]]] = []
         self.failures: list[tuple[str, list[object], Exception]] = []
 
-    def inject_tasks_success(self, target_node: str, task_datas) -> None:
+    def on_inject_success(self, event: InjectSuccessEvent) -> None:
         """记录节点注入成功。"""
-        self.successes.append((target_node, list(task_datas)))
+        self.successes.append((event.target_node, list(event.task_datas)))
 
-    def inject_tasks_failed(self, target_node: str, task_datas, error: Exception) -> None:
+    def on_inject_failed(self, event: InjectFailedEvent) -> None:
         """记录节点注入失败。"""
-        self.failures.append((target_node, list(task_datas), error))
-
-    def task_input(self, *_args, **_kwargs) -> None:
-        """吞掉节点 put_task 触发的日志。"""
-
-    def termination_input(self, *_args, **_kwargs) -> None:
-        """吞掉节点 put_signal 触发的日志。"""
-
-
-class _NullLifecycleInlet:
-    """吞掉节点 put_task 触发的 lifecycle 记录。"""
-
-    def task_input(self, *_args, **_kwargs) -> None:
-        """忽略生命周期记录。"""
+        self.failures.append(
+            (event.target_node, list(event.task_datas), event.exception)
+        )
 
 
 class TestTaskGraphReporterCapabilities:
@@ -1093,39 +1087,29 @@ class TestTaskGraphReporterCapabilities:
                 {"event_id": 5, "node": "s1", "status": "failed", "task_json": 5},
             ],
         )
-        monkeypatch.setattr(get_lifecycle_spout(), "db_path", db_path)
-
         graph = TaskGraph("test_load_failed_records")
         graph.set_nodes(nodes=[TaskExecutor("s1", add_one)])
+        graph._lifecycle_spout = LifecycleSpout()
+        monkeypatch.setattr(graph._lifecycle_spout, "db_path", db_path)
 
         assert [r["event_id"] for r in graph.load_failed_records(None)] == [1, 5]
         assert [r["event_id"] for r in graph.load_failed_records(1)] == [5]
 
     def test_load_failed_records_without_db_returns_empty(self, monkeypatch):
         """未设置 lifecycle 库时 load_failed_records 应返回空列表。"""
-        monkeypatch.setattr(get_lifecycle_spout(), "db_path", None)
-
         graph = TaskGraph("test_load_failed_records_empty")
+        graph._lifecycle_spout = LifecycleSpout()
 
         assert graph.load_failed_records(None) == []
 
-    def test_inject_tasks_and_terminations_queue_and_log(self, monkeypatch):
+    def test_inject_tasks_and_terminations_queue_and_log(self):
         """inject_tasks / inject_terminations 应按节点注入并记录成功/失败。"""
-        recording = _RecordingLogInlet()
-        monkeypatch.setattr(
-            "celestialflow.graph.core_graph.get_log_inlet", lambda: recording
-        )
-        monkeypatch.setattr(
-            "celestialflow.node.core_node.get_log_inlet", lambda: recording
-        )
-        monkeypatch.setattr(
-            "celestialflow.node.core_node.get_lifecycle_inlet",
-            lambda: _NullLifecycleInlet(),
-        )
+        recording = _RecordingInjectObserver()
 
         node = TaskExecutor("s1", add_one)
         graph = TaskGraph("test_inject_capabilities")
         graph.set_nodes(nodes=[node])
+        graph.add_observer(recording)
 
         graph.inject_tasks({"s1": [1, 2], "missing": [9]})
         graph.inject_terminations(["s1"])
