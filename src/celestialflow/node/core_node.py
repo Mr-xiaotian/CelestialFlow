@@ -80,8 +80,6 @@ class BaseTaskNode[T, R, Y]:
     observers: ObserverHub
     _downstream_nodes: dict[str, BaseTaskNode[Any, Any, Any]]
     _lifecycle_spout: LifecycleSpout
-    _log_spout: LogSpout
-    _log_inlet: LogInlet
 
     # ==== 初始化 ====
 
@@ -288,14 +286,6 @@ class BaseTaskNode[T, R, Y]:
             "upstream_counts": self.metrics.get_upstream_counts(),
             "downstream_counts": self.metrics.get_downstream_counts(),
         }
-
-    def get_log_inlet(self) -> LogInlet:
-        """
-        获取当前节点的日志输入口。
-
-        :return: 日志输入口实例
-        """
-        return self._log_inlet
 
     # ==== 绑定 ====
 
@@ -526,19 +516,19 @@ class BaseTaskNode[T, R, Y]:
         :return: ``None``
         """
         self._lifecycle_spout = LifecycleSpout()
-        self._log_spout = LogSpout()
+        _log_spout = LogSpout()
 
         _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
-        self._log_inlet = LogInlet().bind_spout(self._log_spout)
+        _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(self._log_inlet)
+        self.observers.add_observer(_log_inlet)
 
         error_list: list[Exception] = []
 
         try:
             self._lifecycle_spout.start()
-            self._log_spout.start()
+            _log_spout.start()
 
             for task in task_source:
                 self.put_task(task)
@@ -549,7 +539,7 @@ class BaseTaskNode[T, R, Y]:
             error_list.append(exception)
         finally:
             self._lifecycle_spout.stop()
-            self._log_spout.stop()
+            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -570,19 +560,19 @@ class BaseTaskNode[T, R, Y]:
         :return: ``None``
         """
         self._lifecycle_spout = LifecycleSpout()
-        self._log_spout = LogSpout()
+        _log_spout = LogSpout()
 
         _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
-        self._log_inlet = LogInlet().bind_spout(self._log_spout)
+        _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(self._log_inlet)
+        self.observers.add_observer(_log_inlet)
 
         error_list: list[Exception] = []
 
         try:
             self._lifecycle_spout.start()
-            self._log_spout.start()
+            _log_spout.start()
 
             for task in task_source:
                 self.put_task(task)
@@ -593,7 +583,7 @@ class BaseTaskNode[T, R, Y]:
             error_list.append(exception)
         finally:
             self._lifecycle_spout.stop()
-            self._log_spout.stop()
+            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)

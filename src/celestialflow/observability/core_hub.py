@@ -6,8 +6,14 @@ from threading import Lock
 
 from ..runtime.util_errors import ConfigurationError
 from .core_event import (
+    GraphEndEvent,
+    GraphStartEvent,
+    InjectFailedEvent,
+    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
+    ReporterFailureEvent,
+    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -202,5 +208,77 @@ class ObserverHub(Observer):
         for observer in self._snapshot():
             try:
                 observer.on_node_end(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_graph_start(self, event: GraphStartEvent) -> None:
+        """
+        转发任务图启动事件。
+
+        :param event: 任务图启动事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_graph_start(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_graph_end(self, event: GraphEndEvent) -> None:
+        """
+        转发任务图结束事件。
+
+        :param event: 任务图结束事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_graph_end(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_inject_success(self, event: InjectSuccessEvent) -> None:
+        """
+        转发注入成功事件。
+
+        :param event: 注入成功事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_inject_success(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_inject_failed(self, event: InjectFailedEvent) -> None:
+        """
+        转发注入失败事件。
+
+        :param event: 注入失败事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_inject_failed(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
+        """
+        转发上报器停止事件。
+
+        :param event: 上报器停止事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_reporter_stop(event)
+            except Exception:
+                traceback.print_exc()
+
+    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
+        """
+        转发上报器诊断失败事件。
+
+        :param event: 上报器诊断失败事件
+        """
+        for observer in self._snapshot():
+            try:
+                observer.on_reporter_failure(event)
             except Exception:
                 traceback.print_exc()

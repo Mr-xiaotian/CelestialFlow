@@ -7,6 +7,17 @@ from typing import Any, Literal
 type TaskSource = Literal["external", "upstream"]
 """任务进入节点的来源：``"external"`` 为外部注入，``"upstream"`` 为上游下发。"""
 
+type ReporterFailureKind = Literal[
+    "loop",
+    "pull_interval",
+    "pull_tasks",
+    "push_errors",
+    "push_status",
+    "push_graph_meta",
+    "shutdown",
+]
+"""上报器诊断失败的类别。"""
+
 
 @dataclass(frozen=True, slots=True)
 class NodeStartEvent:
@@ -181,4 +192,73 @@ class WorkerCrashEvent:
     """
 
     node: str
+    exception: Exception
+
+
+@dataclass(frozen=True, slots=True)
+class GraphStartEvent:
+    """任务图启动事件。
+
+    :param graph: 任务图名称
+    :param graph_mode: 任务图运行模式
+    :param structure_list: 任务图结构信息列表
+    """
+
+    graph: str
+    graph_mode: str
+    structure_list: list[str]
+
+
+@dataclass(frozen=True, slots=True)
+class GraphEndEvent:
+    """任务图结束事件。
+
+    :param graph: 任务图名称
+    :param elapsed: 任务图运行耗时（秒）
+    """
+
+    graph: str
+    elapsed: float
+
+
+@dataclass(frozen=True, slots=True)
+class InjectSuccessEvent:
+    """任务/终止符注入成功事件。
+
+    :param target_node: 注入目标的节点名称
+    :param task_datas: 注入的数据
+    """
+
+    target_node: str
+    task_datas: Any
+
+
+@dataclass(frozen=True, slots=True)
+class InjectFailedEvent:
+    """任务/终止符注入失败事件。
+
+    :param target_node: 注入目标的节点名称
+    :param task_datas: 注入的数据
+    :param exception: 导致注入失败的异常
+    """
+
+    target_node: str
+    task_datas: Any
+    exception: Exception
+
+
+@dataclass(frozen=True, slots=True)
+class ReporterStopEvent:
+    """上报器停止事件。"""
+
+
+@dataclass(frozen=True, slots=True)
+class ReporterFailureEvent:
+    """上报器诊断失败事件。
+
+    :param kind: 失败的类别
+    :param exception: 导致失败的异常
+    """
+
+    kind: ReporterFailureKind
     exception: Exception

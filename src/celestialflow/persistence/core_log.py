@@ -7,8 +7,15 @@ from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observability.core_event import (
+    GraphEndEvent,
+    GraphStartEvent,
+    InjectFailedEvent,
+    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
+    ReporterFailureEvent,
+    ReporterFailureKind,
+    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -21,6 +28,17 @@ from ..observability.core_event import (
 from ..observability.core_observer import Observer
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
+
+_REPORTER_FAILURE_LOG: dict[ReporterFailureKind, tuple[str, str]] = {
+    "loop": ("ERROR", "Loop error"),
+    "pull_interval": ("WARNING", "Pull 'interval' failed"),
+    "pull_tasks": ("WARNING", "Pull 'task injection' failed"),
+    "push_errors": ("WARNING", "Push 'error' failed"),
+    "push_status": ("WARNING", "Push 'status' failed"),
+    "push_graph_meta": ("WARNING", "Push 'graph_meta' failed"),
+    "shutdown": ("WARNING", "Notify 'shutdown' failed"),
+}
+"""上报器诊断失败类别到 ``(日志级别, 文案前缀)`` 的映射。"""
 
 
 class LogSpout(BaseSpout):
@@ -110,30 +128,26 @@ class LogInlet(BaseInlet, Observer):
 
     # ==== 任务图 ====
 
-    def graph_start(
-        self, graph_name: str, graph_mode: str, structure_list: list[str]
-    ) -> None:
+    def on_graph_start(self, event: GraphStartEvent) -> None:
         """
         记录任务图启动及结构信息
 
-        :param graph_name: 任务图名称
-        :param graph_mode: 任务图运行模式
-        :param structure_list: 任务图结构信息列表
+        :param event: 任务图启动事件
         """
         self._log(
-            "INFO", f"Graph '{graph_name}' start by {graph_mode}. Graph structure:"
+            "INFO",
+            f"Graph '{event.graph}' start by {event.graph_mode}. Graph structure:",
         )
-        for line in structure_list:
+        for line in event.structure_list:
             self._log("INFO", line)
 
-    def graph_end(self, graph_name: str, use_time: float) -> None:
+    def on_graph_end(self, event: GraphEndEvent) -> None:
         """
         记录任务图结束
 
-        :param graph_name: 任务图名称
-        :param use_time: 任务图运行耗时（秒）
+        :param event: 任务图结束事件
         """
-        self._log("INFO", f"Graph '{graph_name}' end. Use {use_time:.2f}s.")
+        self._log("INFO", f"Graph '{event.graph}' end. Use {event.elapsed:.2f}s.")
 
     # ==== 节点 ====
 
@@ -287,111 +301,47 @@ class LogInlet(BaseInlet, Observer):
 
     # ==== 上报器 ====
 
-    def stop_reporter(self) -> None:
-        """记录上报器停止"""
+    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
+        """
+        记录上报器停止
+
+        :param event: 上报器停止事件
+        """
         self._log("DEBUG", "[Reporter] Stopped.")
 
-    def loop_failed(self, exception: Exception) -> None:
+    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
         """
-        记录上报器循环错误
+        记录上报器诊断失败
 
-        :param exception: 循环中发生的异常
+        :param event: 上报器诊断失败事件
         """
+        level, label = _REPORTER_FAILURE_LOG[event.kind]
         self._log(
-            "ERROR",
-            f"[Reporter] Loop error: {type(exception).__name__}({exception}).",
+            level,
+            f"[Reporter] {label}: "
+            + f"{type(event.exception).__name__}({event.exception}).",
         )
 
-    def pull_interval_failed(self, exception: Exception) -> None:
-        """
-        记录拉取上报间隔失败
-
-        :param exception: 拉取间隔时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Pull 'interval' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def pull_tasks_failed(self, exception: Exception) -> None:
-        """
-        记录拉取任务注入失败
-
-        :param exception: 拉取任务时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Pull 'task injection' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def inject_tasks_success(self, target_node: str, task_datas: Any) -> None:
+    def on_inject_success(self, event: InjectSuccessEvent) -> None:
         """
         记录任务注入成功
 
-        :param target_node: 注入目标节点名称
-        :param task_datas: 注入的任务数据
+        :param event: 注入成功事件
         """
-        self._log("INFO", f"[Reporter] Inject tasks {task_datas} into '{target_node}'.")
+        self._log(
+            "INFO",
+            f"[Reporter] Inject tasks {event.task_datas} into '{event.target_node}'.",
+        )
 
-    def inject_tasks_failed(
-        self,
-        target_node: str,
-        task_datas: Any,
-        exception: Exception,
-    ) -> None:
+    def on_inject_failed(self, event: InjectFailedEvent) -> None:
         """
         记录任务注入失败
 
-        :param target_node: 注入目标节点名称
-        :param task_datas: 注入的任务数据
-        :param exception: 注入时发生的异常
+        :param event: 注入失败事件
         """
         self._log(
             "WARNING",
-            f"[Reporter] Inject tasks {task_datas} into '{target_node}' failed. "
-            + f"Error: {type(exception).__name__}({exception}).",
-        )
-
-    def push_errors_failed(self, exception: Exception) -> None:
-        """
-        记录推送错误信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'error' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_status_failed(self, exception: Exception) -> None:
-        """
-        记录推送状态信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'status' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def push_graph_meta_failed(self, exception: Exception) -> None:
-        """
-        记录推送图元信息失败
-
-        :param exception: 推送时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Push 'graph_meta' failed: {type(exception).__name__}({exception}).",
-        )
-
-    def shutdown_failed(self, exception: Exception) -> None:
-        """
-        记录通知服务端会话结束失败
-
-        :param exception: 通知时发生的异常
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Notify 'shutdown' failed: {type(exception).__name__}({exception}).",
+            f"[Reporter] Inject tasks {event.task_datas} into "
+            + f"'{event.target_node}' failed. "
+            + f"Error: {type(event.exception).__name__}({event.exception}).",
         )

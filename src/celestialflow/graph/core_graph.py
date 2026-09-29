@@ -10,7 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from ..node.util_types import AnyTaskNode
-from ..observability import Observer, ObserverHub
+from ..observability import (
+    GraphEndEvent,
+    GraphStartEvent,
+    InjectFailedEvent,
+    InjectSuccessEvent,
+    Observer,
+    ObserverHub,
+)
 from ..persistence import (
     LifecycleInlet,
     LifecycleSpout,
@@ -63,7 +70,6 @@ class TaskGraph:
     is_dag: bool
     layers_dict: dict[int, list[str]]
     _lifecycle_spout: LifecycleSpout
-    _log_inlet: LogInlet
 
     # ==== 初始化 ====
 
@@ -298,10 +304,10 @@ class TaskGraph:
         _log_spout = LogSpout()
 
         _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
-        self._log_inlet = LogInlet().bind_spout(_log_spout)
+        _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(self._log_inlet)
+        self.observers.add_observer(_log_inlet)
 
         error_list: list[Exception] = []
 
@@ -346,10 +352,10 @@ class TaskGraph:
         _log_spout = LogSpout()
 
         _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
-        self._log_inlet = LogInlet().bind_spout(_log_spout)
+        _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(self._log_inlet)
+        self.observers.add_observer(_log_inlet)
 
         error_list: list[Exception] = []
 
@@ -421,8 +427,12 @@ class TaskGraph:
 
         :return: ``None``
         """
-        self._log_inlet.graph_start(
-            self.name, self.graph_mode, self.get_structure_list()
+        self.observers.on_graph_start(
+            GraphStartEvent(
+                graph=self.name,
+                graph_mode=self.graph_mode,
+                structure_list=self.get_structure_list(),
+            )
         )
         self.reporter.start()
 
@@ -451,7 +461,12 @@ class TaskGraph:
             error_list.append(exception)
 
         try:
-            self._log_inlet.graph_end(self.name, time.perf_counter() - start_perf)
+            self.observers.on_graph_end(
+                GraphEndEvent(
+                    graph=self.name,
+                    elapsed=time.perf_counter() - start_perf,
+                )
+            )
         except Exception as exception:
             error_list.append(exception)
 
@@ -699,16 +714,23 @@ class TaskGraph:
 
         :param tasks: 节点名到任务序列的映射
         """
-        log_inlet = self._log_inlet
         for target_node, task_datas in tasks.items():
             task_list = list(task_datas)
             try:
                 node = self.node_dict[target_node]
                 for task in task_list:
                     node.put_task(task)
-                log_inlet.inject_tasks_success(target_node, task_list)
+                self.observers.on_inject_success(
+                    InjectSuccessEvent(target_node=target_node, task_datas=task_list)
+                )
             except Exception as e:
-                log_inlet.inject_tasks_failed(target_node, task_list, e)
+                self.observers.on_inject_failed(
+                    InjectFailedEvent(
+                        target_node=target_node,
+                        task_datas=task_list,
+                        exception=e,
+                    )
+                )
 
     def inject_terminations(self, nodes: Sequence[str]) -> None:
         """
@@ -716,13 +738,23 @@ class TaskGraph:
 
         :param nodes: 待注入终止符的节点名序列
         """
-        log_inlet = self._log_inlet
         for target_node in nodes:
             try:
                 self.node_dict[target_node].put_signal()
-                log_inlet.inject_tasks_success(target_node, [TERMINATION_SIGNAL])
+                self.observers.on_inject_success(
+                    InjectSuccessEvent(
+                        target_node=target_node,
+                        task_datas=[TERMINATION_SIGNAL],
+                    )
+                )
             except Exception as e:
-                log_inlet.inject_tasks_failed(target_node, [TERMINATION_SIGNAL], e)
+                self.observers.on_inject_failed(
+                    InjectFailedEvent(
+                        target_node=target_node,
+                        task_datas=[TERMINATION_SIGNAL],
+                        exception=e,
+                    )
+                )
 
     def get_structure_list(self) -> list[str]:
         """
@@ -745,10 +777,12 @@ class TaskGraph:
         """
         return self.order_graph
 
-    def get_log_inlet(self) -> LogInlet:
+    def get_observers(self) -> ObserverHub:
         """
-        获取日志注入器。
+        获取图级观察者 hub。
 
-        :return: :class:`LogInlet` 实例
+        供节点以外的协作者（如 reporter）以观察者形式发布事件。
+
+        :return: 图级观察者 hub
         """
-        return self._log_inlet
+        return self.observers

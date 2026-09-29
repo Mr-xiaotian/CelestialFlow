@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
-from ..persistence import LogInlet
+from ..observability import ObserverHub
 
 
 class ReporterTaskGraph(Protocol):
@@ -30,8 +30,8 @@ class ReporterTaskGraph(Protocol):
         """采集各节点当前的运行时快照。"""
         ...
 
-    def get_log_inlet(self) -> LogInlet:
-        """获取日志注入器。"""
+    def get_observers(self) -> ObserverHub:
+        """获取图级观察者 hub。"""
         ...
 
     def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:

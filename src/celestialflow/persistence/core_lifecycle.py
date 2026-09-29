@@ -8,8 +8,14 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observability.core_event import (
+    GraphEndEvent,
+    GraphStartEvent,
+    InjectFailedEvent,
+    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
+    ReporterFailureEvent,
+    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -182,6 +188,48 @@ class LifecycleInlet(BaseInlet, Observer):
         工作器崩溃不产生生命周期记录。
 
         :param event: 工作器崩溃事件
+        """
+
+    def on_graph_start(self, event: GraphStartEvent) -> None:
+        """
+        任务图启动不产生生命周期记录。
+
+        :param event: 任务图启动事件
+        """
+
+    def on_graph_end(self, event: GraphEndEvent) -> None:
+        """
+        任务图结束不产生生命周期记录。
+
+        :param event: 任务图结束事件
+        """
+
+    def on_inject_success(self, event: InjectSuccessEvent) -> None:
+        """
+        注入成功不产生生命周期记录。
+
+        :param event: 注入成功事件
+        """
+
+    def on_inject_failed(self, event: InjectFailedEvent) -> None:
+        """
+        注入失败不产生生命周期记录。
+
+        :param event: 注入失败事件
+        """
+
+    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
+        """
+        上报器停止不产生生命周期记录。
+
+        :param event: 上报器停止事件
+        """
+
+    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
+        """
+        上报器诊断失败不产生生命周期记录。
+
+        :param event: 上报器诊断失败事件
         """
 
     def on_task_input(self, event: TaskInputEvent) -> None:
