@@ -5,7 +5,7 @@ import pytest
 from celestialflow.observer import ObserverHub
 from celestialflow.persist import core_run
 from celestialflow.persist.core_lifecycle import LifecycleSpout
-from celestialflow.persist.core_log import LogSpout
+from celestialflow.persist.core_log import LogInlet, LogSpout
 from celestialflow.persist.core_run import run_resources
 
 
@@ -47,6 +47,23 @@ class TestLifecycleRunResources:
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
+
+    def test_log_level_from_pyproject(self, tmp_path, monkeypatch):
+        """``LogInlet`` 的日志级别应从项目级 ``pyproject.toml`` 读取。"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / 'pyproject.toml').write_text(
+            '[tool.celestialflow]\nlog_level = "ERROR"\n', encoding='utf-8'
+        )
+        observers = ObserverHub()
+
+        with run_resources(observers):
+            inlets = [
+                observer
+                for observer in observers._snapshot()
+                if isinstance(observer, LogInlet)
+            ]
+            assert len(inlets) == 1
+            assert inlets[0].log_level == 'ERROR'
 
     def test_cleans_up_when_body_raises(self, tmp_path, monkeypatch):
         """上下文体内抛出异常时，异常应向外传播且 spout 仍被回收。"""

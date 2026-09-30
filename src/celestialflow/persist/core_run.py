@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from ..observer import ObserverHub
+from ..runtime.util_config import load_log_level_from_pyproject
 from .core_lifecycle import LifecycleInlet, LifecycleSpout
 from .core_log import LogInlet, LogSpout
 
@@ -21,6 +22,10 @@ def run_resources(
     并产出 lifecycle 数据库路径；退出时统一停止两个 spout，保证运行期即使
     抛出异常也能完成回收。
 
+    ``LogInlet`` 的日志级别从项目级 ``pyproject.toml`` 的
+    ``[tool.celestialflow]`` 节读取（见
+    :func:`~celestialflow.runtime.util_config.load_log_level_from_pyproject`）。
+
     :param observers: 接收全局 inlet 的观察者 hub，通常为任务图或任务节点自身的 hub
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
@@ -28,7 +33,9 @@ def run_resources(
     log_spout = LogSpout()
 
     observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-    observers.add_observer(LogInlet().bind_spout(log_spout))
+    observers.add_observer(
+        LogInlet(load_log_level_from_pyproject()).bind_spout(log_spout)
+    )
 
     try:
         lifecycle_spout.start()
