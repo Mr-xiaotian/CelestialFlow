@@ -4,12 +4,9 @@ from __future__ import annotations
 from .core_event import (
     GraphEndEvent,
     GraphStartEvent,
-    InjectFailedEvent,
-    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
     ReporterFailureEvent,
-    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -122,30 +119,6 @@ class Observer:
         任务图结束回调。
 
         :param event: 任务图结束事件
-        """
-        ...
-
-    def on_inject_success(self, event: InjectSuccessEvent) -> None:
-        """
-        注入成功回调。
-
-        :param event: 注入成功事件
-        """
-        ...
-
-    def on_inject_failed(self, event: InjectFailedEvent) -> None:
-        """
-        注入失败回调。
-
-        :param event: 注入失败事件
-        """
-        ...
-
-    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
-        """
-        上报器停止回调。
-
-        :param event: 上报器停止事件
         """
         ...
 

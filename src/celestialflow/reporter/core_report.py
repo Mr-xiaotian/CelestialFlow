@@ -5,7 +5,7 @@ from typing import Any, Protocol
 
 import requests
 
-from ..observer import ReporterFailureEvent, ReporterStopEvent
+from ..observer import ReporterFailureEvent
 from ..runtime.util_errors import ReporterError
 from .util_types import ReporterTaskGraph
 
@@ -82,7 +82,6 @@ class TaskReporter:
         self._notify_shutdown()  # 通知服务端本图已结束
         self._refresh_all()  # 最后一次
         self._session.close()
-        self.task_graph.get_observers().on_reporter_stop(ReporterStopEvent())
 
     def _pull_timeout(self) -> float:
         """计算拉取请求的超时时间"""
@@ -158,7 +157,12 @@ class TaskReporter:
             )
 
     def _pull_injection(self) -> None:
-        """从远程服务拉取任务与终止符注入信息并注入任务图。"""
+        """
+        从远程服务拉取任务与终止符注入信息并注入任务图。
+
+        任务与终止符各自独立注入：任一方注入失败都会上报为 ``kind="inject"``
+        的上报器失败，但不会阻止另一方继续注入。
+        """
         try:
             res = self._session.get(
                 f"{self.base_url}/api/pull_injection",
@@ -174,8 +178,20 @@ class TaskReporter:
             return
 
         injection_payload: dict[str, Any] = res.json()
-        self.task_graph.inject_tasks(injection_payload.get("tasks", {}))
-        self.task_graph.inject_terminations(injection_payload.get("terminations", []))
+        try:
+            self.task_graph.inject_tasks(injection_payload.get("tasks", {}))
+        except Exception as e:
+            self.task_graph.get_observers().on_reporter_failure(
+                ReporterFailureEvent(kind="inject", exception=e)
+            )
+        try:
+            self.task_graph.inject_terminations(
+                injection_payload.get("terminations", [])
+            )
+        except Exception as e:
+            self.task_graph.get_observers().on_reporter_failure(
+                ReporterFailureEvent(kind="inject", exception=e)
+            )
 
     # ==== 推送 ====
     def _push_errors(self) -> None:

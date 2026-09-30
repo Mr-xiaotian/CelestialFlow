@@ -8,12 +8,9 @@ from ..runtime.util_errors import ConfigurationError
 from .core_event import (
     GraphEndEvent,
     GraphStartEvent,
-    InjectFailedEvent,
-    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
     ReporterFailureEvent,
-    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -239,42 +236,6 @@ class ObserverHub(Observer):
         for observer in self._snapshot():
             try:
                 observer.on_graph_end(event)
-            except Exception:
-                traceback.print_exc()
-
-    def on_inject_success(self, event: InjectSuccessEvent) -> None:
-        """
-        转发注入成功事件。
-
-        :param event: 注入成功事件
-        """
-        for observer in self._snapshot():
-            try:
-                observer.on_inject_success(event)
-            except Exception:
-                traceback.print_exc()
-
-    def on_inject_failed(self, event: InjectFailedEvent) -> None:
-        """
-        转发注入失败事件。
-
-        :param event: 注入失败事件
-        """
-        for observer in self._snapshot():
-            try:
-                observer.on_inject_failed(event)
-            except Exception:
-                traceback.print_exc()
-
-    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
-        """
-        转发上报器停止事件。
-
-        :param event: 上报器停止事件
-        """
-        for observer in self._snapshot():
-            try:
-                observer.on_reporter_stop(event)
             except Exception:
                 traceback.print_exc()
 

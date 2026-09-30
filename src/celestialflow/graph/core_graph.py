@@ -13,8 +13,6 @@ from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
     GraphStartEvent,
-    InjectFailedEvent,
-    InjectSuccessEvent,
     Observer,
     ObserverHub,
 )
@@ -30,10 +28,10 @@ from ..runtime.util_errors import (
     DuplicateNodeError,
     InvalidOptionError,
     NodeNotFoundError,
+    UnknownNodeError,
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
-from ..runtime.util_types import TERMINATION_SIGNAL
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 from .util_render import render_structure_list
 
@@ -683,53 +681,49 @@ class TaskGraph:
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """
-        按节点名将注入任务写入待执行队列，并记录注入结果。
+        按节点名将注入任务写入待执行队列。
 
-        单个节点注入失败不会影响其余节点。
+        先为图中存在的节点尽力注入，再对未知节点统一报错，因此单个未知节点
+        不会导致其余节点的任务被丢弃。
 
         :param tasks: 节点名到任务序列的映射
+        :raises UnknownNodeError: 存在图中不存在的目标节点
         """
+        missing_nodes: list[str] = []
         for target_node, task_datas in tasks.items():
-            task_list = list(task_datas)
-            try:
-                node = self.node_dict[target_node]
-                for task in task_list:
-                    node.put_task(task)
-                self.observers.on_inject_success(
-                    InjectSuccessEvent(target_node=target_node, task_datas=task_list)
-                )
-            except Exception as e:
-                self.observers.on_inject_failed(
-                    InjectFailedEvent(
-                        target_node=target_node,
-                        task_datas=task_list,
-                        exception=e,
-                    )
-                )
+            if target_node not in self.node_dict:
+                missing_nodes.append(target_node)
+                continue
+            node = self.node_dict[target_node]
+            for task in task_datas:
+                node.put_task(task)
+
+        if missing_nodes:
+            raise UnknownNodeError(
+                f"unknown target node(s) for task injection: {missing_nodes}"
+            )
 
     def inject_terminations(self, nodes: Sequence[str]) -> None:
         """
-        向指定节点注入终止信号，并记录注入结果。
+        向指定节点注入终止信号。
+
+        先为图中存在的节点尽力注入，再对未知节点统一报错，因此单个未知节点
+        不会导致其余节点的终止信号被丢弃。
 
         :param nodes: 待注入终止符的节点名序列
+        :raises UnknownNodeError: 存在图中不存在的目标节点
         """
+        missing_nodes: list[str] = []
         for target_node in nodes:
-            try:
-                self.node_dict[target_node].put_signal()
-                self.observers.on_inject_success(
-                    InjectSuccessEvent(
-                        target_node=target_node,
-                        task_datas=[TERMINATION_SIGNAL],
-                    )
-                )
-            except Exception as e:
-                self.observers.on_inject_failed(
-                    InjectFailedEvent(
-                        target_node=target_node,
-                        task_datas=[TERMINATION_SIGNAL],
-                        exception=e,
-                    )
-                )
+            if target_node not in self.node_dict:
+                missing_nodes.append(target_node)
+                continue
+            self.node_dict[target_node].put_signal()
+
+        if missing_nodes:
+            raise UnknownNodeError(
+                f"unknown target node(s) for termination injection: {missing_nodes}"
+            )
 
     def get_structure_list(self) -> list[str]:
         """

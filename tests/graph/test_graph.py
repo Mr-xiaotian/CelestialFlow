@@ -8,17 +8,16 @@ from celestialflow import (
     TaskExecutor,
 )
 from celestialflow.observer import (
-    InjectFailedEvent,
-    InjectSuccessEvent,
     Observer,
+    TerminationInputEvent,
 )
 from celestialflow.persist.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
     NodeNotFoundError,
+    UnknownNodeError,
 )
 from celestialflow.runtime.util_event import LocalEventClient
-from celestialflow.runtime.util_types import TERMINATION_SIGNAL
 
 
 # =========================
@@ -1043,24 +1042,6 @@ class TestCyclicGraph:
 # =========================
 # TaskGraph Reporter 能力接口
 # =========================
-class _RecordingInjectObserver(Observer):
-    """记录注入成功/失败事件。"""
-
-    def __init__(self) -> None:
-        self.successes: list[tuple[str, list[object]]] = []
-        self.failures: list[tuple[str, list[object], Exception]] = []
-
-    def on_inject_success(self, event: InjectSuccessEvent) -> None:
-        """记录节点注入成功。"""
-        self.successes.append((event.target_node, list(event.task_datas)))
-
-    def on_inject_failed(self, event: InjectFailedEvent) -> None:
-        """记录节点注入失败。"""
-        self.failures.append(
-            (event.target_node, list(event.task_datas), event.exception)
-        )
-
-
 class TestTaskGraphReporterCapabilities:
     def test_get_status_snapshot_covers_all_nodes(self):
         """get_status_snapshot 应覆盖全部节点。"""
@@ -1099,17 +1080,43 @@ class TestTaskGraphReporterCapabilities:
 
         assert graph.load_failed_records(None) == []
 
-    def test_inject_tasks_and_terminations_queue_and_log(self):
-        """inject_tasks / inject_terminations 应按节点注入并记录成功/失败。"""
-        recording = _RecordingInjectObserver()
-
+    def test_inject_tasks_injects_valid_nodes_and_raises_for_missing(self):
+        """inject_tasks 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""
         node = TaskExecutor("s1", add_one)
-        graph = TaskGraph("test_inject_capabilities")
+        graph = TaskGraph("test_inject_tasks_missing")
         graph.set_nodes(nodes=[node])
-        graph.add_observer(recording)
 
-        graph.inject_tasks({"s1": [1, 2], "missing": [9]})
-        graph.inject_terminations(["s1"])
+        with pytest.raises(UnknownNodeError):
+            graph.inject_tasks({"s1": [1, 2], "missing": [9]})
 
-        assert recording.successes == [("s1", [1, 2]), ("s1", [TERMINATION_SIGNAL])]
-        assert [name for name, _task_datas, _error in recording.failures] == ["missing"]
+        assert node.metrics.get_external_input_count() == 2
+
+    def test_inject_tasks_with_only_valid_nodes_does_not_raise(self):
+        """inject_tasks 在全部目标节点均存在时不报错。"""
+        node = TaskExecutor("s1", add_one)
+        graph = TaskGraph("test_inject_tasks_valid")
+        graph.set_nodes(nodes=[node])
+
+        graph.inject_tasks({"s1": [1, 2]})
+
+        assert node.metrics.get_external_input_count() == 2
+
+    def test_inject_terminations_injects_valid_nodes_and_raises_for_missing(self):
+        """inject_terminations 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""
+        node = TaskExecutor("s1", add_one)
+        graph = TaskGraph("test_inject_terminations_missing")
+        graph.set_nodes(nodes=[node])
+
+        terminated: list[str] = []
+
+        class _TerminationRecorder(Observer):
+            def on_termination_input(self, event: TerminationInputEvent) -> None:
+                """记录收到终止信号的节点。"""
+                terminated.append(event.node)
+
+        node.add_observer(_TerminationRecorder())
+
+        with pytest.raises(UnknownNodeError):
+            graph.inject_terminations(["s1", "missing"])
+
+        assert terminated == ["s1"]

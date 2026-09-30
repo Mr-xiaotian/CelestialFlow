@@ -8,7 +8,6 @@ from celestialflow.observer import (
     Observer,
     ObserverHub,
     ReporterFailureEvent,
-    ReporterStopEvent,
 )
 from celestialflow.reporter import TaskReporter
 
@@ -116,19 +115,14 @@ class FakeErrorGraph:
 
 
 class RecordingReporterObserver(Observer):
-    """记录 reporter 上报过程中的失败与停止事件。"""
+    """记录 reporter 上报过程中的失败事件。"""
 
     def __init__(self) -> None:
         self.failures: list[tuple[str, Exception]] = []
-        self.stops: int = 0
 
     def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
         """记录失败类别与异常。"""
         self.failures.append((event.kind, event.exception))
-
-    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
-        """记录停止次数。"""
-        self.stops += 1
 
 
 class FakeStatusGraph:
@@ -196,6 +190,31 @@ def test_reporter_forwards_tasks_and_termination_for_same_node() -> None:
     assert graph.injected_tasks == [{"StageA": [1, 2, 3]}]
     assert graph.injected_terminations == [["StageA"]]
     assert recorder.failures == []
+
+
+def test_reporter_reports_injection_failure_as_inject_kind() -> None:
+    """任务注入抛出的异常会上报为 kind='inject'，且不影响终止符注入。"""
+
+    class RaisingTaskGraph(FakeTaskGraph):
+        """模拟 inject_tasks 抛错的图。"""
+
+        def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+            """模拟注入失败。"""
+            raise RuntimeError("unknown node")
+
+    graph = RaisingTaskGraph()
+    recorder = RecordingReporterObserver()
+    graph.observers.add_observer(recorder)
+    reporter = TaskReporter("127.0.0.1", 8000, graph)
+    reporter._session = FakeSession(
+        {"tasks": {"StageA": [1, 2]}, "terminations": ["StageB"]}
+    )
+
+    reporter._pull_injection()
+
+    assert [kind for kind, _exc in recorder.failures] == ["inject"]
+    # 终止符注入与任务注入相互独立，任务注入失败不应阻止终止符注入。
+    assert graph.injected_terminations == [["StageB"]]
 
 
 def test_reporter_pushes_errors_via_push_errors_endpoint_only() -> None:

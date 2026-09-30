@@ -47,11 +47,11 @@ class TestLogPersistence:
         assert 'WARNING' in content
 
     def test_skip_log(self, tmp_path, monkeypatch):
-        """`LogInlet.on_task_skip` 应在 INFO 级别写入跳过日志。"""
+        """`LogInlet.on_task_skip` 应在 SUCCESS 级别写入跳过日志。"""
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()
-        inlet = LogInlet(log_level='INFO').bind_spout(spout)
+        inlet = LogInlet(log_level='SUCCESS').bind_spout(spout)
 
         spout.start()
         try:
@@ -70,4 +70,4 @@ class TestLogPersistence:
         assert 'hello world' in content
         assert 'skipped' in content
         assert '[7->8*]' in content
-        assert 'INFO' in content
+        assert 'SUCCESS' in content

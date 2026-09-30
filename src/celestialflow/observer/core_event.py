@@ -11,6 +11,7 @@ type ReporterFailureKind = Literal[
     "loop",
     "pull_interval",
     "pull_tasks",
+    "inject",
     "push_errors",
     "push_status",
     "push_graph_meta",
@@ -219,37 +220,6 @@ class GraphEndEvent:
 
     graph: str
     elapsed: float
-
-
-@dataclass(frozen=True, slots=True)
-class InjectSuccessEvent:
-    """任务/终止符注入成功事件。
-
-    :param target_node: 注入目标的节点名称
-    :param task_datas: 注入的数据
-    """
-
-    target_node: str
-    task_datas: Any
-
-
-@dataclass(frozen=True, slots=True)
-class InjectFailedEvent:
-    """任务/终止符注入失败事件。
-
-    :param target_node: 注入目标的节点名称
-    :param task_datas: 注入的数据
-    :param exception: 导致注入失败的异常
-    """
-
-    target_node: str
-    task_datas: Any
-    exception: Exception
-
-
-@dataclass(frozen=True, slots=True)
-class ReporterStopEvent:
-    """上报器停止事件。"""
 
 
 @dataclass(frozen=True, slots=True)

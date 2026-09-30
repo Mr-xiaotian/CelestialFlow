@@ -9,13 +9,10 @@ from ..funnel import BaseInlet, BaseSpout
 from ..observer.core_event import (
     GraphEndEvent,
     GraphStartEvent,
-    InjectFailedEvent,
-    InjectSuccessEvent,
     NodeEndEvent,
     NodeStartEvent,
     ReporterFailureEvent,
     ReporterFailureKind,
-    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -33,6 +30,7 @@ _REPORTER_FAILURE_LOG: dict[ReporterFailureKind, tuple[str, str]] = {
     "loop": ("ERROR", "Loop error"),
     "pull_interval": ("WARNING", "Pull 'interval' failed"),
     "pull_tasks": ("WARNING", "Pull 'task injection' failed"),
+    "inject": ("ERROR", "Inject 'tasks/terminations' failed"),
     "push_errors": ("WARNING", "Push 'error' failed"),
     "push_status": ("WARNING", "Push 'status' failed"),
     "push_graph_meta": ("WARNING", "Push 'graph_meta' failed"),
@@ -205,7 +203,7 @@ class LogInlet(BaseInlet, Observer):
         """
         self._log(
             "DEBUG",
-            f"In '{event.node}', Task {event.task_repr} input. [{event.input_id}*]",
+            f"In '{event.node}', Task {event.task_repr} input from {event.source}. [{event.input_id}*]",
         )
 
     def on_task_success(self, event: TaskSuccessEvent) -> None:
@@ -243,7 +241,7 @@ class LogInlet(BaseInlet, Observer):
         :param event: 任务跳过事件
         """
         self._log(
-            "INFO",
+            "SUCCESS",
             f"In '{event.node}', Task {event.task_repr} skipped. "
             + f"[{event.task_id}->{event.skip_id}*]",
         )
@@ -288,14 +286,6 @@ class LogInlet(BaseInlet, Observer):
 
     # ==== 上报器 ====
 
-    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
-        """
-        记录上报器停止
-
-        :param event: 上报器停止事件
-        """
-        self._log("DEBUG", "[Reporter] Stopped.")
-
     def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
         """
         记录上报器诊断失败
@@ -307,28 +297,4 @@ class LogInlet(BaseInlet, Observer):
             level,
             f"[Reporter] {label}: "
             + f"{type(event.exception).__name__}({event.exception}).",
-        )
-
-    def on_inject_success(self, event: InjectSuccessEvent) -> None:
-        """
-        记录任务注入成功
-
-        :param event: 注入成功事件
-        """
-        self._log(
-            "INFO",
-            f"[Reporter] Inject tasks {event.task_datas} into '{event.target_node}'.",
-        )
-
-    def on_inject_failed(self, event: InjectFailedEvent) -> None:
-        """
-        记录任务注入失败
-
-        :param event: 注入失败事件
-        """
-        self._log(
-            "WARNING",
-            f"[Reporter] Inject tasks {event.task_datas} into "
-            + f"'{event.target_node}' failed. "
-            + f"Error: {type(event.exception).__name__}({event.exception}).",
         )
