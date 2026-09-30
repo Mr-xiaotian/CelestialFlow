@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import traceback
-from queue import Empty, Queue
+from queue import Queue
 from threading import Thread
 from typing import Any
 
@@ -37,11 +37,7 @@ class BaseSpout:
         待处理数量在记录处理完成后递减，因此统计口径包含“已出队但仍在处理”的记录。
         """
         while True:
-            try:
-                record = self._queue.get(timeout=0.5)
-            except Empty:
-                continue
-
+            record = self._queue.get()
             if isinstance(record, TerminationSignal):
                 break
 

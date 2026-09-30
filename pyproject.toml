@@ -61,6 +61,10 @@ dev = [
 
 [tool.celestialflow]
 log_level = "INFO"
+# 是否启用上报；默认关闭，需显式开启（开启时 report_url 必填）
+if_report = false
+# 上报服务地址（CelestialFlow Web）
+report_url = "http://127.0.0.1:5005"
 
 [tool.pyright]
 include = ["src"]

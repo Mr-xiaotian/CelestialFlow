@@ -8,6 +8,7 @@ from pathlib import Path
 from ..observer import ObserverHub
 from ..reporter import NullPushSpout, PushInlet, PushSpout
 from ..runtime.util_config import (
+    load_if_report_from_pyproject,
     load_log_level_from_pyproject,
     load_report_url_from_pyproject,
 )
@@ -30,18 +31,21 @@ def run_resources(
     ``LogInlet`` 的日志级别从项目级 ``pyproject.toml`` 的
     ``[tool.celestialflow]`` 节读取（见
     :func:`~celestialflow.runtime.util_config.load_log_level_from_pyproject`）。
-    上报地址同样从该节读取：配置了 ``url`` 时使用 :class:`PushSpout`，
-    否则回退到 :class:`NullPushSpout`。
+    上报开关同样从该节读取：仅当 ``if_report`` 显式配置为 ``true`` 时启用上报，
+    并使用 :class:`PushSpout`（``report_url`` 未配置时回退到
+    :data:`~celestialflow.runtime.util_config.DEFAULT_REPORT_URL`）；
+    否则一律回退到 :class:`NullPushSpout`。
 
     :param observers: 接收全局 inlet 的观察者 hub，通常为任务图或任务节点自身的 hub
     :param report_session_id: 上报会话标识，随记录一并提交给服务端
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
+    if_report = load_if_report_from_pyproject()
     report_url = load_report_url_from_pyproject()
 
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
-    if report_url is not None:
+    if if_report:
         report_spout = PushSpout(report_session_id, report_url)
     else:
         report_spout = NullPushSpout()
