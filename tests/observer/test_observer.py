@@ -358,6 +358,42 @@ class TestObserverHub:
         assert counter.count == 2
         assert "observer boom" in buffer.getvalue()
 
+    def test_hub_handle_exception_backstops_failing_observer_handler(self):
+        """观察者的 handle_exception 自身抛异常时，由 hub 兜底且不中断分发"""
+
+        class Boom(Observer):
+            def on_task_success(self, event: TaskSuccessEvent) -> None:
+                """成功回调直接抛异常。"""
+                msg = "observer boom"
+                raise RuntimeError(msg)
+
+            def handle_exception(self, exception: Exception) -> None:
+                """错误处理器自身也抛异常。"""
+                msg = "handler boom"
+                raise ValueError(msg)
+
+        class Counter(Observer):
+            def __init__(self):
+                """初始化成功计数。"""
+                self.count = 0
+
+            def on_task_success(self, event: TaskSuccessEvent) -> None:
+                """累计成功回调次数。"""
+                self.count += 1
+
+        counter = Counter()
+        executor = TaskExecutor("HubBackstop", add_one, execution_mode="serial")
+        executor.add_observer(Boom())
+        executor.add_observer(counter)
+
+        buffer = io.StringIO()
+        with redirect_stderr(buffer):
+            executor.run([1, 2])
+
+        assert counter.count == 2
+        assert "observer boom" in buffer.getvalue()
+        assert "handler boom" in buffer.getvalue()
+
     def test_hub_rejects_cyclic_registration(self):
         """hub 拒绝会形成循环引用的注册"""
         a = ObserverHub()

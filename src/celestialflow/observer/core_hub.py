@@ -27,8 +27,10 @@ class ObserverHub(Observer):
     """观察者分发中心。
 
     本身即 :class:`Observer`，将收到的每个事件按注册顺序转发给已注册的观察者。
-    单个观察者回调抛出的异常会被捕获并打印，不会中断其余观察者的分发，
-    也不会逃逸到框架执行路径。
+    单个观察者回调抛出的异常会被捕获，并交由该观察者自身的
+    :meth:`~celestialflow.observer.core_observer.Observer.handle_exception` 处理；
+    若该处理器自身再抛出异常，则由本 hub 的 :meth:`handle_exception` 作为最终兜底。
+    两种情况下都不会中断其余观察者的分发，也不会逃逸到框架执行路径。
 
     观察者列表采用写时复制（copy-on-write）：写入方在 :attr:`_write_lock` 保护下
     用新的不可变元组整体替换 :attr:`_observers`，读路径（:meth:`_snapshot`）直接
@@ -103,9 +105,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_node_start(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_node_start(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_task_input(self, event: TaskInputEvent) -> None:
         """
@@ -115,9 +120,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_task_input(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_task_input(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_task_success(self, event: TaskSuccessEvent) -> None:
         """
@@ -127,9 +135,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_task_success(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_task_success(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         """
@@ -139,9 +150,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_task_fail(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_task_fail(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_task_skip(self, event: TaskSkipEvent) -> None:
         """
@@ -151,9 +165,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_task_skip(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_task_skip(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_task_retry(self, event: TaskRetryEvent) -> None:
         """
@@ -163,9 +180,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_task_retry(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_task_retry(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_termination_input(self, event: TerminationInputEvent) -> None:
         """
@@ -175,9 +195,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_termination_input(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_termination_input(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_termination_merge(self, event: TerminationMergeEvent) -> None:
         """
@@ -187,9 +210,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_termination_merge(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_termination_merge(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_worker_crash(self, event: WorkerCrashEvent) -> None:
         """
@@ -199,9 +225,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_worker_crash(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_worker_crash(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_node_end(self, event: NodeEndEvent) -> None:
         """
@@ -211,9 +240,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_node_end(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_node_end(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_graph_start(self, event: GraphStartEvent) -> None:
         """
@@ -223,9 +255,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_graph_start(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_graph_start(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_graph_end(self, event: GraphEndEvent) -> None:
         """
@@ -235,9 +270,12 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_graph_end(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_graph_end(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
 
     def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
         """
@@ -247,6 +285,9 @@ class ObserverHub(Observer):
         """
         for observer in self._snapshot():
             try:
-                observer.on_reporter_failure(event)
-            except Exception:
-                traceback.print_exc()
+                try:
+                    observer.on_reporter_failure(event)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
