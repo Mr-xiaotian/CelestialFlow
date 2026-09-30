@@ -29,15 +29,20 @@ from .core_observer import Observer
 class ObserverHub(Observer):
     """观察者分发中心。
 
-    本身即 :class:`Observer`，将收到的每个事件按注册顺序显式转发给已注册的观察者。
+    本身即 :class:`Observer`，将收到的每个事件按注册顺序转发给已注册的观察者。
     单个观察者回调抛出的异常会被捕获并打印，不会中断其余观察者的分发，
     也不会逃逸到框架执行路径。
+
+    观察者列表采用写时复制（copy-on-write）：写入方在 :attr:`_write_lock` 保护下
+    用新的不可变元组整体替换 :attr:`_observers`，读路径（:meth:`_snapshot`）直接
+    返回当前引用，不加锁也不拷贝。由于元组不可变、且 CPython 对属性的读取与替换
+    不会撕裂，读到的永远是某个完整版本的快照，迭代期间也无需担心并发修改。
     """
 
     def __init__(self) -> None:
         """初始化分发中心。"""
-        self._observers: list[Observer] = []
-        self._lock = Lock()
+        self._observers: tuple[Observer, ...] = ()
+        self._write_lock = Lock()
 
     # ==== 注册 ====
 
@@ -49,17 +54,19 @@ class ObserverHub(Observer):
         :raises ConfigurationError: 注册会形成 hub 循环引用
         """
         self._reject_cycle(observer)
-        with self._lock:
-            self._observers.append(observer)
+        with self._write_lock:
+            self._observers = (*self._observers, observer)
 
-    def _snapshot(self) -> list[Observer]:
+    def _snapshot(self) -> tuple[Observer, ...]:
         """
-        返回当前观察者快照。
+        返回当前观察者元组。
 
-        :return: 观察者快照列表
+        元组不可变、且写入方整体替换引用，因此调用方无需加锁即可安全地迭代本次
+        事件的一致性快照，读取本身不产生拷贝。
+
+        :return: 当前观察者元组
         """
-        with self._lock:
-            return list(self._observers)
+        return self._observers
 
     def _reject_cycle(self, observer: Observer) -> None:
         """
