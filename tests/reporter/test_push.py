@@ -69,7 +69,7 @@ def test_to_error_record_maps_fail_event() -> None:
 
 def test_spout_pushes_record_to_push_errors_endpoint() -> None:
     """单条失败记录会以 push_errors 推送，载荷携带会话标识与记录内容。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(graph_id="g1", base_url="http://host:1", batch_size=1)
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
@@ -95,7 +95,7 @@ def test_spout_thread_pushes_records(monkeypatch) -> None:
     session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(graph_id="g1", base_url="http://host:1", flush_interval=0.05)
     inlet = PushInlet().bind_spout(spout)
 
     spout.start()
@@ -113,15 +113,69 @@ def test_spout_thread_pushes_records(monkeypatch) -> None:
     assert payload["errors"][0]["event_id"] == 7
 
 
-def test_spout_raises_on_push_failure() -> None:
-    """服务端返回非 2xx 时，处理器抛出 ReporterError（由基类捕获、不致死线程）。"""
+def test_post_raises_on_push_failure() -> None:
+    """服务端返回非 2xx 时，`_post` 抛出 ReporterError。"""
     spout = PushSpout(graph_id="g1", base_url="http://host:1")
     spout._session = FakePushSession(ok=False)
+
+    with pytest.raises(ReporterError):
+        spout._post([{"event_id": 1}])
+
+
+def test_flush_swallows_push_failure(capsys) -> None:
+    """`_flush` 推送失败时不向外抛出，且缓冲已被取走、不会重复发送。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    session = FakePushSession(ok=False)
+    spout._session = session
+    spout._handle_record({"event_id": 1})
+
+    spout._flush()
+
+    assert "ReporterError" in capsys.readouterr().err
+    assert len(session.posts) == 1
+    assert spout._buffer == []
+
+
+def test_flush_batches_buffered_records() -> None:
+    """缓冲达到 batch_size 时，多条记录合并为一次 push_errors 请求。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1", batch_size=3)
+    session = FakePushSession()
+    spout._session = session
+
+    for event_id in range(3):
+        spout._handle_record({"event_id": event_id})
+
+    assert len(session.posts) == 1
+    _url, payload, _timeout = session.posts[0]
+    assert [record["event_id"] for record in payload["errors"]] == [0, 1, 2]
+
+
+def test_stop_flushes_remaining_records(monkeypatch) -> None:
+    """stop() 会冲刷未达 batch_size 的尾部记录。"""
+    session = FakePushSession()
+    monkeypatch.setattr(push_module.requests, "Session", lambda: session)
+
+    spout = PushSpout(
+        graph_id="g1",
+        base_url="http://host:1",
+        batch_size=10,
+        flush_interval=0,
+    )
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_task_fail(_fail_event())
-    with pytest.raises(ReporterError):
-        spout._handle_record(spout.get_queue().get())
+    spout.start()
+    try:
+        inlet.on_task_fail(_fail_event(error_id=7))
+        wait_until(
+            lambda: spout.get_pending_count() == 0,
+            message="record was not consumed in time",
+        )
+    finally:
+        spout.stop()
+
+    assert len(session.posts) == 1
+    _url, payload, _timeout = session.posts[0]
+    assert payload["errors"][0]["event_id"] == 7
 
 
 def test_null_spout_discards_records(monkeypatch) -> None:
