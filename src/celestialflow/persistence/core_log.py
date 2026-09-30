@@ -92,8 +92,8 @@ class LogInlet(BaseInlet, Observer):
     """
     线程安全日志包装类，所有日志通过队列发送到监听线程写入。
 
-    节点主链路事件（节点启停、任务输入/成功/失败/跳过）以观察者形式消费；
-    图结构、终止信号、崩溃与上报器日志仍由执行路径直接调用对应方法。
+    以观察者形式消费全部事件：图结构、节点启停、任务输入/成功/失败/跳过/重试、
+    终止信号、工作器崩溃与上报器日志均通过对应的观察者回调记录。
     """
 
     def __init__(self, log_level: str = "INFO") -> None:
@@ -116,12 +116,13 @@ class LogInlet(BaseInlet, Observer):
         :param level: 日志级别
         :param message: 日志消息内容
         """
-        timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         level_upper = level.upper()
         if level_upper not in LEVEL_DICT:
             return
         if LEVEL_DICT[level_upper] < LEVEL_DICT[self.log_level]:
             return
+
+        timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         super()._funnel(
             {"timestamp": timestamp, "level": level_upper, "message": message}
         )
@@ -176,20 +177,6 @@ class LogInlet(BaseInlet, Observer):
             + f"{event.execution_mode}-{event.max_workers}. Use {event.elapsed:.2f}s. "
             + f"{event.succeeded} tasks succeeded, {event.failed} tasks failed, "
             + f"{event.skipped} tasks skipped.",
-        )
-
-    def node_crash(self, node_name: str, exception: Exception) -> None:
-        """
-        记录节点崩溃。
-
-        :param node_name: 节点名称
-        :param exception: 异常对象
-        """
-        exception_type = type(exception).__name__
-        exception_text = str(exception).replace("\n", " ")
-        self._log(
-            "CRITICAL",
-            f"Node '{node_name}' crashed: ({exception_type}){exception_text}.",
         )
 
     # ==== 工作线程 ====
