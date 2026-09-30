@@ -12,10 +12,14 @@ from .core_log import (
     LogInlet,
     LogSpout,
 )
+from .core_run import (
+    run_resources,
+)
 
 __all__ = [
     "LifecycleInlet",
     "LifecycleSpout",
     "LogInlet",
     "LogSpout",
+    "run_resources",
 ]

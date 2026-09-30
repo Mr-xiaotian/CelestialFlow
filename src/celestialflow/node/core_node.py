@@ -19,12 +19,7 @@ from ..observer import (
     TaskSkipEvent,
     TerminationInputEvent,
 )
-from ..persist import (
-    LifecycleInlet,
-    LifecycleSpout,
-    LogInlet,
-    LogSpout,
-)
+from ..persist import run_resources
 from ..persist.util_sqlite import (
     load_task_error_records,
     load_task_result_records,
@@ -520,32 +515,18 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        _lifecycle_spout = LifecycleSpout()
-        _log_spout = LogSpout()
-
-        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
-        _log_inlet = LogInlet().bind_spout(_log_spout)
-
-        self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(_log_inlet)
-
         error_list: list[Exception] = []
 
         try:
-            _lifecycle_spout.start()
-            _log_spout.start()
-            self._lifecycle_db_path = _lifecycle_spout.db_path
-
-            for task in task_source:
-                self.put_task(task)
-            if if_put_signal:
-                self.put_signal()
-            self.start()
+            with run_resources(self.observers) as lifecycle_db_path:
+                self._lifecycle_db_path = lifecycle_db_path
+                for task in task_source:
+                    self.put_task(task)
+                if if_put_signal:
+                    self.put_signal()
+                self.start()
         except Exception as exception:
             error_list.append(exception)
-        finally:
-            _lifecycle_spout.stop()
-            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -565,32 +546,18 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        _lifecycle_spout = LifecycleSpout()
-        _log_spout = LogSpout()
-
-        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
-        _log_inlet = LogInlet().bind_spout(_log_spout)
-
-        self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(_log_inlet)
-
         error_list: list[Exception] = []
 
         try:
-            _lifecycle_spout.start()
-            _log_spout.start()
-            self._lifecycle_db_path = _lifecycle_spout.db_path
-
-            for task in task_source:
-                self.put_task(task)
-            if if_put_signal:
-                self.put_signal()
-            await self.start_async()
+            with run_resources(self.observers) as lifecycle_db_path:
+                self._lifecycle_db_path = lifecycle_db_path
+                for task in task_source:
+                    self.put_task(task)
+                if if_put_signal:
+                    self.put_signal()
+                await self.start_async()
         except Exception as exception:
             error_list.append(exception)
-        finally:
-            _lifecycle_spout.stop()
-            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)

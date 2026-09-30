@@ -18,12 +18,7 @@ from ..observer import (
     Observer,
     ObserverHub,
 )
-from ..persist import (
-    LifecycleInlet,
-    LifecycleSpout,
-    LogInlet,
-    LogSpout,
-)
+from ..persist import run_resources
 from ..persist.util_sqlite import (
     load_records,
     load_records_after_event_id_in_fail,
@@ -305,33 +300,19 @@ class TaskGraph:
         self._build_analysis()
         self._inject_observers()
 
-        _lifecycle_spout = LifecycleSpout()
-        _log_spout = LogSpout()
-
-        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
-        _log_inlet = LogInlet().bind_spout(_log_spout)
-
-        self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(_log_inlet)
-
         error_list: list[Exception] = []
 
         try:
-            _lifecycle_spout.start()
-            _log_spout.start()
-            self._lifecycle_db_path = _lifecycle_spout.db_path
-
-            for node_name, tasks in init_tasks_dict.items():
-                for task in tasks:
-                    self.node_dict[node_name].put_task(task)
-            if if_put_signal:
-                self.put_source_signal()
-            self.start()
+            with run_resources(self.observers) as lifecycle_db_path:
+                self._lifecycle_db_path = lifecycle_db_path
+                for node_name, tasks in init_tasks_dict.items():
+                    for task in tasks:
+                        self.node_dict[node_name].put_task(task)
+                if if_put_signal:
+                    self.put_source_signal()
+                self.start()
         except Exception as exception:
             error_list.append(exception)
-        finally:
-            _lifecycle_spout.stop()
-            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -354,33 +335,19 @@ class TaskGraph:
         self._build_analysis()
         self._inject_observers()
 
-        _lifecycle_spout = LifecycleSpout()
-        _log_spout = LogSpout()
-
-        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
-        _log_inlet = LogInlet().bind_spout(_log_spout)
-
-        self.observers.add_observer(_lifecycle_inlet)
-        self.observers.add_observer(_log_inlet)
-
         error_list: list[Exception] = []
 
         try:
-            _lifecycle_spout.start()
-            _log_spout.start()
-            self._lifecycle_db_path = _lifecycle_spout.db_path
-
-            for node_name, tasks in init_tasks_dict.items():
-                for task in tasks:
-                    self.node_dict[node_name].put_task(task)
-            if if_put_signal:
-                self.put_source_signal()
-            await self.start_async()
+            with run_resources(self.observers) as lifecycle_db_path:
+                self._lifecycle_db_path = lifecycle_db_path
+                for node_name, tasks in init_tasks_dict.items():
+                    for task in tasks:
+                        self.node_dict[node_name].put_task(task)
+                if if_put_signal:
+                    self.put_source_signal()
+                await self.start_async()
         except Exception as exception:
             error_list.append(exception)
-        finally:
-            _lifecycle_spout.stop()
-            _log_spout.stop()
 
         if error_list:
             raise ExceptionGroup("Errors occurred during run", error_list)
@@ -516,7 +483,8 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(self._finish_start(start_perf))
+            finish_errors = self._finish_start(start_perf)
+            error_list.extend(finish_errors)
 
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
@@ -547,7 +515,8 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            error_list.extend(self._finish_start(start_perf))
+            finish_errors = self._finish_start(start_perf)
+            error_list.extend(finish_errors)
 
         if error_list:
             raise ExceptionGroup("Errors occurred during graph execution", error_list)
