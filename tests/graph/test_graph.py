@@ -1056,30 +1056,6 @@ class TestTaskGraphReporterCapabilities:
         assert set(snapshot) == {"s1", "s2"}
         assert set(snapshot["s1"]) >= {"start_time", "status", "elapsed_time"}
 
-    def test_load_failed_records_full_and_incremental(self, tmp_path):
-        """load_failed_records 按水位线全量/增量读取，且只返回 failed。"""
-        db_path = tmp_path / "lifecycle.sqlite3"
-        append_records(
-            db_path,
-            [
-                {"event_id": 1, "node": "s1", "status": "failed", "task_json": 1},
-                {"event_id": 2, "node": "s1", "status": "success", "task_json": 2},
-                {"event_id": 5, "node": "s1", "status": "failed", "task_json": 5},
-            ],
-        )
-        graph = TaskGraph("test_load_failed_records")
-        graph.set_nodes(nodes=[TaskExecutor("s1", add_one)])
-        graph._lifecycle_db_path = db_path
-
-        assert [r["event_id"] for r in graph.load_failed_records(None)] == [1, 5]
-        assert [r["event_id"] for r in graph.load_failed_records(1)] == [5]
-
-    def test_load_failed_records_without_db_returns_empty(self):
-        """未设置 lifecycle 库时 load_failed_records 应返回空列表。"""
-        graph = TaskGraph("test_load_failed_records_empty")
-
-        assert graph.load_failed_records(None) == []
-
     def test_inject_tasks_injects_valid_nodes_and_raises_for_missing(self):
         """inject_tasks 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""
         node = TaskExecutor("s1", add_one)

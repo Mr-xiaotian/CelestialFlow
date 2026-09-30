@@ -27,9 +27,11 @@ class TaskReporter:
     周期性向远程服务推送任务运行状态的上报器。
 
     - 定时从服务器拉取配置（如上报间隔、任务注入信息）
-    - 将任务图中的状态、错误、结构、拓扑等信息推送到后端接口
+    - 将任务图中的状态、结构、拓扑等信息推送到后端接口
     - 状态推送带变化门控：仅当节点快照较上次成功推送发生变化时才发送
     - 以后台线程方式运行，通常由任务图生命周期统一管理启停
+    - 失败记录不再由本类轮询读取，改由 :class:`PushInlet` 以观察者形式在
+      ``on_task_fail`` 时事件驱动推送，避免访问 lifecycle 磁盘文件
     - 主要用于可视化监控、任务远程控制与外部服务同步
     """
 
@@ -55,7 +57,6 @@ class TaskReporter:
         self._session: requests.Session = requests.Session()
         self._server_has_status: bool = False
         self._server_has_graph_meta: bool = False
-        self._server_max_event_id_in_fail: int | None = None
         self._last_status_dict: dict[str, dict[str, Any]] | None = None
 
         self.interval: int = 5
@@ -124,7 +125,6 @@ class TaskReporter:
             if not self._server_has_graph_meta:
                 self._push_graph_meta()
             self._push_status()
-            self._push_errors()
         except Exception as e:
             self.task_graph.get_observers().on_reporter_failure(
                 ReporterFailureEvent(kind="loop", exception=e)
@@ -147,10 +147,6 @@ class TaskReporter:
             self.interval = int(max(1.0, min(float(interval), 60.0)))
             self._server_has_status = bool(payload.get("has_status", False))
             self._server_has_graph_meta = bool(payload.get("has_graph_meta", False))
-            max_event_id = payload.get("max_event_id_in_fail")
-            self._server_max_event_id_in_fail = (
-                None if max_event_id is None else int(max_event_id)
-            )
         except Exception as e:
             self.task_graph.get_observers().on_reporter_failure(
                 ReporterFailureEvent(kind="pull_interval", exception=e)
@@ -194,33 +190,6 @@ class TaskReporter:
             )
 
     # ==== 推送 ====
-    def _push_errors(self) -> None:
-        """推送错误信息"""
-        try:
-            graph_id = self.task_graph.get_graph_id()
-            all_errors = self.task_graph.load_failed_records(
-                self._server_max_event_id_in_fail
-            )
-            if not all_errors:
-                return
-
-            payload: dict[str, Any] = {
-                "graph_id": graph_id,
-                "errors": all_errors,
-            }
-            res = self._session.post(
-                f"{self.base_url}/api/push_errors",
-                json=payload,
-                timeout=self._push_timeout(),
-            )
-            if not res.ok:
-                raise ReporterError(f"Failed to push errors: {res.status_code}")
-
-        except Exception as e:
-            self.task_graph.get_observers().on_reporter_failure(
-                ReporterFailureEvent(kind="push_errors", exception=e)
-            )
-
     def _push_status(self) -> None:
         """
         推送状态信息。

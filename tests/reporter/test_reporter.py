@@ -1,8 +1,6 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import pytest
-
 from celestialflow import TaskExecutor, TaskGraph
 from celestialflow.observer import (
     Observer,
@@ -85,33 +83,6 @@ class FakeTaskGraph:
     def inject_terminations(self, nodes: Sequence[str]) -> None:
         """记录转交的终止符注入节点。"""
         self.injected_terminations.append(list(nodes))
-
-
-class FakeErrorGraph:
-    """提供 reporter 推送错误所需的最小图接口。"""
-
-    def __init__(
-        self, records: list[dict[str, Any]] | None = None, graph_id: str = "demo@1000"
-    ) -> None:
-        self._records = list(records or [])
-        self._graph_id = graph_id
-        self.after_event_ids: list[int | None] = []
-        self.observers = ObserverHub()
-
-    def get_graph_id(self) -> str:
-        """返回当前 graph_id。"""
-        return self._graph_id
-
-    def get_observers(self) -> ObserverHub:
-        """返回图级观察者 hub。"""
-        return self.observers
-
-    def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
-        """按水位线返回预设的失败记录，并记录调用参数。"""
-        self.after_event_ids.append(after_event_id)
-        if after_event_id is None:
-            return list(self._records)
-        return [r for r in self._records if int(r["event_id"]) > after_event_id]
 
 
 class RecordingReporterObserver(Observer):
@@ -215,61 +186,6 @@ def test_reporter_reports_injection_failure_as_inject_kind() -> None:
     assert [kind for kind, _exc in recorder.failures] == ["inject"]
     # 终止符注入与任务注入相互独立，任务注入失败不应阻止终止符注入。
     assert graph.injected_terminations == [["StageB"]]
-
-
-def test_reporter_pushes_errors_via_push_errors_endpoint_only() -> None:
-    """Reporter 只通过 push_errors 推送错误内容。"""
-    record = {
-        "event_id": 1,
-        "node": "s1",
-        "status": "failed",
-        "error_type": "ValueError",
-        "error_message": "bad value",
-        "ts": 1.0,
-        "task_json": {"value": 1},
-    }
-    graph = FakeErrorGraph([record])
-    recorder = RecordingReporterObserver()
-    graph.observers.add_observer(recorder)
-    reporter = TaskReporter("127.0.0.1", 8000, graph)
-    reporter._session = FakePushSession()
-
-    reporter._push_errors()
-
-    assert recorder.failures == []
-    # 服务端尚无水位线时应全量读取。
-    assert graph.after_event_ids == [None]
-    assert len(reporter._session.posts) == 1
-    url, payload, _timeout = reporter._session.posts[0]
-    assert url.endswith("/api/push_errors")
-    assert payload["graph_id"] == "demo@1000"
-    assert payload["errors"] == [record]
-
-
-def test_reporter_pushes_only_errors_after_server_max_event_id() -> None:
-    """Reporter 只推送 failed 中 event_id 大于服务端水位线的记录。"""
-    graph = FakeErrorGraph(
-        [
-            {"event_id": 1, "node": "s1", "status": "failed", "task_json": {}},
-            {"event_id": 5, "node": "s1", "status": "failed", "task_json": {}},
-            {"event_id": 7, "node": "s2", "status": "failed", "task_json": {}},
-        ]
-    )
-    recorder = RecordingReporterObserver()
-    graph.observers.add_observer(recorder)
-    reporter = TaskReporter("127.0.0.1", 8000, graph)
-    reporter._session = FakePushSession()
-    reporter._server_max_event_id_in_fail = 3
-
-    reporter._push_errors()
-
-    assert recorder.failures == []
-    assert graph.after_event_ids == [3]
-    assert len(reporter._session.posts) == 1
-    url, payload, _timeout = reporter._session.posts[0]
-    assert url.endswith("/api/push_errors")
-    assert payload["graph_id"] == "demo@1000"
-    assert [item["event_id"] for item in payload["errors"]] == [5, 7]
 
 
 def test_reporter_pushes_graph_meta_in_one_request() -> None:

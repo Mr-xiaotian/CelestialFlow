@@ -4,6 +4,7 @@ from __future__ import annotations
 import inspect
 import os
 import time
+import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
@@ -227,6 +228,7 @@ class BaseTaskNode[T, R, Y]:
         :param name: 节点/管理器名称
         """
         self._name = name
+        self.node_id = uuid.uuid4().hex
 
     def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
@@ -518,7 +520,7 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers) as lifecycle_db_path:
+            with run_resources(self.observers, self.node_id) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)
@@ -549,7 +551,7 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers) as lifecycle_db_path:
+            with run_resources(self.observers, self.node_id) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)

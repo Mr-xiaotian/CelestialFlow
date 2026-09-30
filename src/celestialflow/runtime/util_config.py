@@ -38,3 +38,26 @@ def load_log_level_from_pyproject() -> str:
             except tomllib.TOMLDecodeError:
                 continue
     return "INFO"
+
+
+def load_report_url_from_pyproject() -> str | None:
+    """
+    从项目级 ``pyproject.toml`` 的 ``[tool.celestialflow]`` 节读取 ``url``。
+
+    从当前工作目录开始向上搜索，未找到对应配置时返回 ``None``。
+
+    :return: 上报服务地址；未配置时为 ``None``
+    :rtype: str | None
+    """
+    current_dir = Path.cwd()
+    for parent in [current_dir, *current_dir.parents]:
+        pyproject = parent / "pyproject.toml"
+        if pyproject.exists():
+            try:
+                data = tomllib.loads(pyproject.read_text("utf-8"))
+                celestialflow = data.get("tool", {}).get("celestialflow", {})
+                url = celestialflow.get("url")
+                return None if url is None else str(url)
+            except tomllib.TOMLDecodeError:
+                continue
+    return None

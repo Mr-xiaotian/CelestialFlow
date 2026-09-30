@@ -32,10 +32,11 @@ class TestLifecycleRunResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_resources(observers) as db_path:
+        with run_resources(observers, "session-1") as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
-            assert len(observers._snapshot()) == 2
+            # lifecycle / log / error 三个全局 inlet。
+            assert len(observers._snapshot()) == 3
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
         """退出上下文应停止两个 spout。"""
@@ -43,7 +44,7 @@ class TestLifecycleRunResources:
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
-        with run_resources(ObserverHub()):
+        with run_resources(ObserverHub(), "session-1"):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -56,7 +57,7 @@ class TestLifecycleRunResources:
         )
         observers = ObserverHub()
 
-        with run_resources(observers):
+        with run_resources(observers, "session-1"):
             inlets = [
                 observer
                 for observer in observers._snapshot()
@@ -72,7 +73,7 @@ class TestLifecycleRunResources:
         _patch_recording_spouts(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
-            with run_resources(ObserverHub()):
+            with run_resources(ObserverHub(), "session-1"):
                 raise RuntimeError('boom')
 
         assert set(stopped) == {'lifecycle', 'log'}

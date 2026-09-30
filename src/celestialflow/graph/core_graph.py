@@ -18,8 +18,6 @@ from ..observer import (
 )
 from ..persist import run_resources
 from ..persist.util_sqlite import (
-    load_records,
-    load_records_after_event_id_in_fail,
     load_tasks_grouped_by_node,
 )
 from ..reporter import NullTaskReporter, ReporterProtocol
@@ -301,7 +299,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers) as lifecycle_db_path:
+            with run_resources(self.observers, self.graph_id) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -336,7 +334,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers) as lifecycle_db_path:
+            with run_resources(self.observers, self.graph_id) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -412,8 +410,8 @@ class TaskGraph:
         """
         启动后收尾：回收图内状态、停止上报器并记录结束日志。
 
-        ``lifecycle`` / ``log`` spout 的启停由外层 :meth:`run` / :meth:`run_async`
-        统一管理，本方法只负责图对象自身的收尾逻辑。
+        ``lifecycle`` / ``log`` / 错误上报 spout 的启停由外层 :meth:`run` /
+        :meth:`run_async` 统一管理，本方法只负责图对象自身的收尾逻辑。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
         :return: 收集到的收尾阶段异常列表
@@ -662,22 +660,6 @@ class TaskGraph:
         return {
             node_name: node.get_snapshot() for node_name, node in self.node_dict.items()
         }
-
-    def load_failed_records(self, after_event_id: int | None) -> list[dict[str, Any]]:
-        """
-        读取待上报的失败记录。
-
-        持久化文件路径与 records 表结构知识都收敛在本方法内，
-        调用方（reporter）无需感知。
-
-        :param after_event_id: 仅返回 ``event_id`` 大于该值的记录；``None`` 表示全量
-        :return: 失败记录列表
-        """
-        if self._lifecycle_db_path is None:
-            return []
-        if after_event_id is None:
-            return load_records(self._lifecycle_db_path)
-        return load_records_after_event_id_in_fail(self._lifecycle_db_path, after_event_id)
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """
