@@ -1,8 +1,6 @@
 # observability/core_observer.py
 from __future__ import annotations
 
-from typing import Protocol
-
 from .core_event import (
     GraphEndEvent,
     GraphStartEvent,
@@ -23,10 +21,10 @@ from .core_event import (
 )
 
 
-class Observer(Protocol):
-    """执行器生命周期观察者协议。
+class Observer:
+    """执行器生命周期观察者基类。
 
-    所有回调均提供默认空实现，实现方继承本协议即可只覆写关心的方法。
+    所有回调均提供默认空实现，实现方继承本基类即可只覆写关心的方法。
     回调中的异常由 :class:`~celestialflow.observability.core_hub.ObserverHub`
     统一捕获，不会逃逸到框架执行路径。
     """

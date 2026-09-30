@@ -167,7 +167,7 @@ class TestLifecyclePersistence:
         assert rows[1][2:6] == ("ValueError", "final boom", '"retry_fail"', "null")
 
     def test_skip_persistence(self, tmp_path, monkeypatch):
-        """`LifecycleInlet.task_skip` 应将 pending 记录晋升为 skipped 并切换事件 ID。"""
+        """`LifecycleInlet.on_task_skip` 应将 pending 记录晋升为 skipped 并切换事件 ID。"""
         monkeypatch.chdir(tmp_path)
         spout = LifecycleSpout()
         inlet = LifecycleInlet().bind_spout(spout)

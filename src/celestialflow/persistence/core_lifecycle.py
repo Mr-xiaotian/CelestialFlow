@@ -8,22 +8,11 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observability.core_event import (
-    GraphEndEvent,
-    GraphStartEvent,
-    InjectFailedEvent,
-    InjectSuccessEvent,
-    NodeEndEvent,
-    NodeStartEvent,
-    ReporterFailureEvent,
-    ReporterStopEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
-    TerminationInputEvent,
-    TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 from ..observability.core_observer import Observer
 from ..runtime.util_errors import InitializationError
@@ -151,86 +140,9 @@ class LifecycleInlet(BaseInlet, Observer):
     """
     线程安全 lifecycle 记录包装类，以观察者形式消费任务事件。
 
-    节点启动/结束事件不产生生命周期记录，因此显式空实现对应回调；
-    重试事件仍由执行路径直接调用 :meth:`task_retry`。
+    仅覆写会产生生命周期记录的任务事件回调，其余事件沿用
+    :class:`~celestialflow.observability.core_observer.Observer` 的默认空实现。
     """
-
-    def on_node_start(self, event: NodeStartEvent) -> None:
-        """
-        节点启动不产生生命周期记录。
-
-        :param event: 节点启动事件
-        """
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        节点结束不产生生命周期记录。
-
-        :param event: 节点结束事件
-        """
-
-    def on_termination_input(self, event: TerminationInputEvent) -> None:
-        """
-        终止信号输入不产生生命周期记录。
-
-        :param event: 终止信号输入事件
-        """
-
-    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
-        """
-        终止信号合并不产生生命周期记录。
-
-        :param event: 终止信号合并事件
-        """
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """
-        工作器崩溃不产生生命周期记录。
-
-        :param event: 工作器崩溃事件
-        """
-
-    def on_graph_start(self, event: GraphStartEvent) -> None:
-        """
-        任务图启动不产生生命周期记录。
-
-        :param event: 任务图启动事件
-        """
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """
-        任务图结束不产生生命周期记录。
-
-        :param event: 任务图结束事件
-        """
-
-    def on_inject_success(self, event: InjectSuccessEvent) -> None:
-        """
-        注入成功不产生生命周期记录。
-
-        :param event: 注入成功事件
-        """
-
-    def on_inject_failed(self, event: InjectFailedEvent) -> None:
-        """
-        注入失败不产生生命周期记录。
-
-        :param event: 注入失败事件
-        """
-
-    def on_reporter_stop(self, event: ReporterStopEvent) -> None:
-        """
-        上报器停止不产生生命周期记录。
-
-        :param event: 上报器停止事件
-        """
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """
-        上报器诊断失败不产生生命周期记录。
-
-        :param event: 上报器诊断失败事件
-        """
 
     def on_task_input(self, event: TaskInputEvent) -> None:
         """
