@@ -8,6 +8,10 @@ from celestialflow.observability import (
     TaskSuccessEvent,
 )
 from celestialflow.persistence.core_lifecycle import LifecycleInlet, LifecycleSpout
+from celestialflow.persistence.util_sqlite import (
+    load_task_error_records,
+    load_task_result_records,
+)
 
 
 class TestLifecyclePersistence:
@@ -42,7 +46,7 @@ class TestLifecyclePersistence:
         assert spout.db_path.exists()
         assert spout.db_path.suffix == ".sqlite3"
 
-        pairs = spout.get_task_error_pairs("s1")
+        pairs = load_task_error_records(spout.db_path, "s1")
         assert len(pairs) == 1
         assert pairs[0][0] == "data1"
         assert pairs[0][1] == ("ValueError", "oops")
@@ -90,7 +94,7 @@ class TestLifecyclePersistence:
         finally:
             spout.stop()
 
-        pairs = spout.get_task_result_pairs("s1")
+        pairs = load_task_result_records(spout.db_path, "s1")
         assert pairs == [("task1", 100)]
 
     def test_retry_persistence(self, tmp_path, monkeypatch):

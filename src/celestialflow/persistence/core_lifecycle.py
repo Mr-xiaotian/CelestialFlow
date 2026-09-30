@@ -20,8 +20,6 @@ from .util_payload import to_persisted_payload
 from .util_sqlite import (
     connect_db,
     insert_record,
-    load_task_error_records,
-    load_task_result_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_skipped_by_event_id,
     promote_record_to_success_by_event_id,
@@ -112,28 +110,6 @@ class LifecycleSpout(BaseSpout):
             self._conn.commit()
             self._conn.close()
             self._conn = None
-
-    def get_task_error_pairs(self, node: str) -> list[tuple[Any, tuple[str, str]]]:
-        """
-        从 sqlite 文件中读取指定 node 的错误记录
-
-        :param node: 待读取的 node 名称
-        :return: (task, error_record) 元组列表
-        """
-        if self.db_path is None:
-            return []
-        return load_task_error_records(str(self.db_path), node)
-
-    def get_task_result_pairs(self, node: str) -> list[tuple[Any, Any]]:
-        """
-        从 sqlite 文件中读取指定 node 的成功结果记录。
-
-        :param node: 待读取的 node 名称
-        :return: (task, result) 元组列表
-        """
-        if self.db_path is None:
-            return []
-        return load_task_result_records(str(self.db_path), node)
 
 
 class LifecycleInlet(BaseInlet, Observer):

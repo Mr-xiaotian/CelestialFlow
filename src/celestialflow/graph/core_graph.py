@@ -69,7 +69,7 @@ class TaskGraph:
     ctree_client: EventClient
     is_dag: bool
     layers_dict: dict[int, list[str]]
-    _lifecycle_spout: LifecycleSpout
+    _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
 
@@ -97,7 +97,6 @@ class TaskGraph:
         self.set_graph_mode(graph_mode)
         self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
-        self.observers = ObserverHub()
 
         self._init_state()
 
@@ -120,6 +119,12 @@ class TaskGraph:
 
         # 用于保存任务图启动时间
         self.start_time = 0.0
+
+        # 用于保存观察者
+        self.observers = ObserverHub()
+
+        # 用于保存生命周期数据库路径
+        self._lifecycle_db_path = None
 
     # ==== 建图 ====
 
@@ -300,10 +305,10 @@ class TaskGraph:
         self._build_analysis()
         self._inject_observers()
 
-        self._lifecycle_spout = LifecycleSpout()
+        _lifecycle_spout = LifecycleSpout()
         _log_spout = LogSpout()
 
-        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
         _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
@@ -312,8 +317,9 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            self._lifecycle_spout.start()
+            _lifecycle_spout.start()
             _log_spout.start()
+            self._lifecycle_db_path = _lifecycle_spout.db_path
 
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
@@ -324,7 +330,7 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            self._lifecycle_spout.stop()
+            _lifecycle_spout.stop()
             _log_spout.stop()
 
         if error_list:
@@ -348,10 +354,10 @@ class TaskGraph:
         self._build_analysis()
         self._inject_observers()
 
-        self._lifecycle_spout = LifecycleSpout()
+        _lifecycle_spout = LifecycleSpout()
         _log_spout = LogSpout()
 
-        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
         _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
@@ -360,8 +366,9 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            self._lifecycle_spout.start()
+            _lifecycle_spout.start()
             _log_spout.start()
+            self._lifecycle_db_path = _lifecycle_spout.db_path
 
             for node_name, tasks in init_tasks_dict.items():
                 for task in tasks:
@@ -372,7 +379,7 @@ class TaskGraph:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            self._lifecycle_spout.stop()
+            _lifecycle_spout.stop()
             _log_spout.stop()
 
         if error_list:
@@ -699,12 +706,11 @@ class TaskGraph:
         :param after_event_id: 仅返回 ``event_id`` 大于该值的记录；``None`` 表示全量
         :return: 失败记录列表
         """
-        db_path = self._lifecycle_spout.db_path
-        if db_path is None:
+        if self._lifecycle_db_path is None:
             return []
         if after_event_id is None:
-            return load_records(db_path)
-        return load_records_after_event_id_in_fail(db_path, after_event_id)
+            return load_records(self._lifecycle_db_path)
+        return load_records_after_event_id_in_fail(self._lifecycle_db_path, after_event_id)
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """

@@ -8,7 +8,11 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
-from celestialflow.persistence.util_sqlite import append_records
+from celestialflow.persistence.util_sqlite import (
+    append_records,
+    load_task_error_records,
+    load_task_result_records,
+)
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
@@ -546,9 +550,9 @@ class TestTaskSkip:
 
         assert ctree.events.count(CTreeEvent.TASK_SKIP) == 2
 
-        spout = executor._lifecycle_spout
-        assert spout.db_path is not None
-        conn = sqlite3.connect(spout.db_path)
+        db_path = executor._lifecycle_db_path
+        assert db_path is not None
+        conn = sqlite3.connect(db_path)
         try:
             statuses = [
                 str(row[0])
@@ -642,7 +646,7 @@ class TestTaskSplitter:
         graph.run({"S": [[" a ", " b ", " c "]]})
 
         assert splitter.metrics.downstream_counter["A"].get() == 3
-        result_pairs = graph._lifecycle_spout.get_task_result_pairs("A")
+        result_pairs = load_task_result_records(graph._lifecycle_db_path, "A")
         assert sorted(task for task, _ in result_pairs) == ["a", "b", "c"]
 
 
@@ -712,7 +716,7 @@ class TestTaskRouter:
         assert counts["tasks_failed"] == 1
         assert counts["tasks_processed"] == 2
 
-        error_pairs = graph._lifecycle_spout.get_task_error_pairs("R")
+        error_pairs = load_task_error_records(graph._lifecycle_db_path, "R")
         assert len(error_pairs) == 1
         task, (_error_type, error_message) = error_pairs[0]
         assert task == "msg2"
@@ -738,8 +742,8 @@ class TestTaskRouter:
         graph.run({"R": ["msg1"]})
 
         # 下游记录的输入应为路由器给出的载荷，而不是路由器自身的输入任务
-        pairs_a = graph._lifecycle_spout.get_task_result_pairs("msg1_a")
-        pairs_b = graph._lifecycle_spout.get_task_result_pairs("msg1_b")
+        pairs_a = load_task_result_records(graph._lifecycle_db_path, "msg1_a")
+        pairs_b = load_task_result_records(graph._lifecycle_db_path, "msg1_b")
         assert [task for task, _ in pairs_a] == ["msg1-a"]
         assert [task for task, _ in pairs_b] == ["msg1-b"]
         assert router.metrics.downstream_counter["msg1_a"].get() == 1

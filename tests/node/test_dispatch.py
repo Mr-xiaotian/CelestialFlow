@@ -260,9 +260,9 @@ class TestDispatchSerial:
         # 直接驱动 dispatch（不经过 node.run），因此手动装配 lifecycle 持久化。
         lifecycle_spout = LifecycleSpout()
         lifecycle_observer = LifecycleInlet().bind_spout(lifecycle_spout)
-        executor._lifecycle_spout = lifecycle_spout
         executor.add_observer(lifecycle_observer)
         lifecycle_spout.start()
+        executor._lifecycle_db_path = lifecycle_spout.db_path
         try:
             lifecycle_observer.on_task_input(
                 TaskInputEvent(executor.get_name(), 3, "(3)", 0, "external")

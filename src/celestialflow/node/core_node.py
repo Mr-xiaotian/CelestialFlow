@@ -25,7 +25,11 @@ from ..persistence import (
     LogInlet,
     LogSpout,
 )
-from ..persistence.util_sqlite import load_tasks_grouped_by_node
+from ..persistence.util_sqlite import (
+    load_task_error_records,
+    load_task_result_records,
+    load_tasks_grouped_by_node,
+)
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
@@ -79,7 +83,7 @@ class BaseTaskNode[T, R, Y]:
     ctree_client: EventClient
     observers: ObserverHub
     _downstream_nodes: dict[str, BaseTaskNode[Any, Any, Any]]
-    _lifecycle_spout: LifecycleSpout
+    _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
 
@@ -139,6 +143,7 @@ class BaseTaskNode[T, R, Y]:
         self.metrics = TaskMetrics()
         self.observers = ObserverHub()
         self._downstream_nodes = {}
+        self._lifecycle_db_path = None
 
         # 上报器可能会在节点真正启动前先采集一次快照。
         self.start_time = 0.0
@@ -515,10 +520,10 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        self._lifecycle_spout = LifecycleSpout()
+        _lifecycle_spout = LifecycleSpout()
         _log_spout = LogSpout()
 
-        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
         _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
@@ -527,8 +532,9 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            self._lifecycle_spout.start()
+            _lifecycle_spout.start()
             _log_spout.start()
+            self._lifecycle_db_path = _lifecycle_spout.db_path
 
             for task in task_source:
                 self.put_task(task)
@@ -538,7 +544,7 @@ class BaseTaskNode[T, R, Y]:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            self._lifecycle_spout.stop()
+            _lifecycle_spout.stop()
             _log_spout.stop()
 
         if error_list:
@@ -559,10 +565,10 @@ class BaseTaskNode[T, R, Y]:
         :param if_put_signal: 是否注入终止信号，默认 True
         :return: ``None``
         """
-        self._lifecycle_spout = LifecycleSpout()
+        _lifecycle_spout = LifecycleSpout()
         _log_spout = LogSpout()
 
-        _lifecycle_inlet = LifecycleInlet().bind_spout(self._lifecycle_spout)
+        _lifecycle_inlet = LifecycleInlet().bind_spout(_lifecycle_spout)
         _log_inlet = LogInlet().bind_spout(_log_spout)
 
         self.observers.add_observer(_lifecycle_inlet)
@@ -571,8 +577,9 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            self._lifecycle_spout.start()
+            _lifecycle_spout.start()
             _log_spout.start()
+            self._lifecycle_db_path = _lifecycle_spout.db_path
 
             for task in task_source:
                 self.put_task(task)
@@ -582,7 +589,7 @@ class BaseTaskNode[T, R, Y]:
         except Exception as exception:
             error_list.append(exception)
         finally:
-            self._lifecycle_spout.stop()
+            _lifecycle_spout.stop()
             _log_spout.stop()
 
         if error_list:
@@ -733,19 +740,31 @@ class BaseTaskNode[T, R, Y]:
 
     def get_success_pairs(self) -> list[tuple[T, R]]:
         """
-        获取成功任务的列表
+        获取成功任务的列表。
 
-        :return: (task, result) 元组列表
+        仅在本节点通过 :meth:`run` / :meth:`run_async` 独立运行时可用；
+        由图级调度（:class:`~celestialflow.graph.core_graph.TaskGraph`）统一运行时，
+        记录落在图级 lifecycle 库，本方法返回空列表。
+
+        :return: (task, result) 元组列表；无 lifecycle 库时为空
         """
-        return self._lifecycle_spout.get_task_result_pairs(self.get_name())
+        if self._lifecycle_db_path is None:
+            return []
+        return load_task_result_records(self._lifecycle_db_path, self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
-        获取出错任务的列表
+        获取出错任务的列表。
 
-        :return: (task, PersistedError) 元组列表
+        可用条件同 :meth:`get_success_pairs`，节点未独立运行时返回空列表。
+
+        :return: (task, PersistedError) 元组列表；无 lifecycle 库时为空
         """
-        task_error_pairs = self._lifecycle_spout.get_task_error_pairs(self.get_name())
+        if self._lifecycle_db_path is None:
+            return []
+        task_error_pairs = load_task_error_records(
+            self._lifecycle_db_path, self.get_name()
+        )
         return [
             (task, PersistedError(error_type, error_message))
             for task, (error_type, error_message) in task_error_pairs

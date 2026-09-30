@@ -12,7 +12,6 @@ from celestialflow.observability import (
     InjectSuccessEvent,
     Observer,
 )
-from celestialflow.persistence import LifecycleSpout
 from celestialflow.persistence.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
@@ -1076,7 +1075,7 @@ class TestTaskGraphReporterCapabilities:
         assert set(snapshot) == {"s1", "s2"}
         assert set(snapshot["s1"]) >= {"start_time", "status", "elapsed_time"}
 
-    def test_load_failed_records_full_and_incremental(self, tmp_path, monkeypatch):
+    def test_load_failed_records_full_and_incremental(self, tmp_path):
         """load_failed_records 按水位线全量/增量读取，且只返回 failed。"""
         db_path = tmp_path / "lifecycle.sqlite3"
         append_records(
@@ -1089,16 +1088,14 @@ class TestTaskGraphReporterCapabilities:
         )
         graph = TaskGraph("test_load_failed_records")
         graph.set_nodes(nodes=[TaskExecutor("s1", add_one)])
-        graph._lifecycle_spout = LifecycleSpout()
-        monkeypatch.setattr(graph._lifecycle_spout, "db_path", db_path)
+        graph._lifecycle_db_path = db_path
 
         assert [r["event_id"] for r in graph.load_failed_records(None)] == [1, 5]
         assert [r["event_id"] for r in graph.load_failed_records(1)] == [5]
 
-    def test_load_failed_records_without_db_returns_empty(self, monkeypatch):
+    def test_load_failed_records_without_db_returns_empty(self):
         """未设置 lifecycle 库时 load_failed_records 应返回空列表。"""
         graph = TaskGraph("test_load_failed_records_empty")
-        graph._lifecycle_spout = LifecycleSpout()
 
         assert graph.load_failed_records(None) == []
 
