@@ -1,4 +1,4 @@
-# persistence/core_log.py
+# persist/core_log.py
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +6,7 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observability.core_event import (
+from ..observer.core_event import (
     GraphEndEvent,
     GraphStartEvent,
     InjectFailedEvent,
@@ -25,7 +25,7 @@ from ..observability.core_event import (
     TerminationMergeEvent,
     WorkerCrashEvent,
 )
-from ..observability.core_observer import Observer
+from ..observer.core_observer import Observer
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
 

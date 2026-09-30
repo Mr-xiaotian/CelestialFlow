@@ -1,4 +1,4 @@
-# observability/core_hub.py
+# observer/core_hub.py
 from __future__ import annotations
 
 import traceback

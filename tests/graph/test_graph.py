@@ -7,12 +7,12 @@ from celestialflow import (
     TaskGrid,
     TaskExecutor,
 )
-from celestialflow.observability import (
+from celestialflow.observer import (
     InjectFailedEvent,
     InjectSuccessEvent,
     Observer,
 )
-from celestialflow.persistence.util_sqlite import append_records
+from celestialflow.persist.util_sqlite import append_records
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
     NodeNotFoundError,

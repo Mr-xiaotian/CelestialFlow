@@ -1,4 +1,4 @@
-# persistence/core_lifecycle.py
+# persist/core_lifecycle.py
 from __future__ import annotations
 
 import sqlite3
@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observability.core_event import (
+from ..observer.core_event import (
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
 )
-from ..observability.core_observer import Observer
+from ..observer.core_observer import Observer
 from ..runtime.util_errors import InitializationError
 from .util_payload import to_persisted_payload
 from .util_sqlite import (
@@ -117,7 +117,7 @@ class LifecycleInlet(BaseInlet, Observer):
     线程安全 lifecycle 记录包装类，以观察者形式消费任务事件。
 
     仅覆写会产生生命周期记录的任务事件回调，其余事件沿用
-    :class:`~celestialflow.observability.core_observer.Observer` 的默认空实现。
+    :class:`~celestialflow.observer.core_observer.Observer` 的默认空实现。
     """
 
     def on_task_input(self, event: TaskInputEvent) -> None:

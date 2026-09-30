@@ -1,4 +1,4 @@
-# observability/__init__.py
+# observer/__init__.py
 """CelestialFlow 可观测性模块。
 
 提供任务执行观察者协议、事件类型与分发中心，以及内置的进度输出观察者。

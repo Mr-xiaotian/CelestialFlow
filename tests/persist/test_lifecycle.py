@@ -1,14 +1,14 @@
 import sqlite3
 
-from celestialflow.observability import (
+from celestialflow.observer import (
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
 )
-from celestialflow.persistence.core_lifecycle import LifecycleInlet, LifecycleSpout
-from celestialflow.persistence.util_sqlite import (
+from celestialflow.persist.core_lifecycle import LifecycleInlet, LifecycleSpout
+from celestialflow.persist.util_sqlite import (
     load_task_error_records,
     load_task_result_records,
 )
@@ -232,7 +232,7 @@ class TestLifecyclePersistence:
         conn.commit()
         conn.close()
 
-        from celestialflow.persistence.util_sqlite import connect_db
+        from celestialflow.persist.util_sqlite import connect_db
 
         conn = connect_db(db_path)
         try:

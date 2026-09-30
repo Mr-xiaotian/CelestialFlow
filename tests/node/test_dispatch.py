@@ -15,14 +15,14 @@ from weakref import WeakKeyDictionary
 
 import pytest
 
-from celestialflow.observability import (
+from celestialflow.observer import (
     Observer,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
     WorkerCrashEvent,
 )
-from celestialflow.persistence import LifecycleInlet, LifecycleSpout
+from celestialflow.persist import LifecycleInlet, LifecycleSpout
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
 from celestialflow.node import TaskExecutor

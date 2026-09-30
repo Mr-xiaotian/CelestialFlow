@@ -13,7 +13,7 @@ from concurrent.futures import (
 )
 from typing import TYPE_CHECKING
 
-from ..observability import TerminationMergeEvent, WorkerCrashEvent
+from ..observer import TerminationMergeEvent, WorkerCrashEvent
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import ConfigurationError, InitializationError
 from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal

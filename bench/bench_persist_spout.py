@@ -12,9 +12,9 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from celestialflow.persistence.core_lifecycle import LifecycleSpout
-from celestialflow.persistence.core_log import LogSpout
-from celestialflow.persistence.util_sqlite import connect_db
+from celestialflow.persist.core_lifecycle import LifecycleSpout
+from celestialflow.persist.core_log import LogSpout
+from celestialflow.persist.util_sqlite import connect_db
 
 
 class BenchLogSpout(LogSpout):
@@ -113,7 +113,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    print("Running persistence spout benchmarks...")
+    print("Running persist spout benchmarks...")
     print(f"  log-count:      {args.log_count:,}")
     print(f"  lifecycle-count: {args.lifecycle_count:,}")
     print("  model: preload queue -> start spout -> drain all queued records")

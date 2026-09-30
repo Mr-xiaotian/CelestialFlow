@@ -1,4 +1,4 @@
-# persistence/__init__.py
+# persist/__init__.py
 """CelestialFlow 持久化模块。
 
 提供任务生命周期（Lifecycle）与运行日志（Log）的记录、写入与查询能力。

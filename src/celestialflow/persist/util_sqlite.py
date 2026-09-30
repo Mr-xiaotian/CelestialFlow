@@ -1,4 +1,4 @@
-# persistence/util_sqlite.py
+# persist/util_sqlite.py
 from __future__ import annotations
 
 import json

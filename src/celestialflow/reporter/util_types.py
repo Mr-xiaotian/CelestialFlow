@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
-from ..observability import ObserverHub
+from ..observer import ObserverHub
 
 
 class ReporterTaskGraph(Protocol):

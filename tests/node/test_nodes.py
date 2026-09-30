@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
-from celestialflow.persistence.util_sqlite import (
+from celestialflow.persist.util_sqlite import (
     append_records,
     load_task_error_records,
     load_task_result_records,

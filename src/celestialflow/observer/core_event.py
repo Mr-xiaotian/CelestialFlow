@@ -1,4 +1,4 @@
-# observability/core_event.py
+# observer/core_event.py
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-# observability/core_observer_print.py
+# observer/core_observer_print.py
 from threading import Lock
 
 from ..runtime.util_types import ValueWrapper

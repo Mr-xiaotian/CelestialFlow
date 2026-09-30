@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from celestialflow.persistence.util_sqlite import (
+from celestialflow.persist.util_sqlite import (
     append_records,
     clear_records,
     connect_db,

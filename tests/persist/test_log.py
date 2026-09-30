@@ -1,13 +1,13 @@
 from conftest import wait_until
 
-from celestialflow.observability import (
+from celestialflow.observer import (
     GraphEndEvent,
     GraphStartEvent,
     NodeStartEvent,
     TaskRetryEvent,
     TaskSkipEvent,
 )
-from celestialflow.persistence.core_log import LogInlet, LogSpout
+from celestialflow.persist.core_log import LogInlet, LogSpout
 
 
 class TestLogPersistence:

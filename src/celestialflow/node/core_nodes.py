@@ -2,7 +2,7 @@
 import time
 from collections.abc import Iterable
 
-from ..observability import TaskSuccessEvent
+from ..observer import TaskSuccessEvent
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import CTreeEvent

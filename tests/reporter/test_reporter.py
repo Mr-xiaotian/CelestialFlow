@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph
-from celestialflow.observability import (
+from celestialflow.observer import (
     Observer,
     ObserverHub,
     ReporterFailureEvent,

@@ -5,7 +5,7 @@ from typing import Any, Protocol
 
 import requests
 
-from ..observability import ReporterFailureEvent, ReporterStopEvent
+from ..observer import ReporterFailureEvent, ReporterStopEvent
 from ..runtime.util_errors import ReporterError
 from .util_types import ReporterTaskGraph
 

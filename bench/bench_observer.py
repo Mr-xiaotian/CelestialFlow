@@ -13,7 +13,7 @@ from typing import Any
 from tqdm import tqdm
 
 from celestialflow import Observer, PrintObserver, TaskExecutor
-from celestialflow.observability import (
+from celestialflow.observer import (
     NodeEndEvent,
     NodeStartEvent,
     TaskFailEvent,
