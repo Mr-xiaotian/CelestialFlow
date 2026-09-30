@@ -36,10 +36,10 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
 | # | 子任务 | 负责扫描的代码目录/文件 |
 |---|--------|------------------------|
 | 1 | src/runtime + graph | `src/celestialflow/runtime/*.py`<br>`src/celestialflow/graph/*.py` |
-| 2 | src/funnel + node + observability + persistence | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/node/*.py`<br>`src/celestialflow/observability/*.py`<br>`src/celestialflow/persistence/*.py` |
+| 2 | src/funnel + node + observer + persist | `src/celestialflow/funnel/*.py`<br>`src/celestialflow/node/*.py`<br>`src/celestialflow/observer/*.py`<br>`src/celestialflow/persist/*.py` |
 | 3 | src/包入口 + benchmark | `src/celestialflow/__init__.py`<br>`src/celestialflow/benchmark/*.py` |
 | 4 | tests/runtime + graph | `tests/runtime/*.py`<br>`tests/graph/*.py` |
-| 5 | tests/其余 | `tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/node/*.py`<br>`tests/observability/*.py`<br>`tests/persistence/*.py`<br>`tests/benchmark/*.py` |
+| 5 | tests/其余 | `tests/conftest.py`<br>`tests/funnel/*.py`<br>`tests/node/*.py`<br>`tests/observer/*.py`<br>`tests/persist/*.py`<br>`tests/benchmark/*.py` |
 | 6 | bench | `bench/*.py` |
 | 7 | demo | `demo/*.py` |
 
@@ -50,7 +50,7 @@ description: "Audits code in src/, bench/, tests/, and demo/, then updates match
    ```bash
    # 单行调用。$HOME 在 Bash 与 PowerShell 下均会自动展开为主目录（Windows 下为 %USERPROFILE%）。
    # 建议 --output 写文件（强制 UTF-8）；PowerShell 下 `> x.json` 会写成 UTF-16/BOM 导致读文件失败。
-   uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --project-root . --output temp/manifest.md --pairs src/celestialflow/runtime:docs/zh-CN/src/runtime src/celestialflow/graph:docs/zh-CN/src/graph src/celestialflow/funnel:docs/zh-CN/src/funnel src/celestialflow/node:docs/zh-CN/src/node src/celestialflow/observability:docs/zh-CN/src/observability src/celestialflow/persistence:docs/zh-CN/src/persistence src/celestialflow/benchmark:docs/zh-CN/src/benchmark tests/runtime:docs/zh-CN/tests/runtime tests/graph:docs/zh-CN/tests/graph tests/funnel:docs/zh-CN/tests/funnel tests/node:docs/zh-CN/tests/node tests/observability:docs/zh-CN/tests/observability tests/persistence:docs/zh-CN/tests/persistence tests/benchmark:docs/zh-CN/tests/benchmark bench:docs/zh-CN/bench demo:docs/zh-CN/demo
+   uv run python $HOME/.agents/skills/docs-zh-sync/scan_manifest.py --project-root . --output temp/manifest.md --pairs src/celestialflow/runtime:docs/zh-CN/src/runtime src/celestialflow/graph:docs/zh-CN/src/graph src/celestialflow/funnel:docs/zh-CN/src/funnel src/celestialflow/node:docs/zh-CN/src/node src/celestialflow/observer:docs/zh-CN/src/observability src/celestialflow/persist:docs/zh-CN/src/persistence src/celestialflow/benchmark:docs/zh-CN/src/benchmark tests/runtime:docs/zh-CN/tests/runtime tests/graph:docs/zh-CN/tests/graph tests/funnel:docs/zh-CN/tests/funnel tests/node:docs/zh-CN/tests/node tests/observer:docs/zh-CN/tests/observability tests/persist:docs/zh-CN/tests/persistence tests/benchmark:docs/zh-CN/tests/benchmark bench:docs/zh-CN/bench demo:docs/zh-CN/demo
    ```
 
    > 以上为**完整 pair 列表**（与 7 个子任务一一对应），可直接复制。

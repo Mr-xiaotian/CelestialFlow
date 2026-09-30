@@ -1,6 +1,6 @@
 ---
 name: "quality-review"
-description: "Multi-agent code quality review across architecture, type safety, error handling, concurrency, refactoring, naming, and testability. Main agent processes areas serially, releasing parallel sub-agents per area."
+description: "Multi-agent code quality review for CelestialFlow. Main agent partitions src/ into areas and releases one sub-agent per area; each sub-agent covers all dimensions (architecture, type safety, error handling, concurrency, refactoring, naming, testability)."
 ---
 
 # Code Quality Review Skill
@@ -16,53 +16,46 @@ description: "Multi-agent code quality review across architecture, type safety, 
 
 ## 目标
 
-使用多组 subagent 对项目进行全面的代码质量审查。每个审查区域分配一组 subagent，组内每个 agent 从不同维度独立检查同一片代码。最终汇总所有 agent 的报告，生成统一的质量评估。
+将 `src/` 划分为若干审查区域，**每个区域委派一个子代理**，该子代理在同一片代码上一次性覆盖全部审查维度。主 agent 串行推进各区域，最后汇总所有子代理报告生成统一的质量评估。
+
+> 每个区域只需**一个**子代理，不再按维度拆分为多个；全部维度清单集中在 `_subagent-base.md` 中。
 
 ## 执行流程（主 Agent 协调）
 
 ### 阶段 1: 扫描与区域划分
 
-1. 用 `list_directory` 扫描 `src/` 目录结构。
-2. 按模块划分审查区域。推荐分组：
+1. 用 `list_directory` 扫描 `src/celestialflow/` 的模块结构。
+2. 按模块内聚性与体量划分审查区域。推荐分组：
 
-| Group | 覆盖范围 | 审查维度 |
-|-------|---------|---------|
-| A | `graph/` | Architecture, Type Safety, Error & Edge, Refactoring, Naming & Style |
-| B | `stage/` | Architecture, Type Safety, Error & Edge, Concurrency, Refactoring, Testability |
-| C | `runtime/` | Architecture, Type Safety, Concurrency, Refactoring, Naming & Style |
-| D | `observability/` + `persistence/` + `funnel/` | Architecture, Error & Edge, Refactoring |
-| E | `utils/` | Architecture, Refactoring, Naming & Style |
+| Group | 覆盖范围 |
+|-------|---------|
+| A | `graph/` |
+| B | `node/` |
+| C | `runtime/` |
+| D | `funnel/` + `persist/` |
+| E | `observer/` + `reporter/` |
+| F | `benchmark/` + `src/celestialflow/__init__.py` |
 
-> 实际分组应基于扫描结果动态调整。如果某区域文件量过大（>10 个），进一步拆分子区域。
+> 实际分组应基于扫描结果动态调整：每个区域文件数控制在 ≤ 10 个，超出时进一步拆分；相邻且耦合紧密的小模块可合并。
+> `stage/` 在历史上已更名为 `node/`；若扫描到空的 `stage/` 目录请忽略。
 
-### 阶段 2: 委派子代理（区域内并行，区域间串行）
+### 阶段 2: 委派子代理（区域串行）
 
-主 agent **按 Group A → B → C → D → E 顺序串行推进**。每进入一个区域时：
+主 agent 按 Group A → B → C → D → E → F 顺序串行推进。每进入一个区域时：
 
 1. **读取** 该区域所有代码文件，梳理关键类职责与模块交互关系
-2. **读取** `_subagent-base.md`（共享规则）→ 获取报告格式、严重级别等
-3. **读取** 该区域对应维度的 `subagent-*.md` → 获取各维度特化检查清单
-4. **同时释放** 该区域所有维度的子代理，互不依赖
-5. **等待全部返回**后聚合该区域结果，再进入下一区域
+2. **读取** `_subagent-base.md`（共享规则 + 全部维度清单）
+3. **释放 1 个子代理** 负责该区域，覆盖全部维度
+4. **等待返回**后聚合该区域结果，再进入下一区域
 
 每个子代理的 prompt 必须包含：
-- `_subagent-base.md` 的完整内容
-- 对应 `subagent-*.md` 的完整内容
-- 该区域的**代码文件列表**
-- **关键类的职责**描述
-- **与周边模块的交互关系**（上游依赖、下游消费者）
 
-子代理维度与对应 Prompt 文件：
+- `_subagent-base.md` 的**完整内容**
+- 该区域的**代码文件列表**（FILES）
+- **关键类的职责**描述（KEY_CLASSES）
+- **与周边模块的交互关系**（MODULE_RELATIONS，上游依赖 / 下游消费者）
 
-| agent | 检查方向 | Prompt 文件 |
-|-------|---------|------------|
-| **Architecture Agent** | 模块职责、层次依赖、设计模式、接口一致性 | `subagent-architecture.md` |
-| **Type Safety Agent** | 类型标注完整性、`Any` 逃逸、`type: ignore` 必要性、类型收窄 | `subagent-type-safety.md` |
-| **Error & Edge Agent** | 异常处理覆盖、边界条件、资源泄漏风险、死代码 | `subagent-error-edge.md` |
-| **Concurrency Agent** | 线程安全、锁使用、竞态条件、队列生命周期 | `subagent-concurrency.md` |
-| **Refactoring Agent** | 重复代码、过长函数/类、圈复杂度、可提取的公共逻辑 | `subagent-refactoring.md` |
-| **Naming & Style Agent** | 命名一致性、代码风格、注释质量、文档字符串完整性 | `subagent-naming-style.md` |
-| **Testability Agent** | 可测试性、接口隔离、Mock 友好度、依赖注入缺口 | `subagent-testability.md` |
+> **并行度**：默认区域间串行，便于主 agent 在进入下一区域前积累上下文。若区域之间彼此独立且环境允许，也可一次并行释放多个区域子代理，但需在最终汇总中明确已完成与剩余区域。
 
 ### 阶段 3: 汇总与交付
 
@@ -78,7 +71,7 @@ description: "Multi-agent code quality review across architecture, type safety, 
 | 区域 | 文件数 | 🔴 Critical | 🟡 Warning | 🟢 Info | 评分 |
 |------|:------:|:-----------:|:----------:|:-------:|:----:|
 | graph/ | N | N | N | N | ?/10 |
-| stage/ | N | N | N | N | ?/10 |
+| node/ | N | N | N | N | ?/10 |
 | ... | | | | | |
 | **合计** | **N** | **N** | **N** | **N** | **?.?/10** |
 
@@ -89,7 +82,7 @@ description: "Multi-agent code quality review across architecture, type safety, 
 > 由主 agent 在汇总阶段对全部模块的 import 关系做拓扑检查后输出（见「跨模块依赖审计」）。
 > 若无环，直接写 `✅ 未发现跨模块循环依赖`，不列出空项。
 
-- **{环的完整路径，如 graph/ ↔ runtime/}** @ `{文件}:{行号}` — [架构/跨模块]
+- **{环的完整路径，如 graph/ ↔ runtime/}** @ `{文件}:{行号}` — [架构]
   - 影响: ...
   - 建议: ...
 
@@ -102,7 +95,7 @@ description: "Multi-agent code quality review across architecture, type safety, 
   - 影响: ...
   - 建议: ...
 
-### stage/
+### node/
 ...
 
 ## 🟡 Warnings
@@ -121,19 +114,12 @@ description: "Multi-agent code quality review across architecture, type safety, 
 
 ## 📋 各区域详细报告
 
-> 将各子代理报告按区域聚合，去重后输出。
+> 将每个区域的子代理报告（含全部维度条目）按区域罗列，去重后输出。
 
 ### graph/
+（子代理报告内容，条目均已带 `[{维度}]` 标签）
 
-#### Architecture
-（子代理报告内容）
-
-#### Type Safety
-（子代理报告内容）
-
-...
-
-### stage/
+### node/
 ...
 
 ## ⚠️ 仍待确认的歧义点
@@ -142,8 +128,9 @@ description: "Multi-agent code quality review across architecture, type safety, 
 
 #### 去重规则
 
-不同维度的 subagent 可能发现同一问题。去重时：
-- 如果多个 agent 报告了**同一文件同一行**的问题 → 保留严重级别最高的，合并描述
+单个子代理覆盖全部维度，维度之间可能命中同一问题。去重时：
+
+- 如果同一**文件同一行**被多个维度命中 → 保留严重级别最高的，合并描述并将维度标注为最贴合的一项
 - 如果问题类似但定位不同 → 各自保留
 
 #### 跨模块依赖审计
@@ -154,14 +141,14 @@ description: "Multi-agent code quality review across architecture, type safety, 
 
    | 模块 | 导入的模块 |
    |------|-----------|
-   | graph/ | runtime/, stage/ |
-   | runtime/ | graph/（如 `util_estimators` 导入了 `util_graph`） |
+   | graph/ | node/, observer/, persist/, reporter/, runtime/ |
+   | persist/ | funnel/, observer/, runtime/ |
    | ... | ... |
 
 2. **检测环**：对依赖表做拓扑检查。存在 模块A → 模块B 且 模块B → 模块A（或更长环 A → B → C → A）即为跨模块循环依赖。
 
 3. **上报规则**：
-   - 每个环记为一条 🔴 Critical 问题，维度标注 `[架构/跨模块]`
+   - 每个环记为一条 🔴 Critical 问题，维度标注 `[架构]`
    - 输出到报告的 `## 🌐 跨模块依赖问题` 章节（位于 `## 🔴 Critical Issues` 之前）
    - 每条描述必须包含：环的完整路径（如 `graph/ → runtime/ → graph/`）、具体 import 位置（`文件:行号`）、打破环的建议（如将公共类型/算法下沉到共享包、按单向依赖调整模块归属）
 
@@ -192,7 +179,7 @@ description: "Multi-agent code quality review across architecture, type safety, 
 
 ### 降级策略
 
-如果当前环境不支持 `subagent`，则主 agent 自行按区域顺序逐一审查，每个区域内也按维度逐一检查（无法并行），但输出中仍需保持分区与维度标签。
+如果当前环境不支持 `subagent`，则主 agent 自行按区域顺序逐一审查，每个区域内也按 `_subagent-base.md` 的七个维度逐一检查（无法并行），但输出中仍需保持分区与维度标签。
 
 ## 排除项
 
