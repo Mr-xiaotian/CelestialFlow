@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
 
+from ..assembly import run_resources
 from ..observer import (
     NodeEndEvent,
     NodeStartEvent,
@@ -20,7 +21,6 @@ from ..observer import (
     TaskSkipEvent,
     TerminationInputEvent,
 )
-from ..persist import run_resources
 from ..persist.util_sqlite import (
     load_task_error_records,
     load_task_result_records,

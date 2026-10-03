@@ -3,10 +3,10 @@ from pathlib import Path
 import pytest
 
 from celestialflow.observer import ObserverHub
-from celestialflow.persist import core_run
+from celestialflow.assembly import core_run
+from celestialflow.assembly.core_run import run_resources
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
-from celestialflow.persist.core_run import run_resources
 from celestialflow.reporter import NullPushSpout, PushSpout
 
 

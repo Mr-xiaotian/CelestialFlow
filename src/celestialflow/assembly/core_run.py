@@ -1,4 +1,4 @@
-# persist/core_run.py
+# assembly/core_run.py
 from __future__ import annotations
 
 from collections.abc import Generator
@@ -7,6 +7,8 @@ from pathlib import Path
 
 from ..funnel import BaseSpout
 from ..observer import ObserverHub
+from ..persist.core_lifecycle import LifecycleInlet, LifecycleSpout
+from ..persist.core_log import LogInlet, LogSpout
 from ..reporter import (
     NullPushSpout,
     PushInlet,
@@ -17,8 +19,6 @@ from ..runtime.util_config import (
     load_log_level_from_pyproject,
     load_report_url_from_pyproject,
 )
-from .core_lifecycle import LifecycleInlet, LifecycleSpout
-from .core_log import LogInlet, LogSpout
 
 
 @contextmanager

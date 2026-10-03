@@ -9,6 +9,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from ..assembly import run_resources
 from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
@@ -16,7 +17,6 @@ from ..observer import (
     Observer,
     ObserverHub,
 )
-from ..persist import run_resources
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
