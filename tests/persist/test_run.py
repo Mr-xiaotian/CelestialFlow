@@ -53,7 +53,7 @@ class TestLifecycleRunResources:
         with run_resources(observers, "session-1") as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
-            # lifecycle / log / error 三个全局 inlet。
+            # lifecycle / log / 上报三个全局 inlet。
             assert len(observers._snapshot()) == 3
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):

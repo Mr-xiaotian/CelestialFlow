@@ -1,7 +1,6 @@
 # observer/core_hub.py
 from __future__ import annotations
 
-import traceback
 from threading import Lock
 
 from ..runtime.util_errors import ConfigurationError

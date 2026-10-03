@@ -1,7 +1,6 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from celestialflow import TaskExecutor, TaskGraph
 from celestialflow.observer import (
     Observer,
     ObserverHub,
@@ -186,52 +185,6 @@ def test_reporter_reports_injection_failure_as_inject_kind() -> None:
     assert [kind for kind, _exc in recorder.failures] == ["inject"]
     # 终止符注入与任务注入相互独立，任务注入失败不应阻止终止符注入。
     assert graph.injected_terminations == [["StageB"]]
-
-
-def test_reporter_pushes_graph_meta_in_one_request() -> None:
-    """图结构、节点元信息与分析结果随单次 push_graph_meta 推送，状态推送与它们互不相交。"""
-
-    def identity(value: int) -> int:
-        """测试用恒等函数。"""
-        return value
-
-    source = TaskExecutor("StageA", identity, execution_mode="thread", max_workers=3)
-    sink = TaskExecutor("StageB", identity)
-
-    graph = TaskGraph("push_graph_meta")
-    graph.set_nodes(nodes=[source, sink])
-    graph.connect([source], [sink])
-
-    reporter = TaskReporter("127.0.0.1", 8000, graph)
-    reporter._session = FakePushSession()
-
-    reporter._push_graph_meta()
-    reporter._push_status()
-
-    assert len(reporter._session.posts) == 2
-    meta_url, meta_payload, _timeout = reporter._session.posts[0]
-    status_url, status_payload, _timeout = reporter._session.posts[1]
-    assert meta_url.endswith("/api/push_graph_meta")
-    assert status_url.endswith("/api/push_status")
-
-    # 图级与节点级元信息在同一次请求中一并到达，不存在半初始化窗口。
-    assert meta_payload["nodes"] == ["StageA", "StageB"]
-    assert meta_payload["analysis"]["name"] == graph.name
-    assert meta_payload["analysis"]["layersDict"]
-
-    meta = meta_payload["node_meta"]
-    assert set(meta) == {"StageA", "StageB"}
-    assert meta["StageA"] == {
-        "class_name": "TaskExecutor",
-        "execution_mode": "thread",
-        "max_workers": 3,
-    }
-    assert meta["StageB"]["class_name"] == "TaskExecutor"
-    assert meta["StageB"]["execution_mode"] == "serial"
-
-    # 两份 payload 必须职责互斥：状态里不得重复任何构建期字段。
-    for node_name, node_status in status_payload["status"].items():
-        assert set(node_status).isdisjoint(meta[node_name])
 
 
 def test_reporter_pushes_status_only_when_snapshot_changes() -> None:

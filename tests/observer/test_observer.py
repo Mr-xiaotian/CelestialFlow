@@ -497,6 +497,15 @@ class TestGraphObserver:
         assert len(starts) == 1
         assert starts[0].graph == "graph_event_observer"
         assert starts[0].graph_mode == "serial"
+        # 图元信息随启动事件一并携带，供 observer 侧上报使用。
+        assert starts[0].nodes == ["only"]
+        assert starts[0].edges == {"only": []}
+        assert starts[0].source_nodes == ["only"]
+        assert starts[0].node_meta["only"]["class_name"] == "TaskExecutor"
+        assert starts[0].class_name == "TaskGraph"
+        assert starts[0].is_dag is True
+        assert starts[0].start_time > 0
+        assert starts[0].structure_list
         assert len(ends) == 1
         assert ends[0].graph == "graph_event_observer"
 

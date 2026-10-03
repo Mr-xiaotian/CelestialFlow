@@ -40,10 +40,9 @@ class TestTaskLoop:
         loop = TaskLoop("test_loop_analysis", [s1, s2, s3])
         loop.run({"s1": [1]})
 
-        analysis = loop.get_graph_analysis()
-        assert analysis["isDAG"] is False
+        assert loop.is_dag is False
 
-        layers = analysis["layersDict"]
+        layers = loop.layers_dict
         node_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         for layer_names in layers.values():
             if s1.get_name() in layer_names:
@@ -78,10 +77,9 @@ class TestTaskWheel:
         wheel.set_graph_mode("thread")
         wheel.set_node_execution_mode("serial")
 
-        analysis = wheel.get_graph_analysis()
-        assert analysis["isDAG"] is False
+        assert wheel.is_dag is False
 
-        layers = analysis["layersDict"]
+        layers = wheel.layers_dict
         assert center.get_name() in layers[0]
         ring_names = {r1.get_name(), r2.get_name(), r3.get_name()}
         assert ring_names.issubset(set(layers[1]))

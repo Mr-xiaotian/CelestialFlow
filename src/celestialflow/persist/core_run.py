@@ -5,8 +5,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+from ..funnel import BaseSpout
 from ..observer import ObserverHub
-from ..reporter import NullPushSpout, PushInlet, PushSpout
+from ..reporter import (
+    NullPushSpout,
+    PushInlet,
+    PushSpout,
+)
 from ..runtime.util_config import (
     load_if_report_from_pyproject,
     load_log_level_from_pyproject,
@@ -22,7 +27,7 @@ def run_resources(
 ) -> Generator[Path | None, None, None]:
     """
     运行期资源上下文：注册全局 funnel 观察者并启停 ``lifecycle`` / ``log`` /
-    上报推送 spout。
+    错误推送与图元信息推送 spout。
 
     进入时创建并启动全局 spout，将其绑定的 inlet 注册到 ``observers``，
     并产出 lifecycle 数据库路径；退出时统一停止所有 spout，保证运行期即使
@@ -46,7 +51,7 @@ def run_resources(
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
     if if_report:
-        report_spout = PushSpout(report_session_id, report_url)
+        report_spout: BaseSpout = PushSpout(report_session_id, report_url)
     else:
         report_spout = NullPushSpout()
 

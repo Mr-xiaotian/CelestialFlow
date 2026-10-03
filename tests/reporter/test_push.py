@@ -3,12 +3,12 @@ from typing import Any
 import pytest
 
 import celestialflow.reporter.core_push as push_module
-from celestialflow.observer import TaskFailEvent
+from celestialflow.observer import GraphStartEvent, TaskFailEvent
 from celestialflow.reporter.core_push import (
     NullPushSpout,
     PushInlet,
+    PushRecord,
     PushSpout,
-    to_error_record,
 )
 from celestialflow.runtime.util_errors import ReporterError
 from conftest import wait_until
@@ -52,115 +52,161 @@ def _fail_event(
     return TaskFailEvent(node, task, f"({task})", exception, 1, error_id)
 
 
-def test_to_error_record_maps_fail_event() -> None:
-    """失败事件会被映射为服务端接受的上报记录。"""
-    event = _fail_event(error_id=7, node="s2", task={"value": 1}, exc=TypeError("bad"))
+def _start_event() -> GraphStartEvent:
+    """构造一个携带图元信息的任务图启动事件。"""
+    return GraphStartEvent(
+        graph="g1",
+        graph_mode="thread",
+        start_time=123.0,
+        class_name="TaskGraph",
+        is_dag=True,
+        nodes=["s1", "s2"],
+        edges={"s1": ["s2"], "s2": []},
+        source_nodes=["s1"],
+        node_meta={
+            "s1": {
+                "class_name": "TaskExecutor",
+                "execution_mode": "thread",
+                "max_workers": 2,
+            },
+            "s2": {
+                "class_name": "TaskExecutor",
+                "execution_mode": "serial",
+                "max_workers": 4,
+            },
+        },
+        structure_list=["s1", "s2"],
+    )
 
-    record = to_error_record(event)
 
-    assert record["event_id"] == 7
-    assert record["node"] == "s2"
-    assert record["status"] == "failed"
-    assert record["error_type"] == "TypeError"
-    assert record["error_message"] == "bad"
-    assert record["task_json"] == {"value": 1}
-    assert record["ts"] > 0
+def _dequeue(spout: PushSpout) -> PushRecord:
+    """取出 spout 队列中的单条记录。"""
+    record = spout.get_queue().get()
+    assert isinstance(record, PushRecord)
+    return record
 
 
-def test_spout_pushes_record_to_push_errors_endpoint() -> None:
-    """单条失败记录会以 push_errors 推送，载荷携带会话标识与记录内容。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1", batch_size=1)
+def test_inlet_maps_task_fail_event() -> None:
+    """失败事件会被映射为 ``kind="task_fail"`` 的推送记录。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    inlet = PushInlet().bind_spout(spout)
+
+    inlet.on_task_fail(_fail_event(error_id=7, node="s2", task={"value": 1},
+                                   exc=TypeError("bad")))
+
+    record = _dequeue(spout)
+    assert record.kind == "task_fail"
+    assert record.event_id == 7
+    assert record.node == "s2"
+    assert record.task_json == {"value": 1}
+    assert record.error_type == "TypeError"
+    assert record.error_message == "bad"
+    assert record.ts > 0
+
+
+def test_inlet_maps_graph_start_event() -> None:
+    """图启动事件会被映射为 ``kind="graph_start"`` 的推送记录。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    inlet = PushInlet().bind_spout(spout)
+
+    inlet.on_graph_start(_start_event())
+
+    record = _dequeue(spout)
+    assert record.kind == "graph_start"
+    assert record.graph == "g1"
+    assert record.graph_mode == "thread"
+    assert record.start_time == 123.0
+    assert record.class_name == "TaskGraph"
+    assert record.is_dag is True
+    assert record.nodes == ["s1", "s2"]
+    assert record.edges == {"s1": ["s2"], "s2": []}
+    assert record.source_nodes == ["s1"]
+    assert record.node_meta["s1"]["max_workers"] == 2
+
+
+def test_spout_pushes_task_fail_to_push_errors_endpoint() -> None:
+    """失败记录会以 push_errors 推送，载荷携带会话标识与记录内容。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
 
     inlet.on_task_fail(_fail_event(error_id=7, node="s2"))
-    spout._handle_record(spout.get_queue().get())
+    spout._handle_record(_dequeue(spout))
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
     assert url == "http://host:1/api/push_errors"
     assert payload["graph_id"] == "g1"
-    assert len(payload["errors"]) == 1
-    record = payload["errors"][0]
-    assert record["event_id"] == 7
-    assert record["node"] == "s2"
-    assert record["status"] == "failed"
-    assert record["error_type"] == "ValueError"
-    assert record["error_message"] == "oops"
+    assert payload["event_id"] == 7
+    assert payload["node"] == "s2"
+    assert payload["error_type"] == "ValueError"
+    assert payload["error_message"] == "oops"
+    assert payload["ts"] > 0
 
 
-def test_spout_thread_pushes_records(monkeypatch) -> None:
-    """后台线程启动后，入队的失败记录会被推送并关闭会话。"""
+def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
+    """图元信息会以顶层字段推送到 ``/api/push_graph_meta``。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    session = FakePushSession()
+    spout._session = session
+    inlet = PushInlet().bind_spout(spout)
+
+    inlet.on_graph_start(_start_event())
+    spout._handle_record(_dequeue(spout))
+
+    assert len(session.posts) == 1
+    url, payload, _timeout = session.posts[0]
+    assert url == "http://host:1/api/push_graph_meta"
+    assert payload["graph_id"] == "g1"
+    assert payload["graph"] == "g1"
+    assert payload["graph_mode"] == "thread"
+    assert payload["is_dag"] is True
+    assert payload["nodes"] == ["s1", "s2"]
+    assert payload["node_meta"]["s1"]["max_workers"] == 2
+
+
+def test_handle_record_raises_reporter_error_on_failure() -> None:
+    """服务端返回非 2xx 时，``_handle_record`` 抛出 ``ReporterError``。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout._session = FakePushSession(ok=False)
+
+    with pytest.raises(ReporterError):
+        spout._handle_record(PushRecord(kind="task_fail", event_id=1))
+
+
+def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
+    """后台线程启动后，入队的记录会被推送并在 stop 时关闭会话。"""
     session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(graph_id="g1", base_url="http://host:1", flush_interval=0.05)
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     spout.start()
     try:
         inlet.on_task_fail(_fail_event(error_id=7))
+        inlet.on_graph_start(_start_event())
         wait_until(
-            lambda: len(session.posts) == 1 and spout.get_pending_count() == 0,
-            message="error record was not pushed in time",
+            lambda: len(session.posts) == 2 and spout.get_pending_count() == 0,
+            message="records were not pushed in time",
         )
     finally:
         spout.stop()
 
     assert session.closed
-    _url, payload, _timeout = session.posts[0]
-    assert payload["errors"][0]["event_id"] == 7
+    assert {url for url, _payload, _timeout in session.posts} == {
+        "http://host:1/api/push_errors",
+        "http://host:1/api/push_graph_meta",
+    }
 
 
-def test_post_raises_on_push_failure() -> None:
-    """服务端返回非 2xx 时，`_post` 抛出 ReporterError。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
-    spout._session = FakePushSession(ok=False)
-
-    with pytest.raises(ReporterError):
-        spout._post([{"event_id": 1}])
-
-
-def test_flush_swallows_push_failure(capsys) -> None:
-    """`_flush` 推送失败时不向外抛出，且缓冲已被取走、不会重复发送。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+def test_spout_thread_survives_push_failure(monkeypatch) -> None:
+    """单条推送失败不致死线程：记录被消费完后线程仍能正常 stop。"""
     session = FakePushSession(ok=False)
-    spout._session = session
-    spout._handle_record({"event_id": 1})
-
-    spout._flush()
-
-    assert "ReporterError" in capsys.readouterr().err
-    assert len(session.posts) == 1
-    assert spout._buffer == []
-
-
-def test_flush_batches_buffered_records() -> None:
-    """缓冲达到 batch_size 时，多条记录合并为一次 push_errors 请求。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1", batch_size=3)
-    session = FakePushSession()
-    spout._session = session
-
-    for event_id in range(3):
-        spout._handle_record({"event_id": event_id})
-
-    assert len(session.posts) == 1
-    _url, payload, _timeout = session.posts[0]
-    assert [record["event_id"] for record in payload["errors"]] == [0, 1, 2]
-
-
-def test_stop_flushes_remaining_records(monkeypatch) -> None:
-    """stop() 会冲刷未达 batch_size 的尾部记录。"""
-    session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(
-        graph_id="g1",
-        base_url="http://host:1",
-        batch_size=10,
-        flush_interval=0,
-    )
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     spout.start()
@@ -173,9 +219,7 @@ def test_stop_flushes_remaining_records(monkeypatch) -> None:
     finally:
         spout.stop()
 
-    assert len(session.posts) == 1
-    _url, payload, _timeout = session.posts[0]
-    assert payload["errors"][0]["event_id"] == 7
+    assert session.closed
 
 
 def test_null_spout_discards_records(monkeypatch) -> None:
@@ -191,6 +235,7 @@ def test_null_spout_discards_records(monkeypatch) -> None:
     spout.start()
     try:
         inlet.on_task_fail(_fail_event())
+        inlet.on_graph_start(_start_event())
         wait_until(
             lambda: spout.get_pending_count() == 0,
             message="null spout did not drain records in time",

@@ -2,52 +2,57 @@
 from __future__ import annotations
 
 import time
-import traceback
-from threading import Event, Lock, Thread
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 import requests
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observer import Observer, TaskFailEvent
+from ..observer import GraphStartEvent, Observer, TaskFailEvent
 from ..persist.util_payload import to_persisted_payload
 from ..runtime.util_errors import ReporterError
 
+type PushKind = Literal["graph_start", "task_fail"]
+"""推送记录类型：``"graph_start"`` 为图元信息，``"task_fail"`` 为任务失败。"""
 
-def to_error_record(event: TaskFailEvent) -> dict[str, Any]:
+
+@dataclass(frozen=True, slots=True)
+class PushRecord:
     """
-    将任务失败事件转换为服务端接受的上报记录。
+    一条待推送的上报记录。
 
-    ``event_id`` 采用失败事件自身的事件 ID，以便服务端按 ``event_id`` 幂等去重。
-
-    :param event: 任务失败事件
-    :return: 上报记录字典
+    ``kind`` 决定推送目标与生效字段：``"graph_start"`` 使用图元信息字段，
+    ``"task_fail"`` 使用任务失败字段；与当前 ``kind`` 无关的字段保持默认值。
     """
-    return {
-        "event_id": event.error_id,
-        "node": event.node,
-        "status": "failed",
-        "error_type": type(event.exception).__name__,
-        "error_message": str(event.exception),
-        "ts": time.time(),
-        "task_json": to_persisted_payload(event.task),
-        "result_json": None,
-    }
+
+    kind: PushKind
+
+    # on_graph_start
+    graph: str = ""
+    graph_mode: str = ""
+    start_time: float = 0.0
+    class_name: str = ""
+    is_dag: bool = False
+    nodes: list[str] = field(default_factory=list[str])
+    edges: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
+    source_nodes: list[str] = field(default_factory=list[str])
+    node_meta: dict[str, dict[str, Any]] = field(default_factory=dict[str, dict[str, Any]])
+
+    # on_task_fail
+    event_id: int = 0
+    node: str = ""
+    task_json: Any = None
+    error_type: str = ""
+    error_message: str = ""
+    ts: float = 0.0
 
 
 class PushSpout(BaseSpout):
     """
-    在后台线程中把上报记录批量推送到远程服务的推送通道。
+    在后台线程中把上报记录推送到远程服务的推送通道。
 
-    当前只承载失败记录（``/api/push_errors``）；后续会在此基础上承载错误状态等
-    更多上报内容，因此命名不绑定具体载荷。记录先进入内部缓冲，满足以下任一条件时
-    合并为一次请求推送：
-
-    - 缓冲记录数达到 ``batch_size``（在消费线程上同步冲刷）；
-    - 距上一条记录超过 ``flush_interval`` 秒（由独立 flush 线程定时冲刷）。
-
-    ``stop()`` 收尾时会冲刷剩余记录，保证不丢尾部。单批推送失败不会中断线程
-    （异常被捕获并打印），该批记录会被丢弃。
+    每条记录按自身 ``kind`` 分发到对应端点并立即推送；单条推送失败不会中断
+    线程（异常被捕获并打印），该条记录会被丢弃。
     """
 
     def __init__(
@@ -55,9 +60,6 @@ class PushSpout(BaseSpout):
         graph_id: str,
         base_url: str,
         timeout: float = 3.0,
-        *,
-        batch_size: int = 20,
-        flush_interval: float = 2.0,
     ) -> None:
         """
         初始化推送监听器。
@@ -65,95 +67,72 @@ class PushSpout(BaseSpout):
         :param graph_id: 上报会话标识，随记录一并提交给服务端
         :param base_url: 远程服务基础地址
         :param timeout: 单次推送请求的超时时间（秒），默认 3.0
-        :param batch_size: 触发立即冲刷的缓冲记录数上限，默认 20
-        :param flush_interval: 定时冲刷窗口（秒），默认 2.0；``<= 0`` 时关闭定时冲刷
         """
         super().__init__()
         self.graph_id = graph_id
         self.base_url = base_url
         self.timeout = timeout
-        self.batch_size = batch_size
-        self.flush_interval = flush_interval
 
         self._session: requests.Session | None = None
-        self._buffer: list[dict[str, Any]] = []
-        self._buffer_lock = Lock()
-        self._send_lock = Lock()
-        self._stop_flush = Event()
-        self._flush_thread: Thread | None = None
 
     # ==== 生命周期回调 ====
 
     def _before_start(self) -> None:
-        """创建复用的 HTTP 会话，并启动定时冲刷线程。"""
+        """创建复用的 HTTP 会话。"""
         self._session = requests.Session()
-        self._buffer = []
-        self._stop_flush.clear()
-        if self.flush_interval > 0:
-            self._flush_thread = Thread(target=self._flush_loop, daemon=True)
-            self._flush_thread.start()
 
     def _after_stop(self) -> None:
-        """停止定时冲刷线程、冲刷剩余记录并关闭 HTTP 会话。"""
-        self._stop_flush.set()
-        if self._flush_thread is not None:
-            self._flush_thread.join(timeout=5)
-            self._flush_thread = None
-        self._flush()
+        """关闭 HTTP 会话。"""
         if self._session is not None:
             self._session.close()
             self._session = None
 
     # ==== 处理 ====
 
-    def _handle_record(self, record: dict[str, Any]) -> None:
+    def _handle_record(self, record: PushRecord) -> None:
         """
-        缓存单条记录，缓冲满时立即合并冲刷。
+        按记录类型推送到对应端点。
 
         :param record: 队列中取出的记录
         """
-        with self._buffer_lock:
-            self._buffer.append(record)
-            full = len(self._buffer) >= self.batch_size
-        if full:
-            self._flush()
-
-    def _flush_loop(self) -> None:
-        """定时冲刷循环：每个窗口唤醒一次，或在收到停止信号时退出。"""
-        while not self._stop_flush.wait(self.flush_interval):
-            self._flush()
-
-    def _flush(self) -> None:
-        """取走缓冲记录并合并为一次请求推送；失败时打印且不向外抛出。"""
-        with self._buffer_lock:
-            if not self._buffer or self._session is None:
-                return
-            batch = self._buffer
-            self._buffer = []
-        with self._send_lock:
-            try:
-                self._post(batch)
-            except Exception:
-                # 单批推送失败不致死线程。
-                traceback.print_exc()
-
-    def _post(self, batch: list[dict[str, Any]]) -> None:
-        """
-        将一批记录推送到 ``/api/push_errors``。
-
-        :param batch: 待推送的记录列表
-        :raises ReporterError: 服务端返回非 2xx 时
-        """
-        session = self._session
-        if session is None:
+        if self._session is None:
             return
-        res = session.post(
-            f"{self.base_url}/api/push_errors",
-            json={"graph_id": self.graph_id, "errors": batch},
-            timeout=self.timeout,
-        )
-        if not res.ok:
-            raise ReporterError(f"Failed to push errors: {res.status_code}")
+
+        if record.kind == "graph_start":
+            res = self._session.post(
+                f"{self.base_url}/api/push_graph_meta",
+                json={
+                    "graph_id": self.graph_id,
+                    "graph": record.graph,
+                    "graph_mode": record.graph_mode,
+                    "start_time": record.start_time,
+                    "class_name": record.class_name,
+                    "is_dag": record.is_dag,
+                    "nodes": record.nodes,
+                    "edges": record.edges,
+                    "source_nodes": record.source_nodes,
+                    "node_meta": record.node_meta,
+                },
+                timeout=self.timeout,
+            )
+            if not res.ok:
+                raise ReporterError(f"Failed to push graph meta: {res.status_code}")
+        elif record.kind == "task_fail":
+            res = self._session.post(
+                f"{self.base_url}/api/push_errors",
+                json={
+                    "graph_id": self.graph_id,
+                    "event_id": record.event_id,
+                    "node": record.node,
+                    "task_json": record.task_json,
+                    "error_type": record.error_type,
+                    "error_message": record.error_message,
+                    "ts": record.ts,
+                },
+                timeout=self.timeout,
+            )
+            if not res.ok:
+                raise ReporterError(f"Failed to push errors: {res.status_code}")
 
 
 class NullPushSpout(BaseSpout):
@@ -162,7 +141,7 @@ class NullPushSpout(BaseSpout):
     消费到的记录会被直接丢弃，不建立任何 HTTP 会话，也不上报。
     """
 
-    def _handle_record(self, _record: Any) -> None:
+    def _handle_record(self, _record: PushRecord) -> None:
         """
         丢弃记录，不做任何上报。
 
@@ -173,10 +152,28 @@ class NullPushSpout(BaseSpout):
 
 class PushInlet(BaseInlet, Observer):
     """
-    推送观察者：把观测到的任务事件转换为上报记录并入队，交由推送 spout 发送。
-
-    当前仅处理 :meth:`on_task_fail`；后续承载更多上报内容时在此按事件分派。
+    推送观察者：把观测到的图启动与任务失败事件转换为上报记录并入队，
+    交由推送 spout 发送。
     """
+
+    def on_graph_start(self, event: GraphStartEvent) -> None:
+        """
+        将图启动事件携带的图元信息转换为上报记录并入队。
+
+        :param event: 任务图启动事件
+        """
+        self._funnel(PushRecord(
+            kind="graph_start",
+            graph=event.graph,
+            graph_mode=event.graph_mode,
+            start_time=event.start_time,
+            class_name=event.class_name,
+            is_dag=event.is_dag,
+            nodes=event.nodes,
+            edges=event.edges,
+            source_nodes=event.source_nodes,
+            node_meta=event.node_meta,
+        ))
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         """
@@ -184,4 +181,12 @@ class PushInlet(BaseInlet, Observer):
 
         :param event: 任务失败事件
         """
-        self._funnel(to_error_record(event))
+        self._funnel(PushRecord(
+            kind="task_fail",
+            event_id=event.error_id,
+            node=event.node,
+            task_json=to_persisted_payload(event.task),
+            error_type=type(event.exception).__name__,
+            error_message=str(event.exception),
+            ts=time.time(),
+        ))

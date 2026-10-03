@@ -202,11 +202,25 @@ class GraphStartEvent:
 
     :param graph: 任务图名称
     :param graph_mode: 任务图运行模式
+    :param start_time: 任务图启动时间
+    :param class_name: 任务图类名
+    :param is_dag: 是否为 DAG 任务图
+    :param nodes: 任务图节点名称列表
+    :param edges: 任务图边邻接表
+    :param source_nodes: 源节点名称列表
+    :param node_meta: 各节点的构建期元信息
     :param structure_list: 任务图结构信息列表
     """
 
     graph: str
     graph_mode: str
+    start_time: float
+    class_name: str
+    is_dag: bool
+    nodes: list[str]
+    edges: dict[str, list[str]]
+    source_nodes: list[str]
+    node_meta: dict[str, dict[str, Any]]
     structure_list: list[str]
 
 

@@ -193,6 +193,5 @@ class TestDeepGraphRegression:
         assert len(node_names) == DEEP
         assert graph.get_source_nodes() == ["n0"]
 
-        analysis = graph.get_graph_analysis()
-        assert analysis["isDAG"] is True
-        assert analysis["layersDict"][DEEP - 1] == [f"n{DEEP - 1}"]
+        assert graph.is_dag is True
+        assert graph.layers_dict[DEEP - 1] == [f"n{DEEP - 1}"]

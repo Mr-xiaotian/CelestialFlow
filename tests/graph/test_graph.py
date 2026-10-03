@@ -595,14 +595,14 @@ class TestTaskGraphAnalysis:
         graph.set_nodes(nodes=[s1, s2])
         graph.connect([s1], [s2])
 
-        analysis = graph.get_graph_analysis()
+        # 各 getter 会按需构建分析缓存。
         node_names = graph.get_nodes()
         edges = graph.get_edges()
         structure_list = graph.get_structure_list()
         source_names = set(graph.get_source_nodes())
 
-        assert analysis["isDAG"] is True
-        assert s1.get_name() in analysis["layersDict"][0]
+        assert graph.is_dag is True
+        assert s1.get_name() in graph.layers_dict[0]
         assert set(node_names) == {s1.get_name(), s2.get_name()}
         assert edges == {s1.get_name(): [s2.get_name()], s2.get_name(): []}
         assert structure_list
@@ -622,11 +622,10 @@ class TestTaskGraphAnalysis:
         graph.connect([s1], [s2])
 
         refreshed_sources = set(graph.get_source_nodes())
-        analysis = graph.get_graph_analysis()
 
         assert refreshed_sources == {s1.get_name()}
-        assert s1.get_name() in analysis["layersDict"][0]
-        assert s2.get_name() in analysis["layersDict"][1]
+        assert s1.get_name() in graph.layers_dict[0]
+        assert s2.get_name() in graph.layers_dict[1]
 
     def test_dag_detection(self):
         """DAG 检测正确"""
@@ -640,8 +639,7 @@ class TestTaskGraphAnalysis:
         # 调用 build_analysis（通过 run 触发）
         graph.run({"s1": [1]})
 
-        analysis = graph.get_graph_analysis()
-        assert analysis["isDAG"] is True
+        assert graph.is_dag is True
 
     def test_layer_computation(self):
         """DAG 层级计算正确"""
@@ -656,8 +654,7 @@ class TestTaskGraphAnalysis:
 
         graph.run({"s1": [1]})
 
-        analysis = graph.get_graph_analysis()
-        layers = analysis["layersDict"]
+        layers = graph.layers_dict
         # s1 在第 0 层, s2 在第 1 层, s3 在第 2 层
         assert s1.get_name() in layers[0]
         assert s2.get_name() in layers[1]
@@ -1006,8 +1003,7 @@ class TestCyclicGraph:
 
         graph.run({"s1": [1]})
 
-        analysis = graph.get_graph_analysis()
-        assert analysis["isDAG"] is False
+        assert graph.is_dag is False
 
     def test_cyclic_layers(self):
         """环内节点同层，尾巴节点层级更高"""
@@ -1025,8 +1021,7 @@ class TestCyclicGraph:
 
         graph.run({"s1": [1]})
 
-        analysis = graph.get_graph_analysis()
-        layers = analysis["layersDict"]
+        layers = graph.layers_dict
         cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         cycle_layer = None
         for layer_idx, layer_names in layers.items():

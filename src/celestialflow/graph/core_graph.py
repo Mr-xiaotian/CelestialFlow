@@ -386,9 +386,7 @@ class TaskGraph:
 
     # ==== 启动 ====
 
-    def _prepare_start(
-        self,
-    ) -> None:
+    def _prepare_start(self) -> None:
         """
         启动前准备：图分析、必要警告与运行时资源启动。
 
@@ -401,6 +399,13 @@ class TaskGraph:
             GraphStartEvent(
                 graph=self.name,
                 graph_mode=self.graph_mode,
+                start_time=self.start_time,
+                class_name=self.__class__.__name__,
+                is_dag=self.is_dag,
+                nodes=self.get_nodes(),
+                edges=self.get_edges(),
+                source_nodes=self.get_source_nodes(),
+                node_meta=self.get_node_meta(),
                 structure_list=self.get_structure_list(),
             )
         )
@@ -632,22 +637,36 @@ class TaskGraph:
         self._ensure_analysis()
         return self.source_names
 
-    def get_graph_analysis(self) -> dict[str, Any]:
+    def get_structure_list(self) -> list[str]:
         """
-        获取任务图的分析信息
+        获取任务图的格式化结构列表
 
-        :return: 包含 ``graphMode``、``name``、``startTime``、
-            ``className``、``isDAG`` 与 ``layersDict`` 的字典
+        :return: 带边框的格式化字符串列表
         """
         self._ensure_analysis()
-        return {
-            "graphMode": self.graph_mode,
-            "name": self.name,
-            "startTime": self.start_time,
-            "className": self.__class__.__name__,
-            "isDAG": self.is_dag,
-            "layersDict": self.layers_dict,
-        }
+        return render_structure_list(
+            self.get_nodes(),
+            self.get_edges(),
+            self.get_source_nodes(),
+        )
+
+    def get_order_graph(self) -> OrderGraph:
+        """
+        获取任务图对应的有序有向图视图。
+
+        :return: :class:`OrderGraph` 实例
+        """
+        return self.order_graph
+
+    def get_observers(self) -> ObserverHub:
+        """
+        获取图级观察者 hub。
+
+        供节点以外的协作者（如 reporter）以观察者形式发布事件。
+
+        :return: 图级观察者 hub
+        """
+        return self.observers
 
     # ==== Reporter 能力接口 ====
 
@@ -706,34 +725,3 @@ class TaskGraph:
             raise UnknownNodeError(
                 f"unknown target node(s) for termination injection: {missing_nodes}"
             )
-
-    def get_structure_list(self) -> list[str]:
-        """
-        获取任务图的格式化结构列表
-
-        :return: 带边框的格式化字符串列表
-        """
-        self._ensure_analysis()
-        return render_structure_list(
-            self.get_nodes(),
-            self.get_edges(),
-            self.get_source_nodes(),
-        )
-
-    def get_order_graph(self) -> OrderGraph:
-        """
-        获取任务图对应的有序有向图视图。
-
-        :return: :class:`OrderGraph` 实例
-        """
-        return self.order_graph
-
-    def get_observers(self) -> ObserverHub:
-        """
-        获取图级观察者 hub。
-
-        供节点以外的协作者（如 reporter）以观察者形式发布事件。
-
-        :return: 图级观察者 hub
-        """
-        return self.observers

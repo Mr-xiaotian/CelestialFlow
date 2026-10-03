@@ -21,7 +21,24 @@ class TestLogPersistence:
         spout.start()
         try:
             inlet.on_graph_start(
-                GraphStartEvent("test_graph", "thread", ["test message"])
+                GraphStartEvent(
+                    graph="test_graph",
+                    graph_mode="thread",
+                    start_time=1.0,
+                    class_name="TaskGraph",
+                    is_dag=True,
+                    nodes=["node"],
+                    edges={"node": []},
+                    source_nodes=["node"],
+                    node_meta={
+                        "node": {
+                            "class_name": "TaskExecutor",
+                            "execution_mode": "serial",
+                            "max_workers": 1,
+                        }
+                    },
+                    structure_list=["test message"],
+                )
             )
             inlet.on_task_retry(
                 TaskRetryEvent("func", None, "hello world", ValueError("oops"), 0, 1)
