@@ -70,6 +70,7 @@ class BaseTaskNode[T, R, Y]:
     yield_queue: TaskOutQueue[Y]
     max_workers: int
     max_retries: int
+    retry_exceptions: tuple[type[Exception], ...]
     max_info: int
     metrics: TaskMetrics
     dispatch: TaskDispatch[T, R, Y]
@@ -119,6 +120,7 @@ class BaseTaskNode[T, R, Y]:
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
         self.max_retries = max_retries
+        self.retry_exceptions = ()
         self.max_queue_size = max_queue_size
         self.max_info = max_info
 
@@ -236,7 +238,16 @@ class BaseTaskNode[T, R, Y]:
 
         :param exceptions: 异常类型
         """
-        self.metrics.set_retry_exceptions(*exceptions)
+        self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
+
+    def get_retry_error_type_names(self) -> set[str]:
+        """
+        获取当前节点允许从持久化失败记录中恢复的错误类型名称集合。
+
+        :return: 可重试错误类型名称集合
+        :rtype: set[str]
+        """
+        return {exception_type.__name__ for exception_type in self.retry_exceptions}
 
     # ==== 查询 ====
 
@@ -585,7 +596,7 @@ class BaseTaskNode[T, R, Y]:
         tasks: Iterable[T] = []
 
         if filter_by_error_type:
-            retry_error_type_names = self.metrics.get_retry_error_type_names()
+            retry_error_type_names = self.get_retry_error_type_names()
             records = [
                 record
                 for record in records

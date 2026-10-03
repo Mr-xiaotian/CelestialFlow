@@ -142,7 +142,7 @@ class TaskDispatch[T, R, Y]:
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
-                        exception, self.task_node.metrics.retry_exceptions
+                        exception, self.task_node.retry_exceptions
                     ):
                         # 如果无重试机会或非可试异常, 则直接处理失败
                         self.task_node.handle_task_fail(task_envelope, exception)
@@ -184,7 +184,7 @@ class TaskDispatch[T, R, Y]:
                     return
                 except Exception as exception:
                     if fail_times > max_retries or not isinstance(
-                        exception, self.task_node.metrics.retry_exceptions
+                        exception, self.task_node.retry_exceptions
                     ):
                         self.task_node.handle_task_fail(task_envelope, exception)
                         return

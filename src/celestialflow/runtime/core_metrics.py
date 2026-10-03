@@ -12,12 +12,10 @@ class TaskMetrics:
     """
     任务指标统计类
 
-    负责管理任务执行过程中的各项指标统计，包括成功、失败、跳过任务的计数，
-    以及可重试异常类型。
+    负责管理任务执行过程中的各项指标统计，包括成功、失败、跳过任务的计数。
     """
 
     lock: Lock
-    retry_exceptions: tuple[type[Exception], ...]
     external_input_counter: ValueWrapper
     success_counter: ValueWrapper
     fail_counter: ValueWrapper
@@ -34,7 +32,6 @@ class TaskMetrics:
         """
         初始化 TaskMetrics
         """
-        self.retry_exceptions = ()
         self._status = int(NodeStatus.NOT_STARTED)
         self.busy_seconds = 0.0
         self._in_flight = 0
@@ -56,16 +53,6 @@ class TaskMetrics:
 
         self.upstream_counter = {}
         self.downstream_counter = {}
-
-    # ==== 重试 ====
-
-    def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
-        """
-        添加需要重试的异常类型
-
-        :param *exceptions: 异常类列表
-        """
-        self.retry_exceptions = self.retry_exceptions + tuple(exceptions)
 
     # ==== 设定 ====
 
@@ -215,24 +202,6 @@ class TaskMetrics:
         """
         return self.skip_counter.get()
 
-    def is_tasks_finished(self) -> bool:
-        """
-        检查所有任务是否已完成
-
-        通过比较总输入任务数与已处理（成功+失败+跳过）的任务数来判断。
-
-        :return: 如果所有任务都已处理完毕，返回 True；否则返回 False。
-        """
-        total = self.get_input_count()
-
-        with self.lock:
-            processed = (
-                self.success_counter.value
-                + self.fail_counter.value
-                + self.skip_counter.value
-            )
-        return total == processed
-
     def get_counts(self) -> dict[str, int]:
         """
         获取当前的统计数据字典
@@ -285,15 +254,6 @@ class TaskMetrics:
         for name, count in self.downstream_counter.items():
             downstream_counts[name] = count.get()
         return downstream_counts
-
-    def get_retry_error_type_names(self) -> set[str]:
-        """
-        获取当前执行器允许从持久化失败记录中恢复的错误类型名称集合。
-
-        :return: 可重试错误类型名称集合
-        :rtype: set[str]
-        """
-        return {exception_type.__name__ for exception_type in self.retry_exceptions}
 
     def get_status(self) -> NodeStatus:
         """读取当前状态（返回 NodeStatus 枚举）。"""

@@ -5,7 +5,6 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
-from ..funnel import BaseSpout
 from ..observer import ObserverHub
 from ..persist.core_lifecycle import LifecycleInlet, LifecycleSpout
 from ..persist.core_log import LogInlet, LogSpout
@@ -51,7 +50,7 @@ def run_resources(
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
     if if_report:
-        report_spout: BaseSpout = PushSpout(report_session_id, report_url)
+        report_spout = PushSpout(report_session_id, report_url)
     else:
         report_spout = NullPushSpout()
 

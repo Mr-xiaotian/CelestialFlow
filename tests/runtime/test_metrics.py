@@ -94,22 +94,6 @@ class TestTaskMetricsBasic:
         assert counts["tasks_skipped"] == 2
         assert counts["tasks_processed"] == 4
         assert counts["tasks_pending"] == 0
-        assert metrics.is_tasks_finished() is True
-
-    def test_is_tasks_finished_true(self):
-        """测试任务完成状态判定：当已处理数等于总数时应返回 True"""
-        metrics = TaskMetrics()
-        metrics.add_external_input_count(3)
-        metrics.add_success_count(2)
-        metrics.add_fail_count(1)
-        assert metrics.is_tasks_finished() is True
-
-    def test_is_tasks_finished_false(self):
-        """测试任务完成状态判定：仍有未处理任务（Pending > 0）时应返回 False"""
-        metrics = TaskMetrics()
-        metrics.add_external_input_count(5)
-        metrics.add_success_count(2)
-        assert metrics.is_tasks_finished() is False
 
 
 class TestTaskMetricsBinding:
@@ -170,20 +154,6 @@ class TestTaskMetricsBinding:
         metrics.add_downstream_count("sink_b", 4)
 
         assert metrics.get_downstream_counts() == {"sink_a": 2, "sink_b": 4}
-
-
-class TestTaskMetricsRetryExceptions:
-    def test_default_retry_exceptions_empty(self):
-        """测试默认可重试异常配置：默认为空"""
-        metrics = TaskMetrics()
-        assert metrics.retry_exceptions == ()
-
-    def test_set_retry_exceptions(self):
-        """测试动态添加可重试异常类型"""
-        metrics = TaskMetrics()
-        metrics.set_retry_exceptions(ValueError, RuntimeError)
-        assert ValueError in metrics.retry_exceptions
-        assert RuntimeError in metrics.retry_exceptions
 
 
 class _FakeClock:

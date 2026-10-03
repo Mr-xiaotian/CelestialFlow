@@ -399,7 +399,6 @@ class TestTaskSkip:
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
         assert counts["tasks_pending"] == 0
-        assert executor.metrics.is_tasks_finished() is True
 
     def test_thread_skip(self) -> None:
         """线程模式下跳过判定同样生效。"""

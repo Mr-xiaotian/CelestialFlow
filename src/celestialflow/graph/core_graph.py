@@ -373,7 +373,7 @@ class TaskGraph:
         for name, records in grouped_records.items():
             node = self.node_dict[name]
             if filter_by_error_type and name in self.node_dict:
-                retry_error_type_names = node.metrics.get_retry_error_type_names()
+                retry_error_type_names = node.get_retry_error_type_names()
                 records = [
                     record
                     for record in records

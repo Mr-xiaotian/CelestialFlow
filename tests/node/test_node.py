@@ -54,6 +54,25 @@ class TestBaseTaskNodeConfig:
         with pytest.raises(InvalidOptionError):
             TaskExecutor("AddOneInvalidExecMode", add_one, execution_mode="invalid")
 
+    def test_default_retry_exceptions_empty(self) -> None:
+        """默认可重试异常配置为空。"""
+        node = TaskExecutor("AddOneRetryDefault", add_one)
+
+        assert node.retry_exceptions == ()
+        assert node.get_retry_error_type_names() == set()
+
+    def test_set_retry_exceptions_is_additive(self) -> None:
+        """``set_retry_exceptions`` 累积可重试异常类型并映射为名称集合。"""
+        node = TaskExecutor("AddOneRetryConfig", add_one)
+        node.set_retry_exceptions(ValueError, RuntimeError)
+        node.set_retry_exceptions(KeyError)
+
+        assert node.get_retry_error_type_names() == {
+            "ValueError",
+            "RuntimeError",
+            "KeyError",
+        }
+
     def test_snapshot_excludes_build_time_fields(self) -> None:
         """构建期不变量应只随 ``get_meta`` 上报，不再进每轮快照。"""
         node = TaskExecutor(

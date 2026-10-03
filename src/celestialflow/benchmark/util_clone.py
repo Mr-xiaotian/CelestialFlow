@@ -42,7 +42,7 @@ def clone_executor[T, R](
     :return: 克隆执行器
     """
     cloned = cast(TaskExecutor[T, R], TaskExecutor(**_get_clone_init_kwargs(executor)))
-    cloned.set_retry_exceptions(*executor.metrics.retry_exceptions)
+    cloned.set_retry_exceptions(*executor.retry_exceptions)
     return cloned
 
 

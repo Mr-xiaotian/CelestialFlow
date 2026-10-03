@@ -162,13 +162,11 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         :param task_envelope: 完成的任务
         :param result: 任务的结果
         :param start_perf: 任务开始时间
-        :raises InvalidOptionError: 若路由目标未通过 ``connect_to`` 绑定
         """
-        unknown = [t for t in result if t not in self.metrics.downstream_counter]
+        known_targets = tuple(self.yield_queue.get_target_names())
+        unknown = [t for t in result if t not in known_targets]
         if unknown:
-            raise InvalidOptionError(
-                "Unknown target", unknown[0], self.metrics.downstream_counter.keys()
-            )
+            raise InvalidOptionError("Unknown target", unknown[0], known_targets)
 
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
