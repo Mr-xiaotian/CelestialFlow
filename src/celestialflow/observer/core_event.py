@@ -4,9 +4,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
-type TaskSource = Literal["external", "upstream"]
-"""任务进入节点的来源：``"external"`` 为外部注入，``"upstream"`` 为上游下发。"""
-
 type ReporterFailureKind = Literal[
     "loop",
     "pull_interval",
@@ -58,15 +55,13 @@ class TaskInputEvent:
     :param task: 原始任务数据
     :param task_repr: 任务的可读表示
     :param input_id: 当前输入事件 ID
-    :param source: 任务来源
-    :param from_node: 上游来源节点名称；``source`` 为 ``"external"`` 时为 ``None``
+    :param from_node: 上游来源节点名称；``None`` 表示由外部直接注入
     """
 
     node: str
     task: Any
     task_repr: str
     input_id: int
-    source: TaskSource
     from_node: str | None = None
 
 

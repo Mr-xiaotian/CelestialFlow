@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from ..assembly import run_resources
 from ..observer import (
+    MetricsObserver,
     NodeEndEvent,
     NodeStartEvent,
     Observer,
@@ -26,7 +27,6 @@ from ..persist.util_sqlite import (
     load_task_result_records,
     load_tasks_grouped_by_node,
 )
-from ..reporter import MetricsObserver
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
@@ -57,7 +57,7 @@ class BaseTaskNode[T, R, Y]:
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标由
-      :class:`~celestialflow.reporter.core_metrics.MetricsObserver` 依据事件维护：
+      :class:`~celestialflow.observer.core_metrics.MetricsObserver` 依据事件维护：
       独立运行（:meth:`run` / :meth:`run_async`）时节点注册单节点观察者，参与图调度时
       由图级观察者统一维护。全局 ``LifecycleSpout`` / ``LogSpout`` 的启停与全局
       funnel 观察者的注册由 :meth:`run` / :meth:`run_async` 统一负责，BaseTaskNode
@@ -67,6 +67,7 @@ class BaseTaskNode[T, R, Y]:
     # ==== 类级类型注解 ====
 
     _name: str
+    node_id: str
     task_queue: TaskInQueue[T]
     yield_queue: TaskOutQueue[Y]
     max_workers: int
@@ -79,7 +80,6 @@ class BaseTaskNode[T, R, Y]:
     skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
     observers: ObserverHub
-    metrics: MetricsObserver
     _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
@@ -312,8 +312,6 @@ class BaseTaskNode[T, R, Y]:
                 task=task,
                 task_repr=task_repr,
                 input_id=input_id,
-                source="external",
-                from_node=None,
             )
         )
 
@@ -469,15 +467,14 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         metrics_observer = MetricsObserver()
-        self.metrics = metrics_observer
         self.observers.add_observer(metrics_observer)
+        self.observers.on_node_added(self.get_name())
 
         try:
             with run_resources(
                 self.observers, self.node_id, metrics_observer
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
-                self.observers.on_node_added(self.get_name())
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:
@@ -507,15 +504,14 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         metrics_observer = MetricsObserver()
-        self.metrics = metrics_observer
         self.observers.add_observer(metrics_observer)
+        self.observers.on_node_added(self.get_name())
 
         try:
             with run_resources(
                 self.observers, self.node_id, metrics_observer
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
-                self.observers.on_node_added(self.get_name())
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:

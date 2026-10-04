@@ -19,7 +19,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列与 ctree 客户端由执行器自身持有；指标由
-      :class:`~celestialflow.reporter.core_metrics.MetricsObserver` 依据事件维护：
+      :class:`~celestialflow.observer.core_metrics.MetricsObserver` 依据事件维护：
       独立运行时由 :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 注册单节点
       观察者，参与图调度时由图级观察者统一维护。全局 ``LifecycleSpout`` /
       ``LogSpout`` 的启停与全局 funnel 观察者的注册由
@@ -71,10 +71,9 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             self.observers.on_task_input(
                 TaskInputEvent(
                     node=target_name,
-                    task=task,
-                    task_repr=task_repr,
+                    task=result,
+                    task_repr=result_repr,
                     input_id=downstream_input_id,
-                    source="upstream",
                     from_node=self.get_name(),
                 )
             )
@@ -144,7 +143,6 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                         task=item,
                         task_repr=item_repr,
                         input_id=downstream_input_id,
-                        source="upstream",
                         from_node=self.get_name(),
                     )
                 )
@@ -214,7 +212,6 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
                     task=yie,
                     task_repr=yie_repr,
                     input_id=downstream_input_id,
-                    source="upstream",
                     from_node=self.get_name(),
                 )
             )
