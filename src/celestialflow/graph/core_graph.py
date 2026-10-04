@@ -9,7 +9,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from ..assembly import run_resources
+from ..assembly import run_graph_resources
 from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
@@ -310,7 +310,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(
+            with run_graph_resources(
                 self.observers, self.graph_id, self.metrics
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
@@ -347,7 +347,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(
+            with run_graph_resources(
                 self.observers, self.graph_id, self.metrics
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path

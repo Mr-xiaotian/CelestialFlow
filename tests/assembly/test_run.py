@@ -2,13 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from celestialflow.observer import ObserverHub
 from celestialflow.assembly import core_run
-from celestialflow.assembly.core_run import run_resources
+from celestialflow.assembly.core_run import run_graph_resources, run_node_resources
+from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
 from celestialflow.reporter import PushSpout
-from celestialflow.observer import MetricsObserver
 
 
 def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
@@ -29,7 +28,7 @@ def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
 
 
 def _patch_recording_push_spouts(monkeypatch, used: list[str]) -> None:
-    """将上下文引用的推送 spout 替换为记录构造函数调用的子类。"""
+    """将图入口引用的推送 spout 替换为记录构造函数调用的子类。"""
 
     class _RecordingPushSpout(PushSpout):
         def __init__(self, *args, **kwargs) -> None:
@@ -39,60 +38,43 @@ def _patch_recording_push_spouts(monkeypatch, used: list[str]) -> None:
     monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
 
 
-class TestLifecycleRunResources:
+class TestGraphRunResources:
     def test_yields_db_path_and_registers_observers(self, tmp_path, monkeypatch):
-        """进入上下文应启动 spout、产出数据库路径并注入全局观察者。"""
+        """图入口进入时应启动 spout、产出数据库路径并注入 lifecycle / log inlet。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_resources(observers, "session-1", MetricsObserver()) as db_path:
+        with run_graph_resources(observers, "session-1", MetricsObserver()) as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
             # 默认不启用上报，仅 lifecycle / log 两个全局 inlet。
             assert len(observers._snapshot()) == 2
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
-        """退出上下文应停止两个 spout。"""
+        """图入口退出时应停止 lifecycle / log spout。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
-        with run_resources(ObserverHub(), "session-1", MetricsObserver()):
+        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
 
-    def test_log_level_from_pyproject(self, tmp_path, monkeypatch):
-        """``LogInlet`` 的日志级别应从项目级 ``pyproject.toml`` 读取。"""
-        monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\nlog_level = "ERROR"\n', encoding='utf-8'
-        )
-        observers = ObserverHub()
-
-        with run_resources(observers, "session-1", MetricsObserver()):
-            inlets = [
-                observer
-                for observer in observers._snapshot()
-                if isinstance(observer, LogInlet)
-            ]
-            assert len(inlets) == 1
-            assert inlets[0].log_level == 'ERROR'
-
     def test_cleans_up_when_body_raises(self, tmp_path, monkeypatch):
-        """上下文体内抛出异常时，异常应向外传播且 spout 仍被回收。"""
+        """图入口上下文体内抛出异常时，异常应向外传播且 spout 仍被回收。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
-            with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
+            with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
                 raise RuntimeError('boom')
 
         assert set(stopped) == {'lifecycle', 'log'}
 
     def test_uses_push_spout_when_if_report_enabled(self, tmp_path, monkeypatch):
-        """``if_report`` 为真且配置了 ``report_url`` 时使用 ``PushSpout``。"""
+        """``if_report`` 为真且配置了 ``report_url`` 时图入口使用 ``PushSpout``。"""
         monkeypatch.chdir(tmp_path)
         (tmp_path / 'pyproject.toml').write_text(
             '[tool.celestialflow]\n'
@@ -103,13 +85,13 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
+        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == ['push']
 
     def test_no_push_spout_when_if_report_disabled(self, tmp_path, monkeypatch):
-        """``if_report`` 为假时不创建任何推送通道（即使配置了 ``report_url``）。"""
+        """``if_report`` 为假时图入口不创建任何推送通道（即使配置了 ``report_url``）。"""
         monkeypatch.chdir(tmp_path)
         (tmp_path / 'pyproject.toml').write_text(
             '[tool.celestialflow]\n'
@@ -120,7 +102,7 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
+        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == []
@@ -136,7 +118,49 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
+        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == ['push']
+
+
+class TestNodeRunResources:
+    def test_registers_metrics_and_inlets(self, tmp_path, monkeypatch):
+        """节点入口应内部创建指标观察者，并注入 lifecycle / log inlet。"""
+        monkeypatch.chdir(tmp_path)
+        observers = ObserverHub()
+
+        with run_node_resources(observers) as db_path:
+            assert db_path is not None
+            snapshot = observers._snapshot()
+            # 指标观察者 + lifecycle + log
+            assert len(snapshot) == 3
+            assert any(isinstance(observer, MetricsObserver) for observer in snapshot)
+
+    def test_log_level_from_pyproject(self, tmp_path, monkeypatch):
+        """``LogInlet`` 的日志级别应从项目级 ``pyproject.toml`` 读取。"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / 'pyproject.toml').write_text(
+            '[tool.celestialflow]\nlog_level = "ERROR"\n', encoding='utf-8'
+        )
+        observers = ObserverHub()
+
+        with run_node_resources(observers):
+            inlets = [
+                observer
+                for observer in observers._snapshot()
+                if isinstance(observer, LogInlet)
+            ]
+            assert len(inlets) == 1
+            assert inlets[0].log_level == 'ERROR'
+
+    def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
+        """节点入口退出时应停止 lifecycle / log spout。"""
+        monkeypatch.chdir(tmp_path)
+        stopped: list[str] = []
+        _patch_recording_spouts(monkeypatch, stopped)
+
+        with run_node_resources(ObserverHub()):
+            pass
+
+        assert set(stopped) == {'lifecycle', 'log'}

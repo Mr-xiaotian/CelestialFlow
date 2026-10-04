@@ -4,14 +4,12 @@ from __future__ import annotations
 import inspect
 import os
 import time
-import uuid
 from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
 
-from ..assembly import run_resources
+from ..assembly import run_node_resources
 from ..observer import (
-    MetricsObserver,
     NodeEndEvent,
     NodeStartEvent,
     Observer,
@@ -56,18 +54,15 @@ class BaseTaskNode[T, R, Y]:
       安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 BaseTaskNode 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
-    - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标由
-      :class:`~celestialflow.observer.core_metrics.MetricsObserver` 依据事件维护：
-      独立运行（:meth:`run` / :meth:`run_async`）时节点注册单节点观察者，参与图调度时
-      由图级观察者统一维护。全局 ``LifecycleSpout`` / ``LogSpout`` 的启停与全局
-      funnel 观察者的注册由 :meth:`run` / :meth:`run_async` 统一负责，BaseTaskNode
-      自身不直接持有 spout 实例。
+    - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标观察者与全局 funnel
+      观察者、``LifecycleSpout`` / ``LogSpout`` 的装配与启停，独立运行时由
+      :func:`~celestialflow.assembly.run_node_resources` 统一负责，参与图调度时
+      由图级观察者统一维护。BaseTaskNode 自身不直接持有 spout 实例。
     """
 
     # ==== 类级类型注解 ====
 
     _name: str
-    node_id: str
     task_queue: TaskInQueue[T]
     yield_queue: TaskOutQueue[Y]
     max_workers: int
@@ -225,7 +220,6 @@ class BaseTaskNode[T, R, Y]:
         :param name: 节点/管理器名称
         """
         self._name = name
-        self.node_id = uuid.uuid4().hex
 
     def set_retry_exceptions(self, *exceptions: type[Exception]) -> None:
         """
@@ -456,9 +450,9 @@ class BaseTaskNode[T, R, Y]:
         """
         执行任务。
 
-        本方法负责实例化运行期资源：注册单节点指标观察者与全局 funnel 观察者、
-        启动全局 ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
-        最后统一收尾。
+        本方法通过 :func:`~celestialflow.assembly.run_node_resources` 装配单节点
+        运行期资源（指标观察者、全局 funnel 观察者与 ``lifecycle`` / ``log``
+        spout），注入任务后交由 :meth:`start` 处理，最后统一收尾。
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
@@ -466,14 +460,8 @@ class BaseTaskNode[T, R, Y]:
         """
         error_list: list[Exception] = []
 
-        metrics_observer = MetricsObserver()
-        self.observers.add_observer(metrics_observer)
-        self.observers.on_node_added(self.get_name())
-
         try:
-            with run_resources(
-                self.observers, self.node_id, metrics_observer
-            ) as lifecycle_db_path:
+            with run_node_resources(self.observers) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)
@@ -503,14 +491,8 @@ class BaseTaskNode[T, R, Y]:
         """
         error_list: list[Exception] = []
 
-        metrics_observer = MetricsObserver()
-        self.observers.add_observer(metrics_observer)
-        self.observers.on_node_added(self.get_name())
-
         try:
-            with run_resources(
-                self.observers, self.node_id, metrics_observer
-            ) as lifecycle_db_path:
+            with run_node_resources(self.observers) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)
