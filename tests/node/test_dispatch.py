@@ -23,12 +23,12 @@ from celestialflow.observer import (
     WorkerCrashEvent,
 )
 from celestialflow.persist import LifecycleInlet, LifecycleSpout
-from celestialflow.reporter import MetricsObserver
+from celestialflow.observer import MetricsObserver
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.node import TaskExecutor
 from celestialflow.node.core_dispatch import TaskDispatch
-from conftest import wait_until
+from conftest import metrics_of, wait_until
 
 _RESULT_COLLECTORS: WeakKeyDictionary[TaskExecutor, Queue[Any]] = WeakKeyDictionary()
 
@@ -127,7 +127,6 @@ def _make_executor(
     e.ctree_client = _CtreeStub()
     # 模拟 node.run 路径：注册单节点指标观察者，使指标随事件更新。
     metrics_observer = MetricsObserver()
-    e.metrics = metrics_observer
     e.observers.add_observer(metrics_observer)
     metrics_observer.on_node_added(e.get_name())
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
@@ -267,7 +266,7 @@ class TestDispatchSerial:
         executor._lifecycle_db_path = lifecycle_spout.db_path
         try:
             lifecycle_observer.on_task_input(
-                TaskInputEvent(executor.get_name(), 3, "(3)", 0, "external")
+                TaskInputEvent(executor.get_name(), 3, "(3)", 0)
             )
             _put(executor, 3)
             _put_termination(executor)
@@ -437,7 +436,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         results = _collect_results(executor)
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
-        assert executor.metrics.get_node_metrics(executor.get_name()).failed == 1
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).failed == 1
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_retry_handler_crash_keeps_termination(
@@ -466,7 +465,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert observer.calls == 1
         assert len(recording.crashes) == 0
         # 重试后仍失败，最终计入一次失败
-        assert executor.metrics.get_node_metrics(executor.get_name()).failed == 1
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).failed == 1
 
 class TestDispatchCoreBehavior:
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])

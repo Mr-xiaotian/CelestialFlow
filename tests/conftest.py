@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 from dotenv import load_dotenv
 
+from celestialflow.observer import MetricsObserver
+
 load_dotenv()
+
+
+def metrics_of(node: Any) -> MetricsObserver:
+    """
+    取回独立运行节点 hub 上的指标观察者。
+
+    节点自身不再持有 ``metrics`` 字段；指标观察者由运行入口注册到 ``node.observers``，
+    这里从 hub 快照中取回，供断言读取。
+
+    :param node: 已运行的任务节点
+    :return: 该节点 hub 上的指标观察者
+    """
+    for observer in node.observers._snapshot():
+        if isinstance(observer, MetricsObserver):
+            return observer
+    raise AssertionError("metrics observer not registered on node hub")
 
 
 def wait_until(

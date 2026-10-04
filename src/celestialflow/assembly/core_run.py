@@ -9,7 +9,6 @@ from ..observer import ObserverHub
 from ..persist.core_lifecycle import LifecycleInlet, LifecycleSpout
 from ..persist.core_log import LogInlet, LogSpout
 from ..reporter import (
-    NullPushSpout,
     PushInlet,
     PushSpout,
 )
@@ -42,9 +41,9 @@ def run_resources(
     ``[tool.celestialflow]`` 节读取（见
     :func:`~celestialflow.runtime.util_config.load_log_level_from_pyproject`）。
     上报开关同样从该节读取：仅当 ``if_report`` 显式配置为 ``true`` 时启用上报，
-    并使用 :class:`PushSpout`（``report_url`` 未配置时回退到
-    :data:`~celestialflow.runtime.util_config.DEFAULT_REPORT_URL`）；
-    否则一律回退到 :class:`NullPushSpout`。
+    才会注册 :class:`PushInlet` 并启动 :class:`PushSpout`（``report_url`` 未配置
+    时回退到 :data:`~celestialflow.runtime.util_config.DEFAULT_REPORT_URL`）；
+    否则不注册推送观察者，也不创建推送通道。
 
     :param observers: 接收全局 inlet 的观察者 hub，通常为任务图或任务节点自身的 hub
     :param report_session_id: 上报会话标识，随记录一并提交给服务端
@@ -57,21 +56,23 @@ def run_resources(
 
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
-    if if_report:
-        report_spout = PushSpout(report_session_id, report_url)
-    else:
-        report_spout = NullPushSpout()
 
     observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
     observers.add_observer(LogInlet(metrics_view, log_level).bind_spout(log_spout))
-    observers.add_observer(PushInlet().bind_spout(report_spout))
+
+    report_spout: PushSpout | None = None
+    if if_report:
+        report_spout = PushSpout(report_session_id, report_url)
+        observers.add_observer(PushInlet().bind_spout(report_spout))
 
     try:
         lifecycle_spout.start()
         log_spout.start()
-        report_spout.start()
+        if report_spout is not None:
+            report_spout.start()
         yield lifecycle_spout.db_path
     finally:
         lifecycle_spout.stop()
         log_spout.stop()
-        report_spout.stop()
+        if report_spout is not None:
+            report_spout.stop()

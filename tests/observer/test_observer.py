@@ -27,6 +27,7 @@ from celestialflow.observer import (
     WorkerCrashEvent,
 )
 from celestialflow.runtime.util_errors import ConfigurationError
+from conftest import metrics_of
 
 
 # =========================
@@ -155,7 +156,7 @@ class TestExecutorObserver:
         assert len(successes) == 3
 
         assert starts[0].node == "ObserverTest"
-        assert all(event.source == "external" for event in inputs)
+        assert all(event.from_node is None for event in inputs)
         assert observer.events[-1] is ends[0]
 
     def test_task_success_event_carries_payload_and_ids(self):
@@ -246,7 +247,7 @@ class TestExecutorObserver:
         """没有 observer 时正常运行"""
         executor = TaskExecutor("NoObserver", add_one, execution_mode="serial")
         executor.run([1, 2, 3])
-        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 3
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).succeeded == 3
 
     def test_multiple_observers(self):
         """多个 observer 同时收到回调"""
@@ -270,7 +271,7 @@ class TestExecutorObserver:
         assert o2.count == 2
 
     def test_task_input_reports_upstream_source(self):
-        """上游下发的任务会触发 source='upstream' 的输入事件"""
+        """上游下发的任务会触发携带 from_node 的输入事件"""
         upstream = TaskExecutor("up", add_one)
         downstream = TaskExecutor("down", double)
         observer = RecordingObserver()
@@ -282,9 +283,10 @@ class TestExecutorObserver:
         graph.run({"up": [1, 2]})
 
         inputs = _only(observer.events, TaskInputEvent)
-        upstream_inputs = [event for event in inputs if event.source == "upstream"]
+        upstream_inputs = [event for event in inputs if event.from_node is not None]
         assert len(upstream_inputs) == 2
         assert all(event.node == "down" for event in upstream_inputs)
+        assert all(event.from_node == "up" for event in upstream_inputs)
 
 
 class TestExtendedObserver:
@@ -421,9 +423,12 @@ class TestGraphObserver:
         assert {event.node for event in starts} == {"up", "down"}
         assert {event.node for event in ends} == {"up", "down"}
 
-        sources = [(event.node, event.source) for event in _only(observer.events, TaskInputEvent)]
-        assert sources.count(("up", "external")) == 2
-        assert sources.count(("down", "upstream")) == 2
+        sources = [
+            (event.node, event.from_node)
+            for event in _only(observer.events, TaskInputEvent)
+        ]
+        assert sources.count(("up", None)) == 2
+        assert sources.count(("down", "up")) == 2
         assert len(_only(observer.events, TaskSuccessEvent)) == 4
 
     def test_node_local_observer_runs_before_graph_observer(self):
@@ -575,26 +580,3 @@ class TestStructuralObserver:
             ("added", "down", ""),
             ("connected", "up", "down"),
         ]
-
-    def test_graph_replays_topology_to_late_observer(self) -> None:
-        """建图后注册的观察者会收到当前拓扑的回放。"""
-        graph = TaskGraph("structural_replay")
-        up = TaskExecutor("up", add_one)
-        down = TaskExecutor("down", double)
-        graph.set_nodes([up, down])
-        graph.connect([up], [down])
-
-        recorded: list[tuple[str, str, str]] = []
-
-        class Recorder(Observer):
-            def on_node_added(self, node: str) -> None:
-                recorded.append(("added", node, ""))
-
-            def on_node_connected(self, from_node: str, to_node: str) -> None:
-                recorded.append(("connected", from_node, to_node))
-
-        graph.add_observer(Recorder())
-
-        assert ("added", "up", "") in recorded
-        assert ("added", "down", "") in recorded
-        assert ("connected", "up", "down") in recorded

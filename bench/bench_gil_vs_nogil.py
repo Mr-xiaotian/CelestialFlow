@@ -101,6 +101,16 @@ def build_chain_graph(
     return graph, node3
 
 
+def metrics_of(node: Any):
+    """取回独立运行节点 hub 上的指标观察者（节点不再持有 ``metrics`` 字段）。"""
+    from celestialflow.observer import MetricsObserver
+
+    for observer in node.observers._snapshot():
+        if isinstance(observer, MetricsObserver):
+            return observer
+    raise RuntimeError("metrics observer not found on node hub")
+
+
 def measure_executor(
     name: str,
     execution_mode: str,
@@ -112,7 +122,8 @@ def measure_executor(
     start = time.perf_counter()
     executor.run(items)
     seconds = time.perf_counter() - start
-    success_count = executor.metrics.get_success_count()
+    node_metrics = metrics_of(executor).get_node_metrics(executor.get_name())
+    success_count = node_metrics.succeeded if node_metrics is not None else 0
     if success_count != len(items):
         raise RuntimeError(
             f"{name} success count mismatch: expected {len(items)}, got {success_count}"
@@ -137,7 +148,8 @@ def measure_graph(
     start = time.perf_counter()
     graph.run({f"{name}_node_1": items})
     seconds = time.perf_counter() - start
-    success_count = sink_node.metrics.get_success_count()
+    node_metrics = graph.metrics.get_node_metrics(sink_node.get_name())
+    success_count = node_metrics.succeeded if node_metrics is not None else 0
     if success_count != len(items):
         raise RuntimeError(
             f"{name} success count mismatch: expected {len(items)}, got {success_count}"

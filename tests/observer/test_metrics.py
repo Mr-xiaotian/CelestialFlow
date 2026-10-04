@@ -1,6 +1,7 @@
 """``MetricsObserver`` 单元测试。"""
 
 from celestialflow.observer import (
+    MetricsObserver,
     NodeEndEvent,
     NodeStartEvent,
     TaskFailEvent,
@@ -8,15 +9,12 @@ from celestialflow.observer import (
     TaskSkipEvent,
     TaskSuccessEvent,
 )
-from celestialflow.reporter import MetricsObserver
 from celestialflow.runtime.util_types import NodeStatus
 
 
 def _external_input(node: str) -> TaskInputEvent:
     """构造外部注入任务输入事件。"""
-    return TaskInputEvent(
-        node=node, task=1, task_repr="(1)", input_id=1, source="external"
-    )
+    return TaskInputEvent(node=node, task=1, task_repr="(1)", input_id=1)
 
 
 def _upstream_input(node: str, from_node: str) -> TaskInputEvent:
@@ -26,7 +24,6 @@ def _upstream_input(node: str, from_node: str) -> TaskInputEvent:
         task=1,
         task_repr="(1)",
         input_id=2,
-        source="upstream",
         from_node=from_node,
     )
 
@@ -91,9 +88,7 @@ class TestMetricsObserverEvents:
         observer = MetricsObserver()
         observer.on_node_added("a")
 
-        observer.on_task_success(
-            TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2)
-        )
+        observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
         observer.on_task_fail(TaskFailEvent("a", 1, "(1)", ValueError("x"), 1, 2))
         observer.on_task_skip(TaskSkipEvent("a", 1, "(1)", 1, 2))
 
@@ -126,9 +121,7 @@ class TestMetricsObserverGraphView:
         observer.on_node_added("a")
         observer.on_node_added("b")
 
-        observer.on_task_success(
-            TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2)
-        )
+        observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
 
         a = observer.get_node_metrics("a")
         b = observer.get_node_metrics("b")

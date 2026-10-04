@@ -19,6 +19,7 @@ from celestialflow.runtime.util_errors import (
     PersistedError,
 )
 from celestialflow.runtime.util_types import CTreeEvent
+from conftest import metrics_of
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
@@ -31,7 +32,7 @@ def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
 
 def _counts(node: TaskExecutor[Any, Any]) -> dict[str, int]:
     """以字典形式返回节点指标快照，便于沿用旧字段名断言。"""
-    metrics = node.metrics.get_node_metrics(node.get_name())
+    metrics = metrics_of(node).get_node_metrics(node.get_name())
     assert metrics is not None
     return {
         "tasks_input": metrics.input_total,
@@ -176,7 +177,7 @@ class TestTaskExecutor:
         )
         await executor.run_async([10, 20, 30])
 
-        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 3
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).succeeded == 3
 
     @pytest.mark.asyncio
     async def test_async_double(self) -> None:
@@ -189,7 +190,7 @@ class TestTaskExecutor:
         )
         await executor.run_async(list(range(20)))
 
-        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 20
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).succeeded == 20
 
     def test_restore_db(self, tmp_path: Path) -> None:
         """默认应读取属于自己名称的 failed 与 pending 任务。"""
@@ -378,6 +379,25 @@ class TestTaskExecutor:
         assert executor.get_name() == "AddOneSummary"
         assert executor.execution_mode == "serial"
 
+    def test_fanout_downstream_records_result_as_input(self) -> None:
+        """普通 executor 扇出时，下游的输入应记录上游的结果，而非上游的输入。"""
+
+        def times_ten(x: int) -> int:
+            return x * 10
+
+        upstream = TaskExecutor("up", add_one)
+        downstream = TaskExecutor("down", times_ten)
+        graph = TaskGraph("test_executor_fanout_downstream_payload")
+        graph.set_nodes([upstream, downstream])
+        graph.connect([upstream], [downstream])
+        graph.run({"up": [1, 2]})
+
+        # up: 1->2, 2->3；down 应以 [2, 3] 作为输入并产出 [20, 30]
+        assert load_task_result_records(graph._lifecycle_db_path, "down") == [
+            (2, 20),
+            (3, 30),
+        ]
+
 
 class TestTaskSkip:
     """覆盖 ``skip_func`` / ``handle_task_skip`` 的跳过行为。"""
@@ -487,7 +507,7 @@ class TestTaskSkip:
         executor.run([1, 2])
 
         assert executed == [1, 2]
-        assert executor.metrics.get_node_metrics(executor.get_name()).skipped == 0
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).skipped == 0
 
     def test_skip_func_signature_validation(self) -> None:
         """``skip_func`` 必须接受恰好一个位置参数。"""
@@ -525,7 +545,7 @@ class TestTaskSkip:
         executor.run([-1, 1, -2])
 
         assert executor.skipped == [-1, -2]
-        assert executor.metrics.get_node_metrics(executor.get_name()).skipped == 2
+        assert metrics_of(executor).get_node_metrics(executor.get_name()).skipped == 2
 
     def test_skip_full_chain(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

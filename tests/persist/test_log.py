@@ -8,7 +8,7 @@ from celestialflow.observer import (
     TaskSkipEvent,
 )
 from celestialflow.persist.core_log import LogInlet, LogSpout
-from celestialflow.reporter import MetricsObserver
+from celestialflow.observer import MetricsObserver
 
 
 class TestLogPersistence:

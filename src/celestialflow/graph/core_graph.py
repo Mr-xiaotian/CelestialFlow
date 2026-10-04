@@ -14,13 +14,14 @@ from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
     GraphStartEvent,
+    MetricsObserver,
     Observer,
     ObserverHub,
 )
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
-from ..reporter import MetricsObserver, NullTaskReporter, ReporterProtocol
+from ..reporter import NullTaskReporter, ReporterProtocol
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -232,23 +233,12 @@ class TaskGraph:
         图级观察者会收到图中所有节点的事件；该注册仅在 :meth:`run` /
         :meth:`run_async` 路径下生效（这两个入口会把图级 hub 注入每个节点）。
 
-        若注册发生在建图之后，会向该观察者回放当前图结构（``on_node_added`` /
-        ``on_node_connected``），保证结构类观察者不因注册顺序而遗漏拓扑。
+        结构类观察者（需要 ``on_node_added`` / ``on_node_connected``）应在建图
+        之前注册，才能实时收到节点与连接事件。
 
         :param observer: 要注册的观察者实例
         """
         self.observers.add_observer(observer)
-
-        if isinstance(observer, ObserverHub):
-            return
-        try:
-            for node_name in self.order_graph.nodes:
-                observer.on_node_added(node_name)
-            for from_name, to_names in self.order_graph.out_edges.items():
-                for to_name in to_names:
-                    observer.on_node_connected(from_name, to_name)
-        except Exception as e:
-            observer.handle_exception(e)
 
     def _inject_observers(self) -> None:
         """

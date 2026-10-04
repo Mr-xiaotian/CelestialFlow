@@ -210,9 +210,10 @@ class LogInlet(BaseInlet, Observer):
 
         :param event: 任务输入事件
         """
+        origin = event.from_node if event.from_node is not None else "external"
         self._log(
             "DEBUG",
-            f"In '{event.node}', Task {event.task_repr} input from {event.source}. [{event.input_id}*]",
+            f"In '{event.node}', Task {event.task_repr} input from {origin}. [{event.input_id}*]",
         )
 
     def on_task_success(self, event: TaskSuccessEvent) -> None:

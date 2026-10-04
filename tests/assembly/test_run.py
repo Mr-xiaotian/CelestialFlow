@@ -7,7 +7,8 @@ from celestialflow.assembly import core_run
 from celestialflow.assembly.core_run import run_resources
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
-from celestialflow.reporter import MetricsObserver, NullPushSpout, PushSpout
+from celestialflow.reporter import PushSpout
+from celestialflow.observer import MetricsObserver
 
 
 def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
@@ -28,20 +29,14 @@ def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
 
 
 def _patch_recording_push_spouts(monkeypatch, used: list[str]) -> None:
-    """将上下文引用的推送 spout 替换为记录构造函数选择的子类。"""
+    """将上下文引用的推送 spout 替换为记录构造函数调用的子类。"""
 
     class _RecordingPushSpout(PushSpout):
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             used.append('push')
 
-    class _RecordingNullPushSpout(NullPushSpout):
-        def __init__(self) -> None:
-            super().__init__()
-            used.append('null')
-
     monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
-    monkeypatch.setattr(core_run, 'NullPushSpout', _RecordingNullPushSpout)
 
 
 class TestLifecycleRunResources:
@@ -53,8 +48,8 @@ class TestLifecycleRunResources:
         with run_resources(observers, "session-1", MetricsObserver()) as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
-            # lifecycle / log / 上报三个全局 inlet。
-            assert len(observers._snapshot()) == 3
+            # 默认不启用上报，仅 lifecycle / log 两个全局 inlet。
+            assert len(observers._snapshot()) == 2
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
         """退出上下文应停止两个 spout。"""
@@ -113,8 +108,8 @@ class TestLifecycleRunResources:
 
         assert used == ['push']
 
-    def test_uses_null_push_spout_when_if_report_disabled(self, tmp_path, monkeypatch):
-        """``if_report`` 为假时不用 ``PushSpout``（即使配置了 ``report_url``）。"""
+    def test_no_push_spout_when_if_report_disabled(self, tmp_path, monkeypatch):
+        """``if_report`` 为假时不创建任何推送通道（即使配置了 ``report_url``）。"""
         monkeypatch.chdir(tmp_path)
         (tmp_path / 'pyproject.toml').write_text(
             '[tool.celestialflow]\n'
@@ -128,7 +123,7 @@ class TestLifecycleRunResources:
         with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
-        assert used == ['null']
+        assert used == []
 
     def test_uses_default_url_when_if_report_enabled_without_url(
         self, tmp_path, monkeypatch

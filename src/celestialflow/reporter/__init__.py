@@ -4,7 +4,6 @@
 提供向远程服务推送任务图运行状态、错误与结构信息的 reporter 实现。
 """
 
-from .core_metrics import MetricsObserver
 from .core_push import (
     NullPushSpout,
     PushInlet,
@@ -13,7 +12,6 @@ from .core_push import (
 from .core_report import NullTaskReporter, ReporterProtocol, TaskReporter
 
 __all__ = [
-    "MetricsObserver",
     "NullPushSpout",
     "NullTaskReporter",
     "PushInlet",

@@ -23,6 +23,16 @@ from demo_utils import no_op
 from celestialflow import PrintObserver, TaskExecutor, TaskGraph, TaskSplitter
 
 
+def _metrics_of(node: TaskExecutor[Any, Any]):
+    """取回独立运行节点 hub 上的指标观察者（节点不再持有 ``metrics`` 字段）。"""
+    from celestialflow.observer import MetricsObserver
+
+    for observer in node.observers._snapshot():
+        if isinstance(observer, MetricsObserver):
+            return observer
+    raise RuntimeError("metrics observer not found on node hub")
+
+
 # ==== 去重判定器 ====
 
 
@@ -82,7 +92,7 @@ def demo_skip_dedup_executor() -> None:
 
     executor.run(tasks)
 
-    metrics = executor.metrics.get_node_metrics(executor.get_name())
+    metrics = _metrics_of(executor).get_node_metrics(executor.get_name())
     assert metrics is not None
     unique = sorted(task for task, _ in executor.get_success_pairs())
     print(

@@ -1,19 +1,19 @@
-# reporter/core_metrics.py
+# observer/core_metrics.py
 from __future__ import annotations
 
 import time
 from threading import Lock
 
-from ..observer import (
+from ..runtime.util_types import NodeMetrics, NodeStatus
+from .core_event import (
     NodeEndEvent,
     NodeStartEvent,
-    Observer,
     TaskFailEvent,
     TaskInputEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
 )
-from ..runtime.util_types import NodeMetrics, NodeStatus
+from .core_observer import Observer
 
 
 class MetricsObserver(Observer):
