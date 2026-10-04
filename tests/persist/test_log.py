@@ -8,6 +8,7 @@ from celestialflow.observer import (
     TaskSkipEvent,
 )
 from celestialflow.persist.core_log import LogInlet, LogSpout
+from celestialflow.reporter import MetricsObserver
 
 
 class TestLogPersistence:
@@ -16,7 +17,7 @@ class TestLogPersistence:
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()
-        inlet = LogInlet(log_level='INFO').bind_spout(spout)
+        inlet = LogInlet(MetricsObserver(), log_level='INFO').bind_spout(spout)
 
         spout.start()
         try:
@@ -45,7 +46,7 @@ class TestLogPersistence:
             )
             inlet.on_graph_end(GraphEndEvent("test_graph", 1.0))
             inlet.on_node_start(
-                NodeStartEvent('node', 'parallel', 4, task_count=1)
+                NodeStartEvent('node', 'parallel', 4)
             )
             wait_until(
                 lambda: spout.log_path.exists()
@@ -68,7 +69,7 @@ class TestLogPersistence:
         monkeypatch.chdir(tmp_path)
 
         spout = LogSpout()
-        inlet = LogInlet(log_level='SUCCESS').bind_spout(spout)
+        inlet = LogInlet(MetricsObserver(), log_level='SUCCESS').bind_spout(spout)
 
         spout.start()
         try:

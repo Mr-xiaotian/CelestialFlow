@@ -7,7 +7,7 @@ from celestialflow.assembly import core_run
 from celestialflow.assembly.core_run import run_resources
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
-from celestialflow.reporter import NullPushSpout, PushSpout
+from celestialflow.reporter import MetricsObserver, NullPushSpout, PushSpout
 
 
 def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
@@ -50,7 +50,7 @@ class TestLifecycleRunResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_resources(observers, "session-1") as db_path:
+        with run_resources(observers, "session-1", MetricsObserver()) as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
             # lifecycle / log / 上报三个全局 inlet。
@@ -62,7 +62,7 @@ class TestLifecycleRunResources:
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
-        with run_resources(ObserverHub(), "session-1"):
+        with run_resources(ObserverHub(), "session-1", MetricsObserver()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -75,7 +75,7 @@ class TestLifecycleRunResources:
         )
         observers = ObserverHub()
 
-        with run_resources(observers, "session-1"):
+        with run_resources(observers, "session-1", MetricsObserver()):
             inlets = [
                 observer
                 for observer in observers._snapshot()
@@ -91,7 +91,7 @@ class TestLifecycleRunResources:
         _patch_recording_spouts(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
-            with run_resources(ObserverHub(), 'session-1'):
+            with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
                 raise RuntimeError('boom')
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -108,7 +108,7 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1'):
+        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == ['push']
@@ -125,7 +125,7 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1'):
+        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == ['null']
@@ -141,7 +141,7 @@ class TestLifecycleRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_resources(ObserverHub(), 'session-1'):
+        with run_resources(ObserverHub(), 'session-1', MetricsObserver()):
             pass
 
         assert used == ['push']

@@ -29,6 +29,20 @@ def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
     return result_dict
 
 
+def _counts(node: TaskExecutor[Any, Any]) -> dict[str, int]:
+    """以字典形式返回节点指标快照，便于沿用旧字段名断言。"""
+    metrics = node.metrics.get_node_metrics(node.get_name())
+    assert metrics is not None
+    return {
+        "tasks_input": metrics.input_total,
+        "tasks_succeeded": metrics.succeeded,
+        "tasks_failed": metrics.failed,
+        "tasks_skipped": metrics.skipped,
+        "tasks_processed": metrics.processed,
+        "tasks_pending": metrics.pending,
+    }
+
+
 def add_one(x: int) -> int:
     """测试用同步加一函数。"""
     return x + 1
@@ -69,7 +83,7 @@ class TestTaskExecutor:
         executor = TaskExecutor("AddOneSerial", add_one, execution_mode="serial")
         executor.run([1, 2, 3, 4, 5])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
         assert counts["tasks_pending"] == 0
@@ -87,7 +101,7 @@ class TestTaskExecutor:
         assert "negative value: -1" in result_dict[-1]
         assert "negative value: -2" in result_dict[-2]
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 2
 
@@ -117,7 +131,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.run([1])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 1
         assert counts["tasks_failed"] == 0
         assert call_count == 3
@@ -133,7 +147,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.run([-1])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 0
         assert counts["tasks_failed"] == 1
 
@@ -147,7 +161,7 @@ class TestTaskExecutor:
         )
         executor.run([1, 2, 3, 4, 5])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 5
         assert counts["tasks_failed"] == 0
 
@@ -162,7 +176,7 @@ class TestTaskExecutor:
         )
         await executor.run_async([10, 20, 30])
 
-        assert executor.metrics.get_counts()["tasks_succeeded"] == 3
+        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 3
 
     @pytest.mark.asyncio
     async def test_async_double(self) -> None:
@@ -175,7 +189,7 @@ class TestTaskExecutor:
         )
         await executor.run_async(list(range(20)))
 
-        assert executor.metrics.get_counts()["tasks_succeeded"] == 20
+        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 20
 
     def test_restore_db(self, tmp_path: Path) -> None:
         """默认应读取属于自己名称的 failed 与 pending 任务。"""
@@ -226,7 +240,7 @@ class TestTaskExecutor:
         executor = TaskExecutor("s1", add_one, execution_mode="serial")
         executor.restore_db(sqlite_path)
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
 
@@ -277,7 +291,7 @@ class TestTaskExecutor:
             filter_by_error_type=True,
         )
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
@@ -322,7 +336,7 @@ class TestTaskExecutor:
         executor.set_retry_exceptions(RuntimeError)
         executor.restore_db(sqlite_path, filter_by_error_type=True)
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_succeeded"] == 2
         assert counts["tasks_failed"] == 0
 
@@ -373,7 +387,7 @@ class TestTaskSkip:
         executor = TaskExecutor("SkipDefault", add_one, execution_mode="serial")
         executor.run([1, 2, 3])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_skipped"] == 0
         assert counts["tasks_succeeded"] == 3
 
@@ -394,7 +408,7 @@ class TestTaskSkip:
         executor.run([1, 2, 3, 4, 5])
 
         assert executed == [1, 3, 5]
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_skipped"] == 2
         assert counts["tasks_succeeded"] == 3
         assert counts["tasks_failed"] == 0
@@ -411,7 +425,7 @@ class TestTaskSkip:
         )
         executor.run([1, -1, 2, -2, 3])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_skipped"] == 2
         assert counts["tasks_succeeded"] == 3
 
@@ -427,7 +441,7 @@ class TestTaskSkip:
         )
         await executor.run_async([0, 1, 2])
 
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_skipped"] == 1
         assert counts["tasks_succeeded"] == 2
 
@@ -451,7 +465,7 @@ class TestTaskSkip:
         executor.run([0])
 
         assert call_count == 0
-        counts = executor.metrics.get_counts()
+        counts = _counts(executor)
         assert counts["tasks_skipped"] == 1
         assert counts["tasks_failed"] == 0
 
@@ -473,7 +487,7 @@ class TestTaskSkip:
         executor.run([1, 2])
 
         assert executed == [1, 2]
-        assert executor.metrics.get_counts()["tasks_skipped"] == 0
+        assert executor.metrics.get_node_metrics(executor.get_name()).skipped == 0
 
     def test_skip_func_signature_validation(self) -> None:
         """``skip_func`` 必须接受恰好一个位置参数。"""
@@ -511,7 +525,7 @@ class TestTaskSkip:
         executor.run([-1, 1, -2])
 
         assert executor.skipped == [-1, -2]
-        assert executor.metrics.get_counts()["tasks_skipped"] == 2
+        assert executor.metrics.get_node_metrics(executor.get_name()).skipped == 2
 
     def test_skip_full_chain(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -572,7 +586,7 @@ class TestTaskSplitter:
         """TaskSplitter 默认应为串行执行模式，且尚未绑定下游。"""
         splitter = TaskSplitter("Splitter", split_identity)
         assert splitter.execution_mode == "serial"
-        assert splitter.metrics.downstream_counter == {}
+        assert list(splitter.yield_queue.get_target_names()) == []
 
     def test_splitter_process_success(self) -> None:
         """拆分成功后，下游应收到独立子任务。"""
@@ -589,8 +603,8 @@ class TestTaskSplitter:
         graph.run({"S": [[1, 2, 3]]})
 
         # 每个子任务应作为独立任务到达下游，并各自计一次发送
-        assert splitter.metrics.downstream_counter["A"].get() == 3
-        assert worker.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
+        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 3
 
     def test_splitter_allows_empty_iterable(self) -> None:
         """空可迭代对象应产生 0 个子任务，而不是抛异常。"""
@@ -607,8 +621,8 @@ class TestTaskSplitter:
         graph.run({"S": [[]]})
 
         # 空结果不产生任何子任务，发送计数应为 0
-        assert splitter.metrics.downstream_counter["A"].get() == 0
-        assert worker.metrics.get_counts()["tasks_succeeded"] == 0
+        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 0
+        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 0
 
     def test_splitter_supports_generator_input(self) -> None:
         """一次性迭代器也应能被完整拆分并继续分发。"""
@@ -624,8 +638,8 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [(i for i in [1, 2, 3])]})
 
-        assert splitter.metrics.downstream_counter["A"].get() == 3
-        assert worker.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
+        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 3
 
     def test_splitter_custom_func_transforms_items(self) -> None:
         """自定义拆分函数应能对子任务做变换后再分发。"""
@@ -644,7 +658,7 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[" a ", " b ", " c "]]})
 
-        assert splitter.metrics.downstream_counter["A"].get() == 3
+        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
         result_pairs = load_task_result_records(graph._lifecycle_db_path, "A")
         assert sorted(task for task, _ in result_pairs) == ["a", "b", "c"]
 
@@ -656,7 +670,7 @@ class TestTaskRouter:
         """TaskRouter 默认应为串行执行模式，且尚未绑定下游。"""
         router = TaskRouter("Router", lambda task: {str(task): task})
         assert router.execution_mode == "serial"
-        assert router.metrics.downstream_counter == {}
+        assert list(router.yield_queue.get_target_names()) == []
 
     def test_router_func_returns_target_payload_map(self) -> None:
         """路由函数应返回 ``{target: payload}`` 映射。"""
@@ -685,10 +699,10 @@ class TestTaskRouter:
         graph.run({"R": ["msg1", "msg2"]})
 
         # 每个目标节点应收到一次向下游的发送计数
-        assert router.metrics.downstream_counter["target1"].get() == 1
-        assert router.metrics.downstream_counter["target2"].get() == 1
-        assert target1.metrics.get_counts()["tasks_succeeded"] == 1
-        assert target2.metrics.get_counts()["tasks_succeeded"] == 1
+        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["target1"] == 1
+        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["target2"] == 1
+        assert graph.metrics.get_node_metrics(target1.get_name()).succeeded == 1
+        assert graph.metrics.get_node_metrics(target2.get_name()).succeeded == 1
 
     def test_router_unknown_target_fails_with_hint(self) -> None:
         """路由到未连接的目标应失败，并给出可诊断的错误信息。"""
@@ -708,12 +722,13 @@ class TestTaskRouter:
         graph.run({"R": ["msg1", "msg2"]})
 
         # 已连接目标正常送达
-        assert target.metrics.get_counts()["tasks_succeeded"] == 1
+        assert graph.metrics.get_node_metrics(target.get_name()).succeeded == 1
         # 未连接目标应计入失败，且错误信息包含允许的目标列表
-        counts = router.metrics.get_counts()
-        assert counts["tasks_succeeded"] == 1
-        assert counts["tasks_failed"] == 1
-        assert counts["tasks_processed"] == 2
+        router_metrics = graph.metrics.get_node_metrics(router.get_name())
+        assert router_metrics is not None
+        assert router_metrics.succeeded == 1
+        assert router_metrics.failed == 1
+        assert router_metrics.processed == 2
 
         error_pairs = load_task_error_records(graph._lifecycle_db_path, "R")
         assert len(error_pairs) == 1
@@ -745,18 +760,19 @@ class TestTaskRouter:
         pairs_b = load_task_result_records(graph._lifecycle_db_path, "msg1_b")
         assert [task for task, _ in pairs_a] == ["msg1-a"]
         assert [task for task, _ in pairs_b] == ["msg1-b"]
-        assert router.metrics.downstream_counter["msg1_a"].get() == 1
-        assert router.metrics.downstream_counter["msg1_b"].get() == 1
+        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["msg1_a"] == 1
+        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["msg1_b"] == 1
 
-    def test_router_binding_counter_stable_across_mode_switch(self) -> None:
-        """绑定计数器应跨执行模式切换保持稳定。"""
+    def test_router_binding_survives_mode_switch(self) -> None:
+        """绑定队列应跨执行模式切换保持稳定。"""
         router = TaskRouter("Router", lambda task: {"target1": task})
         target = TaskExecutor("target1", lambda task: task)
 
         router.connect_to(target)
-        counter = router.metrics.downstream_counter["target1"]
-        assert target.metrics.upstream_counter["Router"] is counter
+        assert set(router.yield_queue.get_target_names()) == {"target1"}
+        assert target.task_queue.source_names == ["Router"]
 
         router.set_execution_mode("thread")
 
-        assert target.metrics.upstream_counter["Router"] is counter
+        assert set(router.yield_queue.get_target_names()) == {"target1"}
+        assert target.task_queue.source_names == ["Router"]

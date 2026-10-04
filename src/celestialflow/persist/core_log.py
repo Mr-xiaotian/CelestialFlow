@@ -25,6 +25,7 @@ from ..observer.core_event import (
 from ..observer.core_observer import Observer
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
+from ..runtime.util_types import MetricsView
 
 _REPORTER_FAILURE_LOG: dict[ReporterFailureKind, tuple[str, str]] = {
     "loop": ("ERROR", "Loop error"),
@@ -94,12 +95,14 @@ class LogInlet(BaseInlet, Observer):
     终止信号、工作器崩溃与上报器日志均通过对应的观察者回调记录。
     """
 
-    def __init__(self, log_level: str = "INFO") -> None:
+    def __init__(self, metrics_view: MetricsView, log_level: str = "INFO") -> None:
         """
         初始化日志收集器。
 
+        :param metrics_view: 指标只读视图，用于记录节点汇总
         :param log_level: 日志级别，低于此级别的日志不记录，默认 "INFO"
         """
+        self._metrics_view = metrics_view
         self.log_level: str = log_level.upper()
 
         if self.log_level not in LEVEL_DICT:
@@ -156,9 +159,11 @@ class LogInlet(BaseInlet, Observer):
 
         :param event: 节点启动事件
         """
+        node_metrics = self._metrics_view.get_node_metrics(event.node)
+        node_inputs = node_metrics.input_total if node_metrics is not None else 0
         text = (
             f"Node '{event.node}' start; "
-            + f"execute {event.task_count} tasks by "
+            + f"execute {node_inputs} tasks by "
             + f"{event.execution_mode}-{event.max_workers}."
         )
         self._log("INFO", text)
@@ -169,12 +174,16 @@ class LogInlet(BaseInlet, Observer):
 
         :param event: 节点结束事件
         """
+        node_metrics = self._metrics_view.get_node_metrics(event.node)
+        node_success = node_metrics.succeeded if node_metrics is not None else 0
+        node_fail = node_metrics.failed if node_metrics is not None else 0
+        node_skip = node_metrics.skipped if node_metrics is not None else 0
         self._log(
             "INFO",
             f"Node '{event.node}' end; execute tasks by "
             + f"{event.execution_mode}-{event.max_workers}. Use {event.elapsed:.2f}s. "
-            + f"{event.succeeded} tasks succeeded, {event.failed} tasks failed, "
-            + f"{event.skipped} tasks skipped.",
+            + f"{node_success} tasks succeeded, {node_fail} tasks failed, "
+            + f"{node_skip} tasks skipped.",
         )
 
     # ==== 工作线程 ====

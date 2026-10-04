@@ -119,8 +119,8 @@ class TestTaskGraphBasic:
         graph.run({"s1": [1, 2, 3]})
 
         # node1 结果: 2, 3, 4 -> node2 结果: 4, 6, 8
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 3
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 3
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 3
 
     def test_graph_fan_out(self):
         """扇出：一个节点到多个下游"""
@@ -134,9 +134,9 @@ class TestTaskGraphBasic:
 
         graph.run({"src": [1, 2]})
 
-        assert source.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_a.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_b.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(source.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_a.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_b.get_name()).succeeded == 2
 
     def test_graph_fan_in(self):
         """扇入：多个上游到一个下游"""
@@ -150,7 +150,7 @@ class TestTaskGraphBasic:
 
         graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
 
-        assert merge.metrics.get_counts()["tasks_succeeded"] == 4
+        assert graph.metrics.get_node_metrics(merge.get_name()).succeeded == 4
 
     def test_graph_error_propagation(self):
         """错误任务不会阻断整体流程"""
@@ -164,12 +164,12 @@ class TestTaskGraphBasic:
         graph.run({"s1": [1, 50, 2]})
 
         # node1: 1->11, 50->error, 2->12
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert node1.metrics.get_counts()["tasks_failed"] == 1
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).failed == 1
 
         # node2 只收到 2 个成功结果
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 2
-        assert node2.metrics.get_counts()["tasks_failed"] == 0
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(node2.get_name()).failed == 0
 
     def test_graph_restore_db(self, tmp_path):
         """任务图默认应按节点名分组读取 failed 与 pending 任务并启动。"""
@@ -224,8 +224,8 @@ class TestTaskGraphBasic:
         graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path)
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 2
 
     def test_graph_restore_db_filters_error_type_when_enabled(self, tmp_path):
         """图级 restore_db 开启过滤时，应按各节点的 retry_exceptions 回放。"""
@@ -282,8 +282,8 @@ class TestTaskGraphBasic:
         graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path, statuses=["failed"], filter_by_error_type=True)
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 1
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 1
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 1
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 1
 
     def test_graph_restore_db_filter_keeps_pending_records(self, tmp_path):
         """图级 restore_db 过滤开启时，pending 记录仍应继续回放。"""
@@ -340,8 +340,8 @@ class TestTaskGraphBasic:
         graph.set_nodes(nodes=[node1, node2])
         graph.restore_db(sqlite_path, filter_by_error_type=True)
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 1
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 1
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 1
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 1
 
     def test_start_raises_exception_group_after_finish(self, monkeypatch):
         """同步 start 应在 finish 后统一抛出收集到的异常。"""
@@ -380,10 +380,11 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src_a": [1, 2], "src_b": [10, 20]})
 
-        merge_snapshot = merge.get_snapshot()
-        assert merge_snapshot["upstream_counts"] == {"src_a": 2, "src_b": 2}
-        assert src_a.get_snapshot()["downstream_counts"] == {"merge": 2}
-        assert src_b.get_snapshot()["downstream_counts"] == {"merge": 2}
+        merge_metrics = graph.metrics.get_node_metrics("merge")
+        assert merge_metrics is not None
+        assert merge_metrics.upstream_counts == {"src_a": 2, "src_b": 2}
+        assert graph.metrics.get_node_metrics("src_a").downstream_counts == {"merge": 2}
+        assert graph.metrics.get_node_metrics("src_b").downstream_counts == {"merge": 2}
 
     def test_fan_out_downstream_counts(self):
         """fan-out 节点的 downstream_counts 应记录发往每个下游的数量。"""
@@ -397,10 +398,11 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src": [1, 2]})
 
-        src_snapshot = src.get_snapshot()
-        assert src_snapshot["downstream_counts"] == {"sink_a": 2, "sink_b": 2}
-        assert sink_a.get_snapshot()["upstream_counts"] == {"src": 2}
-        assert sink_b.get_snapshot()["upstream_counts"] == {"src": 2}
+        src_metrics = graph.metrics.get_node_metrics("src")
+        assert src_metrics is not None
+        assert src_metrics.downstream_counts == {"sink_a": 2, "sink_b": 2}
+        assert graph.metrics.get_node_metrics("sink_a").upstream_counts == {"src": 2}
+        assert graph.metrics.get_node_metrics("sink_b").upstream_counts == {"src": 2}
 
     def test_snapshot_restores_processed_and_pending(self):
         """snapshot 应在快照层推导 tasks_processed / tasks_pending。"""
@@ -413,10 +415,11 @@ class TestTaskGraphSnapshotCounts:
 
         graph.run({"src": [1, 2, 3]})
 
-        src_snapshot = src.get_snapshot()
-        assert src_snapshot["tasks_processed"] == 3
-        assert src_snapshot["tasks_pending"] == 0
-        assert src_snapshot["tasks_succeeded"] == 3
+        src_metrics = graph.metrics.get_node_metrics("src")
+        assert src_metrics is not None
+        assert src_metrics.processed == 3
+        assert src_metrics.pending == 0
+        assert src_metrics.succeeded == 3
 
 
 # =========================
@@ -461,8 +464,8 @@ class TestTaskGraphAsync:
 
         await graph.run_async({"s1": [1, 2, 3]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 3
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 3
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 3
 
     @pytest.mark.asyncio
     async def test_graph_async_fan_out(self):
@@ -477,9 +480,9 @@ class TestTaskGraphAsync:
 
         await graph.run_async({"src": [1, 2]})
 
-        assert source.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_a.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_b.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(source.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_a.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_b.get_name()).succeeded == 2
 
     @pytest.mark.asyncio
     async def test_graph_async_fan_in(self):
@@ -494,7 +497,7 @@ class TestTaskGraphAsync:
 
         await graph.run_async({"src_a": [1, 2], "src_b": [10, 20]})
 
-        assert merge.metrics.get_counts()["tasks_succeeded"] == 4
+        assert graph.metrics.get_node_metrics(merge.get_name()).succeeded == 4
 
     @pytest.mark.asyncio
     async def test_graph_async_error_propagation(self):
@@ -508,9 +511,9 @@ class TestTaskGraphAsync:
 
         await graph.run_async({"s1": [1, 50, 2]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert node1.metrics.get_counts()["tasks_failed"] == 1
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).failed == 1
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 2
 
     @pytest.mark.asyncio
     async def test_graph_async_execution_mode(self):
@@ -524,8 +527,8 @@ class TestTaskGraphAsync:
 
         await graph.run_async({"s1": [1, 2, 3]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 3
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 3
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 3
 
 
 class TestTaskGraphStructure:
@@ -538,9 +541,9 @@ class TestTaskGraphStructure:
         chain = TaskChain("test_chain_structure", [s1, s2, s3])
         chain.run({"s1": [1, 2]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 2
-        assert s3.metrics.get_counts()["tasks_succeeded"] == 2
+        assert chain.metrics.get_node_metrics(s1.get_name()).succeeded == 2
+        assert chain.metrics.get_node_metrics(s2.get_name()).succeeded == 2
+        assert chain.metrics.get_node_metrics(s3.get_name()).succeeded == 2
 
     def test_cross_structure(self):
         """TaskCross：分层结构全连接"""
@@ -551,10 +554,10 @@ class TestTaskGraphStructure:
         cross.run({"L10": [1], "L11": [2]})
 
         for s in layer1:
-            assert s.metrics.get_counts()["tasks_succeeded"] == 1
+            assert cross.metrics.get_node_metrics(s.get_name()).succeeded == 1
         for s in layer2:
             # 每个 layer2 节点收到来自 2 个 layer1 节点的各 1 个结果
-            assert s.metrics.get_counts()["tasks_succeeded"] == 2
+            assert cross.metrics.get_node_metrics(s.get_name()).succeeded == 2
 
     def test_grid_structure(self):
         """TaskGrid：网格结构正确连接"""
@@ -563,11 +566,11 @@ class TestTaskGraphStructure:
         task_grid.run({"g00": [1, 2]})
 
         # 左上角根节点处理 2 个任务
-        assert grid[0][0].metrics.get_counts()["tasks_succeeded"] == 2
+        assert task_grid.metrics.get_node_metrics(grid[0][0].get_name()).succeeded == 2
         # 其余节点也会收到传递的任务
-        assert grid[0][1].metrics.get_counts()["tasks_succeeded"] == 2
-        assert grid[1][0].metrics.get_counts()["tasks_succeeded"] == 2
-        assert grid[1][1].metrics.get_counts()["tasks_succeeded"] == 4
+        assert task_grid.metrics.get_node_metrics(grid[0][1].get_name()).succeeded == 2
+        assert task_grid.metrics.get_node_metrics(grid[1][0].get_name()).succeeded == 2
+        assert task_grid.metrics.get_node_metrics(grid[1][1].get_name()).succeeded == 4
 
 class TestTaskGraphAnalysis:
     def test_get_node_meta_covers_all_nodes(self):
@@ -679,8 +682,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     def test_serial_thread(self):
         """测试串行图模式 + 线程池执行模式"""
@@ -692,8 +695,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     # ---- thread graph_mode ----
 
@@ -707,8 +710,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     def test_thread_thread(self):
         """测试线程图模式 + 线程池执行模式"""
@@ -720,8 +723,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         graph.run({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     # ---- async graph_mode ----
 
@@ -736,8 +739,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     @pytest.mark.asyncio
     async def test_async_thread(self):
@@ -750,8 +753,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
     @pytest.mark.asyncio
     async def test_async_async(self):
@@ -764,8 +767,8 @@ class TestNodeExecutionMatrix:
         graph.connect([s1], [s2])
         await graph.run_async({"s1": [1, 2, 3, 4, 5]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 5
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 5
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 5
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 5
 
 
 # =========================
@@ -783,8 +786,8 @@ class TestTaskGraphThread:
 
         graph.run({"s1": [1, 2, 3]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 3
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 3
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 3
 
     def test_graph_thread_fan_out(self):
         """thread 模式：扇出"""
@@ -798,9 +801,9 @@ class TestTaskGraphThread:
 
         graph.run({"src": [1, 2]})
 
-        assert source.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_a.metrics.get_counts()["tasks_succeeded"] == 2
-        assert sink_b.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(source.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_a.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(sink_b.get_name()).succeeded == 2
 
     def test_graph_thread_fan_in(self):
         """thread 模式：扇入"""
@@ -814,7 +817,7 @@ class TestTaskGraphThread:
 
         graph.run({"SrcA": [1, 2], "SrcB": [10, 20]})
 
-        assert merge.metrics.get_counts()["tasks_succeeded"] == 4
+        assert graph.metrics.get_node_metrics(merge.get_name()).succeeded == 4
 
     def test_graph_thread_error_propagation(self):
         """thread 模式：错误任务不会阻断整体流程"""
@@ -827,9 +830,9 @@ class TestTaskGraphThread:
 
         graph.run({"s1": [1, 50, 2]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert node1.metrics.get_counts()["tasks_failed"] == 1
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(node1.get_name()).failed == 1
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 2
 
     def test_graph_thread_with_lambda(self):
         """thread 模式：支持 lambda 函数"""
@@ -842,8 +845,8 @@ class TestTaskGraphThread:
 
         graph.run({"s1": [1, 2, 3]})
 
-        assert node1.metrics.get_counts()["tasks_succeeded"] == 3
-        assert node2.metrics.get_counts()["tasks_succeeded"] == 3
+        assert graph.metrics.get_node_metrics(node1.get_name()).succeeded == 3
+        assert graph.metrics.get_node_metrics(node2.get_name()).succeeded == 3
 
     def test_graph_thread_schedule(self):
         """thread 模式下线性链正常工作"""
@@ -858,9 +861,9 @@ class TestTaskGraphThread:
 
         graph.run({"s1": [1, 2]})
 
-        assert s1.metrics.get_counts()["tasks_succeeded"] == 2
-        assert s2.metrics.get_counts()["tasks_succeeded"] == 2
-        assert s3.metrics.get_counts()["tasks_succeeded"] == 2
+        assert graph.metrics.get_node_metrics(s1.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(s2.get_name()).succeeded == 2
+        assert graph.metrics.get_node_metrics(s3.get_name()).succeeded == 2
 
 
 # =========================
@@ -1049,7 +1052,7 @@ class TestTaskGraphReporterCapabilities:
         snapshot = graph.get_status_snapshot()
 
         assert set(snapshot) == {"s1", "s2"}
-        assert set(snapshot["s1"]) >= {"start_time", "status", "elapsed_time"}
+        assert set(snapshot["s1"]) >= {"start_time", "status"}
 
     def test_inject_tasks_injects_valid_nodes_and_raises_for_missing(self):
         """inject_tasks 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""
@@ -1060,7 +1063,9 @@ class TestTaskGraphReporterCapabilities:
         with pytest.raises(UnknownNodeError):
             graph.inject_tasks({"s1": [1, 2], "missing": [9]})
 
-        assert node.metrics.get_external_input_count() == 2
+        # 已注入任务在 run 路径下被消费；指标由图级观察者统计
+        graph.run({})
+        assert graph.metrics.get_node_metrics(node.get_name()).succeeded == 2
 
     def test_inject_tasks_with_only_valid_nodes_does_not_raise(self):
         """inject_tasks 在全部目标节点均存在时不报错。"""
@@ -1070,7 +1075,8 @@ class TestTaskGraphReporterCapabilities:
 
         graph.inject_tasks({"s1": [1, 2]})
 
-        assert node.metrics.get_external_input_count() == 2
+        graph.run({})
+        assert graph.metrics.get_node_metrics(node.get_name()).succeeded == 2
 
     def test_inject_terminations_injects_valid_nodes_and_raises_for_missing(self):
         """inject_terminations 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""

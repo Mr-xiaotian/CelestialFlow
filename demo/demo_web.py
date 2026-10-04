@@ -310,13 +310,13 @@ def demo_topology_topology() -> None:
     print("\n[demo] 各节点计数:")
     for name in ["Ingest", "Normalize", "Validate", "Splitter", "Router",
                  "StageA", "StageB", "StageC", "Collect"]:
-        node = graph.node_dict[name]
-        counts = node.metrics.get_counts()
+        metrics = graph.metrics.get_node_metrics(name)
+        assert metrics is not None
         print(
-            f"  {name:<9} input={counts['tasks_input']:<4} "
-            f"ok={counts['tasks_succeeded']:<4} "
-            f"fail={counts['tasks_failed']:<3} "
-            f"skip={counts['tasks_skipped']}"
+            f"  {name:<9} input={metrics.input_total:<4} "
+            f"ok={metrics.succeeded:<4} "
+            f"fail={metrics.failed:<3} "
+            f"skip={metrics.skipped}"
         )
 
 

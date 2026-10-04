@@ -29,6 +29,29 @@ class Observer:
     执行路径。
     """
 
+    def on_node_added(self, node: str) -> None:
+        """
+        节点加入任务图回调。
+
+        该回调发生在图构建期（:meth:`~celestialflow.graph.core_graph.TaskGraph.set_nodes`），
+        用于让需要感知图结构的观察者（如指标存储器）预先建立每节点存储。
+
+        :param node: 加入任务图的节点名称
+        """
+        ...
+
+    def on_node_connected(self, from_node: str, to_node: str) -> None:
+        """
+        节点建立连接回调。
+
+        该回调发生在图构建期（:meth:`~celestialflow.graph.core_graph.TaskGraph.connect`），
+        用于让需要感知图结构的观察者预先建立边级存储。实现应为幂等。
+
+        :param from_node: 上游节点名称
+        :param to_node: 下游节点名称
+        """
+        ...
+
     def on_node_start(self, event: NodeStartEvent) -> None:
         """
         节点启动回调。

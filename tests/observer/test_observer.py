@@ -155,11 +155,7 @@ class TestExecutorObserver:
         assert len(successes) == 3
 
         assert starts[0].node == "ObserverTest"
-        assert starts[0].task_count == 3
         assert all(event.source == "external" for event in inputs)
-        assert ends[0].succeeded == 3
-        assert ends[0].failed == 0
-        assert ends[0].skipped == 0
         assert observer.events[-1] is ends[0]
 
     def test_task_success_event_carries_payload_and_ids(self):
@@ -250,7 +246,7 @@ class TestExecutorObserver:
         """没有 observer 时正常运行"""
         executor = TaskExecutor("NoObserver", add_one, execution_mode="serial")
         executor.run([1, 2, 3])
-        assert executor.metrics.get_counts()["tasks_succeeded"] == 3
+        assert executor.metrics.get_node_metrics(executor.get_name()).succeeded == 3
 
     def test_multiple_observers(self):
         """多个 observer 同时收到回调"""
@@ -278,17 +274,17 @@ class TestExecutorObserver:
         upstream = TaskExecutor("up", add_one)
         downstream = TaskExecutor("down", double)
         observer = RecordingObserver()
-        downstream.add_observer(observer)
 
         graph = TaskGraph("upstream_source_graph")
         graph.set_nodes([upstream, downstream])
         graph.connect([upstream], [downstream])
+        graph.add_observer(observer)
         graph.run({"up": [1, 2]})
 
         inputs = _only(observer.events, TaskInputEvent)
-        assert len(inputs) == 2
-        assert all(event.node == "down" for event in inputs)
-        assert all(event.source == "upstream" for event in inputs)
+        upstream_inputs = [event for event in inputs if event.source == "upstream"]
+        assert len(upstream_inputs) == 2
+        assert all(event.node == "down" for event in upstream_inputs)
 
 
 class TestExtendedObserver:
@@ -533,3 +529,72 @@ class TestGraphObserver:
 
         with pytest.raises(ConfigurationError):
             graph.run({"only": [1]})
+
+
+class TestStructuralObserver:
+    """覆盖图结构钩子 ``on_node_added`` / ``on_node_connected``。"""
+
+    def test_hub_forwards_structural_hooks(self) -> None:
+        """hub 应把结构钩子转发给已注册观察者。"""
+        recorded: list[tuple[str, str, str]] = []
+
+        class Recorder(Observer):
+            def on_node_added(self, node: str) -> None:
+                recorded.append(("added", node, ""))
+
+            def on_node_connected(self, from_node: str, to_node: str) -> None:
+                recorded.append(("connected", from_node, to_node))
+
+        hub = ObserverHub()
+        hub.add_observer(Recorder())
+        hub.on_node_added("a")
+        hub.on_node_connected("a", "b")
+
+        assert recorded == [("added", "a", ""), ("connected", "a", "b")]
+
+    def test_graph_delivers_structural_hooks_live(self) -> None:
+        """建图前注册的观察者会实时收到节点与连接事件。"""
+        recorded: list[tuple[str, str, str]] = []
+
+        class Recorder(Observer):
+            def on_node_added(self, node: str) -> None:
+                recorded.append(("added", node, ""))
+
+            def on_node_connected(self, from_node: str, to_node: str) -> None:
+                recorded.append(("connected", from_node, to_node))
+
+        graph = TaskGraph("structural_live")
+        graph.add_observer(Recorder())
+        up = TaskExecutor("up", add_one)
+        down = TaskExecutor("down", double)
+        graph.set_nodes([up, down])
+        graph.connect([up], [down])
+
+        assert recorded == [
+            ("added", "up", ""),
+            ("added", "down", ""),
+            ("connected", "up", "down"),
+        ]
+
+    def test_graph_replays_topology_to_late_observer(self) -> None:
+        """建图后注册的观察者会收到当前拓扑的回放。"""
+        graph = TaskGraph("structural_replay")
+        up = TaskExecutor("up", add_one)
+        down = TaskExecutor("down", double)
+        graph.set_nodes([up, down])
+        graph.connect([up], [down])
+
+        recorded: list[tuple[str, str, str]] = []
+
+        class Recorder(Observer):
+            def on_node_added(self, node: str) -> None:
+                recorded.append(("added", node, ""))
+
+            def on_node_connected(self, from_node: str, to_node: str) -> None:
+                recorded.append(("connected", from_node, to_node))
+
+        graph.add_observer(Recorder())
+
+        assert ("added", "up", "") in recorded
+        assert ("added", "down", "") in recorded
+        assert ("connected", "up", "down") in recorded

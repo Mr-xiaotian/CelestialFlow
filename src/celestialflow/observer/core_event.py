@@ -27,13 +27,11 @@ class NodeStartEvent:
     :param node: 节点名称
     :param execution_mode: 节点执行模式
     :param max_workers: 最大并发数
-    :param task_count: 启动时刻的任务总数（外部注入与上游提供之和）
     """
 
     node: str
     execution_mode: str
     max_workers: int
-    task_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,18 +42,12 @@ class NodeEndEvent:
     :param execution_mode: 节点执行模式
     :param max_workers: 最大并发数
     :param elapsed: 节点运行耗时（秒）
-    :param succeeded: 成功任务数
-    :param failed: 失败任务数
-    :param skipped: 跳过任务数
     """
 
     node: str
     execution_mode: str
     max_workers: int
     elapsed: float
-    succeeded: int
-    failed: int
-    skipped: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +59,7 @@ class TaskInputEvent:
     :param task_repr: 任务的可读表示
     :param input_id: 当前输入事件 ID
     :param source: 任务来源
+    :param from_node: 上游来源节点名称；``source`` 为 ``"external"`` 时为 ``None``
     """
 
     node: str
@@ -74,6 +67,7 @@ class TaskInputEvent:
     task_repr: str
     input_id: int
     source: TaskSource
+    from_node: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

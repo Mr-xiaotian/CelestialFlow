@@ -73,19 +73,6 @@ class TestBaseTaskNodeConfig:
             "KeyError",
         }
 
-    def test_snapshot_excludes_build_time_fields(self) -> None:
-        """构建期不变量应只随 ``get_meta`` 上报，不再进每轮快照。"""
-        node = TaskExecutor(
-            "AddOneThreadExec",
-            add_one,
-            execution_mode="thread",
-        )
-
-        snapshot = node.get_snapshot()
-
-        for field in ("name", "class_name", "execution_mode", "max_workers"):
-            assert field not in snapshot
-
     def test_get_meta_reports_build_time_fields(self) -> None:
         """get_meta 应只含构建期元信息。"""
         node = TaskExecutor("MetaNode", add_one, execution_mode="thread", max_workers=7)
@@ -96,34 +83,18 @@ class TestBaseTaskNodeConfig:
             "max_workers": 7,
         }
 
-    def test_snapshot_tolerates_not_started_node(self) -> None:
-        """Reporter 在节点尚未启动时采集快照也不应因缺少 start_time 崩溃。"""
-        node = TaskExecutor("IdleNode", add_one)
-
-        snapshot = node.get_snapshot()
-
-        assert snapshot["status"].value == 0
-        assert snapshot["start_time"] == 0.0
-        assert snapshot["elapsed_time"] == 0
-
     def test_connect_to_binding_survives_execution_mode_switch(self) -> None:
-        """切换执行模式不应破坏 ``connect_to`` 已建立的下游绑定。"""
+        """切换执行模式不应破坏 ``connect_to`` 已建立的队列绑定。"""
         prev_node = TaskExecutor("PrevNode", add_one)
         current_node = TaskExecutor("CurrentNode", add_one)
 
         prev_node.connect_to(current_node)
-        binding_counter = prev_node.metrics.downstream_counter["CurrentNode"]
-        # 下游发送计数与上游接收计数应共享同一个计数器对象
-        assert current_node.metrics.upstream_counter["PrevNode"] is binding_counter
-
-        prev_node.metrics.add_downstream_count("CurrentNode", 2)
-        assert current_node.metrics.get_input_count() == 2
+        assert set(prev_node.yield_queue.get_target_names()) == {"CurrentNode"}
+        assert current_node.task_queue.source_names == ["PrevNode"]
 
         current_node.set_execution_mode("thread")
-        assert current_node.metrics.get_input_count() == 2
-
-        prev_node.metrics.add_downstream_count("CurrentNode", 1)
-        assert current_node.metrics.get_input_count() == 3
+        assert set(prev_node.yield_queue.get_target_names()) == {"CurrentNode"}
+        assert current_node.task_queue.source_names == ["PrevNode"]
 
 
 class TestBaseTaskNodeStartErrors:

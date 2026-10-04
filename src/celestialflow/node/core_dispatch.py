@@ -122,7 +122,6 @@ class TaskDispatch[T, R, Y]:
 
         :param task_envelope: 包含任务信息的信封
         """
-        self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
 
@@ -155,16 +154,12 @@ class TaskDispatch[T, R, Y]:
                 WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
             )
 
-        finally:
-            self.task_node.metrics.end_task()
-
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
         异步执行单个任务（跳过判定、计时、成功/失败处理）
 
         :param task_envelope: 包含任务信息的信封
         """
-        self.task_node.metrics.begin_task()
         try:
             task: T = task_envelope.get_task()
 
@@ -195,9 +190,6 @@ class TaskDispatch[T, R, Y]:
             self.task_node.observers.on_worker_crash(
                 WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
             )
-
-        finally:
-            self.task_node.metrics.end_task()
 
     # ==== 调度 ====
     def dispatch_serial(self) -> None:

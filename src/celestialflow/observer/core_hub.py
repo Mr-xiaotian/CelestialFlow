@@ -96,6 +96,37 @@ class ObserverHub(Observer):
 
     # ==== 分发 ====
 
+    def on_node_added(self, node: str) -> None:
+        """
+        转发节点加入任务图事件。
+
+        :param node: 加入任务图的节点名称
+        """
+        for observer in self._snapshot():
+            try:
+                try:
+                    observer.on_node_added(node)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
+
+    def on_node_connected(self, from_node: str, to_node: str) -> None:
+        """
+        转发节点建立连接事件。
+
+        :param from_node: 上游节点名称
+        :param to_node: 下游节点名称
+        """
+        for observer in self._snapshot():
+            try:
+                try:
+                    observer.on_node_connected(from_node, to_node)
+                except Exception as e:
+                    observer.handle_exception(e)
+            except Exception as e:
+                self.handle_exception(e)
+
     def on_node_start(self, event: NodeStartEvent) -> None:
         """
         转发节点启动事件。

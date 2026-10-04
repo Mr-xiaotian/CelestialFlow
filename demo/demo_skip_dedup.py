@@ -82,12 +82,13 @@ def demo_skip_dedup_executor() -> None:
 
     executor.run(tasks)
 
-    counts = executor.metrics.get_counts()
+    metrics = executor.metrics.get_node_metrics(executor.get_name())
+    assert metrics is not None
     unique = sorted(task for task, _ in executor.get_success_pairs())
     print(
-        f"\n[executor] input={counts['tasks_input']}, "
-        f"succeeded={counts['tasks_succeeded']}, "
-        f"skipped={counts['tasks_skipped']}"
+        f"\n[executor] input={metrics.input_total}, "
+        f"succeeded={metrics.succeeded}, "
+        f"skipped={metrics.skipped}"
     )
     print(f"[executor] 去重后保留的任务: {unique}")
 
@@ -164,13 +165,14 @@ def demo_skip_dedup_graph() -> None:
 
     print("\n[graph] 各节点计数:")
     for name in ["Generator", "Dedup", "Sink"]:
-        counts = graph.node_dict[name].metrics.get_counts()
+        metrics = graph.metrics.get_node_metrics(name)
+        assert metrics is not None
         print(
-            f"  {name:<10} input={counts['tasks_input']:<4} "
-            f"ok={counts['tasks_succeeded']:<4} "
-            f"fail={counts['tasks_failed']:<4} "
-            f"skip={counts['tasks_skipped']:<4} "
-            f"pending={counts['tasks_pending']}"
+            f"  {name:<10} input={metrics.input_total:<4} "
+            f"ok={metrics.succeeded:<4} "
+            f"fail={metrics.failed:<4} "
+            f"skip={metrics.skipped:<4} "
+            f"pending={metrics.pending}"
         )
 
 

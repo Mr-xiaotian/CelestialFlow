@@ -23,8 +23,9 @@ from celestialflow.observer import (
     WorkerCrashEvent,
 )
 from celestialflow.persist import LifecycleInlet, LifecycleSpout
+from celestialflow.reporter import MetricsObserver
 from celestialflow.runtime import TaskEnvelope
-from celestialflow.runtime.util_types import TerminationSignal, ValueWrapper
+from celestialflow.runtime.util_types import TerminationSignal
 from celestialflow.node import TaskExecutor
 from celestialflow.node.core_dispatch import TaskDispatch
 from conftest import wait_until
@@ -124,10 +125,13 @@ def _make_executor(
     )
     e.set_retry_exceptions(ValueError)
     e.ctree_client = _CtreeStub()
+    # 模拟 node.run 路径：注册单节点指标观察者，使指标随事件更新。
+    metrics_observer = MetricsObserver()
+    e.metrics = metrics_observer
+    e.observers.add_observer(metrics_observer)
+    metrics_observer.on_node_added(e.get_name())
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
-    # 与 ``connect_to`` 的注册行为保持一致：队列与 metrics 计数器成对绑定。
     collector: Queue[Any] = Queue()
-    e.metrics.set_downstream_counter("test_collector", ValueWrapper(value=0))
     e.yield_queue.add_queue("test_collector", collector)
     _RESULT_COLLECTORS[e] = collector
     return e
@@ -251,9 +255,7 @@ class TestDispatchSerial:
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
         collector_a: Queue[Any] = Queue()
         collector_b: Queue[Any] = Queue()
-        # 模拟 ``connect_to`` 的绑定行为：metrics 计数器与队列成对注册
-        executor.metrics.set_downstream_counter("downstream_a", ValueWrapper(value=0))
-        executor.metrics.set_downstream_counter("downstream_b", ValueWrapper(value=0))
+        # 模拟 ``connect_to`` 的绑定行为：注册下游队列
         executor.yield_queue.add_queue("downstream_a", collector_a)
         executor.yield_queue.add_queue("downstream_b", collector_b)
 
@@ -435,7 +437,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         results = _collect_results(executor)
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
-        assert executor.metrics.get_fail_count() == 1
+        assert executor.metrics.get_node_metrics(executor.get_name()).failed == 1
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
     def test_retry_handler_crash_keeps_termination(
@@ -464,38 +466,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert observer.calls == 1
         assert len(recording.crashes) == 0
         # 重试后仍失败，最终计入一次失败
-        assert executor.metrics.get_fail_count() == 1
-
-    @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
-    def test_worker_crash_is_reported(
-        self, mode: str, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """处理链自身抛出异常时，应发布 ``on_worker_crash`` 事件且终止信号仍发出。"""
-        executor = _make_executor(
-            _async_always_fail if mode == "async" else _always_fail,
-            max_retries=0,
-            name="worker_crash",
-        )
-        recording = _RecordingCrashObserver()
-        executor.add_observer(recording)
-        dispatch = TaskDispatch(executor, executor.func, max_workers=1)
-
-        def _boom(_count: int) -> None:
-            msg = "fail counter boom"
-            raise RuntimeError(msg)
-
-        monkeypatch.setattr(executor.metrics, "add_fail_count", _boom)
-
-        _put(executor, 42)
-        _put_termination(executor)
-        _run_dispatch(dispatch, mode)
-
-        results = _collect_results(executor)
-        assert len(results) == 1
-        assert isinstance(results[0], TerminationSignal)
-        assert len(recording.crashes) == 1
-        assert isinstance(recording.crashes[0], RuntimeError)
-
+        assert executor.metrics.get_node_metrics(executor.get_name()).failed == 1
 
 class TestDispatchCoreBehavior:
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])

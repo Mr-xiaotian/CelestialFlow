@@ -20,7 +20,7 @@ from ..observer import (
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
-from ..reporter import NullTaskReporter, ReporterProtocol
+from ..reporter import MetricsObserver, NullTaskReporter, ReporterProtocol
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -56,6 +56,7 @@ class TaskGraph:
     order_graph: OrderGraph
     start_time: float
     observers: ObserverHub
+    metrics: MetricsObserver
     reporter: ReporterProtocol
     ctree_client: EventClient
     is_dag: bool
@@ -114,6 +115,10 @@ class TaskGraph:
         # 用于保存观察者
         self.observers = ObserverHub()
 
+        # 用于保存图级指标写模型；建图期即注册，确保节点/连接结构事件不丢失
+        self.metrics = MetricsObserver()
+        self.observers.add_observer(self.metrics)
+
         # 用于保存生命周期数据库路径
         self._lifecycle_db_path = None
 
@@ -134,6 +139,7 @@ class TaskGraph:
             self.order_graph.add_node(node_name)
 
             node.set_ctree(self.ctree_client)
+            self.observers.on_node_added(node_name)
 
         self._analysis_dirty = True
 
@@ -160,6 +166,7 @@ class TaskGraph:
 
                 from_node.connect_to(to_node)
                 self.order_graph.add_edge(from_name, to_name)
+                self.observers.on_node_connected(from_name, to_name)
 
         self._analysis_dirty = True
 
@@ -225,9 +232,23 @@ class TaskGraph:
         图级观察者会收到图中所有节点的事件；该注册仅在 :meth:`run` /
         :meth:`run_async` 路径下生效（这两个入口会把图级 hub 注入每个节点）。
 
+        若注册发生在建图之后，会向该观察者回放当前图结构（``on_node_added`` /
+        ``on_node_connected``），保证结构类观察者不因注册顺序而遗漏拓扑。
+
         :param observer: 要注册的观察者实例
         """
         self.observers.add_observer(observer)
+
+        if isinstance(observer, ObserverHub):
+            return
+        try:
+            for node_name in self.order_graph.nodes:
+                observer.on_node_added(node_name)
+            for from_name, to_names in self.order_graph.out_edges.items():
+                for to_name in to_names:
+                    observer.on_node_connected(from_name, to_name)
+        except Exception as e:
+            observer.handle_exception(e)
 
     def _inject_observers(self) -> None:
         """
@@ -299,7 +320,9 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers, self.graph_id) as lifecycle_db_path:
+            with run_resources(
+                self.observers, self.graph_id, self.metrics
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -334,7 +357,9 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_resources(self.observers, self.graph_id) as lifecycle_db_path:
+            with run_resources(
+                self.observers, self.graph_id, self.metrics
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -674,11 +699,31 @@ class TaskGraph:
         """
         采集各节点当前的运行时快照。
 
+        计数与状态来自图级指标写模型，``start_time`` 等节点侧字段由此处补全。
+
         :return: ``{node_name: snapshot}``
         """
-        return {
-            node_name: node.get_snapshot() for node_name, node in self.node_dict.items()
-        }
+        metrics = self.metrics.get_graph_metrics()
+        snapshot: dict[str, dict[str, Any]] = {}
+        for node_name, node in self.node_dict.items():
+            node_metrics = metrics.get(node_name)
+            entry: dict[str, Any] = {"start_time": node.start_time}
+            if node_metrics is not None:
+                entry.update(
+                    {
+                        "status": node_metrics.status,
+                        "tasks_input": node_metrics.input_total,
+                        "tasks_succeeded": node_metrics.succeeded,
+                        "tasks_failed": node_metrics.failed,
+                        "tasks_skipped": node_metrics.skipped,
+                        "tasks_processed": node_metrics.processed,
+                        "tasks_pending": node_metrics.pending,
+                        "upstream_counts": node_metrics.upstream_counts,
+                        "downstream_counts": node_metrics.downstream_counts,
+                    }
+                )
+            snapshot[node_name] = entry
+        return snapshot
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """

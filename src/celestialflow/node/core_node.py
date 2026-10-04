@@ -26,10 +26,10 @@ from ..persist.util_sqlite import (
     load_task_result_records,
     load_tasks_grouped_by_node,
 )
+from ..reporter import MetricsObserver
 from ..runtime import (
     TaskEnvelope,
     TaskInQueue,
-    TaskMetrics,
     TaskOutQueue,
 )
 from ..runtime.util_errors import (
@@ -43,7 +43,6 @@ from ..runtime.util_format import format_repr
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
-    ValueWrapper,
 )
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
@@ -57,10 +56,12 @@ class BaseTaskNode[T, R, Y]:
       安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 BaseTaskNode 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
-    - 任务输入/结果队列、metrics 状态与 ctree 客户端由节点自身持有；全局
-      ``LifecycleSpout`` / ``LogSpout`` 的启停与全局 funnel 观察者的注册由
-      :meth:`run` / :meth:`run_async` 统一负责，BaseTaskNode 自身不直接持有
-      spout 实例。
+    - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标由
+      :class:`~celestialflow.reporter.core_metrics.MetricsObserver` 依据事件维护：
+      独立运行（:meth:`run` / :meth:`run_async`）时节点注册单节点观察者，参与图调度时
+      由图级观察者统一维护。全局 ``LifecycleSpout`` / ``LogSpout`` 的启停与全局
+      funnel 观察者的注册由 :meth:`run` / :meth:`run_async` 统一负责，BaseTaskNode
+      自身不直接持有 spout 实例。
     """
 
     # ==== 类级类型注解 ====
@@ -72,14 +73,13 @@ class BaseTaskNode[T, R, Y]:
     max_retries: int
     retry_exceptions: tuple[type[Exception], ...]
     max_info: int
-    metrics: TaskMetrics
     dispatch: TaskDispatch[T, R, Y]
     execution_mode: str
     func: Callable[[T], R] | Callable[[T], Awaitable[R]]
     skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
     observers: ObserverHub
-    _downstream_nodes: dict[str, BaseTaskNode[Any, Any, Any]]
+    metrics: MetricsObserver
     _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
@@ -138,9 +138,7 @@ class BaseTaskNode[T, R, Y]:
         self.yield_queue = TaskOutQueue(
             in_name=self.get_name(),
         )
-        self.metrics = TaskMetrics()
         self.observers = ObserverHub()
-        self._downstream_nodes = {}
         self._lifecycle_db_path = None
 
         # 上报器可能会在节点真正启动前先采集一次快照。
@@ -282,72 +280,19 @@ class BaseTaskNode[T, R, Y]:
             "max_workers": self.max_workers,
         }
 
-    def get_snapshot(self) -> dict[str, Any]:
-        """
-        采集当前节点的运行时快照。
-
-        忙碌耗时由 :class:`TaskMetrics` 在任务实际执行期间自行累计，
-        因此无需调用方传入快照间隔。
-
-        :return: 包含状态、计数、耗时估算等信息的快照字典
-        """
-        return {
-            "start_time": self.start_time,
-            "status": self.metrics.get_status(),
-            "elapsed_time": self.metrics.get_elapsed(),
-            **self.metrics.get_counts(),
-            "upstream_counts": self.metrics.get_upstream_counts(),
-            "downstream_counts": self.metrics.get_downstream_counts(),
-        }
-
     # ==== 绑定 ====
 
     def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
         """
         绑定下游节点，将当前节点注册为其前置节点。
 
-        双方共享同一个传输计数计数器：当前节点向下游每发送一个任务，计数器递增，
-        下游节点的上游提供任务数随之增加。
+        绑定只建立节点与队列之间的数据通路；上下游传输计数由指标观察者在投递
+        事件（``on_task_input``）中推导，不再在节点间共享计数器对象。
 
         :param next_node: 下游节点
         """
-        counter = ValueWrapper(value=0)
-        self.metrics.set_downstream_counter(next_node.get_name(), counter)
-        next_node.metrics.set_upstream_counter(self.get_name(), counter)
-
-        self._downstream_nodes[next_node.get_name()] = next_node
         self.yield_queue.add_queue(next_node.get_name(), next_node.task_queue)
         next_node.task_queue.add_source_name(self.get_name())
-
-    def _notify_downstream_input(
-        self,
-        target_name: str,
-        task: Any,
-        task_repr: str,
-        input_id: int,
-    ) -> None:
-        """
-        向接收方节点分发“上游输入”事件。
-
-        若目标名称只绑定了裸队列（未通过 ``connect_to`` 关联节点），则忽略。
-
-        :param target_name: 接收任务的节点名称
-        :param task: 原始任务数据
-        :param task_repr: 任务的可读表示
-        :param input_id: 任务在接收方的事件 ID
-        """
-        node = self._downstream_nodes.get(target_name)
-        if node is None:
-            return
-        node.observers.on_task_input(
-            TaskInputEvent(
-                node=target_name,
-                task=task,
-                task_repr=task_repr,
-                input_id=input_id,
-                source="upstream",
-            )
-        )
 
     # ==== 任务队列 ====
 
@@ -362,7 +307,6 @@ class BaseTaskNode[T, R, Y]:
         )
         envelope: TaskEnvelope[T] = TaskEnvelope(task, input_id)
         self.task_queue.put(envelope)
-        self.metrics.add_external_input_count(1)
 
         task_repr = self._get_repr(task)
         self.observers.on_task_input(
@@ -372,6 +316,7 @@ class BaseTaskNode[T, R, Y]:
                 task_repr=task_repr,
                 input_id=input_id,
                 source="external",
+                from_node=None,
             )
         )
 
@@ -441,8 +386,6 @@ class BaseTaskNode[T, R, Y]:
             parents=[task_id],
         )
 
-        self.metrics.add_fail_count(1)
-
         task_repr = self._get_repr(task)
         self.observers.on_task_fail(
             TaskFailEvent(
@@ -468,8 +411,6 @@ class BaseTaskNode[T, R, Y]:
             CTreeEvent.TASK_SKIP,
             parents=[task_id],
         )
-
-        self.metrics.add_skip_count(1)
 
         task_repr = self._get_repr(task)
         self.observers.on_task_skip(
@@ -520,8 +461,8 @@ class BaseTaskNode[T, R, Y]:
         """
         执行任务。
 
-        本方法负责实例化运行期资源：注册全局 funnel 观察者、启动全局
-        ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
+        本方法负责实例化运行期资源：注册单节点指标观察者与全局 funnel 观察者、
+        启动全局 ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
         最后统一收尾。
 
         :param task_source: 任务源
@@ -530,9 +471,16 @@ class BaseTaskNode[T, R, Y]:
         """
         error_list: list[Exception] = []
 
+        metrics_observer = MetricsObserver()
+        self.metrics = metrics_observer
+        self.observers.add_observer(metrics_observer)
+
         try:
-            with run_resources(self.observers, self.node_id) as lifecycle_db_path:
+            with run_resources(
+                self.observers, self.node_id, metrics_observer
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
+                self.observers.on_node_added(self.get_name())
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:
@@ -561,9 +509,16 @@ class BaseTaskNode[T, R, Y]:
         """
         error_list: list[Exception] = []
 
+        metrics_observer = MetricsObserver()
+        self.metrics = metrics_observer
+        self.observers.add_observer(metrics_observer)
+
         try:
-            with run_resources(self.observers, self.node_id) as lifecycle_db_path:
+            with run_resources(
+                self.observers, self.node_id, metrics_observer
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
+                self.observers.on_node_added(self.get_name())
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:
@@ -615,14 +570,11 @@ class BaseTaskNode[T, R, Y]:
 
         :return: ``None``
         """
-        self.metrics.on_start()
-
         self.observers.on_node_start(
             NodeStartEvent(
                 node=self.get_name(),
                 execution_mode=self.execution_mode,
                 max_workers=self.max_workers,
-                task_count=self.metrics.get_input_count(),
             )
         )
 
@@ -642,16 +594,8 @@ class BaseTaskNode[T, R, Y]:
                     execution_mode=self.execution_mode,
                     max_workers=self.max_workers,
                     elapsed=elapsed,
-                    succeeded=self.metrics.get_success_count(),
-                    failed=self.metrics.get_fail_count(),
-                    skipped=self.metrics.get_skip_count(),
                 )
             )
-        except Exception as exception:
-            error_list.append(exception)
-
-        try:
-            self.metrics.on_finish()
         except Exception as exception:
             error_list.append(exception)
 

@@ -1,9 +1,11 @@
 # runtime/util_types.py
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import IntEnum
 from threading import Lock
 from types import TracebackType
+from typing import Protocol
 
 
 class TerminationSignal:
@@ -114,3 +116,60 @@ class CTreeEvent:
     TASK_RETRY_PREFIX: str = "task.retry."
     TERMINATION_INPUT: str = "termination.input"
     TERMINATION_MERGE: str = "termination.merge"
+
+
+@dataclass(frozen=True, slots=True)
+class NodeMetrics:
+    """单节点指标快照（只读 DTO）。
+
+    :param node: 节点名称
+    :param status: 节点生命周期状态
+    :param external_input: 外部注入任务数
+    :param upstream_input: 上游提供任务数
+    :param input_total: 输入任务总数（外部注入与上游提供之和）
+    :param succeeded: 成功任务数
+    :param failed: 失败任务数
+    :param skipped: 跳过任务数
+    :param processed: 已处理任务数（成功 + 失败 + 跳过）
+    :param pending: 待处理任务数
+    :param upstream_counts: 各上游节点提供的任务数量映射
+    :param downstream_counts: 发往各下游节点的任务数量映射
+    """
+
+    node: str
+    status: NodeStatus
+    external_input: int
+    upstream_input: int
+    input_total: int
+    succeeded: int
+    failed: int
+    skipped: int
+    processed: int
+    pending: int
+    upstream_counts: dict[str, int]
+    downstream_counts: dict[str, int]
+
+
+class MetricsView(Protocol):
+    """指标只读视图协议。
+
+    写模型由指标观察者依据事件维护；本协议只暴露不可变的读取入口，
+    供日志、上报等消费者查询，避免把可变内部状态外泄。
+    """
+
+    def get_node_metrics(self, node: str) -> NodeMetrics | None:
+        """
+        获取单个节点的指标快照。
+
+        :param node: 节点名称
+        :return: 该节点的指标快照；未登记时返回 ``None``
+        """
+        ...
+
+    def get_graph_metrics(self) -> dict[str, NodeMetrics]:
+        """
+        获取整图所有节点的指标快照。
+
+        :return: 节点名称到指标快照的映射
+        """
+        ...

@@ -2,7 +2,7 @@
 import time
 from collections.abc import Iterable
 
-from ..observer import TaskSuccessEvent
+from ..observer import TaskInputEvent, TaskSuccessEvent
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import InvalidOptionError
 from ..runtime.util_types import CTreeEvent
@@ -18,8 +18,11 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
       安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 TaskExecutor 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
-    - 任务输入/结果队列、metrics 状态与 ctree 客户端由执行器自身持有；全局
-      ``LifecycleSpout`` / ``LogSpout`` 的启停与全局 funnel 观察者的注册由
+    - 任务输入/结果队列与 ctree 客户端由执行器自身持有；指标由
+      :class:`~celestialflow.reporter.core_metrics.MetricsObserver` 依据事件维护：
+      独立运行时由 :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 注册单节点
+      观察者，参与图调度时由图级观察者统一维护。全局 ``LifecycleSpout`` /
+      ``LogSpout`` 的启停与全局 funnel 观察者的注册由
       :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 统一负责，TaskExecutor
       自身不直接持有 spout 实例。
     """
@@ -44,8 +47,6 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count(1)
-
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result)
         elapsed = time.perf_counter() - start_perf
@@ -63,13 +64,19 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
         )
 
         for target_name in self.yield_queue.get_target_names():
-            self.metrics.add_downstream_count(target_name, 1)
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
-            self._notify_downstream_input(
-                target_name, result, result_repr, downstream_input_id
+            self.observers.on_task_input(
+                TaskInputEvent(
+                    node=target_name,
+                    task=task,
+                    task_repr=task_repr,
+                    input_id=downstream_input_id,
+                    source="upstream",
+                    from_node=self.get_name(),
+                )
             )
             downstream_envelope: TaskEnvelope[R] = TaskEnvelope(
                 task=result,
@@ -108,8 +115,6 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count(1)
-
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result_list)
         elapsed = time.perf_counter() - start_perf
@@ -127,15 +132,21 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
         )
 
         for target_name in self.yield_queue.get_target_names():
-            self.metrics.add_downstream_count(target_name, len(result_list))
             for item in result_list:
                 downstream_input_id = self.ctree_client.emit(
                     CTreeEvent.TASK_INPUT,
                     parents=[result_id],
                 )
                 item_repr = self._get_repr(item)
-                self._notify_downstream_input(
-                    target_name, item, item_repr, downstream_input_id
+                self.observers.on_task_input(
+                    TaskInputEvent(
+                        node=target_name,
+                        task=item,
+                        task_repr=item_repr,
+                        input_id=downstream_input_id,
+                        source="upstream",
+                        from_node=self.get_name(),
+                    )
                 )
                 downstream_envelope: TaskEnvelope[RItem] = TaskEnvelope(
                     item,
@@ -175,8 +186,6 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
             parents=[task_id],
         )
 
-        self.metrics.add_success_count(1)
-
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result)
         elapsed = time.perf_counter() - start_perf
@@ -194,15 +203,20 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         )
 
         for target, yie in result.items():
-            self.metrics.add_downstream_count(target, 1)
-
             downstream_input_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
             yie_repr = self._get_repr(yie)
-            self._notify_downstream_input(
-                target, yie, yie_repr, downstream_input_id
+            self.observers.on_task_input(
+                TaskInputEvent(
+                    node=target,
+                    task=yie,
+                    task_repr=yie_repr,
+                    input_id=downstream_input_id,
+                    source="upstream",
+                    from_node=self.get_name(),
+                )
             )
             downstream_envelope: TaskEnvelope[Y] = TaskEnvelope(
                 yie,

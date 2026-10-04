@@ -18,11 +18,14 @@ from ..runtime.util_config import (
     load_log_level_from_pyproject,
     load_report_url_from_pyproject,
 )
+from ..runtime.util_types import MetricsView
 
 
 @contextmanager
 def run_resources(
-    observers: ObserverHub, report_session_id: str
+    observers: ObserverHub,
+    report_session_id: str,
+    metrics_view: MetricsView,
 ) -> Generator[Path | None, None, None]:
     """
     运行期资源上下文：注册全局 funnel 观察者并启停 ``lifecycle`` / ``log`` /
@@ -31,6 +34,9 @@ def run_resources(
     进入时创建并启动全局 spout，将其绑定的 inlet 注册到 ``observers``，
     并产出 lifecycle 数据库路径；退出时统一停止所有 spout，保证运行期即使
     抛出异常也能完成回收。
+
+    指标写模型由调用方（任务图或任务节点）持有并已注册到 ``observers``，
+    本函数只把其只读视图注入给需要的消费者（如 ``LogInlet``）。
 
     ``LogInlet`` 的日志级别从项目级 ``pyproject.toml`` 的
     ``[tool.celestialflow]`` 节读取（见
@@ -42,10 +48,12 @@ def run_resources(
 
     :param observers: 接收全局 inlet 的观察者 hub，通常为任务图或任务节点自身的 hub
     :param report_session_id: 上报会话标识，随记录一并提交给服务端
+    :param metrics_view: 指标只读视图，供日志等消费者查询
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
     if_report = load_if_report_from_pyproject()
     report_url = load_report_url_from_pyproject()
+    log_level = load_log_level_from_pyproject()
 
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
@@ -55,9 +63,7 @@ def run_resources(
         report_spout = NullPushSpout()
 
     observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-    observers.add_observer(
-        LogInlet(load_log_level_from_pyproject()).bind_spout(log_spout)
-    )
+    observers.add_observer(LogInlet(metrics_view, log_level).bind_spout(log_spout))
     observers.add_observer(PushInlet().bind_spout(report_spout))
 
     try:
