@@ -32,7 +32,6 @@ from ..runtime.util_errors import (
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
-from .util_render import render_structure_list
 
 
 class TaskGraph:
@@ -421,7 +420,6 @@ class TaskGraph:
                 edges=self.get_edges(),
                 source_nodes=self.get_source_nodes(),
                 node_meta=self.get_node_meta(),
-                structure_list=self.get_structure_list(),
             )
         )
         self.reporter.start()
@@ -544,9 +542,6 @@ class TaskGraph:
         层间按层级升序、层内按注册顺序逐个执行，每个节点执行完毕后才
         启动下一个。层展开序保证每个节点的所有上游都先于它启动，因此
         执行顺序不再依赖节点注册顺序。
-
-        注：图分析（:attr:`layers_dict`）由 :meth:`_prepare_start` 经
-        :meth:`get_structure_list` 保证已构建。
         """
         for node_name_list in self.layers_dict.values():
             for node_name in node_name_list:
@@ -651,19 +646,6 @@ class TaskGraph:
         """
         self._ensure_analysis()
         return self.source_names
-
-    def get_structure_list(self) -> list[str]:
-        """
-        获取任务图的格式化结构列表
-
-        :return: 带边框的格式化字符串列表
-        """
-        self._ensure_analysis()
-        return render_structure_list(
-            self.get_nodes(),
-            self.get_edges(),
-            self.get_source_nodes(),
-        )
 
     def get_order_graph(self) -> OrderGraph:
         """

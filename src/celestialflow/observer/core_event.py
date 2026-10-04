@@ -198,7 +198,6 @@ class GraphStartEvent:
     :param edges: 任务图边邻接表
     :param source_nodes: 源节点名称列表
     :param node_meta: 各节点的构建期元信息
-    :param structure_list: 任务图结构信息列表
     """
 
     graph: str
@@ -210,7 +209,6 @@ class GraphStartEvent:
     edges: dict[str, list[str]]
     source_nodes: list[str]
     node_meta: dict[str, dict[str, Any]]
-    structure_list: list[str]
 
 
 @dataclass(frozen=True, slots=True)
