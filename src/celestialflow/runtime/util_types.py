@@ -124,6 +124,7 @@ class NodeMetrics:
 
     :param node: 节点名称
     :param status: 节点生命周期状态
+    :param start_time: 节点进入运行状态的墙钟时间（秒）；未启动为 0.0
     :param external_input: 外部注入任务数
     :param upstream_input: 上游提供任务数
     :param input_total: 输入任务总数（外部注入与上游提供之和）
@@ -138,6 +139,7 @@ class NodeMetrics:
 
     node: str
     status: NodeStatus
+    start_time: float
     external_input: int
     upstream_input: int
     input_total: int

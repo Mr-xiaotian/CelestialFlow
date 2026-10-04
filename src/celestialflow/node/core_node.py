@@ -141,9 +141,6 @@ class BaseTaskNode[T, R, Y]:
         self.observers = ObserverHub()
         self._lifecycle_db_path = None
 
-        # 上报器可能会在节点真正启动前先采集一次快照。
-        self.start_time = 0.0
-
     # ==== 观察者 ====
     def add_observer(self, observer: Observer) -> None:
         """
@@ -612,7 +609,6 @@ class BaseTaskNode[T, R, Y]:
             ``start()`` 为一次性调用；启动前的 setter 与 observer 注册允许重复调用。
         """
         start_perf = time.perf_counter()
-        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:
@@ -646,7 +642,6 @@ class BaseTaskNode[T, R, Y]:
             raise InvalidOptionError("execution mode", self.execution_mode, ("async",))
 
         start_perf = time.perf_counter()
-        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:

@@ -1,6 +1,7 @@
 # reporter/core_metrics.py
 from __future__ import annotations
 
+import time
 from threading import Lock
 
 from ..observer import (
@@ -18,7 +19,7 @@ from ..runtime.util_types import NodeMetrics, NodeStatus
 class MetricsObserver(Observer):
     """图级指标观察者（写模型 + 只读视图）。
 
-    持有任务图中每个节点的计数与状态，并作为观察者从事件中写入：
+    持有任务图中每个节点的计数、状态与运行起始时间，并作为观察者从事件中写入：
 
     - 图结构事件：``on_node_added`` 建立节点存储格，``on_node_connected`` 预置边级计数；
     - 节点生命周期：``on_node_start`` / ``on_node_end`` 维护节点状态；
@@ -38,6 +39,7 @@ class MetricsObserver(Observer):
         self._lock = Lock()
 
         self._status: dict[str, NodeStatus] = {}
+        self._start_time: dict[str, float] = {}
         self._external: dict[str, int] = {}
         self._success: dict[str, int] = {}
         self._fail: dict[str, int] = {}
@@ -54,6 +56,7 @@ class MetricsObserver(Observer):
         :param node: 节点名称
         """
         self._status.setdefault(node, NodeStatus.NOT_STARTED)
+        self._start_time.setdefault(node, 0.0)
         self._external.setdefault(node, 0)
         self._success.setdefault(node, 0)
         self._fail.setdefault(node, 0)
@@ -80,6 +83,7 @@ class MetricsObserver(Observer):
         return NodeMetrics(
             node=node,
             status=self._status[node],
+            start_time=self._start_time[node],
             external_input=external_input,
             upstream_input=upstream_input,
             input_total=input_total,
@@ -127,6 +131,7 @@ class MetricsObserver(Observer):
         with self._lock:
             self._ensure(event.node)
             self._status[event.node] = NodeStatus.RUNNING
+            self._start_time[event.node] = time.time()
 
     def on_node_end(self, event: NodeEndEvent) -> None:
         """

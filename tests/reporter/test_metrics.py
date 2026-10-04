@@ -40,6 +40,7 @@ class TestMetricsObserverStorage:
         metrics = observer.get_node_metrics("a")
         assert metrics is not None
         assert metrics.status == NodeStatus.NOT_STARTED
+        assert metrics.start_time == 0.0
         assert metrics.input_total == 0
         assert metrics.upstream_counts == {}
         assert metrics.downstream_counts == {}
@@ -110,6 +111,7 @@ class TestMetricsObserverEvents:
         running = observer.get_node_metrics("a")
         assert running is not None
         assert running.status == NodeStatus.RUNNING
+        assert running.start_time > 0.0
 
         observer.on_node_end(NodeEndEvent("a", "serial", 1, 0.0))
         stopped = observer.get_node_metrics("a")
