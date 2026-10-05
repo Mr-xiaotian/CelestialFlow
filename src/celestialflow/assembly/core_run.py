@@ -24,7 +24,7 @@ from ..runtime.util_types import MetricsView
 def _pipeline(
     observers: ObserverHub,
     metrics_view: MetricsView,
-    report_spout: PushSpout | None,
+    push_spout: PushSpout | None,
 ) -> Generator[Path | None, None, None]:
     """
     共享运行管线：注册 ``lifecycle`` / ``log``（及可选上报）inlet，并统一管理
@@ -36,7 +36,7 @@ def _pipeline(
 
     :param observers: 接收全局 inlet 的观察者 hub
     :param metrics_view: 指标只读视图，供 ``LogInlet`` 查询
-    :param report_spout: 已构建的推送 spout；``None`` 表示本次运行不上报
+    :param push_spout: 已构建的推送 spout；``None`` 表示本次运行不上报
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
     log_level = load_log_level_from_pyproject()
@@ -46,20 +46,20 @@ def _pipeline(
 
     observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
     observers.add_observer(LogInlet(metrics_view, log_level).bind_spout(log_spout))
-    if report_spout is not None:
-        observers.add_observer(PushInlet().bind_spout(report_spout))
+    if push_spout is not None:
+        observers.add_observer(PushInlet().bind_spout(push_spout))
 
     try:
         lifecycle_spout.start()
         log_spout.start()
-        if report_spout is not None:
-            report_spout.start()
+        if push_spout is not None:
+            push_spout.start()
         yield lifecycle_spout.db_path
     finally:
         lifecycle_spout.stop()
         log_spout.stop()
-        if report_spout is not None:
-            report_spout.stop()
+        if push_spout is not None:
+            push_spout.stop()
 
 
 @contextmanager
@@ -83,11 +83,11 @@ def run_graph_resources(
     :param metrics_view: 指标只读视图，供日志等消费者查询
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
-    report_spout: PushSpout | None = None
+    push_spout: PushSpout | None = None
     if load_if_report_from_pyproject():
-        report_spout = PushSpout(report_session_id, load_report_url_from_pyproject())
+        push_spout = PushSpout(report_session_id, load_report_url_from_pyproject())
 
-    with _pipeline(observers, metrics_view, report_spout) as lifecycle_db_path:
+    with _pipeline(observers, metrics_view, push_spout) as lifecycle_db_path:
         yield lifecycle_db_path
 
 
