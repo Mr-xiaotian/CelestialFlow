@@ -1,4 +1,4 @@
-from celestialflow.graph.util_render import render_structure_list
+from celestialflow.persist.util_render import render_structure_list
 
 # 超过 Python 默认递归上限(~1000)，用于回归迭代版渲染逻辑
 DEEP = 5000

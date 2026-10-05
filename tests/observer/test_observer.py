@@ -506,7 +506,6 @@ class TestGraphObserver:
         assert starts[0].class_name == "TaskGraph"
         assert starts[0].is_dag is True
         assert starts[0].start_time > 0
-        assert starts[0].structure_list
         assert len(ends) == 1
         assert ends[0].graph == "graph_event_observer"
 

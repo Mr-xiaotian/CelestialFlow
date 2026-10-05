@@ -38,7 +38,6 @@ class TestLogPersistence:
                             "max_workers": 1,
                         }
                     },
-                    structure_list=["test message"],
                 )
             )
             inlet.on_task_retry(
@@ -50,7 +49,7 @@ class TestLogPersistence:
             )
             wait_until(
                 lambda: spout.log_path.exists()
-                and 'test message' in spout.log_path.read_text(encoding='utf-8')
+                and '| node |' in spout.log_path.read_text(encoding='utf-8')
                 and 'hello world' in spout.log_path.read_text(encoding='utf-8'),
                 message='timeout waiting for log_spout to write records',
             )
@@ -59,7 +58,7 @@ class TestLogPersistence:
 
         assert spout.log_path.exists()
         content = spout.log_path.read_text(encoding='utf-8')
-        assert 'test message' in content
+        assert '| node |' in content
         assert 'hello world' in content
         assert 'INFO' in content
         assert 'WARNING' in content

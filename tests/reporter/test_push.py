@@ -75,7 +75,6 @@ def _start_event() -> GraphStartEvent:
                 "max_workers": 4,
             },
         },
-        structure_list=["s1", "s2"],
     )
 
 

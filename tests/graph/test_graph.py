@@ -590,7 +590,7 @@ class TestTaskGraphAnalysis:
         assert all(entry["class_name"] == "TaskExecutor" for entry in meta.values())
 
     def test_getters_build_analysis_on_demand(self):
-        """分析与结构 getter 在未显式 build 时也应可直接使用。"""
+        """分析 getter 在未显式 build 时也应可直接使用。"""
         s1 = TaskExecutor("s1", add_one)
         s2 = TaskExecutor("s2", double)
 
@@ -601,14 +601,12 @@ class TestTaskGraphAnalysis:
         # 各 getter 会按需构建分析缓存。
         node_names = graph.get_nodes()
         edges = graph.get_edges()
-        structure_list = graph.get_structure_list()
         source_names = set(graph.get_source_nodes())
 
         assert graph.is_dag is True
         assert s1.get_name() in graph.layers_dict[0]
         assert set(node_names) == {s1.get_name(), s2.get_name()}
         assert edges == {s1.get_name(): [s2.get_name()], s2.get_name(): []}
-        assert structure_list
         assert source_names == {s1.get_name()}
 
     def test_getters_refresh_analysis_after_connect(self):
