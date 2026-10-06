@@ -16,7 +16,7 @@ class TickHandler:
     :attr:`tick_period` 声明本处理器每隔多少拍被触发一次（默认每拍都触发）。
     :class:`~celestialflow.ticker.core_ticker.Ticker` 与
     :class:`~celestialflow.ticker.core_hub.TickHub` 在分发前会依据该值过滤，因此
-    处理器无需自行计数。
+    处理器无需自行计数。该值可在运行期经 :meth:`set_tick_period` 调整。
     """
 
     tick_period: int = 1
@@ -30,6 +30,25 @@ class TickHandler:
         :rtype: bool
         """
         return (event.seq - 1) % self.tick_period == 0
+
+    def set_tick_period(self, tick_period: int) -> None:
+        """
+        设置本处理器每隔多少拍被触发一次，下一拍起生效。
+
+        分发路径每拍都会重新读取 :attr:`tick_period`，因此变更无需重启节拍器即可
+        对 :class:`~celestialflow.ticker.core_hub.TickHub` 与
+        :class:`~celestialflow.ticker.core_ticker.Ticker` 生效。过滤仍以
+        :attr:`~celestialflow.ticker.core_event.TickEvent.seq` 为基准（第 1 拍始终
+        命中），因此调整后相位重新锚定到 ``seq == 1``。
+
+        :param tick_period: 每隔多少拍触发一次，必须为正整数
+        :raises ConfigurationError: ``tick_period`` 小于 1
+        """
+        if tick_period < 1:
+            raise ConfigurationError(
+                f"tick_period must be a positive integer, got {tick_period}"
+            )
+        self.tick_period = tick_period
 
     def on_tick(self, event: TickEvent) -> None:
         """

@@ -21,8 +21,8 @@ from ..runtime.util_config import (
 from ..runtime.util_types import MetricsView
 from ..ticker import Ticker
 
-_SNAPSHOT_TICK_INTERVAL: float = 5.0
-"""图级状态快照推送的节拍周期（秒）。"""
+_TICK_INTERVAL: float = 1.0
+"""节拍周期（秒）。"""
 
 
 @contextmanager
@@ -36,7 +36,7 @@ def _pipeline(
     全部 spout 与快照节拍器的启停。
 
     进入时创建并启动全部 spout；启用上报时，额外启动一个以
-    :data:`_SNAPSHOT_TICK_INTERVAL` 为周期、把图级状态快照交给推送 inlet 的
+    :data:`_TICK_INTERVAL` 为周期、把图级状态快照交给推送 inlet 的
     节拍器。产出 lifecycle 数据库路径；退出时先停节拍器再统一停止 spout，
     保证运行期即使抛出异常也能完成回收。指标观察者须由调用方在进入本管线前
     注册到 ``observers``，本函数只把其只读视图交给 ``LogInlet`` 与快照处理器。
@@ -58,7 +58,7 @@ def _pipeline(
         push_inlet = PushInlet().bind_spout(push_spout)
         observers.add_observer(push_inlet)
         ticker = Ticker(
-            _SNAPSHOT_TICK_INTERVAL,
+            _TICK_INTERVAL,
             PushSnapshotHandler(metrics_view, push_inlet),
             name="snapshot",
         )

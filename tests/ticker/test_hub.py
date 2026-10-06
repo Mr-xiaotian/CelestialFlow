@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from celestialflow.ticker import TickEvent, TickHandler, TickHub
 from celestialflow.runtime.util_errors import ConfigurationError
+from celestialflow.ticker import TickEvent, TickHandler, TickHub
 
 
 def make_event(seq: int = 1) -> TickEvent:
@@ -70,6 +70,23 @@ def test_hub_filters_by_tick_period() -> None:
 
     assert every.seqs == [1, 2, 3, 4, 5]
     assert every_other.seqs == [1, 3, 5]
+
+
+def test_hub_picks_up_runtime_tick_period_change() -> None:
+    """运行中调用 ``set_tick_period`` 应立即影响后续分发。"""
+    hub = TickHub()
+    handler = RecordingHandler(tick_period=1)
+    hub.add_handler(handler)
+
+    for seq in range(1, 4):
+        hub.on_tick(make_event(seq))
+    assert handler.seqs == [1, 2, 3]
+
+    handler.set_tick_period(3)
+    for seq in range(4, 10):
+        hub.on_tick(make_event(seq))
+
+    assert handler.seqs == [1, 2, 3, 4, 7]
 
 
 def test_hub_rejects_self_registration() -> None:

@@ -3,10 +3,10 @@ from __future__ import annotations
 import time
 
 import pytest
-
-from celestialflow.ticker import TickEvent, TickHandler, TickHub, Ticker
-from celestialflow.runtime.util_errors import ConfigurationError
 from conftest import assert_stays_true, wait_until
+
+from celestialflow.runtime.util_errors import ConfigurationError
+from celestialflow.ticker import Ticker, TickEvent, TickHandler, TickHub
 
 
 class RecordingHandler(TickHandler):
