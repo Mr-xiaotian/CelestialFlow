@@ -24,7 +24,6 @@ from .persist.util_sqlite import (
     load_records,
     load_tasks_grouped_by_node,
 )
-from .reporter import TaskReporter
 from .runtime.util_format import format_table
 from .runtime.util_types import TerminationSignal
 from .ticker import Ticker, TickEvent, TickHandler, TickHub
@@ -42,7 +41,6 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskWheel",

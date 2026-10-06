@@ -260,7 +260,7 @@ class BaseTaskNode[T, R, Y]:
         """
         获取节点的构建期元信息。
 
-        这些字段在 reporter 启动前已冻结，随图结构一次性上报
+        这些字段在运行期固定不变，随图结构一次性上报
 
         :return: 包含 ``class_name``、``execution_mode`` 与 ``max_workers`` 的字典
         """

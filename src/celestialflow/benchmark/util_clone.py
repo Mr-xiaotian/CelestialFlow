@@ -3,12 +3,10 @@ from __future__ import annotations
 
 from collections import deque
 from typing import Any, cast
-from urllib.parse import urlparse
 
 from ..graph import TaskGraph
 from ..node import TaskExecutor
 from ..node.util_types import AnyTaskNode
-from ..reporter import NullTaskReporter, ReporterProtocol, TaskReporter
 from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
 
@@ -44,32 +42,6 @@ def clone_executor[T, R](
     cloned = cast(TaskExecutor[T, R], TaskExecutor(**_get_clone_init_kwargs(executor)))
     cloned.set_retry_exceptions(*executor.retry_exceptions)
     return cloned
-
-
-def _clone_reporter(
-    reporter: ReporterProtocol,
-    task_graph: TaskGraph,
-) -> ReporterProtocol:
-    """
-    克隆 reporter 配置并绑定到新的任务图实例。
-
-    :param reporter: 原任务图绑定的 reporter
-    :param task_graph: 新的任务图实例
-    :return: 新的 reporter
-    :raises ConfigurationError: reporter 类型不支持克隆
-    """
-    if isinstance(reporter, NullTaskReporter):
-        return NullTaskReporter()
-
-    if isinstance(reporter, TaskReporter):
-        parsed = urlparse(reporter.base_url)
-        host = parsed.hostname or "127.0.0.1"
-        port = parsed.port or 80
-        return TaskReporter(host=host, port=port, task_graph=task_graph)
-
-    raise ConfigurationError(
-        f"unsupported reporter type for clone_graph(): {type(reporter).__name__}"
-    )
 
 
 def clone_graph(graph: TaskGraph) -> TaskGraph:
@@ -127,6 +99,5 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
         cloned_graph.connect([cloned_from], cloned_to)
 
     cloned_graph.set_ctree(clone_event_client(graph.ctree_client))
-    cloned_graph.set_reporter(_clone_reporter(graph.reporter, cloned_graph))
 
     return cloned_graph

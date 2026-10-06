@@ -21,7 +21,6 @@ from ..observer import (
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
-from ..reporter import NullTaskReporter, ReporterProtocol
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -57,7 +56,6 @@ class TaskGraph:
     start_time: float
     observers: ObserverHub
     metrics: MetricsObserver
-    reporter: ReporterProtocol
     ctree_client: EventClient
     is_dag: bool
     layers_dict: dict[int, list[str]]
@@ -87,7 +85,6 @@ class TaskGraph:
         """
         self._set_name(name)
         self.set_graph_mode(graph_mode)
-        self.set_reporter(NullTaskReporter())
         self.set_ctree(LocalEventClient())
 
         self._init_state()
@@ -203,14 +200,6 @@ class TaskGraph:
             node.set_execution_mode(execution_mode)
         self._build_analysis()
 
-    def set_reporter(self, reporter: ReporterProtocol) -> None:
-        """
-        设定任务图绑定的 reporter。
-
-        :param reporter: 需绑定到当前任务图的 reporter 实例
-        """
-        self.reporter = reporter
-
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
         设置任务图共享的事件客户端。
@@ -310,7 +299,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.graph_id, self.metrics
+                self.observers, self.graph_id, self.metrics, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
@@ -347,7 +336,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.graph_id, self.metrics
+                self.observers, self.graph_id, self.metrics, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
@@ -422,14 +411,13 @@ class TaskGraph:
                 node_meta=self.get_node_meta(),
             )
         )
-        self.reporter.start()
 
     def _finish_start(self, start_perf: float) -> list[Exception]:
         """
-        启动后收尾：回收图内状态、停止上报器并记录结束日志。
+        启动后收尾：回收图内状态并记录结束日志。
 
-        ``lifecycle`` / ``log`` / 错误上报 spout 的启停由外层 :meth:`run` /
-        :meth:`run_async` 统一管理，本方法只负责图对象自身的收尾逻辑。
+        ``lifecycle`` / ``log`` 与上报相关 spout、节拍器的启停由外层
+        :meth:`run` / :meth:`run_async` 统一管理，本方法只负责图对象自身的收尾逻辑。
 
         :param start_perf: 启动时刻的 ``perf_counter`` 时间戳，用于计算运行耗时
         :return: 收集到的收尾阶段异常列表
@@ -440,11 +428,6 @@ class TaskGraph:
             # 收集并持久化每个节点中未消费的任务
             for node in self.node_dict.values():
                 node.drain_task_queue()
-        except Exception as exception:
-            error_list.append(exception)
-
-        try:
-            self.reporter.stop()
         except Exception as exception:
             error_list.append(exception)
 
@@ -630,7 +613,7 @@ class TaskGraph:
         """
         获取各节点的构建期元信息。
 
-        这些字段在 reporter 启动前已冻结，因此随图结构一次性上报，不进每轮状态推送。
+        这些字段在运行期固定不变，随图结构一次性上报，不进每轮状态推送。
 
         :return: ``{node_name: {"class_name": ..., "execution_mode": ..., "max_workers": ...}}``
         """
@@ -659,13 +642,13 @@ class TaskGraph:
         """
         获取图级观察者 hub。
 
-        供节点以外的协作者（如 reporter）以观察者形式发布事件。
+        供节点以外的协作者以观察者形式发布事件。
 
         :return: 图级观察者 hub
         """
         return self.observers
 
-    # ==== Reporter 能力接口 ====
+    # ==== 注入接口 ====
 
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """
