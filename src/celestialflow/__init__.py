@@ -3,7 +3,6 @@
 
 提供任务图构建、执行调度、实时监控与持久化等核心能力。
 """
-
 from .benchmark.util_benchmark import benchmark_executor, benchmark_graph
 from .funnel import BaseInlet, BaseSpout
 from .graph import (
@@ -28,6 +27,7 @@ from .persist.util_sqlite import (
 from .reporter import TaskReporter
 from .runtime.util_format import format_table
 from .runtime.util_types import TerminationSignal
+from .ticker import Ticker, TickEvent, TickHandler, TickHub
 
 __all__ = [
     "BaseInlet",
@@ -47,6 +47,10 @@ __all__ = [
     "TaskSplitter",
     "TaskWheel",
     "TerminationSignal",
+    "TickEvent",
+    "TickHandler",
+    "TickHub",
+    "Ticker",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
