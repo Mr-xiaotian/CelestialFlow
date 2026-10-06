@@ -9,7 +9,6 @@ from .core_event import (
     GraphStartEvent,
     NodeEndEvent,
     NodeStartEvent,
-    ReporterFailureEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -302,21 +301,6 @@ class ObserverHub(Observer):
             try:
                 try:
                     observer.on_graph_end(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """
-        转发上报器诊断失败事件。
-
-        :param event: 上报器诊断失败事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_reporter_failure(event)
                 except Exception as e:
                     observer.handle_exception(e)
             except Exception as e:

@@ -8,7 +8,6 @@ from .core_event import (
     GraphStartEvent,
     NodeEndEvent,
     NodeStartEvent,
-    ReporterFailureEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -145,14 +144,6 @@ class Observer:
         任务图结束回调。
 
         :param event: 任务图结束事件
-        """
-        ...
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """
-        上报器诊断失败回调。
-
-        :param event: 上报器诊断失败事件
         """
         ...
 

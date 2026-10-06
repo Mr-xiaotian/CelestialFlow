@@ -2,19 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
-
-type ReporterFailureKind = Literal[
-    "loop",
-    "pull_interval",
-    "pull_tasks",
-    "inject",
-    "push_errors",
-    "push_status",
-    "push_graph_meta",
-    "shutdown",
-]
-"""上报器诊断失败的类别。"""
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -221,15 +209,3 @@ class GraphEndEvent:
 
     graph: str
     elapsed: float
-
-
-@dataclass(frozen=True, slots=True)
-class ReporterFailureEvent:
-    """上报器诊断失败事件。
-
-    :param kind: 失败的类别
-    :param exception: 导致失败的异常
-    """
-
-    kind: ReporterFailureKind
-    exception: Exception

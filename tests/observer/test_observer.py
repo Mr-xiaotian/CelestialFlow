@@ -16,7 +16,6 @@ from celestialflow.observer import (
     GraphStartEvent,
     NodeEndEvent,
     NodeStartEvent,
-    ReporterFailureEvent,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -125,10 +124,6 @@ class RecordingObserver(Observer):
 
     def on_graph_end(self, event: GraphEndEvent) -> None:
         """记录任务图结束事件。"""
-        self.events.append(event)
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """记录上报器诊断失败事件。"""
         self.events.append(event)
 
 

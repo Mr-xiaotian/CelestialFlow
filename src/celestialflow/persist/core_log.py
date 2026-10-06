@@ -11,8 +11,6 @@ from ..observer.core_event import (
     GraphStartEvent,
     NodeEndEvent,
     NodeStartEvent,
-    ReporterFailureEvent,
-    ReporterFailureKind,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -27,18 +25,6 @@ from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
 from ..runtime.util_types import MetricsView
 from .util_render import render_structure_list
-
-_REPORTER_FAILURE_LOG: dict[ReporterFailureKind, tuple[str, str]] = {
-    "loop": ("ERROR", "Loop error"),
-    "pull_interval": ("WARNING", "Pull 'interval' failed"),
-    "pull_tasks": ("WARNING", "Pull 'task injection' failed"),
-    "inject": ("ERROR", "Inject 'tasks/terminations' failed"),
-    "push_errors": ("WARNING", "Push 'error' failed"),
-    "push_status": ("WARNING", "Push 'status' failed"),
-    "push_graph_meta": ("WARNING", "Push 'graph_meta' failed"),
-    "shutdown": ("WARNING", "Notify 'shutdown' failed"),
-}
-"""上报器诊断失败类别到 ``(日志级别, 文案前缀)`` 的映射。"""
 
 
 class LogSpout(BaseSpout):
@@ -294,19 +280,4 @@ class LogInlet(BaseInlet, Observer):
             "TRACE",
             f"In '{event.node}', Termination merge. "
             + f"[{event.parent_ids}->{event.termination_id}*]",
-        )
-
-    # ==== 上报器 ====
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """
-        记录上报器诊断失败
-
-        :param event: 上报器诊断失败事件
-        """
-        level, label = _REPORTER_FAILURE_LOG[event.kind]
-        self._log(
-            level,
-            f"[Reporter] {label}: "
-            + f"{type(event.exception).__name__}({event.exception}).",
         )

@@ -75,7 +75,6 @@ def _pipeline(
                     push_spout.base_url,
                     push_spout.graph_id,
                     injection_target,
-                    observers,
                     session,
                 )
             )

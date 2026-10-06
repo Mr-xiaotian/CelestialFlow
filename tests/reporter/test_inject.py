@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from celestialflow.observer import Observer, ObserverHub, ReporterFailureEvent
+import pytest
+
 from celestialflow.reporter import InjectionHandler
+from celestialflow.runtime.util_errors import ReporterError
 from celestialflow.ticker import TickEvent
 
 
@@ -63,17 +65,6 @@ class FakeTarget:
         self.terminations.append(nodes)
 
 
-class RecordingObserver(Observer):
-    """记录上报器失败事件。"""
-
-    def __init__(self) -> None:
-        self.failures: list[tuple[str, Exception]] = []
-
-    def on_reporter_failure(self, event: ReporterFailureEvent) -> None:
-        """记录失败类别与异常。"""
-        self.failures.append((event.kind, event.exception))
-
-
 def make_event(seq: int = 1) -> TickEvent:
     """
     构造一个测试用节拍事件。
@@ -92,49 +83,38 @@ def make_event(seq: int = 1) -> TickEvent:
     )
 
 
-def make_observer() -> tuple[ObserverHub, RecordingObserver]:
-    """构造带记录器的图级观察者 hub。"""
-    observers = ObserverHub()
-    recorder = RecordingObserver()
-    observers.add_observer(recorder)
-    return observers, recorder
-
-
 def test_injection_handler_pulls_and_injects() -> None:
-    """处理器应从 ``/api/pull_injection`` 拉取并分别注入任务与终止符。"""
-    observers, recorder = make_observer()
+    """处理器应从 ``/api/pull_injection`` 拉取并依次注入任务与终止符。"""
     target = FakeTarget()
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1, 2]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target, observers, session)
+    handler = InjectionHandler("http://host:1", "g1", target, session)
 
     handler.on_tick(make_event())
 
     assert target.tasks == [{"StageA": [1, 2]}]
     assert target.terminations == [["StageB"]]
-    assert recorder.failures == []
     url, params, _timeout = session.gets[0]
     assert url == "http://host:1/api/pull_injection"
     assert params["graph_id"] == "g1"
 
 
-def test_injection_handler_reports_pull_failure() -> None:
-    """拉取失败时应上报 ``kind="pull_tasks"`` 且不注入任何内容。"""
-    observers, recorder = make_observer()
+def test_injection_handler_raises_on_pull_failure() -> None:
+    """拉取失败时应抛出 ``ReporterError`` 且不注入任何内容。"""
     target = FakeTarget()
     session = FakeSession(FakeFailResponse())
-    handler = InjectionHandler("http://host:1", "g1", target, observers, session)
+    handler = InjectionHandler("http://host:1", "g1", target, session)
 
-    handler.on_tick(make_event())
+    with pytest.raises(ReporterError):
+        handler.on_tick(make_event())
 
-    assert [kind for kind, _exc in recorder.failures] == ["pull_tasks"]
     assert target.tasks == []
     assert target.terminations == []
 
 
-def test_injection_handler_isolates_inject_failures() -> None:
-    """任务注入失败不应阻止终止符注入，且上报 ``kind="inject"``。"""
+def test_injection_handler_propagates_inject_failure() -> None:
+    """任务注入失败时异常向上传播，终止符注入不再执行。"""
 
     class RaisingTarget(FakeTarget):
         """任务注入抛错的注入目标。"""
@@ -143,24 +123,22 @@ def test_injection_handler_isolates_inject_failures() -> None:
             """模拟注入失败。"""
             raise RuntimeError("unknown node")
 
-    observers, recorder = make_observer()
     target = RaisingTarget()
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target, observers, session)
+    handler = InjectionHandler("http://host:1", "g1", target, session)
 
-    handler.on_tick(make_event())
+    with pytest.raises(RuntimeError, match="unknown node"):
+        handler.on_tick(make_event())
 
-    assert [kind for kind, _exc in recorder.failures] == ["inject"]
-    assert target.terminations == [["StageB"]]
+    assert target.terminations == []
 
 
 def test_injection_handler_tick_period_is_five() -> None:
     """处理器以 5 拍为周期触发（基准周期 1 秒时即每 5 秒）。"""
-    observers, _recorder = make_observer()
     handler = InjectionHandler(
-        "http://host:1", "g1", FakeTarget(), observers, FakeSession(FakeResponse({}))
+        "http://host:1", "g1", FakeTarget(), FakeSession(FakeResponse({}))
     )
 
     assert handler.tick_period == 5
