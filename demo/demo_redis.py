@@ -9,16 +9,13 @@ import redis
 from demo_utils import download_to_file, fibonacci, sleep_1, sum_int
 from dotenv import load_dotenv
 
-from celestialflow import TaskGraph, TaskReporter, TaskExecutor
+from celestialflow import TaskGraph, TaskExecutor
 from celestialflow.runtime.util_errors import (
     CelestialFlowTimeoutError,
     RemoteWorkerError,
 )
 
 load_dotenv()
-
-report_host: str = os.getenv("REPORT_HOST", "")
-report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
 redis_host: str = os.getenv("REDIS_HOST", "")
 redis_password: str = os.getenv("REDIS_PASSWORD", "")
@@ -176,7 +173,6 @@ def demo_redis_ack_0() -> None:
     graph.set_nodes([start_stage, transport_stage, ack_stage, fibonacci_stage])
     graph.connect([start_stage], [transport_stage, fibonacci_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     test_task: list[Any] = [*list(range(25, 37)), 0, 27, None, 0, ""]
     graph.run({"Start": test_task})
@@ -213,7 +209,6 @@ def demo_redis_ack_1() -> None:
     graph.set_nodes([start_stage, transport_stage, ack_stage, sum_stage])
     graph.connect([start_stage], [transport_stage, sum_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     test_task: list[tuple[int, int]] = [
         (random.randint(1, 100), random.randint(1, 100)) for _ in range(12)
@@ -252,7 +247,6 @@ def demo_redis_ack_2() -> None:
     graph.set_nodes([start_stage, transport_stage, ack_stage, download_stage])
     graph.connect([start_stage], [transport_stage, download_stage])
     graph.connect([transport_stage], [ack_stage])
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     download_links: list[tuple[str, str]] = [
         (
@@ -296,7 +290,6 @@ def demo_redis_source_0() -> None:
     graph.set_nodes([sleep_stage_0, transport_stage, source_stage, sleep_stage_1])
     graph.connect([sleep_stage_0], [transport_stage])
     graph.connect([source_stage], [sleep_stage_1])
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
 
     graph.run(
         {

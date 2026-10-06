@@ -17,15 +17,11 @@ from celestialflow import (
     TaskGraph,
     TaskGrid,
     TaskLoop,
-    TaskReporter,
     TaskExecutor,
     TaskWheel,
 )
 
 load_dotenv()
-
-report_host: str = os.getenv("REPORT_HOST", "")
-report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
@@ -52,7 +48,6 @@ def demo_chain() -> None:
         "demo_chain",
         [node_a, node_b, node_c, node_d, node_e],
     )
-    chain.set_reporter(TaskReporter(report_host, report_port, chain))
     # chain.set_ctree(ctree_client)
 
     chain.run({"NodeA": list(range(20))}, if_put_signal=False)
@@ -73,7 +68,6 @@ def demo_cross() -> None:
         "demo_cross",
         [[node_a, node_b, node_c], [node_d], [node_e, node_f, node_g]],
     )
-    cross.set_reporter(TaskReporter(report_host, report_port, cross))
     # cross.set_ctree(ctree_client)
 
     # 初始任务
@@ -101,7 +95,6 @@ def demo_network() -> None:
 
     # 构建任务图
     cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
-    cross.set_reporter(TaskReporter(report_host, report_port, cross))
     # cross.set_ctree(ctree_client)
 
     # 初始任务（输入层）
@@ -125,7 +118,6 @@ def demo_star() -> None:
         "demo_star",
         [[core], [side1, side2, side3]],
     )
-    star.set_reporter(TaskReporter(report_host, report_port, star))
     # star.set_ctree(ctree_client)
 
     star.run({"Core": list(range(1, 11))})
@@ -143,7 +135,6 @@ def demo_fanin() -> None:
         "demo_fanin",
         [[source1, source2, source3], [merge]],
     )
-    fainin.set_reporter(TaskReporter(report_host, report_port, fainin))
     # fainin.set_ctree(ctree_client)
 
     fainin.run(
@@ -169,7 +160,6 @@ def demo_grid() -> None:
 
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid("demo_grid", grid)
-    task_grid.set_reporter(TaskReporter(report_host, report_port, task_grid))
     # task_grid.set_ctree(ctree_client)
 
     # 3. 初始化任务字典，只放左上角一个任务
@@ -186,7 +176,6 @@ def demo_loop() -> None:
     node_c = TaskExecutor("NodeC", add_one_sleep, execution_mode="serial")
 
     loop = TaskLoop("demo_loop", [node_a, node_b, node_c])
-    loop.set_reporter(TaskReporter(report_host, report_port, loop))
     # loop.set_ctree(ctree_client)
 
     # 要测试的任务列表
@@ -206,7 +195,6 @@ def demo_wheel() -> None:
 
     # 构造 TaskCross
     wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
-    wheel.set_reporter(TaskReporter(report_host, report_port, wheel))
     # wheel.set_ctree(ctree_client)
 
     wheel.run({"Core": list(range(1, 11))}, if_put_signal=False)
@@ -220,7 +208,6 @@ def demo_complete() -> None:
 
     # 构造 TaskComplete
     complete = TaskComplete("demo_complete", [n1, n2, n3])
-    complete.set_reporter(TaskReporter(report_host, report_port, complete))
     # complete.set_ctree(ctree_client)
 
     complete.run(
@@ -284,7 +271,6 @@ def demo_multi_cycle() -> None:
     graph.connect([C1], [C2])
     graph.connect([C2], [C1])
 
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
     graph.run({"A1": list(range(1, 11))}, if_put_signal=False)
@@ -292,7 +278,6 @@ def demo_multi_cycle() -> None:
 
 if __name__ == "__main__":
     demo_chain()
-    demo_forest()
     demo_cross()
     demo_grid()
     demo_loop()

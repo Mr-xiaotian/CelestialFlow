@@ -15,14 +15,10 @@ from dotenv import load_dotenv
 
 from celestialflow import (
     TaskGraph,
-    TaskReporter,
     TaskExecutor,
 )
 
 load_dotenv()
-
-report_host: str = os.getenv("REPORT_HOST", "")
-report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
 ctree_host: str = os.getenv("CTREE_HOST", "")
 ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
@@ -73,7 +69,6 @@ def demo_etl_fan_out_fan_in() -> None:
     )
 
     graph = TaskGraph("demo_etl_fan_out_fan_in", graph_mode="thread")
-    # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
     graph.set_nodes(
         nodes=[extract, normalize, enrich, load],
@@ -109,7 +104,6 @@ async def demo_async_pipeline() -> None:
     )
 
     graph = TaskGraph("demo_async_pipeline", graph_mode="async")
-    # graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
     graph.set_nodes(
         nodes=[double_node, to_str_node],

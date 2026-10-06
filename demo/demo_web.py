@@ -1,26 +1,17 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from time import sleep
 from typing import Any
-
-from dotenv import load_dotenv
 
 from demo_utils import add_one_sleep
 
 from celestialflow import (
     TaskExecutor,
     TaskGraph,
-    TaskReporter,
     TaskRouter,
     TaskSplitter,
 )
-
-load_dotenv()
-
-report_host: str = os.getenv("REPORT_HOST", "")
-report_port: int = int(os.getenv("REPORT_PORT", "0"))
 
 
 # ==== 任务函数 ====
@@ -186,7 +177,6 @@ def demo_forest() -> None:
     graph.connect([node_g], [node_i])
     graph.connect([node_h], [node_j])
 
-    graph.set_reporter(TaskReporter(report_host, report_port, graph))
     # graph.set_ctree(ctree_client)
 
     # 初始任务
@@ -204,7 +194,7 @@ def demo_topology_topology() -> None:
     复杂拓扑 Web 仪表盘展示 demo.
 
     构建一个 6 层、含扇出/扇入、TaskSplitter 与 TaskRouter 的复杂任务图,
-    通过 TaskReporter 周期性向 celestialflow-web 推送状态、结构、错误与
+    启用上报后由框架按节拍向 celestialflow-web 推送状态、结构、错误与
     生命周期数据, 用于观察 web 仪表盘在复杂拓扑下的显示效果:
 
     - 结构图: 九节点多层拓扑, Splitter 显示为 subgraph、Router 显示为菱形,
@@ -214,7 +204,8 @@ def demo_topology_topology() -> None:
     - 进度条: 成功 / 失败 / 跳过四段比例
     - 生命周期: 重试次数 (retry_times) 随失败记录持久化
 
-    若未设置 REPORT_HOST / REPORT_PORT 环境变量, demo 仍可独立运行 (跳过上报)。
+    上报由 pyproject.toml 的 [tool.celestialflow] if_report / report_url 控制;
+    未开启时 demo 仍可独立运行。
     """
     # 节点定义：混合 serial / thread 执行模式。
     ingest = TaskExecutor(
@@ -291,15 +282,8 @@ def demo_topology_topology() -> None:
     graph.connect([router], [stage_a, stage_b, stage_c])
     graph.connect([stage_a, stage_b, stage_c], [collect])
 
-    # 上报到 web（可选）：未配置 REPORT_HOST / REPORT_PORT 时跳过。
-    if report_host:
-        reporter = TaskReporter(report_host, report_port, graph)
-        reporter.interval = 2  # 加快刷新间隔，便于在仪表盘上观察
-        graph.set_reporter(reporter)
-        print(f"[demo] 已启用上报: http://{report_host}:{report_port} "
-              f"(interval={reporter.interval}s)")
-    else:
-        print("[demo] 未设置 REPORT_HOST/REPORT_PORT，跳过 web 上报（可独立运行）")
+    # 上报到 web（可选）：在 pyproject.toml 的 [tool.celestialflow] 中设置
+    # if_report = true 与 report_url 后，框架会自动推送状态并拉取注入。
 
     # 输入：24 个任务（其中 3 / 5 / 8 / 12 与前面的值重复）。
     seeds = [*range(1, 21), 3, 5, 8, 12]
