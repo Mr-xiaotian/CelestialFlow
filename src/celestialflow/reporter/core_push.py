@@ -119,7 +119,7 @@ class PushSpout(BaseSpout):
                 raise ReporterError(f"Failed to push graph meta: {res.status_code}")
         elif record.kind == "task_fail":
             res = self._session.post(
-                f"{self.base_url}/api/push_errors",
+                f"{self.base_url}/api/push_error",
                 json={
                     "graph_id": self.graph_id,
                     "event_id": record.event_id,
@@ -132,7 +132,7 @@ class PushSpout(BaseSpout):
                 timeout=self.timeout,
             )
             if not res.ok:
-                raise ReporterError(f"Failed to push errors: {res.status_code}")
+                raise ReporterError(f"Failed to push error: {res.status_code}")
 
 
 class NullPushSpout(BaseSpout):
