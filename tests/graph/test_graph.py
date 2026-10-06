@@ -1039,19 +1039,6 @@ class TestCyclicGraph:
 # TaskGraph Reporter 能力接口
 # =========================
 class TestTaskGraphReporterCapabilities:
-    def test_get_status_snapshot_covers_all_nodes(self):
-        """get_status_snapshot 应覆盖全部节点。"""
-        s1 = TaskExecutor("s1", add_one)
-        s2 = TaskExecutor("s2", double)
-        graph = TaskGraph("test_status_snapshot_capability")
-        graph.set_nodes(nodes=[s1, s2])
-        graph.connect([s1], [s2])
-
-        snapshot = graph.get_status_snapshot()
-
-        assert set(snapshot) == {"s1", "s2"}
-        assert set(snapshot["s1"]) >= {"start_time", "status"}
-
     def test_inject_tasks_injects_valid_nodes_and_raises_for_missing(self):
         """inject_tasks 先为存在节点注入，再对未知节点抛出 UnknownNodeError。"""
         node = TaskExecutor("s1", add_one)

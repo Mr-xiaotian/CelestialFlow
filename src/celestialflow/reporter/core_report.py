@@ -1,5 +1,4 @@
 # reporter/core_report.py
-import time
 from threading import Event, Thread
 from typing import Any, Protocol
 
@@ -24,17 +23,14 @@ class ReporterProtocol(Protocol):
 
 class TaskReporter:
     """
-    周期性向远程服务推送任务运行状态的上报器。
+    周期性从远程服务拉取配置与注入信息的后台上报器。
 
-    - 定时从服务器拉取配置（如上报间隔、任务注入信息）
-    - 将任务图中的状态推送到后端接口
-    - 状态推送带变化门控：仅当节点快照较上次成功推送发生变化时才发送
+    - 定时从服务器拉取配置（如上报间隔）与任务/终止符注入信息
+    - 图结构与节点元信息由 :class:`PushInlet` 以观察者形式在图启动时事件驱动推送
+    - 失败记录由 :class:`PushInlet` 以观察者形式在 ``on_task_fail`` 时事件驱动推送
+    - 图级状态快照由独立的节拍器（ticker）驱动推送，不在本类职责内
     - 以后台线程方式运行，通常由任务图生命周期统一管理启停
-    - 失败记录不再由本类轮询读取，改由 :class:`PushInlet` 以观察者形式在
-      ``on_task_fail`` 时事件驱动推送，避免访问 lifecycle 磁盘文件
-    - 图结构与节点元信息不再由本类推送，改由 :class:`PushInlet` 以观察者
-      形式在图启动时事件驱动推送
-    - 主要用于可视化监控、任务远程控制与外部服务同步
+    - 主要用于远程任务控制与外部服务同步
     """
 
     # ==== 生命周期 ====
@@ -57,8 +53,6 @@ class TaskReporter:
         self._stop_flag: Event = Event()
         self._thread: Thread | None = None
         self._session: requests.Session = requests.Session()
-        self._server_has_status: bool = False
-        self._last_status_dict: dict[str, dict[str, Any]] | None = None
 
         self.interval: int = 5
 
@@ -69,7 +63,7 @@ class TaskReporter:
         self._thread.start()
 
     def stop(self) -> None:
-        """停止上报器线程，并关闭会话与日志上报状态。"""
+        """停止上报器线程，通知服务端会话结束并关闭会话。"""
         if self._thread is None:
             return
 
@@ -82,7 +76,6 @@ class TaskReporter:
 
         self._thread = None
         self._notify_shutdown()  # 通知服务端本图已结束
-        self._refresh_all()  # 最后一次
         self._session.close()
 
     def _pull_timeout(self) -> float:
@@ -116,14 +109,10 @@ class TaskReporter:
             _ = self._stop_flag.wait(self.interval)
 
     def _refresh_all(self) -> None:
-        """刷新所有上报内容"""
+        """执行一轮拉取：服务端状态与任务/终止符注入。"""
         try:
-            # 拉取逻辑
             self._pull_server_state()
             self._pull_injection()
-
-            # 推送逻辑
-            self._push_status()
         except Exception as e:
             self.task_graph.get_observers().on_reporter_failure(
                 ReporterFailureEvent(kind="loop", exception=e)
@@ -144,7 +133,6 @@ class TaskReporter:
             payload = res.json()
             interval: Any = payload.get("interval", 5)
             self.interval = int(max(1.0, min(float(interval), 60.0)))
-            self._server_has_status = bool(payload.get("has_status", False))
         except Exception as e:
             self.task_graph.get_observers().on_reporter_failure(
                 ReporterFailureEvent(kind="pull_interval", exception=e)
@@ -185,44 +173,6 @@ class TaskReporter:
         except Exception as e:
             self.task_graph.get_observers().on_reporter_failure(
                 ReporterFailureEvent(kind="inject", exception=e)
-            )
-
-    # ==== 推送 ====
-    def _push_status(self) -> None:
-        """
-        推送状态信息。
-
-        门控：仅当节点快照较上次成功推送发生变化时才发送请求。
-
-        时间戳不参与比较（每轮必然不同），比较对象是逐节点采集的快照本身；
-        服务端会话尚无状态缓存时（如会话被移除后重建），此时无论快照是否相同
-        都强制推送一次。
-        """
-        try:
-            # 采集最新的任务图状态快照，确保推送的数据是最新的
-            status_dict: dict[str, dict[str, Any]] = self.task_graph.get_status_snapshot()
-
-            if self._server_has_status and status_dict == self._last_status_dict:
-                return
-
-            payload: dict[str, Any] = {
-                "graph_id": self.task_graph.get_graph_id(),
-                "status": status_dict,
-                "timestamp": time.time(),
-            }
-            res = self._session.post(
-                f"{self.base_url}/api/push_status",
-                json=payload,
-                timeout=self._push_timeout(),
-            )
-            if not res.ok:
-                raise ReporterError(f"Failed to push status: {res.status_code}")
-
-            self._last_status_dict = status_dict
-
-        except Exception as e:
-            self.task_graph.get_observers().on_reporter_failure(
-                ReporterFailureEvent(kind="push_status", exception=e)
             )
 
 

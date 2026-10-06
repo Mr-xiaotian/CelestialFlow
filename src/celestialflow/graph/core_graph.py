@@ -667,30 +667,6 @@ class TaskGraph:
 
     # ==== Reporter 能力接口 ====
 
-    def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
-        """
-        采集各节点当前的运行时快照。
-
-        完全由图级指标写模型投影得到，不依赖任何节点侧字段。
-
-        :return: ``{node_name: snapshot}``
-        """
-        snapshot: dict[str, dict[str, Any]] = {}
-        for node_name, node_metrics in self.metrics.get_graph_metrics().items():
-            snapshot[node_name] = {
-                "start_time": node_metrics.start_time,
-                "status": node_metrics.status,
-                "tasks_input": node_metrics.input_total,
-                "tasks_succeeded": node_metrics.succeeded,
-                "tasks_failed": node_metrics.failed,
-                "tasks_skipped": node_metrics.skipped,
-                "tasks_processed": node_metrics.processed,
-                "tasks_pending": node_metrics.pending,
-                "upstream_counts": node_metrics.upstream_counts,
-                "downstream_counts": node_metrics.downstream_counts,
-            }
-        return snapshot
-
     def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
         """
         按节点名将注入任务写入待执行队列。

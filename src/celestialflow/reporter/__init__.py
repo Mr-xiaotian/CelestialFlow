@@ -10,11 +10,13 @@ from .core_push import (
     PushSpout,
 )
 from .core_report import NullTaskReporter, ReporterProtocol, TaskReporter
+from .core_snapshot import PushSnapshotHandler
 
 __all__ = [
     "NullPushSpout",
     "NullTaskReporter",
     "PushInlet",
+    "PushSnapshotHandler",
     "PushSpout",
     "ReporterProtocol",
     "TaskReporter",

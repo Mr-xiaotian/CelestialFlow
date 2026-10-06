@@ -123,8 +123,8 @@ def test_inlet_maps_graph_start_event() -> None:
     assert record.node_meta["s1"]["max_workers"] == 2
 
 
-def test_spout_pushes_task_fail_to_push_errors_endpoint() -> None:
-    """失败记录会以 push_errors 推送，载荷携带会话标识与记录内容。"""
+def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
+    """失败记录会以 push_error 推送，载荷携带会话标识与记录内容。"""
     spout = PushSpout(graph_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
@@ -135,7 +135,7 @@ def test_spout_pushes_task_fail_to_push_errors_endpoint() -> None:
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
-    assert url == "http://host:1/api/push_errors"
+    assert url == "http://host:1/api/push_error"
     assert payload["graph_id"] == "g1"
     assert payload["event_id"] == 7
     assert payload["node"] == "s2"
@@ -195,7 +195,7 @@ def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
 
     assert session.closed
     assert {url for url, _payload, _timeout in session.posts} == {
-        "http://host:1/api/push_errors",
+        "http://host:1/api/push_error",
         "http://host:1/api/push_graph_meta",
     }
 

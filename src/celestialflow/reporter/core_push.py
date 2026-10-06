@@ -12,8 +12,8 @@ from ..observer import GraphStartEvent, Observer, TaskFailEvent
 from ..persist.util_payload import to_persisted_payload
 from ..runtime.util_errors import ReporterError
 
-type PushKind = Literal["graph_start", "task_fail"]
-"""推送记录类型：``"graph_start"`` 为图元信息，``"task_fail"`` 为任务失败。"""
+type PushKind = Literal["graph_start", "task_fail", "snapshot"]
+"""推送记录类型：``"graph_start"`` 为图元信息，``"task_fail"`` 为任务失败，``"snapshot"`` 为图级状态快照。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +22,8 @@ class PushRecord:
     一条待推送的上报记录。
 
     ``kind`` 决定推送目标与生效字段：``"graph_start"`` 使用图元信息字段，
-    ``"task_fail"`` 使用任务失败字段；与当前 ``kind`` 无关的字段保持默认值。
+    ``"task_fail"`` 使用任务失败字段，``"snapshot"`` 使用状态快照字段；
+    与当前 ``kind`` 无关的字段保持默认值。
     """
 
     kind: PushKind
@@ -45,6 +46,11 @@ class PushRecord:
     error_type: str = ""
     error_message: str = ""
     ts: float = 0.0
+
+    # push_snapshot
+    snapshot: dict[str, dict[str, Any]] = field(
+        default_factory=dict[str, dict[str, Any]]
+    )
 
 
 class PushSpout(BaseSpout):
@@ -133,6 +139,18 @@ class PushSpout(BaseSpout):
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push error: {res.status_code}")
+        elif record.kind == "snapshot":
+            res = self._session.post(
+                f"{self.base_url}/api/push_status",
+                json={
+                    "graph_id": self.graph_id,
+                    "status": record.snapshot,
+                    "timestamp": time.time(),
+                },
+                timeout=self.timeout,
+            )
+            if not res.ok:
+                raise ReporterError(f"Failed to push snapshot: {res.status_code}")
 
 
 class NullPushSpout(BaseSpout):
@@ -154,6 +172,9 @@ class PushInlet(BaseInlet, Observer):
     """
     推送观察者：把观测到的图启动与任务失败事件转换为上报记录并入队，
     交由推送 spout 发送。
+
+    另提供不经过观察者事件的 :meth:`push_snapshot`，供时间驱动的节拍处理器
+    按拍直接把图级状态快照入队。
     """
 
     def on_graph_start(self, event: GraphStartEvent) -> None:
@@ -190,3 +211,13 @@ class PushInlet(BaseInlet, Observer):
             error_message=str(event.exception),
             ts=time.time(),
         ))
+
+    def push_snapshot(self, snapshot: dict[str, dict[str, Any]]) -> None:
+        """
+        将图级状态快照转为推送记录并入队。
+
+        该入口不依赖观察者事件，由时间驱动的节拍处理器按拍调用。
+
+        :param snapshot: 节点名称到状态字典的映射
+        """
+        self._funnel(PushRecord(kind="snapshot", snapshot=snapshot))

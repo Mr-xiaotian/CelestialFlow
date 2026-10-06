@@ -8,6 +8,7 @@ from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
 from celestialflow.reporter import PushSpout
+from celestialflow.ticker import Ticker
 
 
 def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
@@ -36,6 +37,21 @@ def _patch_recording_push_spouts(monkeypatch, used: list[str]) -> None:
             used.append('push')
 
     monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
+
+
+def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
+    """将图入口引用的 ticker 替换为记录启停调用的子类。"""
+
+    class _RecordingTicker(Ticker):
+        def start(self) -> None:
+            super().start()
+            events.append('ticker-start')
+
+        def stop(self) -> None:
+            super().stop()
+            events.append('ticker-stop')
+
+    monkeypatch.setattr(core_run, 'Ticker', _RecordingTicker)
 
 
 class TestGraphRunResources:
@@ -122,6 +138,26 @@ class TestGraphRunResources:
             pass
 
         assert used == ['push']
+
+    def test_starts_and_stops_snapshot_ticker_when_report_enabled(
+        self, tmp_path, monkeypatch
+    ):
+        """启用上报时应启动快照节拍器，并在退出时停止。"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / 'pyproject.toml').write_text(
+            '[tool.celestialflow]\n'
+            'if_report = true\n'
+            'report_url = "http://127.0.0.1:9000"\n',
+            encoding='utf-8',
+        )
+        events: list[str] = []
+        _patch_recording_push_spouts(monkeypatch, events)
+        _patch_recording_ticker(monkeypatch, events)
+
+        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver()):
+            pass
+
+        assert events == ['push', 'ticker-start', 'ticker-stop']
 
 
 class TestNodeRunResources:

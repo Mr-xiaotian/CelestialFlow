@@ -96,12 +96,9 @@ class RecordingReporterObserver(Observer):
 
 
 class FakeStatusGraph:
-    """提供 reporter 推送状态所需的最小图接口。"""
+    """提供 reporter 生命周期所需的最小图接口。"""
 
-    def __init__(self, snapshot: dict[str, Any] | None = None) -> None:
-        self.snapshots: dict[str, dict[str, Any]] = {
-            "StageA": dict(snapshot or {"status": 0, "tasks_processed": 0})
-        }
+    def __init__(self) -> None:
         self._graph_id = "demo@status"
         self.observers = ObserverHub()
 
@@ -112,10 +109,6 @@ class FakeStatusGraph:
     def get_observers(self) -> ObserverHub:
         """返回图级观察者 hub。"""
         return self.observers
-
-    def get_status_snapshot(self) -> dict[str, dict[str, Any]]:
-        """返回各节点快照的浅拷贝。"""
-        return {name: dict(snap) for name, snap in self.snapshots.items()}
 
 
 def test_reporter_accepts_split_task_and_termination_payload() -> None:
@@ -185,54 +178,6 @@ def test_reporter_reports_injection_failure_as_inject_kind() -> None:
     assert [kind for kind, _exc in recorder.failures] == ["inject"]
     # 终止符注入与任务注入相互独立，任务注入失败不应阻止终止符注入。
     assert graph.injected_terminations == [["StageB"]]
-
-
-def test_reporter_pushes_status_only_when_snapshot_changes() -> None:
-    """状态快照未变时不应重复推送，变化后才推送新快照。"""
-    graph = FakeStatusGraph()
-    recorder = RecordingReporterObserver()
-    graph.observers.add_observer(recorder)
-    reporter = TaskReporter("127.0.0.1", 8000, graph)
-    reporter._session = FakePushSession()
-    reporter._server_has_status = True
-
-    reporter._push_status()
-    reporter._push_status()
-
-    assert recorder.failures == []
-    assert len(reporter._session.posts) == 1
-
-    graph.snapshots["StageA"] = {"status": 1, "tasks_processed": 3}
-    reporter._push_status()
-
-    assert len(reporter._session.posts) == 2
-    url, payload, _timeout = reporter._session.posts[1]
-    assert url.endswith("/api/push_status")
-    assert payload["status"]["StageA"] == {"status": 1, "tasks_processed": 3}
-
-    # 变化推送后再次采集相同快照，应重新回到静默。
-    reporter._push_status()
-    assert len(reporter._session.posts) == 2
-
-
-def test_reporter_forces_status_push_on_context_switch() -> None:
-    """服务端会话尚无状态缓存时，即使快照未变也必须强制推送一次。"""
-    graph = FakeStatusGraph()
-    recorder = RecordingReporterObserver()
-    graph.observers.add_observer(recorder)
-    reporter = TaskReporter("127.0.0.1", 8000, graph)
-    reporter._session = FakePushSession()
-    reporter._server_has_status = True
-
-    reporter._push_status()
-    assert len(reporter._session.posts) == 1
-
-    # 服务端会话被移除后重建，has_status 返回 False。
-    reporter._server_has_status = False
-    reporter._push_status()
-
-    assert recorder.failures == []
-    assert len(reporter._session.posts) == 2
 
 
 def test_reporter_notifies_shutdown() -> None:
