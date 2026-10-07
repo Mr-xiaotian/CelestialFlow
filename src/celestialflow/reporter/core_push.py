@@ -152,10 +152,10 @@ class PushSpout(BaseSpout):
                 raise ReporterError(f"Failed to push error: {res.status_code}")
         elif record.kind == "snapshot":
             res = self._session.post(
-                f"{self.base_url}/api/push_status",
+                f"{self.base_url}/api/push_snapshot",
                 json={
                     "session_id": self.session_id,
-                    "status": record.snapshot,
+                    "snapshot": record.snapshot,
                     "timestamp": time.time(),
                 },
                 timeout=self.timeout,
