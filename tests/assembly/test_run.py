@@ -72,11 +72,11 @@ class TestGraphRunResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_graph_resources(observers, MetricsObserver(), _InjectionTarget()) as db_path:
+        with run_graph_resources(observers, _InjectionTarget()) as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
-            # 默认不启用上报，仅 lifecycle / log 两个全局 inlet。
-            assert len(observers._snapshot()) == 2
+            # 指标观察者 + lifecycle + log；默认不启用上报。
+            assert len(observers._snapshot()) == 3
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
         """图入口退出时应停止 lifecycle / log spout。"""
@@ -84,7 +84,7 @@ class TestGraphRunResources:
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
-        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -96,7 +96,7 @@ class TestGraphRunResources:
         _patch_recording_spouts(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
-            with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+            with run_graph_resources(ObserverHub(), _InjectionTarget()):
                 raise RuntimeError('boom')
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -113,7 +113,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
 
         assert used == ['push']
@@ -130,7 +130,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
 
         assert used == []
@@ -146,7 +146,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
 
         assert used == ['push']
@@ -166,7 +166,7 @@ class TestGraphRunResources:
         _patch_recording_push_spouts(monkeypatch, events)
         _patch_recording_ticker(monkeypatch, events)
 
-        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
 
         assert events == ['push', 'ticker-start', 'ticker-stop']

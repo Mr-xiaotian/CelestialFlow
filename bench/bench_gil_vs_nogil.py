@@ -101,14 +101,14 @@ def build_chain_graph(
     return graph, node3
 
 
-def metrics_of(node: Any):
-    """取回独立运行节点 hub 上的指标观察者（节点不再持有 ``metrics`` 字段）。"""
+def metrics_of(target: Any):
+    """取回运行对象 hub 上的指标观察者（图/节点自身不再持有 ``metrics`` 字段）。"""
     from celestialflow.observer import MetricsObserver
 
-    for observer in node.observers._snapshot():
+    for observer in target.observers._snapshot():
         if isinstance(observer, MetricsObserver):
             return observer
-    raise RuntimeError("metrics observer not found on node hub")
+    raise RuntimeError("metrics observer not found on hub")
 
 
 def measure_executor(
@@ -148,7 +148,7 @@ def measure_graph(
     start = time.perf_counter()
     graph.run({f"{name}_node_1": items})
     seconds = time.perf_counter() - start
-    node_metrics = graph.metrics.get_node_metrics(sink_node.get_name())
+    node_metrics = metrics_of(graph).get_node_metrics(sink_node.get_name())
     success_count = node_metrics.succeeded if node_metrics is not None else 0
     if success_count != len(items):
         raise RuntimeError(

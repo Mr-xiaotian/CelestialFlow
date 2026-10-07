@@ -21,13 +21,13 @@ class MetricsObserver(Observer):
 
     持有任务图中每个节点的计数、状态与运行起始时间，并作为观察者从事件中写入：
 
-    - 图结构事件：``on_node_added`` 建立节点存储格，``on_node_connected`` 预置边级计数；
     - 节点生命周期：``on_node_start`` / ``on_node_end`` 维护节点状态；
     - 任务事件：``on_task_input`` 区分外部注入与上游投递，``on_task_success`` /
       ``on_task_fail`` / ``on_task_skip`` 累加对应计数。
 
-    上游投递会同时写入接收方的上游计数与来源方的下游计数，因此无需在节点间共享
-    计数器对象，也无需按节点类型特化统计逻辑。
+    存储格随首个事件按需建立，边计数亦由实际任务流向增量写入，因此不依赖建图期的
+    结构事件；上游投递会同时写入接收方的上游计数与来源方的下游计数，无需在节点间
+    共享计数器对象，也无需按节点类型特化统计逻辑。
 
     读取通过 :class:`~celestialflow.runtime.util_types.MetricsView` 协议暴露，
     返回不可变的 :class:`~celestialflow.runtime.util_types.NodeMetrics` 快照。
@@ -95,30 +95,6 @@ class MetricsObserver(Observer):
             upstream_counts=dict(upstream_counts),
             downstream_counts=dict(self._downstream[node]),
         )
-
-    # ==== 图结构 ====
-
-    def on_node_added(self, node: str) -> None:
-        """
-        为加入任务图的节点建立存储格。
-
-        :param node: 加入任务图的节点名称
-        """
-        with self._lock:
-            self._ensure(node)
-
-    def on_node_connected(self, from_node: str, to_node: str) -> None:
-        """
-        预置一条边两侧的上下游计数槽位（以 0 初始化）。
-
-        :param from_node: 上游节点名称
-        :param to_node: 下游节点名称
-        """
-        with self._lock:
-            self._ensure(from_node)
-            self._ensure(to_node)
-            self._upstream[to_node].setdefault(from_node, 0)
-            self._downstream[from_node].setdefault(to_node, 0)
 
     # ==== 节点生命周期 ====
 

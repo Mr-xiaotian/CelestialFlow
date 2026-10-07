@@ -29,40 +29,15 @@ def _upstream_input(node: str, from_node: str) -> TaskInputEvent:
 
 
 class TestMetricsObserverStorage:
-    def test_on_node_added_creates_zeroed_snapshot(self):
-        """``on_node_added`` 应建立以 0 初始化的节点快照。"""
-        observer = MetricsObserver()
-        observer.on_node_added("a")
-
-        metrics = observer.get_node_metrics("a")
-        assert metrics is not None
-        assert metrics.status == NodeStatus.NOT_STARTED
-        assert metrics.start_time == 0.0
-        assert metrics.input_total == 0
-        assert metrics.upstream_counts == {}
-        assert metrics.downstream_counts == {}
-
     def test_unknown_node_returns_none(self):
         """未登记节点的读取应返回 ``None``。"""
         assert MetricsObserver().get_node_metrics("ghost") is None
-
-    def test_on_node_connected_presets_zero_slots(self):
-        """``on_node_connected`` 应以 0 预置两侧边计数槽位。"""
-        observer = MetricsObserver()
-        observer.on_node_connected("a", "b")
-
-        a = observer.get_node_metrics("a")
-        b = observer.get_node_metrics("b")
-        assert a is not None and b is not None
-        assert a.downstream_counts == {"b": 0}
-        assert b.upstream_counts == {"a": 0}
 
 
 class TestMetricsObserverEvents:
     def test_external_input_counted(self):
         """外部输入只增加接收方计数。"""
         observer = MetricsObserver()
-        observer.on_node_added("a")
 
         observer.on_task_input(_external_input("a"))
 
@@ -86,7 +61,6 @@ class TestMetricsObserverEvents:
     def test_success_fail_skip_counts(self):
         """成功/失败/跳过事件分别写入对应计数。"""
         observer = MetricsObserver()
-        observer.on_node_added("a")
 
         observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
         observer.on_task_fail(TaskFailEvent("a", 1, "(1)", ValueError("x"), 1, 2))
@@ -118,8 +92,8 @@ class TestMetricsObserverGraphView:
     def test_cells_are_isolated_between_nodes(self):
         """不同节点的存储格互不影响。"""
         observer = MetricsObserver()
-        observer.on_node_added("a")
-        observer.on_node_added("b")
+        observer.on_node_start(NodeStartEvent("a", "serial", 1))
+        observer.on_node_start(NodeStartEvent("b", "serial", 1))
 
         observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
 
@@ -132,8 +106,8 @@ class TestMetricsObserverGraphView:
     def test_graph_metrics_covers_all_registered_nodes(self):
         """``get_graph_metrics`` 应覆盖所有已登记节点。"""
         observer = MetricsObserver()
-        observer.on_node_added("a")
-        observer.on_node_added("b")
+        observer.on_node_start(NodeStartEvent("a", "serial", 1))
+        observer.on_node_start(NodeStartEvent("b", "serial", 1))
 
         snapshot = observer.get_graph_metrics()
 

@@ -23,14 +23,14 @@ from demo_utils import no_op
 from celestialflow import PrintObserver, TaskExecutor, TaskGraph, TaskSplitter
 
 
-def _metrics_of(node: TaskExecutor[Any, Any]):
-    """取回独立运行节点 hub 上的指标观察者（节点不再持有 ``metrics`` 字段）。"""
+def _metrics_of(target: Any):
+    """取回运行对象 hub 上的指标观察者（图/节点自身不再持有 ``metrics`` 字段）。"""
     from celestialflow.observer import MetricsObserver
 
-    for observer in node.observers._snapshot():
+    for observer in target.observers._snapshot():
         if isinstance(observer, MetricsObserver):
             return observer
-    raise RuntimeError("metrics observer not found on node hub")
+    raise RuntimeError("metrics observer not found on hub")
 
 
 # ==== 去重判定器 ====
@@ -175,7 +175,7 @@ def demo_skip_dedup_graph() -> None:
 
     print("\n[graph] 各节点计数:")
     for name in ["Generator", "Dedup", "Sink"]:
-        metrics = graph.metrics.get_node_metrics(name)
+        metrics = _metrics_of(graph).get_node_metrics(name)
         assert metrics is not None
         print(
             f"  {name:<10} input={metrics.input_total:<4} "

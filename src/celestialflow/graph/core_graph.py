@@ -13,7 +13,6 @@ from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
     GraphStartEvent,
-    MetricsObserver,
     Observer,
     ObserverHub,
 )
@@ -53,7 +52,6 @@ class TaskGraph:
     order_graph: OrderGraph
     start_time: float
     observers: ObserverHub
-    metrics: MetricsObserver
     ctree_client: EventClient
     is_dag: bool
     layers_dict: dict[int, list[str]]
@@ -110,10 +108,6 @@ class TaskGraph:
         # 用于保存观察者
         self.observers = ObserverHub()
 
-        # 用于保存图级指标写模型；建图期即注册，确保节点/连接结构事件不丢失
-        self.metrics = MetricsObserver()
-        self.observers.add_observer(self.metrics)
-
         # 用于保存生命周期数据库路径
         self._lifecycle_db_path = None
 
@@ -134,7 +128,6 @@ class TaskGraph:
             self.order_graph.add_node(node_name)
 
             node.set_ctree(self.ctree_client)
-            self.observers.on_node_added(node_name)
 
         self._analysis_dirty = True
 
@@ -161,7 +154,6 @@ class TaskGraph:
 
                 from_node.connect_to(to_node)
                 self.order_graph.add_edge(from_name, to_name)
-                self.observers.on_node_connected(from_name, to_name)
 
         self._analysis_dirty = True
 
@@ -217,9 +209,6 @@ class TaskGraph:
 
         图级观察者会收到图中所有节点的事件；该注册仅在 :meth:`run` /
         :meth:`run_async` 路径下生效（这两个入口会把图级 hub 注入每个节点）。
-
-        结构类观察者（需要 ``on_node_added`` / ``on_node_connected``）应在建图
-        之前注册，才能实时收到节点与连接事件。
 
         :param observer: 要注册的观察者实例
         """
@@ -296,7 +285,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.metrics, self
+                self.observers, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
@@ -333,7 +322,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.metrics, self
+                self.observers, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():

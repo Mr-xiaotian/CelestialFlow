@@ -623,8 +623,8 @@ class TestTaskSplitter:
         graph.run({"S": [[1, 2, 3]]})
 
         # 每个子任务应作为独立任务到达下游，并各自计一次发送
-        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
-        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 3
+        assert metrics_of(graph).get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
+        assert metrics_of(graph).get_node_metrics(worker.get_name()).succeeded == 3
 
     def test_splitter_allows_empty_iterable(self) -> None:
         """空可迭代对象应产生 0 个子任务，而不是抛异常。"""
@@ -640,9 +640,9 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[]]})
 
-        # 空结果不产生任何子任务，发送计数应为 0
-        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 0
-        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 0
+        # 空结果不产生任何子任务，发送计数为 0（无发送的边不再出现在计数映射中）
+        assert metrics_of(graph).get_node_metrics(splitter.get_name()).downstream_counts.get("A", 0) == 0
+        assert metrics_of(graph).get_node_metrics(worker.get_name()).succeeded == 0
 
     def test_splitter_supports_generator_input(self) -> None:
         """一次性迭代器也应能被完整拆分并继续分发。"""
@@ -658,8 +658,8 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [(i for i in [1, 2, 3])]})
 
-        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
-        assert graph.metrics.get_node_metrics(worker.get_name()).succeeded == 3
+        assert metrics_of(graph).get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
+        assert metrics_of(graph).get_node_metrics(worker.get_name()).succeeded == 3
 
     def test_splitter_custom_func_transforms_items(self) -> None:
         """自定义拆分函数应能对子任务做变换后再分发。"""
@@ -678,7 +678,7 @@ class TestTaskSplitter:
         graph.connect([splitter], [worker])
         graph.run({"S": [[" a ", " b ", " c "]]})
 
-        assert graph.metrics.get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
+        assert metrics_of(graph).get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
         result_pairs = load_task_result_records(graph._lifecycle_db_path, "A")
         assert sorted(task for task, _ in result_pairs) == ["a", "b", "c"]
 
@@ -719,10 +719,10 @@ class TestTaskRouter:
         graph.run({"R": ["msg1", "msg2"]})
 
         # 每个目标节点应收到一次向下游的发送计数
-        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["target1"] == 1
-        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["target2"] == 1
-        assert graph.metrics.get_node_metrics(target1.get_name()).succeeded == 1
-        assert graph.metrics.get_node_metrics(target2.get_name()).succeeded == 1
+        assert metrics_of(graph).get_node_metrics(router.get_name()).downstream_counts["target1"] == 1
+        assert metrics_of(graph).get_node_metrics(router.get_name()).downstream_counts["target2"] == 1
+        assert metrics_of(graph).get_node_metrics(target1.get_name()).succeeded == 1
+        assert metrics_of(graph).get_node_metrics(target2.get_name()).succeeded == 1
 
     def test_router_unknown_target_fails_with_hint(self) -> None:
         """路由到未连接的目标应失败，并给出可诊断的错误信息。"""
@@ -742,9 +742,9 @@ class TestTaskRouter:
         graph.run({"R": ["msg1", "msg2"]})
 
         # 已连接目标正常送达
-        assert graph.metrics.get_node_metrics(target.get_name()).succeeded == 1
+        assert metrics_of(graph).get_node_metrics(target.get_name()).succeeded == 1
         # 未连接目标应计入失败，且错误信息包含允许的目标列表
-        router_metrics = graph.metrics.get_node_metrics(router.get_name())
+        router_metrics = metrics_of(graph).get_node_metrics(router.get_name())
         assert router_metrics is not None
         assert router_metrics.succeeded == 1
         assert router_metrics.failed == 1
@@ -780,8 +780,8 @@ class TestTaskRouter:
         pairs_b = load_task_result_records(graph._lifecycle_db_path, "msg1_b")
         assert [task for task, _ in pairs_a] == ["msg1-a"]
         assert [task for task, _ in pairs_b] == ["msg1-b"]
-        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["msg1_a"] == 1
-        assert graph.metrics.get_node_metrics(router.get_name()).downstream_counts["msg1_b"] == 1
+        assert metrics_of(graph).get_node_metrics(router.get_name()).downstream_counts["msg1_a"] == 1
+        assert metrics_of(graph).get_node_metrics(router.get_name()).downstream_counts["msg1_b"] == 1
 
     def test_router_binding_survives_mode_switch(self) -> None:
         """绑定队列应跨执行模式切换保持稳定。"""

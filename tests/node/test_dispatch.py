@@ -128,7 +128,6 @@ def _make_executor(
     # 模拟 node.run 路径：注册单节点指标观察者，使指标随事件更新。
     metrics_observer = MetricsObserver()
     e.observers.add_observer(metrics_observer)
-    metrics_observer.on_node_added(e.get_name())
     # 通过公开 API 为测试注册结果收集队列，避免向 executor 注入测试专用属性。
     collector: Queue[Any] = Queue()
     e.yield_queue.add_queue("test_collector", collector)

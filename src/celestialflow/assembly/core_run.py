@@ -23,7 +23,6 @@ from ..runtime.util_config import (
     load_log_level_from_pyproject,
     load_report_url_from_pyproject,
 )
-from ..runtime.util_types import MetricsView
 from ..ticker import Ticker, TickHub
 
 _TICK_INTERVAL: float = 1.0
@@ -33,15 +32,14 @@ _TICK_INTERVAL: float = 1.0
 @contextmanager
 def run_graph_resources(
     observers: ObserverHub,
-    metrics_view: MetricsView,
     injection_target: InjectionTarget,
 ) -> Generator[Path | None, None, None]:
     """
-    任务图运行期资源：``lifecycle`` + ``log``，并按 ``if_report`` 决定是否追加
-    远程上报与注入。
+    任务图运行期资源：``metrics`` + ``lifecycle`` + ``log``，并按 ``if_report``
+    决定是否追加远程上报与注入。
 
-    指标写模型由任务图持有并已注册到 ``observers``，本入口只把其只读视图交给
-    ``LogInlet`` 与快照处理器。上报开关从项目级 ``pyproject.toml`` 的
+    指标写模型由本入口创建并注册到 ``observers``，其只读视图交给 ``LogInlet``
+    与快照处理器。上报开关从项目级 ``pyproject.toml`` 的
     ``[tool.celestialflow]`` 节读取：仅当 ``if_report`` 显式配置为 ``true`` 时启用
     上报，此时本入口自行生成一个不透明的上报会话标识，注册 :class:`PushInlet`、
     启动 :class:`PushSpout` 并启动一个以 :data:`_TICK_INTERVAL` 为基准周期的节拍器，
@@ -52,11 +50,13 @@ def run_graph_resources(
     退出时先停节拍器再统一停止 spout，保证运行期即使抛出异常也能完成回收。
 
     :param observers: 任务图自身的观察者 hub
-    :param metrics_view: 指标只读视图，供日志与快照处理器等消费者查询
     :param injection_target: 任务注入目标，通常是任务图自身
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     """
     log_level = load_log_level_from_pyproject()
+
+    metrics_view = MetricsObserver()
+    observers.add_observer(metrics_view)
 
     lifecycle_spout = LifecycleSpout()
     log_spout = LogSpout()
