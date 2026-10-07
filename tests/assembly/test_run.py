@@ -72,7 +72,7 @@ class TestGraphRunResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_graph_resources(observers, "session-1", MetricsObserver(), _InjectionTarget()) as db_path:
+        with run_graph_resources(observers, MetricsObserver(), _InjectionTarget()) as db_path:
             assert db_path is not None
             assert Path(db_path).exists()
             # 默认不启用上报，仅 lifecycle / log 两个全局 inlet。
@@ -84,7 +84,7 @@ class TestGraphRunResources:
         stopped: list[str] = []
         _patch_recording_spouts(monkeypatch, stopped)
 
-        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -96,7 +96,7 @@ class TestGraphRunResources:
         _patch_recording_spouts(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
-            with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+            with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
                 raise RuntimeError('boom')
 
         assert set(stopped) == {'lifecycle', 'log'}
@@ -113,7 +113,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
             pass
 
         assert used == ['push']
@@ -130,7 +130,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
             pass
 
         assert used == []
@@ -146,7 +146,7 @@ class TestGraphRunResources:
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
-        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
             pass
 
         assert used == ['push']
@@ -166,7 +166,7 @@ class TestGraphRunResources:
         _patch_recording_push_spouts(monkeypatch, events)
         _patch_recording_ticker(monkeypatch, events)
 
-        with run_graph_resources(ObserverHub(), 'session-1', MetricsObserver(), _InjectionTarget()):
+        with run_graph_resources(ObserverHub(), MetricsObserver(), _InjectionTarget()):
             pass
 
         assert events == ['push', 'ticker-start', 'ticker-stop']

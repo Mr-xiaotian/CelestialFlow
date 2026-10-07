@@ -92,7 +92,7 @@ def _dequeue(spout: PushSpout) -> PushRecord:
 
 def test_inlet_maps_task_fail_event() -> None:
     """失败事件会被映射为 ``kind="task_fail"`` 的推送记录。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     inlet.on_task_fail(_fail_event(error_id=7, node="s2", task={"value": 1},
@@ -110,7 +110,7 @@ def test_inlet_maps_task_fail_event() -> None:
 
 def test_inlet_maps_graph_start_event() -> None:
     """图启动事件会被映射为 ``kind="graph_start"`` 的推送记录。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     inlet.on_graph_start(_start_event())
@@ -130,7 +130,7 @@ def test_inlet_maps_graph_start_event() -> None:
 
 def test_inlet_maps_graph_end_event() -> None:
     """图结束事件会被映射为 ``kind="graph_end"`` 的推送记录。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     inlet.on_graph_end(_end_event())
@@ -141,7 +141,7 @@ def test_inlet_maps_graph_end_event() -> None:
 
 def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     """失败记录会以 push_error 推送，载荷携带会话标识与记录内容。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
@@ -152,7 +152,7 @@ def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
     assert url == "http://host:1/api/push_error"
-    assert payload["graph_id"] == "g1"
+    assert payload["session_id"] == "g1"
     assert payload["event_id"] == 7
     assert payload["node"] == "s2"
     assert payload["error_type"] == "ValueError"
@@ -162,7 +162,7 @@ def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
 
 def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
     """图元信息会以顶层字段推送到 ``/api/push_graph_meta``。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
@@ -173,7 +173,7 @@ def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
     assert url == "http://host:1/api/push_graph_meta"
-    assert payload["graph_id"] == "g1"
+    assert payload["session_id"] == "g1"
     assert payload["graph"] == "g1"
     assert payload["graph_mode"] == "thread"
     assert payload["is_dag"] is True
@@ -183,7 +183,7 @@ def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
 
 def test_spout_pushes_graph_end_to_shutdown_endpoint() -> None:
     """图结束记录会推送到 ``/api/shutdown_session``，载荷只带会话标识。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
@@ -194,12 +194,12 @@ def test_spout_pushes_graph_end_to_shutdown_endpoint() -> None:
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
     assert url == "http://host:1/api/shutdown_session"
-    assert payload == {"graph_id": "g1"}
+    assert payload == {"session_id": "g1"}
 
 
 def test_handle_record_raises_reporter_error_on_failure() -> None:
     """服务端返回非 2xx 时，``_handle_record`` 抛出 ``ReporterError``。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     spout._session = FakePushSession(ok=False)
 
     with pytest.raises(ReporterError):
@@ -211,7 +211,7 @@ def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
     session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     spout.start()
@@ -237,7 +237,7 @@ def test_spout_thread_survives_push_failure(monkeypatch) -> None:
     session = FakePushSession(ok=False)
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
     spout.start()

@@ -40,7 +40,7 @@ class InjectionHandler(TickHandler):
     def __init__(
         self,
         base_url: str,
-        graph_id: str,
+        session_id: str,
         target: InjectionTarget,
         session: requests.Session,
     ) -> None:
@@ -48,12 +48,13 @@ class InjectionHandler(TickHandler):
         初始化注入处理器。
 
         :param base_url: 远程服务基础地址
-        :param graph_id: 上报会话标识，随拉取请求提交给服务端
+        :param session_id: 上报会话标识，随拉取请求提交给服务端；
+            线上查询参数名为 ``session_id``
         :param target: 注入目标，通常是任务图
         :param session: 复用的 HTTP 会话，由调用方负责关闭
         """
         self._base_url = base_url
-        self._graph_id = graph_id
+        self._session_id = session_id
         self._target = target
         self._session = session
 
@@ -65,7 +66,7 @@ class InjectionHandler(TickHandler):
         """
         res = self._session.get(
             f"{self._base_url}/api/pull_injection",
-            params={"graph_id": self._graph_id},
+            params={"session_id": self._session_id},
             timeout=_PULL_TIMEOUT,
         )
         if not res.ok:

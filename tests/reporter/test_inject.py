@@ -97,7 +97,7 @@ def test_injection_handler_pulls_and_injects() -> None:
     assert target.terminations == [["StageB"]]
     url, params, _timeout = session.gets[0]
     assert url == "http://host:1/api/pull_injection"
-    assert params["graph_id"] == "g1"
+    assert params["session_id"] == "g1"
 
 
 def test_injection_handler_raises_on_pull_failure() -> None:

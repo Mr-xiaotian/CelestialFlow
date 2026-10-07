@@ -1,6 +1,7 @@
 # assembly/core_run.py
 from __future__ import annotations
 
+import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -32,7 +33,6 @@ _TICK_INTERVAL: float = 1.0
 @contextmanager
 def run_graph_resources(
     observers: ObserverHub,
-    report_session_id: str,
     metrics_view: MetricsView,
     injection_target: InjectionTarget,
 ) -> Generator[Path | None, None, None]:
@@ -43,15 +43,15 @@ def run_graph_resources(
     指标写模型由任务图持有并已注册到 ``observers``，本入口只把其只读视图交给
     ``LogInlet`` 与快照处理器。上报开关从项目级 ``pyproject.toml`` 的
     ``[tool.celestialflow]`` 节读取：仅当 ``if_report`` 显式配置为 ``true`` 时启用
-    上报，才会注册 :class:`PushInlet`、启动 :class:`PushSpout` 并启动一个以
-    :data:`_TICK_INTERVAL` 为基准周期的节拍器，把状态快照推送到远端，同时按拍从
-    远端拉取任务注入到 ``injection_target``（``report_url`` 未配置时回退到
+    上报，此时本入口自行生成一个不透明的上报会话标识，注册 :class:`PushInlet`、
+    启动 :class:`PushSpout` 并启动一个以 :data:`_TICK_INTERVAL` 为基准周期的节拍器，
+    把状态快照推送到远端，同时按拍从远端拉取任务注入到 ``injection_target``
+    （``report_url`` 未配置时回退到
     :data:`~celestialflow.runtime.util_config.DEFAULT_REPORT_URL`）。
 
     退出时先停节拍器再统一停止 spout，保证运行期即使抛出异常也能完成回收。
 
     :param observers: 任务图自身的观察者 hub
-    :param report_session_id: 上报会话标识，随记录一并提交给服务端
     :param metrics_view: 指标只读视图，供日志与快照处理器等消费者查询
     :param injection_target: 任务注入目标，通常是任务图自身
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
@@ -67,7 +67,8 @@ def run_graph_resources(
     session: requests.Session | None = None
     ticker: Ticker | None = None
     if load_if_report_from_pyproject():
-        push_spout = PushSpout(report_session_id, load_report_url_from_pyproject())
+        session_id = uuid.uuid4().hex
+        push_spout = PushSpout(session_id, load_report_url_from_pyproject())
         push_inlet = PushInlet().bind_spout(push_spout)
         observers.add_observer(push_inlet)
 
@@ -77,7 +78,7 @@ def run_graph_resources(
         hub.add_handler(
             InjectionHandler(
                 push_spout.base_url,
-                push_spout.graph_id,
+                session_id,
                 injection_target,
                 session,
             )

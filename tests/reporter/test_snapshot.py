@@ -101,7 +101,7 @@ def test_to_status_snapshot_projects_node_metrics() -> None:
 
 def test_handler_enqueues_snapshot_record() -> None:
     """处理器被唤醒时应把当前快照入队为 ``kind="snapshot"`` 记录。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=2)})
     handler = PushSnapshotHandler(view, inlet)
@@ -117,7 +117,7 @@ def test_handler_enqueues_snapshot_record() -> None:
 
 def test_spout_pushes_snapshot_to_push_status_endpoint() -> None:
     """快照记录会被推送到 ``/api/push_status``，载荷携带会话与状态。"""
-    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
@@ -128,6 +128,6 @@ def test_spout_pushes_snapshot_to_push_status_endpoint() -> None:
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
     assert url == "http://host:1/api/push_status"
-    assert payload["graph_id"] == "g1"
+    assert payload["session_id"] == "g1"
     assert payload["status"] == {"s1": {"status": 1}}
     assert payload["timestamp"] > 0

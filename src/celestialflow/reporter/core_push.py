@@ -63,19 +63,20 @@ class PushSpout(BaseSpout):
 
     def __init__(
         self,
-        graph_id: str,
+        session_id: str,
         base_url: str,
         timeout: float = 3.0,
     ) -> None:
         """
         初始化推送监听器。
 
-        :param graph_id: 上报会话标识，随记录一并提交给服务端
+        :param session_id: 上报会话标识，随记录一并提交给服务端；
+            线上字段名为 ``session_id``
         :param base_url: 远程服务基础地址
         :param timeout: 单次推送请求的超时时间（秒），默认 3.0
         """
         super().__init__()
-        self.graph_id = graph_id
+        self.session_id = session_id
         self.base_url = base_url
         self.timeout = timeout
 
@@ -108,7 +109,7 @@ class PushSpout(BaseSpout):
             res = self._session.post(
                 f"{self.base_url}/api/push_graph_meta",
                 json={
-                    "graph_id": self.graph_id,
+                    "session_id": self.session_id,
                     "graph": record.graph,
                     "graph_mode": record.graph_mode,
                     "start_time": record.start_time,
@@ -126,7 +127,7 @@ class PushSpout(BaseSpout):
         elif record.kind == "graph_end":
             res = self._session.post(
                 f"{self.base_url}/api/shutdown_session",
-                json={"graph_id": self.graph_id},
+                json={"session_id": self.session_id},
                 timeout=self.timeout,
             )
             if not res.ok:
@@ -137,7 +138,7 @@ class PushSpout(BaseSpout):
             res = self._session.post(
                 f"{self.base_url}/api/push_error",
                 json={
-                    "graph_id": self.graph_id,
+                    "session_id": self.session_id,
                     "event_id": record.event_id,
                     "node": record.node,
                     "task_json": record.task_json,
@@ -153,7 +154,7 @@ class PushSpout(BaseSpout):
             res = self._session.post(
                 f"{self.base_url}/api/push_status",
                 json={
-                    "graph_id": self.graph_id,
+                    "session_id": self.session_id,
                     "status": record.snapshot,
                     "timestamp": time.time(),
                 },

@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -46,7 +45,6 @@ class TaskGraph:
 
     # ==== 类级类型注解 ====
     name: str
-    graph_id: str
     graph_mode: str
     threads: list[threading.Thread]
     node_dict: dict[str, AnyTaskNode]
@@ -171,12 +169,11 @@ class TaskGraph:
 
     def _set_name(self, name: str) -> None:
         """
-        设置任务图名称，并生成该运行实例的不透明唯一标识。
+        设置任务图名称。
 
         :param name: 任务图名称
         """
         self.name = name
-        self.graph_id = uuid.uuid4().hex
 
     def set_graph_mode(self, graph_mode: str) -> None:
         """
@@ -299,7 +296,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.graph_id, self.metrics, self
+                self.observers, self.metrics, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
@@ -336,7 +333,7 @@ class TaskGraph:
 
         try:
             with run_graph_resources(
-                self.observers, self.graph_id, self.metrics, self
+                self.observers, self.metrics, self
             ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
@@ -583,14 +580,6 @@ class TaskGraph:
             await asyncio.to_thread(node.start)
 
     # ==== 查询接口 ====
-
-    def get_graph_id(self) -> str:
-        """
-        获取当前任务图实例的唯一标识。
-
-        :return: graph_id
-        """
-        return self.graph_id
 
     def get_nodes(self) -> list[str]:
         """
