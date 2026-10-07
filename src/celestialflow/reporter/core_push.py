@@ -8,12 +8,12 @@ from typing import Any, Literal
 import requests
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observer import GraphStartEvent, Observer, TaskFailEvent
+from ..observer import GraphEndEvent, GraphStartEvent, Observer, TaskFailEvent
 from ..persist.util_payload import to_persisted_payload
 from ..runtime.util_errors import ReporterError
 
-type PushKind = Literal["graph_start", "task_fail", "snapshot"]
-"""推送记录类型：``"graph_start"`` 为图元信息，``"task_fail"`` 为任务失败，``"snapshot"`` 为图级状态快照。"""
+type PushKind = Literal["graph_start", "graph_end", "task_fail", "snapshot"]
+"""推送记录类型：``"graph_start"`` 为图元信息，``"graph_end"`` 为图结束（会话下线通知），``"task_fail"`` 为任务失败，``"snapshot"`` 为图级状态快照。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,8 +22,8 @@ class PushRecord:
     一条待推送的上报记录。
 
     ``kind`` 决定推送目标与生效字段：``"graph_start"`` 使用图元信息字段，
-    ``"task_fail"`` 使用任务失败字段，``"snapshot"`` 使用状态快照字段；
-    与当前 ``kind`` 无关的字段保持默认值。
+    ``"graph_end"`` 无额外字段，``"task_fail"`` 使用任务失败字段，
+    ``"snapshot"`` 使用状态快照字段；与当前 ``kind`` 无关的字段保持默认值。
     """
 
     kind: PushKind
@@ -123,6 +123,16 @@ class PushSpout(BaseSpout):
             )
             if not res.ok:
                 raise ReporterError(f"Failed to push graph meta: {res.status_code}")
+        elif record.kind == "graph_end":
+            res = self._session.post(
+                f"{self.base_url}/api/shutdown_session",
+                json={"graph_id": self.graph_id},
+                timeout=self.timeout,
+            )
+            if not res.ok:
+                raise ReporterError(
+                    f"Failed to notify shutdown: {res.status_code}"
+                )
         elif record.kind == "task_fail":
             res = self._session.post(
                 f"{self.base_url}/api/push_error",
@@ -170,7 +180,7 @@ class NullPushSpout(BaseSpout):
 
 class PushInlet(BaseInlet, Observer):
     """
-    推送观察者：把观测到的图启动与任务失败事件转换为上报记录并入队，
+    推送观察者：把观测到的图启动、图结束与任务失败事件转换为上报记录并入队，
     交由推送 spout 发送。
 
     另提供不经过观察者事件的 :meth:`push_snapshot`，供时间驱动的节拍处理器
@@ -195,6 +205,17 @@ class PushInlet(BaseInlet, Observer):
             source_nodes=event.source_nodes,
             node_meta=event.node_meta,
         ))
+
+    def on_graph_end(self, event: GraphEndEvent) -> None:
+        """
+        将图结束事件转换为会话下线通知记录并入队。
+
+        服务端收到后把本会话标记为已结束；会话数据与错误库仍保留，
+        供前端切换查看。
+
+        :param event: 任务图结束事件
+        """
+        self._funnel(PushRecord(kind="graph_end"))
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         """

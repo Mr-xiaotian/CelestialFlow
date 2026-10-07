@@ -3,7 +3,7 @@ from typing import Any
 import pytest
 
 import celestialflow.reporter.core_push as push_module
-from celestialflow.observer import GraphStartEvent, TaskFailEvent
+from celestialflow.observer import GraphEndEvent, GraphStartEvent, TaskFailEvent
 from celestialflow.reporter.core_push import (
     NullPushSpout,
     PushInlet,
@@ -78,6 +78,11 @@ def _start_event() -> GraphStartEvent:
     )
 
 
+def _end_event() -> GraphEndEvent:
+    """构造一个任务图结束事件。"""
+    return GraphEndEvent(graph="g1", elapsed=1.5)
+
+
 def _dequeue(spout: PushSpout) -> PushRecord:
     """取出 spout 队列中的单条记录。"""
     record = spout.get_queue().get()
@@ -123,6 +128,17 @@ def test_inlet_maps_graph_start_event() -> None:
     assert record.node_meta["s1"]["max_workers"] == 2
 
 
+def test_inlet_maps_graph_end_event() -> None:
+    """图结束事件会被映射为 ``kind="graph_end"`` 的推送记录。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    inlet = PushInlet().bind_spout(spout)
+
+    inlet.on_graph_end(_end_event())
+
+    record = _dequeue(spout)
+    assert record.kind == "graph_end"
+
+
 def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     """失败记录会以 push_error 推送，载荷携带会话标识与记录内容。"""
     spout = PushSpout(graph_id="g1", base_url="http://host:1")
@@ -163,6 +179,22 @@ def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
     assert payload["is_dag"] is True
     assert payload["nodes"] == ["s1", "s2"]
     assert payload["node_meta"]["s1"]["max_workers"] == 2
+
+
+def test_spout_pushes_graph_end_to_shutdown_endpoint() -> None:
+    """图结束记录会推送到 ``/api/shutdown_session``，载荷只带会话标识。"""
+    spout = PushSpout(graph_id="g1", base_url="http://host:1")
+    session = FakePushSession()
+    spout._session = session
+    inlet = PushInlet().bind_spout(spout)
+
+    inlet.on_graph_end(_end_event())
+    spout._handle_record(_dequeue(spout))
+
+    assert len(session.posts) == 1
+    url, payload, _timeout = session.posts[0]
+    assert url == "http://host:1/api/shutdown_session"
+    assert payload == {"graph_id": "g1"}
 
 
 def test_handle_record_raises_reporter_error_on_failure() -> None:
