@@ -7,7 +7,7 @@ from celestialflow.assembly.core_run import run_graph_resources, run_node_resour
 from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
-from celestialflow.reporter import PushSpout
+from celestialflow.reporter import PushInlet, PushSnapshotHandler, PushSpout
 from celestialflow.ticker import Ticker
 
 
@@ -150,6 +150,25 @@ class TestGraphRunResources:
             pass
 
         assert used == ['push']
+
+    def test_registers_snapshot_handler_before_push_inlet(self, tmp_path, monkeypatch):
+        """启用上报时，快照处理器应注册在 PushInlet 之前，保证终态快照先于下线通知入队。"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / 'pyproject.toml').write_text(
+            '[tool.celestialflow]\n'
+            'if_report = true\n'
+            'report_url = "http://127.0.0.1:9000"\n',
+            encoding='utf-8',
+        )
+        observers = ObserverHub()
+
+        with run_graph_resources(observers, _InjectionTarget()):
+            snapshot = observers._snapshot()
+
+        kinds = [type(observer).__name__ for observer in snapshot]
+        assert isinstance(snapshot[kinds.index('PushSnapshotHandler')], PushSnapshotHandler)
+        assert isinstance(snapshot[kinds.index('PushInlet')], PushInlet)
+        assert kinds.index('PushSnapshotHandler') < kinds.index('PushInlet')
 
     def test_starts_and_stops_snapshot_ticker_when_report_enabled(
         self, tmp_path, monkeypatch

@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from ..observer import GraphEndEvent, Observer
 from ..runtime.util_types import MetricsView, NodeMetrics
 from ..ticker import TickEvent, TickHandler
 from .core_push import PushInlet
@@ -35,13 +36,18 @@ def to_status_snapshot(
     }
 
 
-class PushSnapshotHandler(TickHandler):
-    """按拍把图级指标快照交给推送通道的节拍处理器。
+class PushSnapshotHandler(TickHandler, Observer):
+    """把图级指标快照交给推送通道的处理器。
 
-    每拍从 :class:`~celestialflow.runtime.util_types.MetricsView` 读取整图指标，
-    经 :func:`to_status_snapshot` 投影为状态载荷后写入
+    按拍（:class:`~celestialflow.ticker.core_handler.TickHandler`）从
+    :class:`~celestialflow.runtime.util_types.MetricsView` 读取整图指标，经
+    :func:`to_status_snapshot` 投影为状态载荷后写入
     :class:`~celestialflow.reporter.core_push.PushInlet`，由推送 spout 异步发送。
-    本处理器只做投影与入队，不进行任何网络 IO。
+
+    同时作为 :class:`~celestialflow.observer.Observer` 监听图结束事件：快照只在
+    节拍上产生，而图收尾会立即停止节拍器，末拍与图结束之间的终态（全部节点
+    ``STOPPED`` 与最终计数）不会被任何节拍捕获，因此在 :meth:`on_graph_end` 补推
+    一次终态快照。本处理器只做投影与入队，不进行任何网络 IO。
     """
 
     def __init__(self, metrics_view: MetricsView, inlet: PushInlet) -> None:
@@ -60,5 +66,20 @@ class PushSnapshotHandler(TickHandler):
 
         :param event: 当前节拍事件
         """
+        self._push_snapshot()
+
+    def on_graph_end(self, event: GraphEndEvent) -> None:
+        """
+        图结束时补推一次终态快照。
+
+        本回调在节点全部结束、图收尾阶段触发，此时指标已收敛为终值；补推可
+        确保服务端拿到图运行结束时的完整状态。
+
+        :param event: 任务图结束事件
+        """
+        self._push_snapshot()
+
+    def _push_snapshot(self) -> None:
+        """读取整图指标并投影入队为一条状态快照记录。"""
         snapshot = to_status_snapshot(self._metrics_view.get_graph_metrics())
         self._inlet.push_snapshot(snapshot)

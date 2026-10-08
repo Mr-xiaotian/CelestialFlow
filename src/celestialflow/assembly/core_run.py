@@ -41,9 +41,10 @@ def run_graph_resources(
     指标写模型由本入口创建并注册到 ``observers``，其只读视图交给 ``LogInlet``
     与快照处理器。上报开关从项目级 ``pyproject.toml`` 的
     ``[tool.celestialflow]`` 节读取：仅当 ``if_report`` 显式配置为 ``true`` 时启用
-    上报，此时本入口自行生成一个不透明的上报会话标识，注册 :class:`PushInlet`、
-    启动 :class:`PushSpout` 并启动一个以 :data:`_TICK_INTERVAL` 为基准周期的节拍器，
-    把状态快照推送到远端，同时按拍从远端拉取任务注入到 ``injection_target``
+    上报，此时本入口自行生成一个不透明的上报会话标识，注册 :class:`PushInlet` 与
+    :class:`PushSnapshotHandler`、启动 :class:`PushSpout` 并启动一个以
+    :data:`_TICK_INTERVAL` 为基准周期的节拍器，按拍把状态快照推送到远端（并在图
+    结束时补推一次终态快照），同时按拍从远端拉取任务注入到 ``injection_target``
     （``report_url`` 未配置时回退到
     :data:`~celestialflow.runtime.util_config.DEFAULT_REPORT_URL`）。
 
@@ -70,11 +71,11 @@ def run_graph_resources(
         session_id = uuid.uuid4().hex
         push_spout = PushSpout(session_id, load_report_url_from_pyproject())
         push_inlet = PushInlet().bind_spout(push_spout)
-        observers.add_observer(push_inlet)
 
         session = requests.Session()
         hub = TickHub()
-        hub.add_handler(PushSnapshotHandler(metrics_view, push_inlet))
+        snapshot_handler = PushSnapshotHandler(metrics_view, push_inlet)
+        hub.add_handler(snapshot_handler)
         hub.add_handler(
             InjectionHandler(
                 push_spout.base_url,
@@ -84,6 +85,11 @@ def run_graph_resources(
             )
         )
         ticker = Ticker(_TICK_INTERVAL, hub, name="report")
+
+        # 快照处理器同时观察 on_graph_end 补推终态快照；注册在 PushInlet 之前，
+        # 保证终态快照先于 shutdown_session 入队。
+        observers.add_observer(snapshot_handler)
+        observers.add_observer(push_inlet)
 
     try:
         lifecycle_spout.start()

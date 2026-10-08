@@ -234,6 +234,8 @@ class PushInlet(BaseInlet, Observer):
             ts=time.time(),
         ))
 
+    # ==== 供 Ticker 使用 ====
+
     def push_snapshot(self, snapshot: dict[str, dict[str, Any]]) -> None:
         """
         将图级状态快照转为推送记录并入队。

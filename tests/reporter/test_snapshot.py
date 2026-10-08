@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from celestialflow.observer import GraphEndEvent
 from celestialflow.reporter import PushSnapshotHandler, PushSpout
 from celestialflow.reporter.core_push import PushInlet, PushRecord
 from celestialflow.reporter.core_snapshot import to_status_snapshot
@@ -112,6 +113,22 @@ def test_handler_enqueues_snapshot_record() -> None:
     assert isinstance(record, PushRecord)
     assert record.kind == "snapshot"
     assert record.snapshot["s1"]["tasks_succeeded"] == 2
+    assert view.graph_calls == 1
+
+
+def test_handler_pushes_final_snapshot_on_graph_end() -> None:
+    """图结束时处理器应补推一次终态快照，覆盖末拍与图结束之间的终态。"""
+    spout = PushSpout(session_id="g1", base_url="http://host:1")
+    inlet = PushInlet().bind_spout(spout)
+    view = FakeMetricsView({"s1": make_metrics("s1", succeeded=5)})
+    handler = PushSnapshotHandler(view, inlet)
+
+    handler.on_graph_end(GraphEndEvent(graph="g1", elapsed=1.0))
+
+    record = spout.get_queue().get()
+    assert isinstance(record, PushRecord)
+    assert record.kind == "snapshot"
+    assert record.snapshot["s1"]["tasks_succeeded"] == 5
     assert view.graph_calls == 1
 
 
