@@ -52,7 +52,9 @@ class Ticker:
         :raises ConfigurationError: ``interval`` 非正，或处理器 ``tick_period`` 非法
         """
         if interval <= 0:
-            raise ConfigurationError(f"ticker interval must be positive, got {interval}")
+            raise ConfigurationError(
+                f"ticker interval must be positive, got {interval}"
+            )
         validate_tick_period(handler)
 
         self._handler = handler
@@ -126,7 +128,9 @@ class Ticker:
         :raises ConfigurationError: ``interval`` 非正
         """
         if interval <= 0:
-            raise ConfigurationError(f"ticker interval must be positive, got {interval}")
+            raise ConfigurationError(
+                f"ticker interval must be positive, got {interval}"
+            )
         with self._cond:
             self._interval = float(interval)
             self._cond.notify_all()

@@ -123,7 +123,9 @@ class LogInlet(BaseInlet, Observer):
 
         :param event: 任务图启动事件
         """
-        structure_list = render_structure_list(event.nodes, event.edges, event.source_nodes)
+        structure_list = render_structure_list(
+            event.nodes, event.edges, event.source_nodes
+        )
         self._log(
             "INFO",
             f"Graph '{event.graph}' start by {event.graph_mode}. Graph structure:",

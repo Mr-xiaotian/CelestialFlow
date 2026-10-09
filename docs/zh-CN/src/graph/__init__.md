@@ -91,6 +91,7 @@ from celestialflow.graph import (
 ```python
 from celestialflow import TaskGraph, TaskExecutor
 
+
 # 定义阶段函数
 def stage_a_func(x: int) -> int:
     return x + 1

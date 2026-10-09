@@ -284,9 +284,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(
-                self.observers, self
-            ) as lifecycle_db_path:
+            with run_graph_resources(self.observers, self) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -321,9 +319,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(
-                self.observers, self
-            ) as lifecycle_db_path:
+            with run_graph_resources(self.observers, self) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:

@@ -129,7 +129,9 @@ hub = ObserverHub()
 hub.add_observer(lifecycle_inlet)
 
 # 模拟节点产生任务事件（实际由节点在运行时发起）
-hub.on_task_input(TaskInputEvent(node="StageA", task="hello", task_repr="hello", input_id=1))
+hub.on_task_input(
+    TaskInputEvent(node="StageA", task="hello", task_repr="hello", input_id=1)
+)
 
 lifecycle_spout.stop()
 ```

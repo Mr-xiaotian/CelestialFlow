@@ -86,7 +86,12 @@ __all__ = [
 ## 使用示例
 
 ```python
-from celestialflow.observer import Observer, ObserverHub, TaskSuccessEvent, MetricsObserver
+from celestialflow.observer import (
+    Observer,
+    ObserverHub,
+    TaskSuccessEvent,
+    MetricsObserver,
+)
 
 
 class MyObserver(Observer):

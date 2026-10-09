@@ -178,9 +178,14 @@ print(f"共 {total} 条，第 1/{total_pages} 页")
 ### 读取任务错误 / 结果配对
 
 ```python
-from celestialflow.persist.util_sqlite import load_task_error_records, load_task_result_records
+from celestialflow.persist.util_sqlite import (
+    load_task_error_records,
+    load_task_result_records,
+)
 
-errors = load_task_error_records(db_path, node="StageA")   # [(task, (error_type, error_message))]
+errors = load_task_error_records(
+    db_path, node="StageA"
+)  # [(task, (error_type, error_message))]
 results = load_task_result_records(db_path, node="StageA")  # [(task, result)]
 ```
 

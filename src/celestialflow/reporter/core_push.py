@@ -37,7 +37,9 @@ class PushRecord:
     nodes: list[str] = field(default_factory=list[str])
     edges: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
     source_nodes: list[str] = field(default_factory=list[str])
-    node_meta: dict[str, dict[str, Any]] = field(default_factory=dict[str, dict[str, Any]])
+    node_meta: dict[str, dict[str, Any]] = field(
+        default_factory=dict[str, dict[str, Any]]
+    )
 
     # on_task_fail
     event_id: int = 0
@@ -131,9 +133,7 @@ class PushSpout(BaseSpout):
                 timeout=self.timeout,
             )
             if not res.ok:
-                raise ReporterError(
-                    f"Failed to notify shutdown: {res.status_code}"
-                )
+                raise ReporterError(f"Failed to notify shutdown: {res.status_code}")
         elif record.kind == "task_fail":
             res = self._session.post(
                 f"{self.base_url}/api/push_error",
@@ -194,18 +194,20 @@ class PushInlet(BaseInlet, Observer):
 
         :param event: 任务图启动事件
         """
-        self._funnel(PushRecord(
-            kind="graph_start",
-            graph=event.graph,
-            graph_mode=event.graph_mode,
-            start_time=event.start_time,
-            class_name=event.class_name,
-            is_dag=event.is_dag,
-            nodes=event.nodes,
-            edges=event.edges,
-            source_nodes=event.source_nodes,
-            node_meta=event.node_meta,
-        ))
+        self._funnel(
+            PushRecord(
+                kind="graph_start",
+                graph=event.graph,
+                graph_mode=event.graph_mode,
+                start_time=event.start_time,
+                class_name=event.class_name,
+                is_dag=event.is_dag,
+                nodes=event.nodes,
+                edges=event.edges,
+                source_nodes=event.source_nodes,
+                node_meta=event.node_meta,
+            )
+        )
 
     def on_graph_end(self, event: GraphEndEvent) -> None:
         """
@@ -224,15 +226,17 @@ class PushInlet(BaseInlet, Observer):
 
         :param event: 任务失败事件
         """
-        self._funnel(PushRecord(
-            kind="task_fail",
-            event_id=event.error_id,
-            node=event.node,
-            task_json=to_persisted_payload(event.task),
-            error_type=type(event.exception).__name__,
-            error_message=str(event.exception),
-            ts=time.time(),
-        ))
+        self._funnel(
+            PushRecord(
+                kind="task_fail",
+                event_id=event.error_id,
+                node=event.node,
+                task_json=to_persisted_payload(event.task),
+                error_type=type(event.exception).__name__,
+                error_message=str(event.exception),
+                ts=time.time(),
+            )
+        )
 
     # ==== 供 Ticker 使用 ====
 
