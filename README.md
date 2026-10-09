@@ -246,44 +246,45 @@ flowchart TD
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(329MB 507KB 284B)
-    📁 bench           	(316KB 601B)
-        📁 [1项排除的目录]                  	(194KB 222B)
+📁 CelestialFlow	(539MB 107KB 283B)
+    📁 bench           	(316KB 409B)
+        📁 [1项排除的目录]                  	(193KB 163B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
         🐍 bench_funnel_vs_lock.py          	(21KB 888B)
         🐍 bench_futures_memory.py          	(2KB 269B)
-        🐍 bench_gil_vs_nogil.py            	(9KB 983B)
+        🐍 bench_gil_vs_nogil.py            	(10KB 552B)
         🐍 bench_graph_mode.py              	(6KB 614B)
         🐍 bench_hash.py                    	(7KB 67B)
         🐍 bench_hash_container.py          	(3KB 1009B)
         🐍 bench_hash_memory.py             	(3KB 655B)
-        🐍 bench_http_grpc.py               	(2KB 536B)
+        🐍 bench_http_grpc.py               	(2KB 530B)
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
-        🐍 bench_observer.py                	(6KB 761B)
-        🐍 bench_persistence_spout.py       	(4KB 340B)
+        🐍 bench_observer.py                	(7KB 58B)
+        🐍 bench_persist_spout.py           	(4KB 323B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(353KB 885B)
-        📁 [3项排除的目录]  	(302KB 399B)
-        🐍 demo_executor.py 	(1KB 495B)
-        🐍 demo_funnel.py   	(2KB 289B)
-        🐍 demo_graph.py    	(3KB 222B)
-        🐍 demo_network.py  	(3KB 756B)
-        🐍 demo_nodes.py    	(4KB 231B)
-        🐍 demo_observer.py 	(2KB 684B)
-        🐍 demo_redis.py    	(8KB 999B)
-        🐍 demo_structure.py	(9KB 290B)
-        🐍 demo_utils.py    	(6KB 263B)
-        🐍 demo_web.py      	(9KB 353B)
-    📁 docs            	(2MB 52KB 639B)
-        📁 en[已折叠]   	(689KB 420B)
-        📁 ja[已折叠]   	(788KB 350B)
-        📁 zh-CN[已折叠]	(622KB 893B)
+    📁 demo            	(604KB 612B)
+        📁 [3项排除的目录]   	(548KB 510B)
+        🐍 demo_executor.py  	(1KB 557B)
+        🐍 demo_funnel.py    	(2KB 289B)
+        🐍 demo_graph.py     	(2KB 975B)
+        🐍 demo_network.py   	(3KB 756B)
+        🐍 demo_nodes.py     	(3KB 915B)
+        🐍 demo_observer.py  	(2KB 1004B)
+        🐍 demo_redis.py     	(8KB 595B)
+        🐍 demo_skip_dedup.py	(6KB 286B)
+        🐍 demo_structure.py 	(8KB 448B)
+        🐍 demo_utils.py     	(6KB 263B)
+        🐍 demo_web.py       	(9KB 158B)
+    📁 docs            	(2MB 40KB 774B)
+        📁 en[已折叠]   	(689KB 413B)
+        📁 ja[已折叠]   	(788KB 343B)
+        📁 zh-CN[已折叠]	(611KB 18B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -292,67 +293,55 @@ flowchart TD
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 829KB 441B)
-        📁 celestialflow[已折叠]	(1MB 809KB 299B)
-        📁 [1项排除的目录]      	(20KB 142B)
-    📁 tests           	(3MB 653KB 168B)
-        📁 benchmark[已折叠]    	(45KB 270B)
-        📁 funnel[已折叠]       	(96KB 339B)
-        📁 graph[已折叠]        	(723KB 325B)
-        📁 node[已折叠]         	(461KB 925B)
-        📁 observability[已折叠]	(221KB 746B)
-        📁 persistence[已折叠]  	(410KB 135B)
-        📁 runtime[已折叠]      	(1MB 253KB 849B)
-        📁 [1项排除的目录]      	(487KB 637B)
-        🐍 conftest.py          	(1KB 38B)
-    📁 [13项排除的目录]	(315MB 353KB 422B)
+    📁 src             	(1MB 670KB 974B)
+        📁 celestialflow[已折叠]	(1MB 651KB 430B)
+        📁 [1项排除的目录]      	(19KB 544B)
+    📁 tests           	(3MB 34KB 484B)
+        📁 assembly[已折叠]   	(38KB 341B)
+        📁 benchmark[已折叠]  	(41KB 377B)
+        📁 funnel[已折叠]     	(96KB 339B)
+        📁 graph[已折叠]      	(801KB 83B)
+        📁 node[已折叠]       	(512KB 601B)
+        📁 observer[已折叠]   	(121KB 111B)
+        📁 persist[已折叠]    	(207KB 907B)
+        📁 persistence[已折叠]	(381KB 89B)
+        📁 reporter[已折叠]   	(171KB 861B)
+        📁 runtime[已折叠]    	(189KB 873B)
+        📁 ticker[已折叠]     	(54KB 761B)
+        📁 [1项排除的目录]    	(488KB 592B)
+        🐍 conftest.py        	(1KB 693B)
+    📁 [13项排除的目录]	(525MB 488KB 753B)
     ❓ .env            	(468B)
     ❓ .gitignore      	(1KB 315B)
-    📝 AGENTS.md       	(1KB 576B)
+    📝 AGENTS.md       	(1KB 1003B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
-    ⚙️ pyproject.toml  	(2KB 668B)
-    📝 README.md       	(18KB 12B)
-    🔒 uv.lock         	(120KB 756B)
+    ⚙️ pyproject.toml  	(2KB 858B)
+    📝 README.md       	(16KB 619B)
+    🔒 uv.lock         	(124KB 729B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.1</em>
+  <em>celestial-flow 3.3.2</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.3.1
+- 3.3.2
   - feat:
-    - [IMPORTANT] 在 `TaskMetrics` 中添加 `upstream_counter` / `downstream_counter` 细致化记录上下游传输数据量
-      - 在 `reporter` 中传送节点的 `upstream_counter` / `downstream_counter`
-      - 同步更新web端, 现在web端的结构图中可以显示精确的上下游传送任务数量
-    - [IMPORTANT] 删除 `duplocate` 机制
-      - 这是非常 非常艰难的选择, `duplocate` 机制极其古老, 但在我的仔细评估后我认为问题有三:
-        - 1. 传入的任务未必hash able, 现有的hash函数不确定性极大
-        - 2. 如果要确保任务可hash, 最好单独传一个处理任务的func, 但这会添加node的参数复杂度
-        - 3. 同时duplocate在单node时完全可以被任务输入前的筛选来取代, 而graph时的收益的则非常不明显
-      - 反复考虑认为还是遵从简洁的第一性原则
-    - 简化 `log.task_success` 输出, 不再显示 `execution_mode`
-    - 在 `lifecycle` 中添加 `retry_time` 字段
-    - 添加一个开箱即用的 `observer`,  `ObserverPrint`
-      - 在graph环境下显示的 `total` 会有问题, 下个版本解决
+    - [IMPORTANT] 大幅扩充 `observer` 机制, 添加更多钩子
+      - 添加 `ObserverHub` 进行管理, 其本身也是 `observer`
+    - [IMPORTANT] 添加 `ticker` 机制, 以周期性的时间为驱动
+      - 作为纯事件驱动的 `observer` 的补充
+    - 由于 `reprter` 机制的完全重构, 其开启与使用方法也有所变化
+      - 改为在 `.pyproject` 中进行设置
   - refactor:
-    - [IMPORTANT] 大幅简化 `reporter` 中的数据, 现在只传输原始状态数据, 具体的分析交给前端完成
-    - 移除 `log.split_trace` / `log.split_success` / `log.route_success`, 并统一使用 `log.task_in` 来表达下游任务成功
-    - 移除 `node.get_binding_counter` 和 `node.prev_binding`, 并添加 `node.connect_to` 统一负责绑定上下游节点
-    - 在 `TaskNode` 中添加新的泛型 `Y`, 表示向下游传输的任务类型
-      - 这是为了优化 `splitter` 和 `router`
-    - 节点的 `elapsed_time` 现在由 `dispatch` 来自行计算, 保证精准
-      - 话说我之前为什么要弄那么一套即麻烦又不准的算法?
-    - 在 `reporter` 中为 `status` 添加门控, 如果当前状态与上一次发送状态一致, 则不进行发送
-      - 至此 `reporter` 中所有的 `push_*` 都拥有门控, 避免无效的数据发送
-  - fix:
-  - chore:
-    - 添加 `bench_funnel_vs_lock`, 用来测试并发环境下, 使用funnel和使用locl记录数据的性能差
-      - 前者发送延迟低, 但内存占用高
-      - ![bench/bench_funnel_vs_lock.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/bench_funnel_vs_lock.md)
-    - 添加 `demo_web`, 用于进行复杂结构的web演示
+    - [IMPORTANT] 将 `log` / `lifecycle` 归并入新的 `observer` 体系
+      - 结构更加简洁高效
+    - [IMPORTANT] 将 `reporter` 拆为 完全分离的 `push` 与 `pull`
+      - 前者由 `PushInlet` 进行事件化收集 `error` `meta` 数据, 并由 `PushSnapshotHandler` 周期化收集状态信息
+      - 后者由 `InjectionHandler` 周期化从服务端收集注入任务与注入终止符
+    - 将 `metric` 机制归入 `observer` 体系
 
 更多过往日志可看:
 

@@ -500,9 +500,23 @@
       - 话说我之前为什么要弄那么一套即麻烦又不准的算法?
     - 在 `reporter` 中为 `status` 添加门控, 如果当前状态与上一次发送状态一致, 则不进行发送
       - 至此 `reporter` 中所有的 `push_*` 都拥有门控, 避免无效的数据发送
-  - fix:
   - chore:
     - 添加 `bench_funnel_vs_lock`, 用来测试并发环境下, 使用funnel和使用locl记录数据的性能差
       - 前者发送延迟低, 但内存占用高
       - ![bench/bench_funnel_vs_lock.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/bench_funnel_vs_lock.md)
     - 添加 `demo_web`, 用于进行复杂结构的web演示
+- 3.3.2
+  - feat:
+    - [IMPORTANT] 大幅扩充 `observer` 机制, 添加更多钩子
+      - 添加 `ObserverHub` 进行管理, 其本身也是 `observer`
+    - [IMPORTANT] 添加 `ticker` 机制, 以周期性的时间为驱动
+      - 作为纯事件驱动的 `observer` 的补充
+    - 由于 `reprter` 机制的完全重构, 其开启与使用方法也有所变化
+      - 改为在 `.pyproject` 中进行设置
+  - refactor:
+    - [IMPORTANT] 将 `log` / `lifecycle` 归并入新的 `observer` 体系
+      - 结构更加简洁高效
+    - [IMPORTANT] 将 `reporter` 拆为 完全分离的 `push` 与 `pull`
+      - 前者由 `PushInlet` 进行事件化收集 `error` `meta` 数据, 并由 `PushSnapshotHandler` 周期化收集状态信息
+      - 后者由 `InjectionHandler` 周期化从服务端收集注入任务与注入终止符
+    - 将 `metric` 机制归入 `observer` 体系
