@@ -1,8 +1,8 @@
 # src/celestialflow/graph/__init__.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
-Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建、分析和序列化功能。
+Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建与分析功能。
 
 ## 模块概述
 
@@ -22,18 +22,21 @@ from celestialflow.graph import (
 )
 ```
 
+`__all__ = ["TaskChain", "TaskComplete", "TaskCross", "TaskGraph", "TaskGrid", "TaskLoop", "TaskWheel"]`
+
 ## 文件说明
 
 ### 核心文件
 
 1. **core_graph.py** (`TaskGraph`)
-   - **作用**: 核心调度器，管理任务节点（`BaseTaskNode` 派生对象）的依赖关系、执行流程、资源分配和生命周期
+   - **作用**: 核心调度器，管理任务节点（`BaseTaskNode` 派生对象）的依赖关系、执行流程与生命周期
    - **关键功能**:
      - 建立节点间的依赖关系（`set_nodes` / `connect`）
      - 执行任务图（`start` / `start_async`，按 `graph_mode` 串行/线程/异步执行）
-     - 构建期节点元信息与图分析信息导出（`get_node_meta` / `get_graph_analysis` / `get_structure_list`）
-     - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db`）
-     - 错误持久化和未消费任务处理（`drain_task_queue`）
+     - 批量设置节点执行模式（`set_node_execution_mode`）与共享事件客户端（`set_ctree`）
+     - 图级观察者注册（`add_observer`）与查询（`get_observers`）
+     - 图分析（`_build_analysis`：源节点识别、DAG 判定、层级计算）
+     - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`）
 
 2. **core_structure.py**（预定义图结构）
    - **作用**: 提供六种预定义的任务图结构，简化常见模式
@@ -56,10 +59,7 @@ from celestialflow.graph import (
      - `source_sccs()` / `source_nodes()`: 定位源 SCC 并提取代表性源节点
      - `compute_node_levels()`: 基于 SCC 凝聚图计算节点层级
 
-4. **util_render.py**
-   - **作用**: 将图结构渲染为带边框的树形文本列表
-   - **关键函数**:
-     - `render_structure_list()`: 从节点名称列表、邻接表和源节点生成带边框的树形文本
+> 说明：图结构的树形文本渲染（`render_structure_list`）已从本模块迁往 `persist/util_render.py`，Graph 模块不再持有渲染逻辑。
 
 ## 模块关联
 
@@ -68,21 +68,19 @@ from celestialflow.graph import (
 - `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_nodes` / `connect` 逻辑）
 - `util_order_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
 - `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
-- `util_render.py` 将运行时结构输出为带边框的树形文本列表
 
 ### 外部关联
 - **与 Node 模块**: 任务图节点（`TaskExecutor` / `TaskSplitter` / `TaskRouter`）由 `celestialflow.node` 提供，`TaskGraph` 仅负责装配、连接与调度
 - **与 Runtime 模块**: 使用 `TaskInQueue`/`TaskOutQueue` 作为节点间通信管道
-- **与 Persistence 模块**: 通过 `LifecycleSpout` 实现持久化
-- **与 Observability 模块**: 通过 `TaskReporter` 向 `celestialflow-web` 服务推送状态并拉取注入指令
+- **与 Observer 模块**: 通过 `add_observer()` 注册图级观察者，接收图中所有节点的事件；运行时资源通过 `run_graph_resources` 统一管理
+- **与 Persistence 模块**: 通过持久化入口（lifecycle / log）实现任务持久化与恢复（`restore_db`）
 
 ## 使用模式
 
 1. **构建任务图**: 创建 `TaskExecutor` 节点（按需使用 `TaskSplitter` / `TaskRouter`）→ `set_nodes()` 注册 → `connect()` 建立依赖
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
-3. **配置**: 通过 `set_reporter()` / `set_ctree()` 集成外部服务
+3. **配置**: 通过 `set_ctree()` 注入事件客户端、`add_observer()` 注册图级观察者
 4. **执行**: 调用 `run()` 或 `run_async()`
-5. **监控**: 由 `TaskReporter` 周期性调用各节点的 `get_snapshot()` 采集运行时状态
 
 ## 使用示例
 
@@ -92,7 +90,6 @@ from celestialflow.graph import (
 
 ```python
 from celestialflow import TaskGraph, TaskExecutor
-
 
 # 定义阶段函数
 def stage_a_func(x: int) -> int:
@@ -122,9 +119,9 @@ graph.connect([s2], [s3])
 graph.run({s1.get_name(): [1, 2, 3]})
 
 # 图分析
-analysis = graph.get_graph_analysis()
-print(f"是DAG: {analysis['isDAG']}")
-print(f"层级: {analysis['layersDict']}")
+print(f"源节点: {graph.get_source_nodes()}")
+print(f"节点列表: {graph.get_nodes()}")
+print(f"边邻接表: {graph.get_edges()}")
 ```
 
 ### TaskChain 线性链
@@ -141,10 +138,8 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 图分析：查看 DAG 判定与层级结构
-analysis = chain.get_graph_analysis()
-print(f"是DAG: {analysis['isDAG']}")
-print(f"层级: {analysis['layersDict']}")
+# 查看节点与来源
+print(chain.get_nodes())
 ```
 
 ### TaskCross 交叉层
@@ -164,7 +159,6 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.get_structure_list())
 ```
 
 ### TaskGrid 网格
@@ -179,7 +173,6 @@ s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.get_structure_list())
 ```
 
 ### TaskLoop 环形图
@@ -215,5 +208,5 @@ wheel.run({center.get_name(): ["data"]})
 - 线性流程使用 `TaskChain`，无需手动 `connect`
 - 多路并行流水线使用 `TaskCross` 或手动组合
 - 有环图（`TaskLoop`/`TaskWheel`）建议 `if_put_signal=False`，通过外部注入停止
-- 如需与外部监控系统对接，可使用 `set_reporter()`
+- 需要监控/接收图中事件时使用 `add_observer()` 注册图级观察者
 - 异步执行使用 `TaskGraph` 的 `graph_mode="async"`，并通过 `start_async()` / `run_async()` 启动

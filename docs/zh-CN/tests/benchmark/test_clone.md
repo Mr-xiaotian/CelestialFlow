@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 
@@ -10,6 +10,7 @@
 
 - `clone_executor`: 复制 `TaskExecutor`，保留 `name`、`func`、`execution_mode`；同样适用于作为图节点使用的 `TaskExecutor` 实例。
 - `clone_graph`: 复制 `TaskGraph`，保留完整的 DAG 结构（节点、边）与 `graph_mode`，且节点间相互独立。
+- `LocalEventClient`: 默认本地事件客户端，克隆后应保持实例独立。
 
 ## 关键测试场景
 
@@ -27,7 +28,6 @@
 - 简单 DAG（A→B→C）：克隆后源节点、`OrderGraph` 节点集合、出边邻接表均一致
 - 克隆图中修改某节点的 `execution_mode` 不影响原图对应节点
 - 默认本地事件客户端在克隆后应保持实例独立
-- 带 `TaskReporter` 的图在克隆后应绑定新的 reporter 实例（`cloned.reporter.task_graph is cloned`）
 
 ## 测试覆盖矩阵
 
@@ -42,7 +42,6 @@
 | `test_clone_graph_structure` | DAG 结构、源节点、`OrderGraph` 节点与边一致 |
 | `test_clone_graph_independent` | 克隆图节点修改不影响原图 |
 | `test_clone_graph_creates_independent_local_event_client` | 本地事件客户端实例独立 |
-| `test_clone_graph_rebinds_task_reporter_to_cloned_graph` | 带 TaskReporter 的图在克隆后绑定新的 reporter 实例 |
 
 ## 运行方式
 
@@ -68,10 +67,9 @@ pytest tests/benchmark/test_clone.py -k "graph" -v
 - 克隆图后通过 `get_order_graph()` 返回的 `OrderGraph` 验证节点集合与出边邻接表一致；访问 `get_source_nodes()` 会同时触发克隆图的 `_build_analysis`。
 - `clone_graph` 测试构造了有向无环图 `A → B → C`，验证图结构完整性。
 - `LocalEventClient` 独立验证确保克隆图拥有独立的事件总线，避免运行时状态互相干扰。
-- 带 `TaskReporter` 的图在克隆后应绑定新的 reporter 实例，`cloned.reporter.task_graph` 指向克隆图。
-- 源码文件末尾保留了一行历史遗留的 `# 运行方式` 注释（指向已不存在的 `tests/utils/test_utils_clone.py`）；请以上方 `pytest` 命令为准。
 
 ## 注意事项
 
 - 克隆工具用于 `benchmark_graph` 内部复制图结构以实现不同模式组合的独立执行。
+- 源码文件末尾保留了一行历史遗留的 `# 运行方式` 注释（指向已不存在的 `tests/utils/test_utils_clone.py`）；请以上方 `pytest` 命令为准。
 - 相关实现位于 `src/celestialflow/benchmark/util_clone.py`。

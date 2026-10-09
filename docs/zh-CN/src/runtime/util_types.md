@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `util_types.py` 定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -66,12 +66,12 @@ class ValueWrapper:
 
 > 因为 `lock=None` 时会自建一把真实 `Lock`，`ValueWrapper` 默认就是线程安全的；只有在明确单线程访问时才应显式传入 `NoOpContext` 关闭加锁。
 
-## StageStatus
+## NodeStatus
 
-任务图节点（`BaseTaskNode` 及其子类，如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的运行状态枚举。
+任务图节点（`BaseTaskNode` 及其子类，如 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的生命周期状态枚举。
 
 ```python
-class StageStatus(IntEnum):
+class NodeStatus(IntEnum):
     NOT_STARTED = 0  # 未启动
     RUNNING = 1  # 运行中
     STOPPED = 2  # 已停止
@@ -86,9 +86,40 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 | `TASK_INPUT` | `"task.input"` | 任务进入系统 |
 | `TASK_SUCCESS` | `"task.success"` | 任务执行成功 |
 | `TASK_ERROR` | `"task.error"` | 任务执行失败 |
+| `TASK_SKIP` | `"task.skip"` | 任务被跳过 |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | 重试前缀（拼接重试次数） |
 | `TERMINATION_INPUT` | `"termination.input"` | 注入终止信号 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 合并终止信号 |
+
+## NodeMetrics
+
+单节点指标快照（只读 DTO，`@dataclass(frozen=True, slots=True)`）。由指标观察者依据事件维护写模型，本类只保存某一时刻的只读快照。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `node` | `str` | 节点名称 |
+| `status` | `NodeStatus` | 节点生命周期状态 |
+| `start_time` | `float` | 进入运行状态的墙钟时间（秒）；未启动为 `0.0` |
+| `external_input` | `int` | 外部注入任务数 |
+| `upstream_input` | `int` | 上游提供任务数 |
+| `input_total` | `int` | 输入任务总数（外部注入与上游提供之和） |
+| `succeeded` | `int` | 成功任务数 |
+| `failed` | `int` | 失败任务数 |
+| `skipped` | `int` | 跳过任务数 |
+| `processed` | `int` | 已处理任务数（成功 + 失败 + 跳过） |
+| `pending` | `int` | 待处理任务数 |
+| `upstream_counts` | `dict[str, int]` | 各上游节点提供的任务数量映射 |
+| `downstream_counts` | `dict[str, int]` | 发往各下游节点的任务数量映射 |
+
+## MetricsView
+
+指标只读视图协议（`Protocol`）。写模型由指标观察者依据事件维护，本协议只暴露不可变的读取入口，供日志、上报等消费者查询，避免把可变内部状态外泄。
+
+```python
+class MetricsView(Protocol):
+    def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
+    def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
+```
 
 ## 使用示例
 
@@ -119,19 +150,43 @@ pool = TerminationIdPool(ids=[1, 2, 3])
 print(f"ID 池: {pool.ids}")  # [1, 2, 3]
 ```
 
-### StageStatus 枚举
+### NodeStatus 枚举
 
 ```python
-from celestialflow.runtime.util_types import StageStatus
+from celestialflow.runtime.util_types import NodeStatus
 
 # 枚举值
-print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
+print(f"NOT_STARTED = {NodeStatus.NOT_STARTED.value}")  # 0
+print(f"RUNNING = {NodeStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {NodeStatus.STOPPED.value}")  # 2
 
 # 状态转换
-status = StageStatus.NOT_STARTED
+status = NodeStatus.NOT_STARTED
 print(f"初始状态: {status.name}")
+```
+
+### NodeMetrics 与 MetricsView
+
+```python
+from celestialflow.runtime.util_types import NodeMetrics, NodeStatus, MetricsView
+
+# 构造只读指标快照
+snapshot = NodeMetrics(
+    node="processor",
+    status=NodeStatus.RUNNING,
+    start_time=1234.5,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=3,
+    failed=1,
+    skipped=1,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(snapshot.processed)  # 5
 ```
 
 ### ValueWrapper
@@ -187,4 +242,4 @@ print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.mer
 
 - `ValueWrapper` 默认使用真实 `Lock`，因此默认线程安全；`NoOpContext` 用于单线程模式下显式关闭锁开销。
 - `TERMINATION_SIGNAL` 是模块级单例，默认 `id=-1`、`source="input"`。
-- `StageStatus` 为 `IntEnum`，可直接与整数比较。
+- `NodeStatus` 为 `IntEnum`，可直接与整数比较。

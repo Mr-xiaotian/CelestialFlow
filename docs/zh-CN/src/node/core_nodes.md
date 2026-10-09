@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_nodes.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `core_nodes.py` 提供了 CelestialFlow 对外暴露的三个具体节点类：
 
@@ -47,6 +47,7 @@ def __init__(
     max_retries: int = 1,
     max_queue_size: int = 0,
     max_info: int = 50,
+    skip_func: Callable[[T], bool] | None = None,
 ): ...
 ```
 
@@ -66,11 +67,11 @@ def __init__(
 
 `process_task_success(envelope, result, start_perf)` →
 
-1. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
-2. `self.metrics.add_success_count()`；
-3. `get_lifecycle_inlet().task_success(task_id, result)`；
-4. `get_log_inlet().task_success(name, repr(task), repr(result), 耗时, task_id, result_id)` 写日志；
-5. 对每个下游目标 (`self.yield_queue.get_target_names()`)：`add_downstream_count(target)`，重新发出 `TASK_INPUT` 事件，写 lifecycle / log 输入记录，并 `yield_queue.put_target(target, TaskEnvelope(result, downstream_input_id))`。
+1. 取 `task = envelope.get_task()`、`task_id = envelope.get_id()`；
+2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
+3. 计算 `elapsed = time.perf_counter() - start_perf`；
+4. `observers.on_task_success(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))` 广播成功事件；
+5. 对每个下游目标 (`self.yield_queue.get_target_names()`)：发出 `TASK_INPUT` 事件拿到 `downstream_input_id`，广播 `TaskInputEvent`（`from_node=self.get_name()`），并 `yield_queue.put_target(target_name, TaskEnvelope(task=result, id=downstream_input_id))`。
 
 ### 示例
 
@@ -102,10 +103,8 @@ for task, result in executor.get_success_pairs():
 
 1. `result_list = list(result)` 物化结果（支持生成器）；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
-3. `self.metrics.add_success_count()`；
-4. `get_lifecycle_inlet().task_success(task_id, result_list)`；
-5. `get_log_inlet().task_success(...)` 写日志；
-6. 对每个下游目标：`add_downstream_count(target, len(result_list))` 一次性增加发送计数；随后对 `result_list` 中每个 `item` 单独发出 `TASK_INPUT` 事件、写 lifecycle / log 输入记录，并 `yield_queue.put_target(target, TaskEnvelope(item, downstream_input_id))`。
+3. `observers.on_task_success(TaskSuccessEvent(..., result=result_list, result_repr=...)` 广播成功事件（`result` 物化为列表）；
+4. 对每个下游目标与每个 `item in result_list`：发出 `TASK_INPUT` 事件、广播 `TaskInputEvent`、并 `yield_queue.put_target(target_name, TaskEnvelope(item, downstream_input_id))`。
 
 > 空可迭代对象会合法地产生 0 个子任务（不会抛异常）；生成器输入会被 `list()` 完整物化后再分发。
 
@@ -148,12 +147,10 @@ graph.run({"Splitter": [["a", "b", "c"]]})
 
 `process_task_success(envelope, result, start_perf)` →
 
-1. 校验 `result` 中的每个目标名是否已在 `self.metrics.downstream_counter` 中注册；若存在未注册目标，抛 `InvalidOptionError("Unknown target", unknown[0], self.metrics.downstream_counter.keys())`；
+1. 校验 `result` 中的每个目标名是否已在 `self.yield_queue.get_target_names()` 中注册；若存在未注册目标，抛 `InvalidOptionError("Unknown target", unknown[0], known_targets)`；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
-3. `self.metrics.add_success_count()`；
-4. `get_lifecycle_inlet().task_success(task_id, task)`（注意：lifecycle 成功记录的是**输入任务** `task`，不是映射 `result`）；
-5. `get_log_inlet().task_success(name, repr(task), repr(result), 耗时, task_id, result_id)` 写日志；
-6. 对 `result.items()` 中每个 `(target, yie)`：`add_downstream_count(target)`，发出 `TASK_INPUT` 事件，写 lifecycle / log 输入记录，并 `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))`——下游收到的是**该目标对应的载荷** `yie`，而不是路由器的输入任务。
+3. `observers.on_task_success(TaskSuccessEvent(..., result=result, result_repr=...)` 广播成功事件；
+4. 对 `result.items()` 中每个 `(target, yie)`：发出 `TASK_INPUT` 事件、广播 `TaskInputEvent`、并 `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))`——下游收到的是**该目标对应的载荷** `yie`，而不是路由器的输入任务。
 
 ### 示例
 
@@ -183,14 +180,15 @@ graph.run({router.get_name(): ["hi", "hello world", "ok"]})
 | 异常 | 触发场景 |
 |------|---------|
 | `InvalidOptionError` | `TaskRouter.process_task_success` 中 `result` 含未通过 `connect_to` 绑定的目标名 |
-| `ConfigurationError` | 继承自 `BaseTaskNode`：`async` 但 `func` 非协程；`func` 参数数量 ≠ 1 等 |
-| `CallableParameterKindError` | 继承自 `BaseTaskNode._set_func` 的签名校验 |
+| `ConfigurationError` | 继承自 `BaseTaskNode`：`async` 但 `func` 非协程；`func` / `skip_func` 参数数量 ≠ 1 等 |
+| `CallableParameterKindError` | 继承自 `BaseTaskNode._set_func` / `set_skip_func` 的签名校验 |
 
 ## 注意事项
 
 1. **直接父类是 `BaseTaskNode`**：`TaskSplitter` / `TaskRouter` **不是** `TaskExecutor` 的子类。它们各自负责不同的 `process_task_success` 语义。
 2. **`func` 必填**：由于没有自定义 `__init__`，三个类都必须提供 `func`；默认 `execution_mode="serial"`、`max_retries=1`。
-3. **路由器目标必须预先绑定**：`func` 返回的目标字符串必须出现在 `self.metrics.downstream_counter` 中（即至少通过 `graph.connect` / `connect_to` 注册过）；否则抛 `InvalidOptionError`。
+3. **路由器目标必须预先绑定**：`func` 返回的目标字符串必须出现在 `self.yield_queue.get_target_names()` 中（即至少通过 `graph.connect` / `connect_to` 注册过）；否则抛 `InvalidOptionError`。
 4. **路由器各目标收到各自载荷**：一次路由可返回多个目标，每个下游只收到对应 key 的 value。
-5. **运行期组件自动初始化**：三个节点类都通过 `BaseTaskNode.__init__` 自动初始化 `metrics / task_queue / yield_queue / dispatch` 等组件，无需重复创建。
-6. **不再有 `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**：拆分与路由逻辑现在完全由传入的 `func` 承担，类本身只负责把 `func` 的结果分发到下游。
+5. **运行期组件自动初始化**：三个节点类都通过 `BaseTaskNode.__init__` 自动初始化 `task_queue` / `yield_queue` / `dispatch` / `observers` 等组件，无需重复创建。
+6. **结果广播与持久化**：节点自身只广播 `TaskSuccessEvent` / `TaskInputEvent`；`MetricsObserver` / `LifecycleInlet` / `LogInlet` 依据这些事件更新计数与落盘，节点不再直接写 lifecycle / log。
+7. **不再有 `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**：拆分与路由逻辑现在完全由传入的 `func` 承担，类本身只负责把 `func` 的结果分发到下游。

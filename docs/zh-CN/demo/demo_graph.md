@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -108,7 +108,7 @@ python demo/demo_graph.py
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）、Reporter（可选）
+- 外部服务：CelestialTree（可选）

@@ -1,17 +1,21 @@
-# tests/persistence/test_splite.py
+# tests/persist/test_sqlite.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 
-验证 `celestialflow.persistence.util_sqlite` 模块中所有 sqlite 工具函数，确保数据库建表、记录增删改查、状态迁移、重试更新与按 stage 聚合等功能正确可靠。
+验证 `celestialflow.persist.util_sqlite` 模块中所有 sqlite 工具函数，确保数据库建表、记录增删改查、状态迁移、重试更新与按节点聚合等功能正确可靠。
+
+> 该测试文件由历史遗留的 `test_splite.py` 更名而来，测试类名 `TestSpliteUtils` 沿用历史拼写（应为 `TestSqliteUtils`），此处按源码保留。
 
 ## 核心测试对象
 
+被测函数全部来自 `celestialflow.persist.util_sqlite`：
+
 | 函数 | 说明 |
 |------|------|
-| `connect_db` | 建立连接并自动创建 records 表和索引，旧库缺列时自动补 `retry_times` |
-| `normalize_record` | 将错误记录归一化为 sqlite 可写格式，缺少 `stage` 或 `status` 时抛出 `KeyError` |
+| `connect_db` | 建立连接并自动创建 records 表与索引，旧库缺列时自动补 `retry_times` |
+| `normalize_record` | 将错误记录归一化为 sqlite 可写格式，缺少 `node` 或 `status` 时抛出 `KeyError` |
 | `insert_record` | 单条插入记录（忽略元信息行，返回 `False`） |
 | `load_records` | 按状态过滤读取全部记录，可选 `status` 参数 |
 | `append_records` | 批量追加记录（跳过重复 event_id，返回实际写入条数） |
@@ -24,8 +28,8 @@
 | `promote_record_to_success_by_event_id` | 更新状态为 success 并写入结果 |
 | `update_retry_by_event_id` | 更新 pending 记录的重试次数与错误信息，状态保持不变；记录不存在时返回 `False` |
 | `delete_record_by_event_id` | 按 event_id 删除记录 |
-| `load_task_error_records` | 按 stage 读取 `(task_json, (error_type, error_message))` 列表 |
-| `load_task_result_records` | 按 stage 读取 `(task_json, result_json)` 列表 |
+| `load_task_error_records` | 按节点读取 `(task_json, (error_type, error_message))` 列表 |
+| `load_task_result_records` | 按节点读取 `(task_json, result_json)` 列表 |
 
 ## 测试覆盖矩阵
 
@@ -38,12 +42,12 @@
 ### 建表与索引
 
 - `connect_db` 自动创建 `records` 表及 `idx_records_event_id`、`idx_records_status_id` 索引。
-- 验证 `result_json` 字段存在，并核对表结构字段顺序为 `id / event_id / ts / stage / status / error_type / error_message / task_json / result_json / retry_times`。
+- 验证 `result_json` 字段存在，并核对表结构字段顺序为 `id / event_id / ts / node / status / error_type / error_message / task_json / result_json / retry_times`。
 
 ### 归一化
 
 - 缺少 `event_id` 的元信息行（如仅含 `timestamp` / `graph_name`）返回 `None`，不存入数据库。
-- 业务记录缺少 `stage` 或 `status` 时 `normalize_record` 抛出 `KeyError`。
+- 业务记录缺少 `node` 或 `status` 时 `normalize_record` 抛出 `KeyError`。
 - 错误记录被规范化为 `status="failed"`，`retry_times` 默认为 0，`task_json` 序列化为 JSON 字符串。
 
 ### 插入与读取
@@ -66,7 +70,7 @@
 ### 错误类型聚合
 
 - `query_error_type_counts` 按错误类型（`error_type`）聚合全部 failed 记录的数量，按 `count` 降序排列。
-- `query_error_type_counts` 支持 `node` 参数按 stage 过滤。
+- `query_error_type_counts` 支持 `node` 参数按节点过滤。
 - 仅统计 status 为 `failed` 的记录，忽略 success 等其他状态。
 
 ### 状态迁移与重试更新
@@ -79,30 +83,29 @@
 
 - `get_max_event_id_in_fail` 仅统计 failed 状态；无 failed 记录时返回 `None`。
 - `load_records_after_event_id_in_fail` 按 event_id 下界增量读取。
-- `load_task_error_records` 支持按 stage 过滤，返回 `(task_json, (error_type, error_message))` 列表。
+- `load_task_error_records` 支持按节点过滤，返回 `(task_json, (error_type, error_message))` 列表。
 
 ### 配对读取
 
-- `load_task_error_records` 返回 `(task_json, (error_type, error_message))` 列表，支持按 stage 过滤。
-- `load_task_result_records` 返回 `(task_json, result_json)` 列表。
+- `load_task_result_records` 返回 `(task_json, result_json)` 列表，可按节点过滤。
 
 ## 运行方式
 
 ```bash
 # 全部执行
-pytest tests/persistence/test_splite.py -v
+pytest tests/persist/test_sqlite.py -v
 
 # 按关键字匹配
-pytest tests/persistence/test_splite.py -k "connect or normalize" -v
-pytest tests/persistence/test_splite.py -k "insert or append" -v
-pytest tests/persistence/test_splite.py -k "promote or retry" -v
-pytest tests/persistence/test_splite.py -k "group" -v
-pytest tests/persistence/test_splite.py -k "load_task" -v
+pytest tests/persist/test_sqlite.py -k "connect or normalize" -v
+pytest tests/persist/test_sqlite.py -k "insert or append" -v
+pytest tests/persist/test_sqlite.py -k "promote or retry" -v
+pytest tests/persist/test_sqlite.py -k "group" -v
+pytest tests/persist/test_sqlite.py -k "load_task" -v
 ```
 
 ## 注意事项
 
 - 测试使用 `tmp_path` fixture 创建临时 sqlite 文件，在测试结束后自动清理。
 - `sample_errors` fixture 提供 3 条有效错误记录 + 1 条元信息行作为测试数据集；`sqlite_path` fixture 提供 `tmp_path / "records.sqlite3"` 路径。
-- 源文件名 `test_splite.py` 为历史拼写遗留（应为 splitter），本任务范围仅文档，不涉及重命名。
-- 相关实现位于 `src/celestialflow/persistence/util_sqlite.py`。
+- sqlite `records` 表中的节点标识字段为 `node`（重构前曾为 `stage`），所有按节点读取 / 过滤的函数均以 `node` 为准。
+- 相关实现位于 `src/celestialflow/persist/util_sqlite.py`。

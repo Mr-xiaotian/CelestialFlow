@@ -1,8 +1,8 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
-`TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组任务节点（`BaseTaskNode` 派生对象，公共 API 包括 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的依赖关系、执行流程、资源分配和生命周期。
+`TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组任务节点（`BaseTaskNode` 派生对象，公共 API 包括 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的依赖关系、执行流程与生命周期。
 
 > 注意：`TaskGraph` 是一次性对象。一次 `start()` / `start_async()` / `run()` 完成后，不保证当前实例可被安全重置并再次启动；如需重复执行同一流程，请重新创建新的 `TaskGraph` 和关联任务节点。
 
@@ -34,7 +34,7 @@ class TaskGraph:
   - `thread`: 线程并发执行，每个节点在独立线程中启动
   - `async`: 异步并发执行，需要在已运行事件循环的上下文中调用（见 [`start_async`](#start_async)）
 
-`__init__` 依次调用 `_set_name`、`set_graph_mode`、`set_reporter(NullTaskReporter())`、`set_ctree(LocalEventClient())` 与 `_init_state()`。
+`__init__` 依次调用 `_set_name`、`set_graph_mode`、`set_ctree(LocalEventClient())` 与 `_init_state()`。
 
 ## 图构建
 
@@ -76,7 +76,7 @@ def connect[R](
 
 ```python
 def _set_name(self, name: str) -> None:
-    """设置任务图名称，并生成 graph_id = f"{name}@{int(time.time() * 1000)}"。"""
+    """设置任务图名称。"""
 ```
 
 ### set_graph_mode
@@ -100,17 +100,6 @@ def set_node_execution_mode(self, execution_mode: str) -> None:
     """
 ```
 
-### set_reporter
-
-```python
-def set_reporter(self, reporter: ReporterProtocol) -> None:
-    """
-    设定任务图绑定的 reporter。
-
-    :param reporter: reporter 实例
-    """
-```
-
 ### set_ctree
 
 ```python
@@ -124,6 +113,29 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 > 默认情况下，`TaskGraph` 会在内部使用 `LocalEventClient()` 生成本地递增事件 ID，因此即使没有安装 `celestialtree`，核心执行链路也可以正常工作。
 >
 > 如果你希望把事件上报到 CelestialTree，需要先额外安装 `celestialtree`，再自行构造对应客户端实例并传给 `set_ctree()`。
+
+## 观察者
+
+### add_observer
+
+```python
+def add_observer(self, observer: Observer) -> None:
+    """
+    注册图级观察者。
+
+    图级观察者会收到图中所有节点的事件；该注册仅在 run() / run_async()
+    路径下生效（这两个入口会把图级 hub 注入每个节点）。
+    """
+```
+
+图级观察者经 `_inject_observers()` 注入每个节点，注入的是 hub 对象本身，因此运行期往图级 hub 增删观察者会立即对所有节点生效。
+
+### get_observers
+
+```python
+def get_observers(self) -> ObserverHub:
+    """返回图级观察者 hub，供节点以外的协作者以观察者形式发布事件。"""
+```
 
 ## 图分析
 
@@ -168,11 +180,13 @@ def run(
     """
     运行任务图。流程：
     1. 调用 _build_analysis() 构建图分析
-    2. 在 funnel_scope() 下，把 init_tasks_dict 中每个任务注入对应节点（node.put_task）
+    2. 在 run_graph_resources 上下文中，把 init_tasks_dict 中每个任务注入对应节点（node.put_task）
     3. if_put_signal=True 时自动向源节点注入终止信号
     4. 调用 start() 启动执行
     """
 ```
+
+运行期的观察者注入、全局 funnel 观察者注册以及 `lifecycle` / `log` spout 的启停由 `run_graph_resources` 上下文统一管理。
 
 ### run_async
 
@@ -208,8 +222,8 @@ def restore_db(
     """
 ```
 
-该方法内部调用 `load_tasks_grouped_by_stage()` 加载持久化任务记录，
-通过 `node.metrics.get_retry_error_type_names()` 过滤可恢复的错误类型（`pending` 记录始终保留），
+该方法内部调用 `load_tasks_grouped_by_node()`（来自 `persist.util_sqlite`）加载持久化任务记录，
+通过 `node.get_retry_error_type_names()` 过滤可恢复的错误类型（`pending` 记录始终保留），
 最终复用 `run()` 执行。
 
 ### 生命周期约束
@@ -253,25 +267,25 @@ async def start_async(self) -> None:
 ```python
 def _prepare_start(self) -> None:
     """
-    启动前准备：记录图启动日志（get_log_inlet().graph_start），并调用 reporter.start()。
-    本方法会创建线程与文件句柄等运行时资源。
+    启动前准备：向图级观察者 hub 广播 on_graph_start 事件。
+    本方法会创建线程与文件句柄等运行时资源，调用方应保证在 finally 中执行 _finish_start。
     """
 
 
 def _finish_start(self, start_perf: float) -> list[Exception]:
     """
     启动后收尾：遍历所有节点调用 drain_task_queue() 收集未消费任务，
-    停止 reporter，记录图结束日志，清理线程引用，返回收集到的异常列表。
+    广播 on_graph_end 事件，清理线程引用，返回收集到的异常列表。
     """
 ```
 
-`lifecycle` / `log` spout 的启停由外层 `funnel_scope()` 统一管理。
+`lifecycle` / `log` 相关 spout、节拍器的启停由外层 `run_graph_resources` 统一管理，本方法只负责图对象自身的收尾逻辑。
 
 ### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
 ```python
 def _execute_nodes_serial(self) -> None:
-    """按层级（layers_dict）拓扑序逐层、逐个串行执行（层内按注册顺序）。"""
+    """按层级（layers_dict）拓扑序逐层、逐个串行执行（层间按层级升序、层内按注册顺序）。"""
 
 
 def _execute_nodes_thread(self) -> None:
@@ -303,19 +317,37 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 
 | 方法 | 返回类型 | 说明 |
 |------|---------|------|
-| `get_graph_id()` | `str` | 获取当前任务图实例的唯一标识 |
 | `get_nodes()` | `list[str]` | 按注册顺序返回所有节点名称 |
 | `get_edges()` | `dict[str, list[str]]` | 出边邻接表（与内部 `OrderGraph` 共享引用，调用方应只读） |
 | `get_node_meta()` | `dict[str, dict[str, Any]]` | 各节点的构建期元信息 |
 | `get_source_nodes()` | `list[str]` | 源节点名称列表（按需触发图分析） |
-| `get_graph_analysis()` | `dict` | 图分析信息（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
-| `get_structure_list()` | `list[str]` | 带边框的格式化树形文本 |
 | `get_order_graph()` | `OrderGraph` | 内部有序有向图实例 |
-| `get_lifecycle_path()` | `Path` | 任务生命周期持久化 sqlite 文件的绝对路径，未设置时返回空 Path |
+| `get_observers()` | `ObserverHub` | 图级观察者 hub |
+
+### 注入接口
+
+```python
+def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+    """
+    按节点名将注入任务写入待执行队列。先尽力注入存在的节点，再对未知节点统一报错。
+
+    :raises UnknownNodeError: 存在图中不存在的目标节点
+    """
+
+
+def inject_terminations(self, nodes: Sequence[str]) -> None:
+    """
+    向指定节点注入终止信号。先尽力注入存在的节点，再对未知节点统一报错。
+
+    :raises UnknownNodeError: 存在图中不存在的目标节点
+    """
+```
+
+> `inject_tasks` / `inject_terminations` 采用"先尽力注入、后集中报错"策略，因此单个未知节点不会导致其余节点的任务/终止信号被丢弃。
 
 ### get_node_meta 说明
 
-返回各节点的构建期元信息，这些字段在 reporter 启动前已冻结，因此随图结构一次性上报，不进入每轮状态推送：
+返回各节点的构建期元信息，这些字段在运行期固定不变，随图结构一次性上报，不进入每轮状态推送：
 
 ```python
 {
@@ -327,27 +359,9 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 }
 ```
 
-### get_graph_analysis 说明
+### 图级事件（观察者）
 
-`get_graph_analysis()` 返回包含以下字段的字典：
-
-```python
-{
-    "graphId": self.graph_id,
-    "graphMode": self.graph_mode,
-    "name": self.name,
-    "startTime": self.start_time,
-    "className": self.__class__.__name__,
-    "isDAG": self.is_dag,
-    "layersDict": self.layers_dict,
-}
-```
-
-### 运行时状态采集
-
-`TaskGraph` 本身不聚合运行时快照。每个节点通过 `BaseTaskNode.get_snapshot()` 采集自身状态，
-`TaskReporter` 在状态推送周期中遍历节点调用它；全局视角的 `total_*` 等派生指标由前端
-（`celestialflow-web`）聚合计算。
+`TaskGraph` 在 `_prepare_start()` / `_finish_start()` 阶段向观察者 hub 广播 `GraphStartEvent` 与 `GraphEndEvent`。图分析信息（图名、模式、`is_dag`、节点/边/源节点列表、节点元信息等）在启动事件中一次性上报；运行时监控建议通过 `add_observer()` 注册图级观察者完成，而非依赖单个节点轮询。
 
 ## 生命周期图
 
@@ -418,5 +432,5 @@ graph.run({"source": tasks}, if_put_signal=False)
 ## 未消费任务处理
 
 `_finish_start()` 中通过遍历 `node_dict` 调用每个节点的 `drain_task_queue()` 收集所有剩余任务，
-将其标记为 `UnconsumedError` 并通过 `get_lifecycle_spout`（`LifecycleSpout`）按日期组织的 lifecycle
-sqlite 持久化文件中记录失败信息。
+将其标记为 `UnconsumedError` 并通过持久化层（lifecycle / log）按日期组织的 sqlite
+持久化文件中记录失败信息。

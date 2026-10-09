@@ -1,10 +1,8 @@
 # src/celestialflow/runtime/util_format.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `runtime/util_format.py` 提供通用格式化工具函数，包括字符串截断、表格渲染和按值聚类等。
-
-> 注意：当前文件路径为 `src/celestialflow/runtime/util_format.py`，旧路径 `src/celestialflow/utils/util_format.py` 已废弃。
 
 ## 主要函数
 

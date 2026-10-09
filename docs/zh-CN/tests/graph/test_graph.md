@@ -1,6 +1,6 @@
 # tests/graph/test_graph.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步/线程执行、错误传播、SQLite 回放、运行时快照计数、拓扑分析、执行模式矩阵、源节点推导（含 SCC）与含环图行为。
@@ -17,15 +17,16 @@
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
 | `TestTaskGraphBasic` | 10 | set_ctree 更新已有节点、未知节点名称查找异常、两节点 DAG、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
-| `TestTaskGraphSnapshotCounts` | 3 | fan-in 上游计数、fan-out 下游计数、快照推导 `tasks_processed`/`tasks_pending` |
+| `TestTaskGraphSnapshotCounts` | 3 | fan-in 上游计数、fan-out 下游计数、metrics 推导 `processed`/`pending` |
 | `TestTaskGraphAsync` | 6 | async 模式两节点、扇出、扇入、错误传播、async execution_mode、async finish 后统一抛出异常组 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
 | `TestTaskGraphAnalysis` | 5 | 节点元信息、getter 按需构建分析、结构变更后自动重建缓存、DAG 检测、层级计算 |
 | `TestNodeExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、线性链调度 |
 | `TestSourceNodes` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
-| `TestCyclicGraph` | 3 | serial 模式含环图抛错、含环图 isDAG 检测、环内同层 + 尾巴层级 |
-| **合计** | **48** | |
+| `TestCyclicGraph` | 3 | serial 模式含环图抛错、含环图 is_dag 检测、环内同层 + 尾巴层级 |
+| `TestTaskGraphReporterCapabilities` | 3 | `inject_tasks` / `inject_terminations` 注入并处理未知节点 |
+| **合计** | **51** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -52,9 +53,9 @@ graph LR
 - **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 `_finish_start` 后统一抛出收集到的 `ExceptionGroup`。
 
 #### 快照边计数 (`TestTaskGraphSnapshotCounts`)
-- `test_fan_in_upstream_counts`: fan-in 节点的 `get_snapshot()["upstream_counts"]` 记录每个上游提供的任务数量，上游节点的 `downstream_counts` 对应一致。
-- `test_fan_out_downstream_counts`: fan-out 节点的 `downstream_counts` 记录发往每个下游的数量。
-- `test_snapshot_restores_processed_and_pending`: 快照层推导 `tasks_processed` / `tasks_pending` / `tasks_succeeded`。
+- `test_fan_in_upstream_counts`: 通过 `metrics_of(graph).get_node_metrics("merge").upstream_counts` 验证 fan-in 节点记录每个上游提供的任务数量（`{"src_a": 2, "src_b": 2}`），上游节点的 `downstream_counts` 对应一致。
+- `test_fan_out_downstream_counts`: 通过 node metrics 的 `downstream_counts` 记录发往每个下游的数量，下游节点的 `upstream_counts` 对应一致。
+- `test_snapshot_restores_processed_and_pending`: 图运行后 node metrics 快照推导 `processed` / `pending` / `succeeded`（`processed == 3`、`pending == 0`）。
 
 #### 异步与并发 (`TestTaskGraphAsync`)
 - async 模式下的两节点、扇出、扇入、错误传播与同步模式语义一致。
@@ -78,9 +79,9 @@ graph LR
 
 #### 图结构分析 (`TestTaskGraphAnalysis`)
 - **节点元信息** (`test_get_node_meta_covers_all_nodes`): `get_node_meta()` 为每个节点给出 `class_name`、`execution_mode` 等构建期元信息。
-- **按需构建** (`test_getters_build_analysis_on_demand`): 分析与结构 getter（`get_graph_analysis`、`get_nodes`、`get_edges`、`get_structure_list`、`get_source_nodes`）在未显式 build 时也应可直接使用。
+- **按需构建** (`test_getters_build_analysis_on_demand`): 分析与结构 getter（`is_dag`、`layers_dict`、`get_nodes`、`get_edges`、`get_source_nodes`）在未显式 build 时也应可直接使用。
 - **自动重建缓存** (`test_getters_refresh_analysis_after_connect`): `connect` 后 getter 应自动重建分析缓存，源节点与层级随之更新。
-- **DAG 检测** (`test_dag_detection`): `isDAG` 标记应正确反映图是否有环。
+- **DAG 检测** (`test_dag_detection`): `is_dag` 属性应正确反映图是否有环。
 - **层级计算** (`test_layer_computation`): 线性链 A→B→C 的拓扑层级为 {A:0, B:1, C:2}。
 
 #### 复杂结构 (`TestTaskGraphStructure`)
@@ -108,8 +109,13 @@ graph LR
 | 用例 | 验证点 |
 |------|--------|
 | `test_cyclic_serial_graph_raises` | serial graph_mode 下调用 `get_source_nodes()` 时含环图应抛出 `ConfigurationError`（匹配 `"TaskGraph contains a cycle while graph_mode='serial'"`） |
-| `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `isDAG` 应为 `False` |
+| `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `is_dag` 应为 `False` |
 | `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
+
+#### 注入能力 (`TestTaskGraphReporterCapabilities`)
+- `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: 先为已存在节点注入任务，再对未知节点抛出 `UnknownNodeError`；注入任务在 `run({})` 路径下被消费。
+- `test_inject_tasks_with_only_valid_nodes_does_not_raise`: 全部目标节点均存在时不抛错。
+- `test_inject_terminations_injects_valid_nodes_and_raises_for_missing`: 先注入已存在节点的终止信号，再对未知节点抛出 `UnknownNodeError`；通过注册的 `Observer.on_termination_input` 收集实际收到终止信号的节点。
 
 ## 重要细节
 
@@ -118,7 +124,7 @@ graph LR
 - serial graph_mode 下含环图调用 `get_source_nodes()` 时会触发 `ConfigurationError`（见 `test_cyclic_serial_graph_raises`）。
 
 ### 数据库回放
-- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` 默认 `["failed", "pending"]`；`filter_by_error_type` 为关键字参数，开启后按节点 `metrics.get_retry_error_type_names()` 过滤 `error_type`，但 `pending` 记录始终保留。
+- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` 默认 `["failed", "pending"]`；`filter_by_error_type` 为关键字参数，开启后按各节点 `get_retry_error_type_names()` 过滤 `error_type`，但 `pending` 记录始终保留。
 
 ### Lambda 支持
 线程模式下可使用 lambda 作为任务函数（`test_graph_thread_with_lambda`）。
@@ -129,9 +135,11 @@ graph LR
 |------|------|
 | `pytest` | 测试框架 |
 | `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
-| `celestialflow.persistence.util_sqlite` | `append_records`（DB 回放用例写入测试记录） |
-| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError` |
+| `celestialflow.persist.util_sqlite` | `append_records`（DB 回放用例写入测试记录） |
+| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient`（`set_ctree` 用例） |
+| `celestialflow.observer` | `Observer`, `TerminationInputEvent`（Reporter 注入用例） |
+| `conftest` | `metrics_of`（从节点 hub 快照取回指标观察者供断言） |
 
 ## 运行方式
 

@@ -1,10 +1,10 @@
 # src/celestialflow/node/util_types.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `util_types.py` 为 `node` 模块提供节点层特有的类型别名。当前仅定义一个 `AnyTaskNode` 类型别名，供 `TaskGraph` 等上层结构以"任意节点"的形式引用节点对象。
 
-> 运行时用到的 `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` / `TerminationSignal` / `CTreeEvent` / `ValueWrapper` 等核心类型并不在本文件，而是分别由 `celestialflow.runtime` 与 `celestialflow.runtime.util_types` 提供，详见 `docs/zh-CN/src/runtime/__init__.md`。
+> 运行时用到的 `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TerminationSignal` / `CTreeEvent` / `EventClient` 等核心类型并不在本文件，而是由 `celestialflow.runtime` 与 `celestialflow.runtime.util_types` 提供，详见 `docs/zh-CN/src/runtime/__init__.md`。
 
 ## 公开类型
 

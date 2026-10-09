@@ -1,6 +1,6 @@
 # bench/bench_graph_mode.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -13,13 +13,13 @@
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
 - **输入**：`range(25, 32)`（7 个纯成功任务；早期版本含异常输入，已移除）
 - **重试设置**：`NodeA`、`NodeB1` 对 `ValueError` 启用 `max_retries=1`（当前输入下不触发）
-- **Reporter**：未启用（脚本中没有任何 `set_reporter(...)` / `add_observer(...)` 调用）
+- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，也未走上报装配）
 
 ### `bench_graph_1`
 - **结构**：6 节点多层 DAG（A → [B, C]；B → [D, E]；C → E；D → F）
 - **任务**：随机 0-2 秒睡眠（模拟不均匀负载）
 - **输入**：`range(10)`
-- **Reporter**：未启用（脚本中没有任何 `set_reporter(...)` / `add_observer(...)` 调用）
+- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，也未走上报装配）
 
 ### `bench_graph_2`
 - **结构**：3 节点 DAG（NodeA → [NodeB, NodeC]），节点直接使用 `TaskExecutor`，不再包 `TaskSplitter`（早期版本含 Splitter，已移除）
@@ -34,7 +34,7 @@
 
 ## 可能出现的问题
 
-1. **Reporter 默认关闭**：当前脚本中没有任何 `set_reporter(...)` 或 `add_observer(...)` 调用，因此无论 `.env` 中是否配置了 `REPORT_HOST`/`REPORT_PORT` 都**不会**自动连接 reporter；如需启用 reporter，需要在 `bench_graph_*` 内部显式调用 `graph.set_reporter(...)` 并保证服务可达。
+1. **上报/观察者未开启**：当前脚本中没有任何 `add_observer(...)` 调用，且不经过装配上报资源的入口，因此图中不装配除默认指标外的自定义观察者，也不会上报。上报的启停改由项目级 `pyproject.toml` 的 `[tool.celestialflow]` 节（`if_report`、`report_url`）驱动，而不再依赖 `.env` 中的 `REPORT_HOST`/`REPORT_PORT`（该配置项已移除）；本脚本并未启用上报。
 2. **总耗时长**：`benchmark_graph` 会运行 `len(graph_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
 
 ## 运行方式

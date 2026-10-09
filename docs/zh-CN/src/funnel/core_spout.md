@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_spout.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -82,14 +82,10 @@ def _after_stop(self) -> None:
 ## 内部实现
 
 ```python
-def _spout(self):
+def _spout(self) -> None:
     """后台线程主循环，持续从队列拉取记录并调用 _handle_record，收到终止信号时退出。"""
     while True:
-        try:
-            record = self._queue.get(timeout=0.5)
-        except Empty:
-            continue
-
+        record = self._queue.get()  # 阻塞等待，无超时
         if isinstance(record, TerminationSignal):
             break
 

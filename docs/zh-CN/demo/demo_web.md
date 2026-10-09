@@ -1,10 +1,10 @@
 # demo/demo_web.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
-本文件包含两个演示：`demo_forest()`（两棵独立树状 DAG）与 `demo_topology_topology()`（6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图）。后者通过 `TaskReporter` 向 celestialflow-web 推送状态、结构、错误与生命周期数据，用于观察 web 仪表盘在**复杂拓扑**下的显示效果（结构图、节点状态卡、错误日志、进度条、历史曲线等）。
+本文件包含两个演示：`demo_forest()`（两棵独立树状 DAG）与 `demo_topology_topology()`（6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图）。后者通过 observer 事件体系（注册 `MetricsObserver`）在运行后读取各节点的输入/成功/失败/跳过等指标并打印摘要，用于观察一次复杂拓扑执行下各执行模式与重试/丢弃路径的统计数据。
 
 ## 演示场景
 
@@ -61,7 +61,7 @@ Ingest ──┬── Normalize ──┐
                                                   └── StageC ──┘
 ```
 
-- `Ingest` → 注入 24 个种子任务（其中 4 个为重复，演示判重计数；thread 模式，4 worker）
+- `Ingest` → 注入 24 个种子任务（thread 模式，4 worker）
 - `Normalize` → 归一化并放大任务值；`7` 连续失败 3 次后**重试耗尽失败**，`11` 失败 1 次后重试成功（thread 模式，4 worker，`max_retries=2`）
 - `Validate` → 校验任务；`11` 直接抛出**不可重试**的 `RuntimeError`（thread 模式，4 worker）
 - `Splitter` → 把上游传入的可迭代结果拆分为独立条目（每任务拆分出 2~3 个条目）
@@ -72,72 +72,62 @@ Ingest ──┬── Normalize ──┐
 **图结构**：DAG，多层扇出/扇入 + 拆分 + 路由
 **图模式**：`graph_mode="thread"`，节点内部混合 serial / thread 执行模式
 
-## Web 仪表盘可观察点
+## 可观察的输出
 
-| 面板 | 观察内容 |
+运行结束后，demo 通过 `MetricsObserver` 读取各节点的指标快照并打印摘要，可观察：
+
+| 维度 | 观察内容 |
 |------|---------|
-| 结构图 | 九节点多层拓扑；Splitter 呈 subgraph、Router 呈菱形；启用"边标签"（增量/累计）后，`Router → StageA/B/C` 三条边显示不同的传输量 |
-| 节点状态卡 | 不同执行模式与并行度（serial 显示 `-`，thread 显示 worker 数）；成功/失败/重复/等待四段进度条 |
-| 错误日志 | `ValueError`（重试 2 次后失败，retry 列 = 2）与 `RuntimeError`（不可重试，retry 列 = 0）两条错误 |
-| 错误类型分布 | `ValueError` / `RuntimeError` 两类错误统计 |
-| 节点指标走向 | 各节点成功/失败/等待曲线的实时增量 |
+| 输入总量 | 各节点进入的任务总数（`input_total`，含外部注入与上游投递） |
+| 成功 / 失败 / 跳过 | 各节点的 `succeeded` / `failed` / `skipped` 计数，反映重试成功、重试耗尽失败与分流后各分支的规模 |
+| 执行模式 | 不同执行模式（serial / thread）与并行度对吞吐与计数的直观影响 |
+
+> 该演示已不依赖 Reporter / 上报通道，也不向 web 推送数据；`demo_web` 名称及 `demo_forest` 为历史沿革，当前脚本仅打印本地统计。
 
 ## 关键配置
 
 - 各 Stage 通过 `TaskExecutor(..., execution_mode="thread" | "serial")` 显式指定执行模式
 - `normalize.set_retry_exceptions(ValueError)` 指定可重试异常；`max_retries=2` 提供两次重试机会
-- `Ingest` 注入 24 个种子任务，其中 `3`、`5`、`8`、`12` 与前面的种子重复（由默认判重逻辑计入 `dup`），用于展示重复判重计数
-- 上报刷新间隔调整为 `reporter.interval = 2`（默认 5s），便于仪表盘快速刷新
+- `Ingest` 注入 24 个种子任务，其中 `3`、`5`、`8`、`12` 与前面的种子值重复；demo 未配置 `skip_func`，故这些重复值不会被去重，仍按普通任务进入各节点（当前重复值仅用于让 `Normalize` / `Validate` 等节点看到更多输入，不产生去重计数）
 - 图模式为 `graph_mode="thread"`，节点内部可混合执行模式
 
 ## 可能出现的问题
 
 1. **无断言**：演示脚本，不验证结果正确性。
-2. **任务函数含 sleep**：各阶段 sleep 从 0.02s（`route_task`）到 1s（`ingest_task`）不等，完整执行预计数十秒，期间仪表盘可观察多轮状态刷新。
-3. **未配置上报地址**：`REPORT_HOST` / `REPORT_PORT` 为空时跳过上报，demo 仍可独立运行，但仪表盘无数据。
+2. **任务函数含 sleep**：各阶段 sleep 从 0.02s（`route_task`）到 1s（`ingest_task`）不等，完整执行预计数十秒，期间可观察各节点计数逐步更新的过程。
+3. **正常化/校验节点的失败**：`Normalize` 的 `7` 与 `Validate` 的 `11` 会制造失败路径，脚本启动时不依赖外部服务，可独立运行。
 
 ## 运行方式
-
-1. 启动 celestialflow-web 服务（`uvicorn` 或 `make run`，具体见 web 项目文档）。
-2. 设置环境变量并运行 demo：
 
 ```bash
 python demo/demo_web.py
 ```
 
-Windows PowerShell：
-
-```powershell
-$env:REPORT_HOST = "127.0.0.1"
-$env:REPORT_PORT = "8000"
-python demo/demo_web.py
-```
-
-3. 打开浏览器访问 web 仪表盘，观察结构图、状态卡与错误日志。
+`__main__` 会依次运行 `demo_forest()` 与 `demo_topology_topology()`，两者独立执行。
 
 ## 预期行为
 
 demo 结束后会打印各节点计数摘要，大致形如：
 
 ```
-[demo] 注入 24 个任务（含 4 个重复）
+[demo] 注入 24 个任务（含 4 个重复值）
 [demo] 各节点计数:
-  Ingest    input=24   ok=20    fail=0   dup=4
-  Normalize input=20   ok=19    fail=1   dup=0
-  Validate  input=20   ok=19    fail=1   dup=0
-  Splitter  input=38   ok=38    fail=0   dup=0
-  Router    input=95   ok=95    fail=0   dup=0
-  StageA    input=32   ok=32    fail=0   dup=0
-  StageB    input=33   ok=33    fail=0   dup=0
-  StageC    input=30   ok=30    fail=0   dup=0
-  Collect   input=95   ok=95    fail=0   dup=0
+  Ingest    input=24  ok=20  fail=0  skip=0
+  Normalize input=20  ok=19  fail=1  skip=0
+  Validate  input=20  ok=19  fail=1  skip=0
+  Splitter  input=38  ok=38  fail=0  skip=0
+  Router    input=38  ok=38  fail=0  skip=0
+  StageA    input=13  ok=13  fail=0  skip=0
+  StageB    input=13  ok=13  fail=0  skip=0
+  StageC    input=12  ok=12  fail=0  skip=0
+  Collect   input=38  ok=38  fail=0  skip=0
 ```
 
-> 具体数字随路由分布略有浮动；`Normalize` 的 `7` 在重试耗尽后失败（retry=2），`Validate` 的 `11` 直接失败（RuntimeError）。
+> 具体数字随各阶段 sleep 后的任务流与路由分布略有浮动；`Normalize` 的 `7` 在重试耗尽后失败（`failed` 计入），`Validate` 的 `11` 直接以 `RuntimeError` 失败未出现在上方 `ok` 列。各计数对应 `NodeMetrics` 的 `input_total` / `succeeded` / `failed` / `skipped` 字段。
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskSplitter`、`TaskRouter`）
+- `celestialflow.observer`（`MetricsObserver`）
 - `demo_utils`（`add_one_sleep`）
 - `python-dotenv`
-- 外部服务：celestialflow-web（可选，未就绪时跳过上报）

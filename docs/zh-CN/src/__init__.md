@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 简介
 
@@ -59,9 +59,9 @@
 
 | 导出符号 | 说明 |
 |----------|------|
-| `BaseObserver` | 观察者基类，定义 on_start / on_success / on_failure 等接口 |
+| `Observer` | 观察者基类，定义 on_start / on_success / on_failure 等回调接口 |
+| `ObserverHub` | 观察者集线器，将事件广播给一组子观察者 |
 | `PrintObserver` | 基于 print 的控制台进度观察者，线程安全地输出任务执行计数 |
-| `TaskReporter` | 任务报告器，通过 HTTP 上报任务执行事件 |
 
 ---
 
@@ -83,7 +83,20 @@
 | 导出符号 | 说明 |
 |----------|------|
 | `load_records` | 从 SQLite 数据库加载全部执行记录 |
-| `load_tasks_grouped_by_stage` | 按阶段名称分组加载任务记录 |
+| `load_tasks_grouped_by_node` | 按节点分组加载任务记录 |
+
+---
+
+### ticker — 定时驱动
+
+提供基于 Ticker 的定时任务事件驱动能力。
+
+| 导出符号 | 说明 |
+|----------|------|
+| `Ticker` | 周期性触发的事件生成器 |
+| `TickEvent` | 单次 tick 产生的事件对象 |
+| `TickHandler` | 处理 TickEvent 的回调接口类型 |
+| `TickHub` | 将 tick 事件广播给一组 TickHandler 的集线器 |
 
 ---
 
@@ -100,13 +113,14 @@
 
 ## `__all__` 列表
 
-完整公开 API 列表（当前共 21 个符号）：
+完整公开 API 列表（当前共 25 个符号）：
 
 ```python
 __all__ = [
     "BaseInlet",
-    "BaseObserver",
     "BaseSpout",
+    "Observer",
+    "ObserverHub",
     "PrintObserver",
     "TaskChain",
     "TaskComplete",
@@ -115,16 +129,19 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskWheel",
     "TerminationSignal",
+    "TickEvent",
+    "TickHandler",
+    "TickHub",
+    "Ticker",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_tasks_grouped_by_stage",
+    "load_tasks_grouped_by_node",
 ]
 ```
 
@@ -222,7 +239,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
+        O["Observer<br/>ObserverHub<br/>PrintObserver"]
     end
 
     subgraph benchmark
@@ -230,7 +247,11 @@ graph TD
     end
 
     subgraph persistence
-        P["load_records<br/>load_tasks_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_node"]
+    end
+
+    subgraph ticker
+        K["Ticker<br/>TickEvent<br/>TickHandler<br/>TickHub"]
     end
 
     subgraph runtime
@@ -243,5 +264,6 @@ graph TD
     Init --> O
     Init --> U
     Init --> P
+    Init --> K
     Init --> R
 ```

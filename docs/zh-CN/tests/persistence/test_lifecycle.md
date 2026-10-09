@@ -1,49 +1,59 @@
-# tests/persistence/test_lifecycle.py
+# tests/persist/test_lifecycle.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 
-验证 `celestialflow.persistence.core_lifecycle` 中的 `LifecycleInlet` 与 `LifecycleSpout` 配对组件，确保任务生命周期事件（`task_input` / `task_success` / `task_fail` / `task_retry`）通过后台线程写入 sqlite 文件，并可按 stage 维度读取 task-error 对和 task-result 对；同时验证重试次数持久化与旧库自动补列。
+验证 `celestialflow.persist.core_lifecycle` 中的 `LifecycleInlet` 与 `LifecycleSpout` 配对组件，确保任务生命周期事件（`on_task_input` / `on_task_success` / `on_task_fail` / `on_task_retry` / `on_task_skip`）通过后台线程写入 sqlite 文件，并可按节点读取 task-error 对和 task-result 对；同时验证重试次数持久化与旧库自动补列。
 
 ## 核心测试对象
 
-- `LifecycleInlet`: 通过 `task_input()` / `task_success()` / `task_fail()` / `task_retry()` 将生命周期事件经 `_funnel()` 投递到内部队列。
-- `LifecycleSpout`: 后台线程消费队列中的事件并落盘到 sqlite 文件，支持 `get_task_error_pairs()` / `get_task_result_pairs()` 查询。
-- `connect_db`（`celestialflow.persistence.util_sqlite`）: 建立连接并负责表结构升级（如为旧库补 `retry_times` 列）。
+| 类 / 对象 | 来源 | 说明 |
+|-----------|------|------|
+| `LifecycleInlet` | `celestialflow.persist.core_lifecycle` | 将生命周期事件经 `bind_spout` 投递到内部队列 |
+| `LifecycleSpout` | `celestialflow.persist.core_lifecycle` | 后台线程消费队列中的事件并落盘到 sqlite 文件，`db_path` 指向生成的数据库 |
+| `load_task_error_records` / `load_task_result_records` | `celestialflow.persist.util_sqlite` | 按节点读取 task-error / task-result 对 |
+| `connect_db` | `celestialflow.persist.util_sqlite` | 建立连接并负责表结构升级（如为旧库补 `retry_times` 列） |
+| 事件类型 | `celestialflow.observer` | `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskRetryEvent` / `TaskSkipEvent` |
 
 ## 测试覆盖矩阵
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestLifecyclePersistence` | 4 | 完整生命周期持久化、成功结果持久化、重试次数持久化、旧库补列 |
+| `TestLifecyclePersistence` | 5 | 完整生命周期持久化、成功结果持久化、重试次数持久化、跳过持久化、旧库补列 |
 
 ## 关键测试场景
 
 ### `test_lifecycle_persistence`
 
-覆盖 `task_input` → `task_fail` 与 `task_input` → `task_success` 两条生命周期链路（s1 / s2 两个 stage）。
+覆盖 `on_task_input` → `on_task_fail` 与 `on_task_input` → `on_task_success` 两条生命周期链路（s1 / s2 两个节点）。
 
-- `task_input(stage_name, event_id, task)` 向 `LifecycleInlet` 注入一条 pending 记录。
-- `task_fail(event_id=1, error_id=21, error=ValueError("oops"))` 将 s1 的 pending 记录晋升为 failed，最终记录以 `error_id`（21）作为落库 `event_id`，并绑定错误类型与错误消息。
-- `task_success(event_id=2, result="ok2")` 将 s2 的 pending 记录晋升为 success，保留原 `event_id`（2）并写入结果。
-- 断言 sqlite 文件创建成功（`./lifecycles/<日期>/flow_lifecycle(<时间>).sqlite3`），`get_task_error_pairs("s1")` 返回 `[("data1", ("ValueError", "oops"))]`。
-- 直接查询 records 表并按 `id` 排序，验证 `event_id` 序列为 `[21, 2]`，逐字段核对 `stage` / `status` / `error_type` / `error_message` / `task_json` / `result_json`，且两条记录的 `ts` 均大于 0。
+- `on_task_input` 向 `LifecycleInlet` 注入 pending 记录。
+- `on_task_fail` 将 s1 的 pending 记录晋升为 failed，最终记录以失败事件携带的 `event_id`（21）作为落库 ID，并绑定错误类型与错误消息。
+- `on_task_success` 将 s2 的 pending 记录晋升为 success，保留原 `event_id`（2）并写入结果。
+- 断言 `.sqlite3` 文件创建成功，`load_task_error_records(db_path, "s1")` 返回 `[("data1", ("ValueError", "oops"))]`。
+- 直接查询 `records` 表并按 `id` 排序，验证 `event_id` 序列为 `[21, 2]`（`node` / `status` / `error_type` / `error_message` / `task_json` / `result_json` 逐字段核对），且两条记录的 `ts` 均大于 0。
 
 ### `test_success_persistence`
 
 覆盖成功结果的持久化与回读。
 
-- 对 s1、s2 分别执行 `task_input` + `task_success`（结果 100 / 200）。
-- 断言 `get_task_result_pairs("s1")` 返回 `[("task1", 100)]`，即 task-result 对按 stage 准确读回。
+- 对 s1、s2 分别执行 `on_task_input` + `on_task_success`（结果 100 / 200）。
+- 断言 `load_task_result_records(db_path, "s1")` 返回 `[("task1", 100)]`。
 
 ### `test_retry_persistence`
 
 覆盖重试次数的持久化与最终晋升。
 
-- 对 s1：`task_input` → 两次 `task_retry` → `task_success`，断言晋升 success 时清空错误信息、保留 `retry_times == 2`。
-- 对 s2：`task_input` → 两次 `task_retry` → `task_fail(error_id=22)`，断言 failed 记录保留最新错误信息（`ValueError` / `final boom`）且 `retry_times == 2`。
-- 断言 records 表中 `(event_id, status, retry_times)` 为 `[(1, "success", 2), (22, "failed", 2)]`。
+- 对 s1：`on_task_input` → 两次 `on_task_retry` → `on_task_success`，断言晋升 success 时清空错误信息、保留 `retry_times == 2`。
+- 对 s2：`on_task_input` → 两次 `on_task_retry` → `on_task_fail`，断言 failed 记录保留最新错误信息（`ValueError` / `final boom`）且 `retry_times == 2`。
+- 断言 `records` 表中 `(event_id, status, retry_times)` 为 `[(1, "success", 2), (22, "failed", 2)]`。
+
+### `test_skip_persistence`
+
+覆盖跳过持久化。
+
+- 对 s1 执行 `on_task_input` + `on_task_skip`，`on_task_skip` 将 pending 晋升为 `skipped` 并切换到跳过事件携带的 `event_id`（31）。
 
 ### `test_old_db_gets_retry_times_column`
 
@@ -55,36 +65,39 @@
 ```mermaid
 flowchart LR
     subgraph Inlet
-        A[task_input] --> B[task_success]
-        A --> C[task_fail]
-        A --> D[task_retry]
+        A[on_task_input] --> B[on_task_success]
+        A --> C[on_task_fail]
+        A --> D[on_task_retry]
+        A --> E[on_task_skip]
     end
     subgraph Spout
-        E[消费队列] --> F[写入 sqlite]
+        F[消费队列] --> G[写入 sqlite]
     end
-    A -.->|queue| E
-    B -.->|queue| E
-    C -.->|queue| E
-    D -.->|queue| E
-    F --> G[get_task_error_pairs]
-    F --> H[get_task_result_pairs]
+    A -.->|queue| F
+    B -.->|queue| F
+    C -.->|queue| F
+    D -.->|queue| F
+    E -.->|queue| F
+    G --> H[load_task_error_records]
+    G --> I[load_task_result_records]
 ```
 
 ## 运行方式
 
 ```bash
 # 全部执行
-pytest tests/persistence/test_lifecycle.py -v
+pytest tests/persist/test_lifecycle.py -v
 
 # 按关键字匹配
-pytest tests/persistence/test_lifecycle.py -k "lifecycle" -v
-pytest tests/persistence/test_lifecycle.py -k "success" -v
-pytest tests/persistence/test_lifecycle.py -k "retry" -v
+pytest tests/persist/test_lifecycle.py -k "lifecycle" -v
+pytest tests/persist/test_lifecycle.py -k "success" -v
+pytest tests/persist/test_lifecycle.py -k "retry" -v
+pytest tests/persist/test_lifecycle.py -k "skip" -v
 ```
 
 ## 注意事项
 
-- 测试通过 `monkeypatch.chdir(tmp_path)` 将工作目录切换到临时目录，sqlite 文件（`./lifecycles/<日期>/flow_lifecycle(<时间>).sqlite3`）在测试结束后自动清理。
-- 失败记录的 `event_id` 会被替换为 `task_fail()` 传入的 `error_id`，与该 stage 后续的错误查询/推送语义保持一致。
-- `LifecycleInlet` 与 `LifecycleSpout` 是两个测试隔离的本地实例，**不**使用 `get_lifecycle_inlet()` / `get_lifecycle_spout()` 全局单例，避免污染其它测试。
-- 相关实现在 `src/celestialflow/persistence/core_lifecycle.py`。
+- 测试通过 `monkeypatch.chdir(tmp_path)` 将工作目录切换到临时目录，sqlite 文件在测试结束后自动清理。
+- 失败 / 跳过记录的落库 `event_id` 会被替换为最终状态事件携带的事件 ID（失败事件 ID / 跳过事件 ID），保持后续错误查询 / 推送语义一致。
+- `LifecycleInlet` 与 `LifecycleSpout` 是两个测试隔离的本地实例，不依赖全局单例，避免污染其它测试。
+- 相关实现在 `src/celestialflow/persist/core_lifecycle.py`。

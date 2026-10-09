@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ---
 
@@ -43,7 +43,7 @@
 - **多维执行模型**：图级 (serial/thread/async) × 节点级 (serial/thread/async) 组合
 - **外部协作示例**：可用普通 `TaskExecutor` 对接 Redis / Go Worker 等外部系统
 - **事件溯源**：集成 CelestialTree，任务全生命周期可追踪
-- **状态上报链路**：通过 `TaskReporter` 与 `celestialflow-web` 服务交换状态和控制指令
+- **状态上报链路**：通过 `PushInlet`/`PushSpout` 与 `celestialflow-web` 服务交换状态和控制指令
 - **零平台依赖**：`pip install celestialflow`，一行代码即可运行
 
 ---
@@ -65,7 +65,7 @@
   - 确保 DAG 和环形图均能正确终止
 
 - **指标即公民 (Metrics as First-Class)**
-  - 每个节点内建 `TaskMetrics`，线程安全的实时计数
+  - 图级 `MetricsObserver` 依据观察者事件维护每个节点的只读指标快照 `NodeMetrics`，线程安全实时计数
 
 ---
 
@@ -92,13 +92,13 @@ graph TB
 
     subgraph 运行时基础设施
         I --> J[TaskInQueue / TaskOutQueue]
-        I --> K[TaskMetrics 指标]
+        I --> K[NodeMetrics 指标]
         I --> L[LogInlet / LifecycleInlet]
         I --> M[CelestialTree 事件]
     end
 
     subgraph 外部服务
-        N[TaskReporter]
+        N[PushInlet / PushSpout]
         O[HTTP API]
     end
 
@@ -108,7 +108,7 @@ graph TB
 ```
 
 备注：
-自上而下：用户定义图结构 → 框架初始化资源和分析 → 按调度模式执行 → 运行时基础设施提供队列、指标、日志 → `TaskReporter` 可选地把状态同步到外部服务。
+自上而下：用户定义图结构 → 框架初始化资源和分析 → 按调度模式执行 → 运行时基础设施提供队列、指标、日志 → `PushInlet`/`PushSpout` 可选地把状态同步到外部服务。
 
 ---
 
@@ -127,7 +127,7 @@ TaskGraph(
 - **调度模式**：
   - `serial`：节点串行启动，依赖关系由队列自然保证
   - `thread` / `async`：节点并发启动，通过线程或协程并行执行
-- **状态管理**：`node_dict`（节点对象集合）、`node.get_snapshot()`（节点运行时状态快照）、`get_node_meta()`（节点元信息）
+- **状态管理**：`node_dict`（节点对象集合）、`metrics_of(graph).get_node_metrics(...)`（节点指标快照）、`get_node_meta()`（节点元信息）
 - **图分析**：基于 NetworkX 构建有向图，检测 DAG 性质，计算拓扑层级
 
 ---
@@ -146,7 +146,7 @@ classDiagram
         +execution_mode: str
         +max_workers: int
         +max_retries: int
-        +metrics: TaskMetrics
+        +metrics: NodeMetrics
         +run(init_tasks_dict)
         +run_async(init_tasks_dict)
     }
@@ -245,18 +245,21 @@ graph TD
 
 ## Slide 11: 指标与去重系统
 
-### TaskMetrics — 线程安全的实时计数
+### MetricsObserver / NodeMetrics — 线程安全的实时计数
 
-- **核心计数器**：
-  - `external_input_counter`：外部注入任务数（经 `put_task` 进入）
-  - `upstream_counter` / `downstream_counter`：与各上下游节点之间的任务计数（按名称分别记录）
-  - `success_counter`：成功处理数
-  - `fail_counter`：最终失败数（超出重试次数）
-  - `duplicate_counter`：重复任务计数（框架保留的计数维度）
+- **图级观察者**：`MetricsObserver` 作为 `Observer` 依据事件写入每个节点的计数、状态与运行起始时间，并通过 `MetricsView` 协议暴露只读快照 `NodeMetrics`
+- **核心计数项**（`NodeMetrics` 字段）：
+  - `external_input`：外部注入任务数（经注入/`put_task` 进入）
+  - `upstream_input` / `upstream_counts`：各上游节点投递的任务计数（按名称分别记录）
+  - `downstream_counts`：发往各下游节点的任务计数
+  - `succeeded`：成功处理数
+  - `failed`：最终失败数（超出重试次数）
+  - `skipped`：跳过任务数（框架保留的去重/跳过计数维度）
+  - `processed`：`succeeded + failed + skipped`
+  - `pending`：`input_total - processed`
 
-- **终止判定**：`is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
-
-- **忙碌时间实测**：`begin_task()` / `end_task()` 记录节点真实忙碌墙钟时间，`get_elapsed()` 返回累计值
+- **状态与时间**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）与 `start_time` 由 `on_node_start`/`on_node_end` 维护
+- **终止判定**：`is_tasks_finished()` 比较输入与已处理计数
 
 ---
 
@@ -335,9 +338,9 @@ graph LR
 
 - **日志分级**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **错误持久化**：SQLite 格式，含 `stage`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` 等字段
+- **错误持久化**：SQLite 格式，含 `node`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` 等字段
 
-- **错误分析工具**：`load_records()`、`load_tasks_grouped_by_stage()` 按维度聚合失败任务
+- **错误分析工具**：`load_records()`、`load_tasks_grouped_by_node()` 按维度聚合失败任务
 
 ---
 
@@ -376,12 +379,12 @@ CelestialFlowError (基类)
 
 | 层 | 技术 | 用途 |
 |----|------|------|
-| 运行侧 | `TaskReporter` | 周期性推送图结构、分析、状态、错误信息 |
-| 协议 | HTTP + JSON | 通过 pull / push 接口完成双向同步 |
-| 控制侧 | 外部服务 | 返回上报间隔、注入任务和终止信号 |
+| 运行侧 | `PushInlet`/`PushSpout` | 推送图元信息、会话下线、错误、状态快照 |
+| 协议 | HTTP + JSON | 通过 push / pull 接口完成双向同步 |
+| 控制侧 | 外部服务 | 返回注入任务和终止信号 |
 | 存储侧 | SQLite + 日志 | 错误记录和结构化日志仍由主仓负责持久化 |
 
-- **主仓职责**：提供状态采集、错误增量同步、任务注入入口
+- **主仓职责**：`PushSpout` 周期推送，`InjectionHandler` 拉取注入，`PushSnapshotHandler` 快照投影
 - **外部服务职责**：消费状态数据并按需提供监控界面或控制台
 
 ---
@@ -391,8 +394,8 @@ CelestialFlowError (基类)
 ### 三类核心能力
 
 **1. 状态同步**
-- 推送图结构、拓扑分析、节点状态快照
-- 支持通过 `graph_id` 判断远端是否已持有当前图
+- 推送图元信息、会话下线、图级状态快照
+- 通过 `session_id` 标识会话，服务端据此区分/下线会话
 
 **2. 错误同步**
 - 基于 `event_id` 增量推送错误记录
@@ -404,19 +407,19 @@ CelestialFlowError (基类)
 
 ---
 
-## Slide 18: TaskReporter API 一览
+## Slide 18: 上报 / 注入 API 一览
 
 ### REST 接口设计
 
 | 方向 | 端点 | 数据 |
 |------|------|------|
-| Pull | `/api/pull_server_state` | 当前图同步状态、图元信息状态、最大 `event_id` |
+| Push | `/api/push_graph_meta` | 图元信息（图结构 + 拓扑 + 节点元信息） |
+| Push | `/api/push_error` | 增量推送任务错误记录 |
+| Push | `/api/push_snapshot` | 图级状态快照（状态、成功/失败/跳过/待处理计数） |
+| Push | `/api/shutdown_session` | 通知会话下线 |
 | Pull | `/api/pull_injection` | 待注入任务与终止信号 |
-| Push | `/api/push_status` | 更新节点状态快照 |
-| Push | `/api/push_graph_meta` | 更新图结构 + 图分析元信息 |
-| Push | `/api/push_errors` | 更新错误记录 |
 
-- **主仓不再内建 Web 前端**：这里只定义 `TaskReporter` 实际使用的同步接口
+- **主仓不再内建 Web 前端**：这里只定义 `PushInlet`/`PushSpout` 实际使用的同步接口
 - **接口设计目标**：让外部服务可以自由实现监控面板、控制台或审计系统
 
 ---
@@ -639,7 +642,7 @@ graph LR
   - Spout-Inlet 模式，只需实现 `_handle_record()` 即可自定义输出目标
 
 - **状态上报链路可替换**
-  - 只约束 `TaskReporter` 的 pull / push 协议
+  - 只约束 `PushInlet`/`PushSpout` 的 push / pull 协议
   - 外部服务可独立演进，不与主仓强绑定
 
 ---

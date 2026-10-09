@@ -1,6 +1,6 @@
 # src/celestialflow/graph/util_order_graph.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `graph/util_order_graph.py` 提供最小图结构 `OrderGraph`，以及围绕它的一组基础图算法。
 
@@ -140,4 +140,4 @@ print(levels)
 
 - 如果你只需要轻量图结构和基础图算法，优先使用 `OrderGraph`。
 - 如果你需要与 `TaskGraph` 的当前分析逻辑保持一致，优先使用这里的算法函数。
-- 如果你需要导出可打印的图结构文本，应继续配合 `util_render.py`。
+- 如果你需要导出可打印的图结构文本，应配合 `persist.util_render` 中的 `render_structure_list`。

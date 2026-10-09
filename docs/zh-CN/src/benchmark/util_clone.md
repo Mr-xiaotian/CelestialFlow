@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 `benchmark/util_clone.py` 提供了克隆执行器与任务图的功能，用于性能测试和配置复用。
 
@@ -61,7 +61,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 3. 克隆每个节点并建立原节点名 → 克隆节点的映射
 4. 通过 `set_nodes()` 注册全部克隆节点，并用 `connect()` 重建节点间的连接关系
 5. 复制图配置（`name`, `graph_mode`）
-6. 复制 CelestialTree（`clone_event_client`）与 Reporter 配置（`NullTaskReporter` / `TaskReporter` 可克隆，其余类型抛出 `ConfigurationError`）
+6. 复制 CelestialTree 事件客户端（通过 `clone_event_client` 克隆）
 
 > ⚠️ **`clone_graph` 不保证保留所有节点类型**：仅 `TaskExecutor` 节点会被克隆为相同类型；`TaskSplitter` / `TaskRouter` 等特化节点既不会被克隆为相同子类，其拆分 / 路由行为也不会被保留。该工具是 benchmark 内部工具，仅适用于"全由 `TaskExecutor` 构成、用于基准测试"的任务图。
 

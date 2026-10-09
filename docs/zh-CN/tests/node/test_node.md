@@ -1,10 +1,10 @@
 # tests/node/test_node.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 
-验证 `celestialflow.node.core_node.BaseTaskNode`（通过公共子类 `TaskExecutor` 间接覆盖）提供的通用配置、绑定与启动异常聚合行为，包括 `get_snapshot` / `get_meta` 的字段划分与 `connect_to` 建立的计数绑定在切换执行模式后仍稳定。
+验证 `celestialflow.node.core_node.BaseTaskNode`（通过公共子类 `TaskExecutor` 间接覆盖）提供的通用配置、绑定与启动异常聚合行为，包括节点唯一标识、执行模式校验、可重试异常配置、`get_meta()` 构建期字段划分，以及 `connect_to` 建立的队列绑定在切换执行模式后仍稳定。
 
 ## 核心测试对象
 
@@ -12,7 +12,7 @@
 |-----------|------|------|
 | `add_one(x)` | 测试回调 | 同步加一函数 |
 | `async_add_one(x)` | 测试回调 | 异步加一协程函数 |
-| `TestBaseTaskNodeConfig` | 用例类 | 覆盖名称、执行模式、快照 / 元信息、切换模式时下游绑定不丢失 |
+| `TestBaseTaskNodeConfig` | 用例类 | 覆盖名称、执行模式、可重试异常、元信息、切换模式时下游绑定不丢失 |
 | `TestBaseTaskNodeStartErrors` | 用例类 | 覆盖 `start` / `start_async` 异常聚合行为 |
 
 ## 关键测试场景
@@ -27,10 +27,10 @@
 | `test_valid_execution_mode_thread` | 支持 `execution_mode="thread"` |
 | `test_valid_execution_mode_async` | 支持 `execution_mode="async"`（使用 `async_add_one`） |
 | `test_invalid_execution_mode` | 非法模式应抛 `InvalidOptionError` |
-| `test_snapshot_excludes_build_time_fields` | `get_snapshot()` 不再包含构建期字段 `name` / `class_name` / `execution_mode` / `max_workers` |
+| `test_default_retry_exceptions_empty` | 默认可重试异常为空（`retry_exceptions == ()`，`get_retry_error_type_names() == set()`） |
+| `test_set_retry_exceptions_is_additive` | `set_retry_exceptions(...)` 累积异常类型并映射为类型名集合 |
 | `test_get_meta_reports_build_time_fields` | `get_meta()` 只返回 `class_name` / `execution_mode` / `max_workers` |
-| `test_snapshot_tolerates_not_started_node` | 节点未启动时 `get_snapshot()` 不因缺少 `start_time` 崩溃（`status == 0`、`start_time == 0.0`、`elapsed_time == 0`） |
-| `test_connect_to_binding_survives_execution_mode_switch` | `connect_to` 建立的下游 / 上游共享计数器在 `set_execution_mode("thread")` 后仍保持同一对象，计数继续累加 |
+| `test_connect_to_binding_survives_execution_mode_switch` | `connect_to` 建立的下游 / 上游队列绑定在 `set_execution_mode("thread")` 后仍保持稳定 |
 
 ### `TestBaseTaskNodeStartErrors` — 启动异常聚合
 
@@ -67,7 +67,7 @@ flowchart TB
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestBaseTaskNodeConfig` | 10 | 名称标识与修改、三种合法执行模式、非法模式报错、快照 / 元信息字段划分、未启动快照容错、切换模式不破坏下游绑定 |
+| `TestBaseTaskNodeConfig` | 10 | 名称标识与修改、三种合法执行模式、非法模式报错、可重试异常默认与累积、元信息字段划分、切换模式不破坏下游绑定 |
 | `TestBaseTaskNodeStartErrors` | 2 | 同步 / 异步 `start*` 异常聚合 |
 | **合计** | **12** | |
 
@@ -96,8 +96,8 @@ pytest tests/node/test_node.py -k "execution_mode" -v
 
 ## 注意事项
 
-- `test_connect_to_binding_survives_execution_mode_switch` 是回归测试，覆盖之前"`TaskMetrics` 在切换执行模式时重建计数器导致下游绑定失效"的问题；现版本 `connect_to` 通过 `metrics.set_downstream_counter` / `set_upstream_counter` 让上下游共享同一个计数器对象。
-- `get_snapshot()` 只采集运行期字段（`start_time` / `status` / `elapsed_time` / 计数 / `upstream_counts` / `downstream_counts`），构建期字段改由 `get_meta()` 随图结构一次性上报，避免每轮状态推送重复传输。
-- `TestBaseTaskNodeStartErrors` 通过 `monkeypatch.setattr` 替换 `_prepare_start` 与 `_finish_start` 两个**内部钩子**；这要求测试与实现位于同一包内（已通过 `celestialflow.node` 公开导出保证）。
+- `test_connect_to_binding_survives_execution_mode_switch` 是回归测试：`connect_to` 建立的下游队列池 `yield_queue` 与上游输入源 `source_names` 在切换执行模式后保持稳定，不因重建调度器而丢失绑定。
+- `get_meta()` 只返回构建期元信息（`class_name` / `execution_mode` / `max_workers`），供图结构一次性上报使用。
+- `TestBaseTaskNodeStartErrors` 通过 `monkeypatch.setattr` 替换 `_prepare_start` 与 `_finish_start` 两个**内部钩子**，验证同步 / 异步启动时异常都被聚合为 `ExceptionGroup` 抛出。
 - `ExceptionGroup` 仅在 Python 3.11+ 可用，本仓库基于 Python 3.14 满足要求。
 - 相关实现位于 `src/celestialflow/node/core_node.py`。

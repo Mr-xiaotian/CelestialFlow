@@ -1,8 +1,8 @@
-# src/celestialflow/persistence/util_payload.py
+# src/celestialflow/persist/util_payload.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
-`persistence/util_payload.py` 提供任务数据的持久化序列化工具，将任意 Python 对象递归转换为 JSON 友好的结构。
+`persist/util_payload.py` 提供任务数据的持久化序列化工具，将任意 Python 对象递归转换为 JSON 友好的结构。
 
 ## 核心函数
 
@@ -41,7 +41,7 @@ flowchart TD
 ### 基本类型直接透传
 
 ```python
-from celestialflow.persistence.util_payload import to_persisted_payload
+from celestialflow.persist.util_payload import to_persisted_payload
 
 print(to_persisted_payload(42))  # 42
 print(to_persisted_payload("hello"))  # "hello"
@@ -52,7 +52,7 @@ print(to_persisted_payload(None))  # None
 ### 复合类型递归转换
 
 ```python
-from celestialflow.persistence.util_payload import to_persisted_payload
+from celestialflow.persist.util_payload import to_persisted_payload
 
 # 列表
 result = to_persisted_payload([1, "a", True])
@@ -78,17 +78,17 @@ print(result)  # "MyTask(id=1)"
 `to_persisted_payload` 主要在 `LifecycleInlet` 内部自动调用，用于将任务数据转换为 SQLite 可存储的 JSON 字符串：
 
 ```python
-# LifecycleInlet.task_input 内部流程：
+# LifecycleInlet.on_task_input 内部流程（观察者回调）：
 from datetime import datetime
 
 pending_item = {
     "__op__": "insert",
     "record": {
-        "event_id": event_id,
+        "event_id": event.input_id,
         "ts": datetime.now().timestamp(),
-        "stage": stage_name,
+        "node": event.node,
         "status": "pending",
-        "task_json": to_persisted_payload(task),  # 自动序列化
+        "task_json": to_persisted_payload(event.task),  # 自动序列化
     },
 }
 ```
@@ -96,5 +96,5 @@ pending_item = {
 ## 注意事项
 
 - 序列化策略是**尽力而为**：对于无法直接 JSON 序列化的对象，降级为 `str()` 字符串表示。
-- 函数结果最终由 `LifecycleSpout` 通过 `util_sqlite` 层以 `json.dumps` 形式写入 SQLite 的 `task_json` 或 `result_json` 字段。
+- 函数结果最终由 `LifecycleSpout` 通过 `util_sqlite` 层以 `json.dumps` 形式写入 SQLite 的 `task_json` 字段。
 - 本模块只负责数据格式转换，不涉及任何文件读写。

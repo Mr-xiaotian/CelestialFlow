@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -222,7 +222,7 @@ flowchart TD
 - DAG 结构：`demo_chain` 的 `TaskChain` 不显式传 `graph_mode`，其 5 个节点均使用 `execution_mode="serial"`；`demo_cross` / `demo_network` / `demo_star` / `demo_fanin` / `demo_grid` 的节点多为 `execution_mode="thread"`
 - `demo_grid`：`TaskGrid` 使用默认 `graph_mode="thread"`（源码未显式传入 `graph_mode`）
 - 有环图：`demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` 均显式传入 `if_put_signal=False`（即不会自动注入终止信号）；`demo_chain` 同样传入 `if_put_signal=False`。运行有环图时建议准备手动终止
-- 各演示均通过 `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` 接入 Reporter；各示例中的 `<graph>.set_ctree(ctree_client)` 均被注释，默认不启用 CelestialTree。实际是否生效取决于 `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` 等环境变量与服务端是否就绪
+- 各演示均通过 `<graph>.set_ctree(ctree_client)` 的注释状态控制是否启用 CelestialTree（默认被注释、不启用）。实际是否生效取决于 `CTREE_HOST`/`CTREE_HTTP_PORT`/`CTREE_GRPC_PORT` 等环境变量与服务端是否就绪
 - `demo_network`、`demo_star`、`demo_fanin`、`demo_wheel` 虽已定义，但未被 `__main__` 调用
 
 ## 可能出现的问题
@@ -238,7 +238,7 @@ flowchart TD
 python demo/demo_structure.py
 ```
 
-> **注意**：`__main__` 依次调用 `demo_chain()`、`demo_forest()`、`demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()`。由于 `demo_forest()` 未定义，脚本会在 `demo_chain()` 结束后因 `NameError` 中断；如需运行其他结构，请在 `__main__` 中直接调用对应函数。
+> **注意**：`__main__` 依次调用 `demo_chain()`、`demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()`。其中 `demo_loop`、`demo_complete`、`demo_multi_cycle` 为有环图，可能持续运行，建议准备按 **Ctrl+C** 手动终止。如需运行其他结构（如 `demo_network`、`demo_star` 等），请在 `__main__` 中直接调用对应函数。
 
 ## 预期行为
 
@@ -291,7 +291,7 @@ Grid33: success=180  fail=0
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`）
 - `demo_utils`
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）、Reporter（可选）
+- 外部服务：CelestialTree（可选）

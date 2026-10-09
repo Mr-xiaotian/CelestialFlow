@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 验证 `TaskLoop` 和 `TaskWheel` 两种预定义含环图结构的专用分析能力，以及各类预定义图结构（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）的输入校验，确保空/非法输入不会导致静默构造或崩溃。
@@ -14,7 +14,7 @@
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestTaskLoop` | 2 | isDAG 识别为 False、环内节点同层、源节点推导返回一个代表点 |
+| `TestTaskLoop` | 2 | is_dag 识别为 False、环内节点同层、源节点推导返回一个代表点 |
 | `TestTaskWheel` | 2 | Center 在第 0 层、Ring 在第 1 层、源节点仅返回 Center |
 | `TestStructureValidation` | 10 | 空节点列表/空 layers/空网格/首行为空/行长度不一致/单节点 Complete/各结构空输入校验 |
 | **合计** | **14** | |
@@ -22,7 +22,7 @@
 ## 关键测试流程
 
 ### TaskLoop 分析
-- 验证 `isDAG` 被正确识别为 `False`。
+- 验证 `is_dag` 被正确识别为 `False`。
 - 验证环内所有节点都被分配到同一个逻辑层级。
 - 验证源节点推导能从环中选取一个代表点作为注入点。
 
@@ -78,8 +78,8 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## 重要细节
 - `TaskLoop` 通过 `run()` 启动并注入任务（`run` 默认 `if_put_signal=True`，自动为源节点补发终止信号以确保测试退出）。
-- `TaskWheel` 不执行任务：通过 `set_graph_mode()` 与 `set_node_execution_mode()` 配置后，直接调用 `get_graph_analysis()` / `get_source_nodes()` 做静态分析。
-- 测试重点在于"分析结果"（analysis dict）而非"执行结果"。
+- `TaskWheel` 不执行任务：通过 `set_graph_mode()` 与 `set_node_execution_mode()` 配置后，直接读取 `is_dag`、`layers_dict` 并调用 `get_source_nodes()` 做静态分析。
+- 测试重点在于"分析结果"（图是否为 DAG、层级分布、源节点）而非"执行结果"。
 - 输入校验测试均为纯构造操作，不涉及图启动。
 
 ## 注意事项

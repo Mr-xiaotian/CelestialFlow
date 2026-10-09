@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 作用
 
@@ -36,7 +36,7 @@ __all__ = [
 | `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | 拆分器，将单个任务拆为多个子任务（1→N） |
 | `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | 路由器，`func` 返回 `{下游名称: 载荷}` 映射并据此分发 |
 
-> 三个节点类均未定义自己的 `__init__`，直接复用 `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)`；`func` 必填。
+> 三个节点类均未定义自己的 `__init__`，直接复用 `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50, skip_func=None)`；`func` 必填。
 
 ## 使用示例
 
@@ -93,9 +93,10 @@ router = TaskRouter("LengthRouter", route_by_length)
 
 - **`core_node`**: 定义基类 `BaseTaskNode` 与内部调度器 `TaskDispatch`，是所有节点的运行时骨架。
 - **`core_nodes`**: 提供三个公共节点类。
-- **`runtime`**: 节点依赖 `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` 进行队列与指标通信。
-- **`observability`**: 通过 `BaseObserver` 上报执行进度。
-- **`persistence`**: 通过 `LifecycleInlet` / `LogInlet` 落盘任务生命周期与日志。
+- **`runtime`**: 节点依赖 `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` 进行队列与事件通信。
+- **`observer`**: 节点通过 `ObserverHub` 广播事件，`MetricsObserver` 依据事件维护计数。
+- **`persist`**: `LifecycleInlet` / `LogInlet` 以观察者形式消费事件，将任务生命周期与日志落盘。
+- **`assembly`**: 单节点独立运行时由 `run_node_resources` 装配 `MetricsObserver` / `LifecycleInlet` / `LogInlet` 观察者及 spout。
 
 ## 注意事项
 

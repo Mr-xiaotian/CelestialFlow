@@ -1,6 +1,6 @@
-# bench/bench_persistence_spout.py
+# bench/bench_persist_spout.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -37,6 +37,7 @@ preload queue -> start spout -> drain all queued records
 - `--lifecycle-count`：默认 `20_000`
 - `LogSpout` 输出到临时目录下的 `bench_task_logger.log`
 - `LifecycleSpout` 输出到临时目录下的 `bench_lifecycle.sqlite3`
+- 两个 spout 分别由 `BenchLogSpout` / `BenchLifecycleSpout` 子类继承源码中的 `LogSpout` / `LifecycleSpout`，并在 `_before_start()` 中把输出路径指向临时目录（`LogSpout` 用 `connect_db` 建立 SQLite 连接）
 - `LifecycleSpout` 使用当前项目实现，即“每条有效变更后直接 `commit()`”
 
 ## 可能出现的问题
@@ -83,13 +84,13 @@ preload queue -> start spout -> drain all queued records
 ## 运行方式
 
 ```bash
-python bench/bench_persistence_spout.py
+python bench/bench_persist_spout.py
 ```
 
 若项目未安装为可导入包，也可以直接使用本地虚拟环境解释器：
 
 ```bash
-.\.venv\Scripts\python.exe bench/bench_persistence_spout.py
+.\.venv\Scripts\python.exe bench/bench_persist_spout.py
 ```
 
 ## 参数调整
@@ -97,22 +98,22 @@ python bench/bench_persistence_spout.py
 ### 调整日志样本数
 
 ```bash
-python bench/bench_persistence_spout.py --log-count 500000
+python bench/bench_persist_spout.py --log-count 500000
 ```
 
 ### 调整 lifecycle 样本数
 
 ```bash
-python bench/bench_persistence_spout.py --lifecycle-count 50000
+python bench/bench_persist_spout.py --lifecycle-count 50000
 ```
 
 ### 同时调整两类样本
 
 ```bash
-python bench/bench_persistence_spout.py --log-count 300000 --lifecycle-count 30000
+python bench/bench_persist_spout.py --log-count 300000 --lifecycle-count 30000
 ```
 
 ## 依赖
 
-- Python 标准库
-- 项目源码中的 `celestialflow.persistence`
+- Python 标准库（`argparse`、`tempfile`、`time`、`pathlib`）
+- 项目源码中的 `celestialflow.persist`（`core_lifecycle.LifecycleSpout`、`core_log.LogSpout`、`util_sqlite.connect_db`）

@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -63,7 +63,7 @@ flowchart TB
 
 - `max_workers = 6`
 - `max_retries = 1`
-- 通过 `executor.add_observer(TaskProgress())` 添加进度条
+- 通过 `executor.add_observer(PrintObserver(executor.get_name()))` 添加基于 `print` 的控制台观察者，输出均以节点名为前缀（如 `[FibonacciSerial] ...`）
 
 ## 可能出现的问题
 
@@ -79,23 +79,25 @@ python demo/demo_executor.py
 
 ## 预期行为
 
-运行后将依次执行三种模式，主要输出为 `tqdm` 进度条，类似：
+运行后将依次执行三种模式，主要通过 `PrintObserver` 打印节点生命周期日志（以节点名为前缀），类似：
 
 ```text
-100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+[FibonacciSerial] total=1(+1)
+[FibonacciSerial] total=2(+1)
+...
+[FibonacciSerial] start total=12
+[FibonacciSerial] succeeded=1(+1), total=12
+[FibonacciSerial] succeeded=2(+1), total=12
+...
+[FibonacciSerial] failed=1(+1), total=12
+...
+[FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> `TaskProgress` 创建进度条时未设置 `desc`，因此进度条不带节点名前缀；上面的 it/s 仅为示意。
-
 > **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 与 `None` 触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），并经 1 次重试后仍失败；`""` 触发类型错误（不在重试列表中）。
-> 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快，进度条上的 it/s 差异主要反映调度开销。
+> 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快。
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`）
+- `celestialflow`（`TaskExecutor`、`PrintObserver`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
-- `demo_observer`（`TaskProgress`，由本仓库同目录下 `demo_observer.py` 本地定义）
-
-> ⚠️ **已变更**：`demo_executor.py` 当前仍写作 `from celestialflow import TaskProgress`，但 `celestialflow` 已不再导出 `TaskProgress`（该类现由 `demo_observer.py` 本地定义）。因此直接运行 `python demo/demo_executor.py` 会在导入阶段抛出 `ImportError`，需改为 `from demo_observer import TaskProgress` 才能正常执行。

@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/09
 
 ## 目标
 
@@ -48,7 +48,7 @@ flowchart LR
 - `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_node_execution_mode("thread")` 两条独立调用统一将各 `TaskExecutor` 节点设为 `"thread"` 模式（`max_workers=4`）；`TaskSplitter` 不显式设置执行模式，仅作为拆分节点透传任务
 - `demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`（`Process` 阶段）
 - `demo_router_0` 中 `Origin` / `StageA` / `StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不消耗 `execution_mode`
-- 监控通过 `graph.set_reporter(TaskReporter(report_host, report_port, graph))` 接入 `REPORT_HOST`/`REPORT_PORT` 环境变量对应的远端 Reporter；`demo_splitter_0` 与 `demo_router_0` 的 `graph.set_ctree(ctree_client)` 均被注释掉，而 `demo_splitter_1` 通过 `chain.set_ctree(ctree_client)` 启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并确认对应调用未被注释
+- 各场景的 `<graph>.set_ctree(ctree_client)` 均被注释（`demo_splitter_0` 与 `demo_router_0`），`demo_splitter_1` 通过 `chain.set_ctree(ctree_client)` 启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并确认对应调用未被注释
 - Redis 远端协作示例已迁移到 `demo_redis.py`
 
 ## 可能出现的问题
@@ -110,7 +110,7 @@ Origin 只产生原始整数，Router 在内部根据奇偶性把任务分发到
 
 ## 依赖
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`）
 - `demo_utils`
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）、Reporter（可选）
+- 外部服务：CelestialTree（可选）
