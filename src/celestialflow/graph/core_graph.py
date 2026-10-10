@@ -178,6 +178,7 @@ class TaskGraph:
         if graph_mode not in valid_modes:
             raise InvalidOptionError("graph mode", graph_mode, valid_modes)
         self.graph_mode = graph_mode
+        self._analysis_dirty = True
 
     def set_node_execution_mode(self, execution_mode: str) -> None:
         """
@@ -187,7 +188,7 @@ class TaskGraph:
         """
         for node in self.node_dict.values():
             node.set_execution_mode(execution_mode)
-        self._build_analysis()
+        self._analysis_dirty = True
 
     def set_ctree(self, ctree_client: EventClient) -> None:
         """
@@ -226,11 +227,6 @@ class TaskGraph:
 
     # ==== 分析图 ====
 
-    def _ensure_analysis(self) -> None:
-        """按需重建图分析缓存。"""
-        if self._analysis_dirty:
-            self._build_analysis()
-
     def _build_analysis(self) -> None:
         """
         分析任务图，计算源节点、是否为 DAG 与层级信息。
@@ -238,9 +234,11 @@ class TaskGraph:
         :raises ConfigurationError: serial 模式下图含环（非 DAG）时触发
         :return: ``None``。
         """
+        if self._analysis_dirty is False:
+            return
+        
         self.source_names = source_nodes(self.order_graph)
         self.is_dag = is_dag(self.order_graph)
-
         node_level_dict = compute_node_levels(self.order_graph)
         self.layers_dict = cluster_by_value_sorted(node_level_dict)
         self._analysis_dirty = False
@@ -356,6 +354,8 @@ class TaskGraph:
         tasks: dict[str, Iterable[Any]] = {}
 
         for name, records in grouped_records.items():
+            if name not in self.node_dict:
+                continue
             node = self.node_dict[name]
             if filter_by_error_type and name in self.node_dict:
                 retry_error_type_names = node.get_retry_error_type_names()
@@ -601,7 +601,7 @@ class TaskGraph:
 
         :return: 源节点列表
         """
-        self._ensure_analysis()
+        self._build_analysis()
         return self.source_names
 
     def get_order_graph(self) -> OrderGraph:
