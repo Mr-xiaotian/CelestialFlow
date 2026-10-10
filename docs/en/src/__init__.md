@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Introduction
 
@@ -59,9 +59,9 @@ Provides observer pattern support for monitoring task execution.
 
 | Exported Symbol | Description |
 |-----------------|-------------|
-| `BaseObserver` | Observer base class, defines on_start / on_success / on_failure interfaces |
+| `Observer` | Observer base class, defines on_start / on_success / on_failure and other callback interfaces |
+| `ObserverHub` | Observer hub, broadcasts events to a group of child observers |
 | `PrintObserver` | print-based console progress observer, thread-safely outputs task execution counts |
-| `TaskReporter` | Task reporter, reports task execution events via HTTP |
 
 ---
 
@@ -83,7 +83,20 @@ Provides SQLite-based record loading and querying functionality.
 | Exported Symbol | Description |
 |-----------------|-------------|
 | `load_records` | Load all execution records from a SQLite database |
-| `load_tasks_grouped_by_stage` | Load task records grouped by stage name |
+| `load_tasks_grouped_by_node` | Load task records grouped by node |
+
+---
+
+### ticker — Timed Driving
+
+Provides Ticker-based scheduled task event driving.
+
+| Exported Symbol | Description |
+|-----------------|-------------|
+| `Ticker` | Event generator that fires periodically |
+| `TickEvent` | Event object produced by a single tick |
+| `TickHandler` | Callback interface type for handling `TickEvent` |
+| `TickHub` | Hub that broadcasts tick events to a group of `TickHandler` |
 
 ---
 
@@ -100,13 +113,14 @@ Provides runtime helper types and utility functions.
 
 ## `__all__` List
 
-Complete public API list (21 symbols total):
+Complete public API list (25 symbols total):
 
 ```python
 __all__ = [
     "BaseInlet",
-    "BaseObserver",
     "BaseSpout",
+    "Observer",
+    "ObserverHub",
     "PrintObserver",
     "TaskChain",
     "TaskComplete",
@@ -115,16 +129,19 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskWheel",
     "TerminationSignal",
+    "TickEvent",
+    "TickHandler",
+    "TickHub",
+    "Ticker",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_tasks_grouped_by_stage",
+    "load_tasks_grouped_by_node",
 ]
 ```
 
@@ -222,7 +239,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
+        O["Observer<br/>ObserverHub<br/>PrintObserver"]
     end
 
     subgraph benchmark
@@ -230,7 +247,11 @@ graph TD
     end
 
     subgraph persistence
-        P["load_records<br/>load_tasks_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_node"]
+    end
+
+    subgraph ticker
+        K["Ticker<br/>TickEvent<br/>TickHandler<br/>TickHub"]
     end
 
     subgraph runtime
@@ -243,5 +264,6 @@ graph TD
     Init --> O
     Init --> U
     Init --> P
+    Init --> K
     Init --> R
 ```

@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/__init__.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 Provides executor/task graph cloning and benchmarking capabilities. This module sits at the top of the dependency chain — it may depend on other modules, but should not be depended on by them.
 
@@ -70,11 +70,7 @@ graph TD
     end
 
     subgraph runtime
-        R["format_table / clone_event_client"]
-    end
-
-    subgraph observability
-        O["ReporterProtocol / TaskReporter / NullTaskReporter"]
+        R["format_table / clone_event_client / ConfigurationError"]
     end
 
     UB --> UC
@@ -83,7 +79,7 @@ graph TD
     UB --> R
     UC --> S
     UC --> G
-    UC --> O
+    UC --> R
 ```
 
 ## Notes

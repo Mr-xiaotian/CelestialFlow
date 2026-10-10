@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_dispatch.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `core_dispatch.py` defines `TaskDispatch[T, R, Y]`, the "task scheduler" component held by `BaseTaskNode`. It pulls `TaskEnvelope` / termination signals from the node's input queue, invokes the node callback serially / in threads / asynchronously according to `execution_mode`, and is responsible for merging termination signals, initializing / releasing thread pools, and recording worker exceptions.
 
@@ -27,7 +27,7 @@ class TaskDispatch[T, R, Y]:
 | `max_workers` | `int` | Concurrency upper limit |
 | `_pool` | `ThreadPoolExecutor | None` | Thread pool (used only in thread mode) |
 
-> The scheduler will reverse-call through the host object: `task_node.metrics` / `process_task_success` / `handle_task_fail` / `log_task_retry` / `get_name` / `ctree_client.emit` / `task_queue` / `yield_queue`, etc.
+> The scheduler will reverse-call through the host object: `task_node.observers` / `task_node.process_task_success` / `handle_task_fail` / `log_task_retry` / `get_name` / `ctree_client.emit` / `task_queue` / `yield_queue`, etc.
 
 ## Public Dispatch Methods
 
@@ -66,7 +66,7 @@ try:
         while len(pending) >= max_workers:
             _, pending = wait(pending, return_when=FIRST_COMPLETED)
         pending.add(_pool.submit(_worker, envelope))
-    wait(pending)
+    wait(pending)  # Wait for the current batch to complete
     yield_queue.put(termination_signal)
 finally:
     _release_pool()
@@ -99,13 +99,43 @@ yield_queue.put(termination_signal)
 
 | Method | Behavior |
 |------|------|
-| `_call_sync(task) -> R` | Call sync callback; raise `ConfigurationError` if returns awaitable |
-| `_call_async(task) -> R` | Call async callback; raise `ConfigurationError` if return value is not awaitable |
-| `_worker(envelope) -> None` | Execute a single task synchronously: loop over `for fail_times in range(1, max_retries + 2)`, call `task_node.log_task_retry` when hitting `retry_exceptions`, otherwise call `handle_task_fail`; the outermost `try` catches exceptions and reports them via `get_log_inlet().worker_crash`; the `finally` block calls `task_node.metrics.end_task()` |
+| `_call_sync(task) -> R` | Call sync callback; raise `ConfigurationError` if it returns awaitable |
+| `_call_async(task) -> R` | Call async callback; raise `ConfigurationError` if the return value is not awaitable |
+| `_worker(envelope) -> None` | Execute a single task synchronously: first check `skip_func`, then loop over `for fail_times in range(1, max_retries + 2)`; call `task_node.log_task_retry` when hitting `retry_exceptions`, call `handle_task_fail` when the retry limit is reached or for a non-retryable exception, and call `process_task_success` on success. The outermost `try` catches unhandled exceptions and reports them via `task_node.observers.on_worker_crash(WorkerCrashEvent(...))` |
 | `_async_worker(envelope) -> None` | Async version of `_worker`, using `await self._call_async(task)` |
-| `_process_termination_signal(pool) -> TerminationSignal` | Merge all ids in `TerminationIdPool.ids` into a single `TerminationSignal(source=task_node.get_name())` via `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)`, and write `get_log_inlet().termination_merge(...)` |
+| `_process_termination_signal(pool) -> TerminationSignal` | Merge all ids in `TerminationIdPool.ids` into a single `TerminationSignal(source=task_node.get_name())` via `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)`, and broadcast `TerminationMergeEvent` |
 | `_init_pool(execution_mode)` | Only when `execution_mode == "thread"` and `_pool is None`, construct `ThreadPoolExecutor(max_workers=self.max_workers)` |
 | `_release_pool()` | Close and clear `_pool` (called when thread mode ends) |
+
+### `_worker` Retry Loop Details
+
+```python
+def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
+    try:
+        task = task_envelope.get_task()
+        if self.task_node.skip_func is not None and self.task_node.skip_func(task):
+            self.task_node.handle_task_skip(task_envelope)
+            return
+
+        max_retries = self.task_node.max_retries
+        for fail_times in range(1, max_retries + 2):
+            try:
+                start_perf = time.perf_counter()
+                result = self._call_sync(task)
+                self.task_node.process_task_success(task_envelope, result, start_perf)
+                return
+            except Exception as exception:
+                if fail_times > max_retries or not isinstance(
+                    exception, self.task_node.retry_exceptions
+                ):
+                    self.task_node.handle_task_fail(task_envelope, exception)
+                    return
+                self.task_node.log_task_retry(task_envelope, exception, fail_times)
+    except Exception as e:
+        self.task_node.observers.on_worker_crash(
+            WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
+        )
+```
 
 ## Key Data Flow
 
@@ -117,7 +147,7 @@ sequenceDiagram
     participant N as BaseTaskNode
     participant R as TaskOutQueue
 
-    loop Consume task
+    loop Consume tasks
         D->>Q: get()
         alt Termination signal pool
             D->>N: _process_termination_signal(pool)
@@ -126,6 +156,7 @@ sequenceDiagram
         else Normal envelope
             D->>W: _worker(envelope)
             W->>N: process_task_success / handle_task_fail / log_task_retry
+            N->>N: observers broadcast the corresponding event
         end
     end
 ```
@@ -136,7 +167,7 @@ sequenceDiagram
 |------|---------|
 | `ConfigurationError` | Sync call returns awaitable / async call returns non-awaitable |
 | `InitializationError` | `_pool is None` in `dispatch_thread` (theoretically guaranteed by `_init_pool`, but code retains a fallback) |
-| `get_log_inlet().worker_crash(e)` | `_worker` / `_async_worker` catches an exception outside `process_task_success` / `handle_task_fail` / `log_task_retry` in the outermost `try` |
+| `WorkerCrashEvent` | `_worker` / `_async_worker` catches, in the outermost `try`, an exception raised outside `process_task_success` / `handle_task_fail` / `log_task_retry`, reported via `observers.on_worker_crash` (not raised into the framework path) |
 
 ## Relationship with Host `BaseTaskNode`
 
@@ -146,7 +177,7 @@ classDiagram
         +TaskDispatch dispatch
         +TaskInQueue task_queue
         +TaskOutQueue yield_queue
-        +TaskMetrics metrics
+        +ObserverHub observers
         +EventClient ctree_client
     }
     class TaskDispatch {
@@ -167,7 +198,8 @@ classDiagram
 ## Notes
 
 1. **Host type is `BaseTaskNode` rather than `TaskExecutor`**: Even if the actual instance passed in is `TaskSplitter` / `TaskRouter`, the scheduler only accesses the host through the `BaseTaskNode` interface.
-2. **Termination signal path**: A single `TerminationSignal` in `TaskInQueue` will be merged with other sources into `TerminationIdPool`; the scheduler emits `TERMINATION_MERGE` uniformly when receiving the pool.
+2. **Termination signal path**: A single `TerminationSignal` in `TaskInQueue` will be merged with other sources into `TerminationIdPool`; when receiving the pool, the scheduler uniformly emits `TERMINATION_MERGE` and broadcasts `TerminationMergeEvent`.
 3. **Thread pool lifecycle**: `_pool` only temporarily exists in `dispatch_thread`, with `_init_pool` at entry and `_release_pool` at exit, so the same scheduler does not support cross-`start` reuse.
 4. **Async path does not block the event loop**: `dispatch_async` uses `asyncio.to_thread(task_queue.get)` to pull input, combined with `asyncio.Semaphore` to achieve "stream-while-running" without blocking the event loop.
-5. **No longer contains deduplication logic**: The scheduler is only responsible for execution; the task deduplication capability has been entirely removed from the node layer, and `TaskMetrics.duplicate_counter` / `BaseObserver.on_task_duplicate` are retained only as historical counting interfaces.
+5. **Observer reports crashes**: the worker fallback exception is no longer written to `get_log_inlet().worker_crash`, but is broadcast as a `WorkerCrashEvent` via `task_node.observers.on_worker_crash`, letting registered observers (such as `LogInlet`) decide how to record it.
+6. **Skip detection is supported**: `_worker` / `_async_worker` check `skip_func` before execution; if it is hit, they call `handle_task_skip` and return directly.

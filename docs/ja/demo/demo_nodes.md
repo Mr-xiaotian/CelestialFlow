@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
@@ -48,7 +48,7 @@ flowchart LR
 - `demo_splitter_0` は `graph.set_graph_mode("thread")` と `graph.set_node_execution_mode("thread")` の 2 つの独立した呼び出しで、各 `TaskExecutor` ノードを `"thread"` モード（`max_workers=4`）に統一設定。`TaskSplitter` は実行モードを明示的に設定せず、分割ノードとしてタスクを透過する
 - `demo_splitter_1` は `TaskChain` を介して間接的に `execution_mode="thread"`、`max_workers=50`（`Process` ステージ）で動作
 - `demo_router_0` では `Origin`/`StageA`/`StageB` がいずれも `execution_mode="thread"` を使用し（`max_workers=4` / `2` / `2`）、`Router` は `TaskRouter` ノードであり、自身は `execution_mode` を使用しない
-- 監視は `graph.set_reporter(TaskReporter(report_host, report_port, graph))` を通じて `REPORT_HOST`/`REPORT_PORT` 環境変数に対応するリモート Reporter に接続。`demo_splitter_0` と `demo_router_0` の `graph.set_ctree(ctree_client)` はいずれもコメントアウトされており、`demo_splitter_1` は `chain.set_ctree(ctree_client)` を通じて CelestialTree を有効化している。接続する場合は、まず `celestialtree` を別途インストールし、対応する呼び出しがコメントアウトされていないことを確認すること
+- 各シナリオの `<graph>.set_ctree(ctree_client)` はいずれもコメントアウトされている（`demo_splitter_0` と `demo_router_0`）。`demo_splitter_1` は `chain.set_ctree(ctree_client)` を通じて CelestialTree を有効化している。接続する場合は、まず `celestialtree` を別途インストールし、対応する呼び出しがコメントアウトされていないことを確認すること
 - Redis リモート協調のサンプルは `demo_redis.py` に移行済み
 
 ## 発生しうる問題
@@ -110,7 +110,7 @@ Origin は元の整数のみを生成し、Router が内部で偶奇性に基づ
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`）
 - `demo_utils`
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）、Reporter（オプション）
+- 外部サービス：CelestialTree（オプション）

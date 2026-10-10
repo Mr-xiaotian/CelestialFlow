@@ -1,6 +1,6 @@
 # src/celestialflow/graph/util_order_graph.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `graph/util_order_graph.py` provides the minimal graph structure `OrderGraph` along with a set of basic graph algorithms built around it.
 
@@ -140,4 +140,4 @@ print(levels)
 
 - If you only need a lightweight graph structure and basic graph algorithms, prefer `OrderGraph`.
 - If you need to stay consistent with `TaskGraph`'s current analysis logic, prefer the algorithm functions here.
-- If you need to export a printable graph structure, continue to combine it with `util_render.py`.
+- If you need to export a printable graph structure text, combine it with `render_structure_list` from `persist.util_render`.

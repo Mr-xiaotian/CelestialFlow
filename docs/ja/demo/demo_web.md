@@ -1,10 +1,10 @@
 # demo/demo_web.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
-本ファイルには 2 つのデモが含まれる：`demo_forest()`（2 つの独立したツリー状 DAG）と `demo_topology_topology()`（6 層で扇出/扇入、`TaskSplitter` と `TaskRouter` を含む複雑なタスクグラフ）。後者は `TaskReporter` を通じて状態、構造、エラー、ライフサイクルの各データを celestialflow-web にプッシュし、**複雑トポロジ** における web ダッシュボードの表示効果（構造図、ノード状態カード、エラーログ、プログレスバー、履歴曲線など）を観察するために用いる。
+本ファイルには 2 つのデモが含まれる：`demo_forest()`（2 つの独立したツリー状 DAG）と `demo_topology_topology()`（6 層で扇出/扇入、`TaskSplitter` と `TaskRouter` を含む複雑なタスクグラフ）。後者は observer イベント体系（`MetricsObserver` を登録）を通じて実行後に各ノードの入力/成功/失敗/スキップなどの指標を読み取り、サマリーを出力し、複雑なトポロジの 1 回の実行における各実行モードとリトライ/破棄パスの統計データを観察するために用いる。
 
 ## デモシナリオ
 
@@ -61,7 +61,7 @@ Ingest ──┬── Normalize ──┐
                                                   └── StageC ──┘
 ```
 
-- `Ingest` → 24 個のシードタスクを注入（うち 4 個は重複で、判重カウントを示す；thread モード、4 worker）
+- `Ingest` → 24 個のシードタスクを注入（thread モード、4 worker）
 - `Normalize` → タスク値を正規化して増幅する；`7` は 3 回連続で失敗した後 **リトライを使い果たして失敗** し、`11` は 1 回失敗した後にリトライで成功する（thread モード、4 worker、`max_retries=2`）
 - `Validate` → タスクを検証する；`11` は **リトライ不可** の `RuntimeError` を直接スローする（thread モード、4 worker）
 - `Splitter` → 上流から渡されたイテラブルな結果を個別のエントリに分割する（各タスクは 2〜3 個のエントリに分割される）
@@ -72,72 +72,62 @@ Ingest ──┬── Normalize ──┐
 **グラフ構造**：DAG、多層扇出/扇入 + 分割 + ルーティング
 **グラフモード**：`graph_mode="thread"`、ノード内部は serial / thread 実行モードが混在
 
-## Web ダッシュボードで観察できるポイント
+## 観察できる出力
 
-| パネル | 観察内容 |
+実行終了後、demo は `MetricsObserver` で各ノードの指標スナップショットを読み取り、サマリーを出力する。観察できる内容：
+
+| 観点 | 観察内容 |
 |------|---------|
-| 構造図 | 9 ノードの多層トポロジ。Splitter は subgraph、Router は菱形で表示される。「エッジラベル」（増分/累計）を有効にすると、`Router → StageA/B/C` の 3 本のエッジに異なる転送量が表示される |
-| ノード状態カード | 実行モードと並行度が異なる（serial は `-`、thread は worker 数を表示）。成功/失敗/重複/待機の 4 段プログレスバー |
-| エラーログ | `ValueError`（2 回リトライ後に失敗、retry 列 = 2）と `RuntimeError`（リトライ不可、retry 列 = 0）の 2 件のエラー |
-| エラー種別分布 | `ValueError` / `RuntimeError` の 2 種類のエラー統計 |
-| ノードメトリクスの推移 | 各ノードの成功/失敗/待機曲線のリアルタイム増分 |
+| 入力総量 | 各ノードに入るタスク総数（`input_total`、外部注入と上流からの配信を含む） |
+| 成功 / 失敗 / スキップ | 各ノードの `succeeded` / `failed` / `skipped` カウント。リトライ成功、リトライ枯渇による失敗、分流後の各ブランチの規模を反映 |
+| 実行モード | 実行モード（serial / thread）と並行度の違いがスループットとカウントに与える直感的な影響 |
+
+> このデモは Reporter / レポートチャネルに依存せず、web にもデータをプッシュしない。`demo_web` という名称と `demo_forest` は歴史的経緯によるもので、現在のスクリプトはローカル統計のみを出力する。
 
 ## 主要設定
 
 - 各 Stage は `TaskExecutor(..., execution_mode="thread" | "serial")` で実行モードを明示的に指定
 - `normalize.set_retry_exceptions(ValueError)` でリトライ可能な例外を指定；`max_retries=2` で 2 回のリトライ機会を提供
-- `Ingest` は 24 個のシードタスクを注入し、うち `3`、`5`、`8`、`12` は先行するシードと重複する（デフォルトの判重ロジックにより `dup` に計上）。重複判重カウントを示すため
-- レポートのリフレッシュ間隔を `reporter.interval = 2`（デフォルト 5s）に調整し、ダッシュボードを素早く更新できるようにする
+- `Ingest` は 24 個のシードタスクを注入し、うち `3`、`5`、`8`、`12` は先行するシード値と重複する。demo は `skip_func` を設定していないため、これらの重複値は判重されず、通常のタスクとして各ノードに入る（現在の重複値は `Normalize` / `Validate` などのノードがより多くの入力を確認できるようにするためだけに用いられ、判重カウントは発生しない）
 - グラフモードは `graph_mode="thread"` で、ノード内部は実行モードを混在できる
 
 ## 発生しうる問題
 
 1. **アサーションなし**：デモスクリプトであり、結果の正確性は検証しない。
-2. **タスク関数に sleep を含む**：各ステージの sleep は 0.02s（`route_task`）から 1s（`ingest_task`）までさまざまで、完全な実行には数十秒かかると見込まれる。その間、ダッシュボードで複数回の状態更新を観察できる。
-3. **レポートアドレスが未設定**：`REPORT_HOST` / `REPORT_PORT` が空の場合、レポートはスキップされる。demo 自体は独立して実行できるが、ダッシュボードにはデータがない。
+2. **タスク関数に sleep を含む**：各ステージの sleep は 0.02s（`route_task`）から 1s（`ingest_task`）までさまざまで、完全な実行には数十秒かかると見込まれる。その間、各ノードのカウントが徐々に更新される過程を観察できる。
+3. **正規化/検証ノードの失敗**：`Normalize` の `7` と `Validate` の `11` は失敗パスを生み出す。スクリプトは起動時に外部サービスに依存せず、単独で実行できる。
 
 ## 実行方法
-
-1. celestialflow-web サービスを起動する（`uvicorn` または `make run`。詳細は web プロジェクトのドキュメントを参照）。
-2. 環境変数を設定して demo を実行する：
 
 ```bash
 python demo/demo_web.py
 ```
 
-Windows PowerShell：
-
-```powershell
-$env:REPORT_HOST = "127.0.0.1"
-$env:REPORT_PORT = "8000"
-python demo/demo_web.py
-```
-
-3. ブラウザで web ダッシュボードにアクセスし、構造図、状態カード、エラーログを観察する。
+`__main__` は `demo_forest()` と `demo_topology_topology()` を順に実行し、両者は独立して動作する。
 
 ## 想定される動作
 
 demo 終了後、各ノードのカウントサマリーがおおよそ以下のように出力される：
 
 ```
-[demo] 24 個のタスクを注入（4 個の重複を含む）
+[demo] 24 個のタスクを注入（4 個の重複値を含む）
 [demo] 各ノードのカウント:
-  Ingest    input=24   ok=20    fail=0   dup=4
-  Normalize input=20   ok=19    fail=1   dup=0
-  Validate  input=20   ok=19    fail=1   dup=0
-  Splitter  input=38   ok=38    fail=0   dup=0
-  Router    input=95   ok=95    fail=0   dup=0
-  StageA    input=32   ok=32    fail=0   dup=0
-  StageB    input=33   ok=33    fail=0   dup=0
-  StageC    input=30   ok=30    fail=0   dup=0
-  Collect   input=95   ok=95    fail=0   dup=0
+  Ingest    input=24  ok=20  fail=0  skip=0
+  Normalize input=20  ok=19  fail=1  skip=0
+  Validate  input=20  ok=19  fail=1  skip=0
+  Splitter  input=38  ok=38  fail=0  skip=0
+  Router    input=38  ok=38  fail=0  skip=0
+  StageA    input=13  ok=13  fail=0  skip=0
+  StageB    input=13  ok=13  fail=0  skip=0
+  StageC    input=12  ok=12  fail=0  skip=0
+  Collect   input=38  ok=38  fail=0  skip=0
 ```
 
-> 具体的な数値はルーティング分布により多少変動する；`Normalize` の `7` はリトライを使い果たした後に失敗し（retry=2）、`Validate` の `11` は直接失敗する（RuntimeError）。
+> 具体的な数値は各ステージの sleep 後のタスクフローとルーティング分布により多少変動する。`Normalize` の `7` はリトライを使い果たした後に失敗し（`failed` に計上）、`Validate` の `11` は直接 `RuntimeError` で失敗し、上記の `ok` 列には現れない。各カウントは `NodeMetrics` の `input_total` / `succeeded` / `failed` / `skipped` フィールドに対応する。
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskSplitter`、`TaskRouter`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskSplitter`、`TaskRouter`）
+- `celestialflow.observer`（`MetricsObserver`）
 - `demo_utils`（`add_one_sleep`）
 - `python-dotenv`
-- 外部サービス：celestialflow-web（オプション、未準備の場合はレポートをスキップ）

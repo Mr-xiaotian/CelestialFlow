@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 役割
 
@@ -10,6 +10,7 @@
 
 - `clone_executor`: `TaskExecutor` をコピーし、`name`、`func`、`execution_mode` を保持。グラフノードとして使用される `TaskExecutor` インスタンスにも同様に適用可能。
 - `clone_graph`: `TaskGraph` をコピーし、完全な DAG 構造（ノード、エッジ）と `graph_mode` を保持し、ノード間が相互に独立。
+- `LocalEventClient`: デフォルトのローカルイベントクライアント。クローン後もインスタンスが独立していること。
 
 ## 主要テストシナリオ
 
@@ -27,7 +28,6 @@
 - 単純 DAG（A→B→C）：クローン後、ソースノード、`OrderGraph` ノード集合、出辺隣接リストがすべて一致
 - クローングラフ内で特定ノードの `execution_mode` を変更しても、元のグラフの対応ノードに影響しないこと
 - デフォルトのローカルイベントクライアントはクローン後もインスタンスが独立していること
-- `TaskReporter` 付きのグラフはクローン後に新しい reporter インスタンスにバインドされること（`cloned.reporter.task_graph is cloned`）
 
 ## テストカバレッジマトリクス
 
@@ -42,7 +42,6 @@
 | `test_clone_graph_structure` | DAG 構造、ソースノード、`OrderGraph` ノードとエッジが一致すること |
 | `test_clone_graph_independent` | クローングラフのノード変更が元のグラフに影響しないこと |
 | `test_clone_graph_creates_independent_local_event_client` | ローカルイベントクライアントのインスタンスが独立していること |
-| `test_clone_graph_rebinds_task_reporter_to_cloned_graph` | `TaskReporter` 付きのグラフがクローン後に新しい reporter インスタンスにバインドされること |
 
 ## 実行方法
 
@@ -68,10 +67,9 @@ pytest tests/benchmark/test_clone.py -k "graph" -v
 - グラフクローン後、`get_order_graph()` が返す `OrderGraph` でノード集合と出辺隣接リストの一致を検証します。`get_source_nodes()` へのアクセスは同時にクローングラフの `_build_analysis` をトリガーします。
 - `clone_graph` テストは有向非巡回グラフ `A → B → C` を構築し、グラフ構造の完全性を検証します。
 - `LocalEventClient` の独立検証により、クローングラフが独立したイベントバスを持ち、ランタイム状態が相互に干渉しないことを確認します。
-- `TaskReporter` 付きのグラフはクローン後に新しい reporter インスタンスにバインドされ、`cloned.reporter.task_graph` はクローングラフを指します。
-- ソースファイルの末尾には歴史的に残された `# 実行方法` のコメント行が 1 行あります（既に存在しない `tests/utils/test_utils_clone.py` を指しています）。上方の `pytest` コマンドを基準としてください。
 
 ## 注意事項
 
 - クローンユーティリティは `benchmark_graph` 内部でグラフ構造をコピーし、異なるモード組み合わせの独立実行を実現するために使用されます。
+- ソースファイルの末尾には歴史的に残された `# 実行方法` のコメント行が 1 行あります（既に存在しない `tests/utils/test_utils_clone.py` を指しています）。上方の `pytest` コマンドを基準としてください。
 - 関連実装は `src/celestialflow/benchmark/util_clone.py` にあります。

@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -222,7 +222,7 @@ flowchart TD
 - DAG structures: `TaskChain` of `demo_chain` does not explicitly pass `graph_mode`, and its 5 nodes all use `execution_mode="serial"`; the nodes of `demo_cross` / `demo_network` / `demo_star` / `demo_fanin` / `demo_grid` mostly use `execution_mode="thread"`
 - `demo_grid`: `TaskGrid` uses the default `graph_mode="thread"` (the source does not explicitly pass `graph_mode`)
 - Cyclic graphs: `demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` all explicitly pass `if_put_signal=False` (i.e., no automatic termination signal is injected); `demo_chain` also passes `if_put_signal=False`. It is recommended to prepare manual termination when running cyclic graphs
-- Each demo wires in the Reporter via `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))`; `<graph>.set_ctree(ctree_client)` is commented out in every example, so CelestialTree is not enabled by default. Whether they actually take effect depends on whether environment variables such as `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` and the server are ready
+- Each demo controls whether CelestialTree is enabled via the comment status of `<graph>.set_ctree(ctree_client)` (commented out by default, i.e., not enabled). Whether it actually takes effect depends on whether environment variables such as `CTREE_HOST`/`CTREE_HTTP_PORT`/`CTREE_GRPC_PORT` and the server are ready
 - `demo_network`, `demo_star`, `demo_fanin`, and `demo_wheel` are defined but not called by `__main__`
 
 ## Potential Issues
@@ -238,7 +238,7 @@ flowchart TD
 python demo/demo_structure.py
 ```
 
-> **Note**: `__main__` calls `demo_chain()`, `demo_forest()`, `demo_cross()`, `demo_grid()`, `demo_loop()`, `demo_complete()`, and `demo_multi_cycle()` in sequence. Because `demo_forest()` is undefined, the script will be interrupted by a `NameError` after `demo_chain()` finishes; to run other structures, call the corresponding function directly inside `__main__`.
+> **Note**: `__main__` calls `demo_chain()`, `demo_cross()`, `demo_grid()`, `demo_loop()`, `demo_complete()`, and `demo_multi_cycle()` in sequence. Among them, `demo_loop`, `demo_complete`, and `demo_multi_cycle` are cyclic graphs and may run continuously, so be prepared to press **Ctrl+C** to terminate manually. To run other structures (such as `demo_network`, `demo_star`, etc.), call the corresponding function directly inside `__main__`.
 
 ## Expected Behavior
 
@@ -291,7 +291,7 @@ Grid33: success=180  fail=0
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskExecutor`, `TaskReporter`)
+- `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskExecutor`)
 - `demo_utils`
 - `python-dotenv`
-- External services: CelestialTree (optional), Reporter (optional)
+- External services: CelestialTree (optional)

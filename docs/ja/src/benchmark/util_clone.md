@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `benchmark/util_clone.py` は実行器とタスクグラフのクローン機能を提供し、パフォーマンステストと設定再利用に使用します。
 
@@ -61,7 +61,7 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 3. 各ノードをクローンし、元のノード名 → クローンノードのマッピングを確立
 4. `set_nodes()` ですべてのクローンノードを登録し、`connect()` でノード間の接続関係を再構築
 5. グラフ設定をコピー（`name`, `graph_mode`）
-6. CelestialTree（`clone_event_client`）と Reporter 設定をコピー（`NullTaskReporter` / `TaskReporter` はクローン可能で、その他の型は `ConfigurationError` を送出します）
+6. CelestialTree イベントクライアントをコピー（`clone_event_client` でクローン）
 
 > ⚠️ **`clone_graph` は全ノード型の保持を保証しません**：`TaskExecutor` ノードのみが同じ型としてクローンされます；`TaskSplitter` / `TaskRouter` などの特化ノードは同じサブクラスとしてクローンされず、その分割 / ルーティング動作も保持されません。本ツールはベンチマーク内部ツールであり、「`TaskExecutor` のみで構成され、ベンチマークテストに使用される」タスクグラフにのみ適用されます。
 

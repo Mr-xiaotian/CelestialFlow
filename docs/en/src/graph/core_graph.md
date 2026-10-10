@@ -1,8 +1,8 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
-`TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of task nodes (`BaseTaskNode` derivative objects; the public API includes `TaskExecutor`, `TaskSplitter`, `TaskRouter`), their dependencies, execution flow, resource allocation, and lifecycle.
+`TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of task nodes (`BaseTaskNode` derivative objects; the public API includes `TaskExecutor`, `TaskSplitter`, `TaskRouter`), their dependency relationships, execution flow, and lifecycle.
 
 > Note: `TaskGraph` is a single-use object. After a single `start()` / `start_async()` / `run()` completes, the current instance is not guaranteed to be safely reset and restarted. If you need to re-execute the same workflow, create a new `TaskGraph` and the associated task nodes.
 
@@ -34,7 +34,7 @@ class TaskGraph:
   - `thread`: Thread-based concurrent execution, each node launched in its own thread
   - `async`: Async concurrent execution, must be called in a running event loop (see [`start_async`](#start_async))
 
-`__init__` calls `_set_name`, `set_graph_mode`, `set_reporter(NullTaskReporter())`, `set_ctree(LocalEventClient())`, and `_init_state()` in sequence.
+`__init__` calls `_set_name`, `set_graph_mode`, `set_ctree(LocalEventClient())`, and `_init_state()` in sequence.
 
 ## Graph Construction
 
@@ -76,33 +76,8 @@ def connect[R](
 
 ```python
 def _set_name(self, name: str) -> None:
-    """Set the task graph name and generate graph_id = f"{name}@{int(time.time() * 1000)}"."""
+    """Set the task graph name."""
 ```
-
-### set_reporter
-
-```python
-def set_reporter(self, reporter: ReporterProtocol) -> None:
-    """
-    Set the reporter bound to the task graph.
-
-    :param reporter: reporter instance
-    """
-```
-
-### set_ctree
-
-```python
-def set_ctree(self, ctree_client: EventClient) -> None:
-    """
-    Set the shared event client for the task graph.
-    Once set, it is synchronized down to all current nodes in the graph.
-    """
-```
-
-> By default, `TaskGraph` internally uses `LocalEventClient()` to generate local incrementing event IDs, so the core execution pipeline works correctly even without installing `celestialtree`.
->
-> If you wish to report events to CelestialTree, you need to first install `celestialtree` separately, then construct the corresponding client instance and pass it to `set_ctree()`.
 
 ### set_graph_mode
 
@@ -123,6 +98,44 @@ def set_node_execution_mode(self, execution_mode: str) -> None:
     Batch-set execution_mode ('serial', 'thread', or 'async') for all nodes.
     Triggers _build_analysis() to rebuild analysis data.
     """
+```
+
+### set_ctree
+
+```python
+def set_ctree(self, ctree_client: EventClient) -> None:
+    """
+    Set the shared event client for the task graph.
+    Once set, it is synchronized down to all current nodes in the graph.
+    """
+```
+
+> By default, `TaskGraph` internally uses `LocalEventClient()` to generate local incrementing event IDs, so the core execution pipeline works correctly even without installing `celestialtree`.
+>
+> If you wish to report events to CelestialTree, you need to first install `celestialtree` separately, then construct the corresponding client instance and pass it to `set_ctree()`.
+
+## Observers
+
+### add_observer
+
+```python
+def add_observer(self, observer: Observer) -> None:
+    """
+    Register a graph-level observer.
+
+    A graph-level observer receives events from all nodes in the graph; this registration
+    only takes effect on the run() / run_async() path (these two entry points inject the
+    graph-level hub into each node).
+    """
+```
+
+The graph-level observer is injected into each node via `_inject_observers()`. What is injected is the hub object itself, so adding/removing observers on the graph-level hub at runtime immediately takes effect on all nodes.
+
+### get_observers
+
+```python
+def get_observers(self) -> ObserverHub:
+    """Return the graph-level observer hub, so that collaborators other than nodes can publish events as observers."""
 ```
 
 ## Graph Analysis
@@ -168,11 +181,13 @@ def run(
     """
     Run the task graph. Flow:
     1. Call _build_analysis() to build the graph analysis
-    2. Under funnel_scope(), inject each task in init_tasks_dict into its node (node.put_task)
+    2. Under the run_graph_resources context, inject each task in init_tasks_dict into its node (node.put_task)
     3. When if_put_signal=True, automatically inject termination signal into source nodes
     4. Call start() to launch execution
     """
 ```
+
+Runtime observer injection, global funnel observer registration, and the start/stop of the `lifecycle` / `log` spouts are all managed uniformly by the `run_graph_resources` context.
 
 ### run_async
 
@@ -208,8 +223,8 @@ def restore_db(
     """
 ```
 
-This method internally calls `load_tasks_grouped_by_stage()` to load persisted task records,
-filters recoverable error types via `node.metrics.get_retry_error_type_names()` (`pending` records are always kept),
+This method internally calls `load_tasks_grouped_by_node()` (from `persist.util_sqlite`) to load persisted task records,
+filters recoverable error types via `node.get_retry_error_type_names()` (`pending` records are always kept),
 and ultimately reuses `run()` for execution.
 
 ### Lifecycle Constraints
@@ -253,19 +268,20 @@ async def start_async(self) -> None:
 ```python
 def _prepare_start(self) -> None:
     """
-    Pre-start preparation: records the graph start log (get_log_inlet().graph_start), and calls reporter.start().
-    This method creates runtime resources such as threads and file handles.
+    Pre-start preparation: broadcast the on_graph_start event to the graph-level observer hub.
+    This method creates runtime resources such as threads and file handles; callers should ensure
+    _finish_start is executed in a finally block.
     """
 
 
 def _finish_start(self, start_perf: float) -> list[Exception]:
     """
     Post-start finalization: iterates over all nodes calling drain_task_queue() to collect unconsumed tasks,
-    stops the reporter, records the graph end log, cleans up thread references, and returns the collected exception list.
+    broadcasts the on_graph_end event, cleans up thread references, and returns the collected exception list.
     """
 ```
 
-The start/stop of the `lifecycle` / `log` spouts is managed uniformly by the outer `funnel_scope()`.
+The start/stop of the `lifecycle` / `log` spouts and ticker is managed uniformly by the outer `run_graph_resources`; this method is only responsible for the graph object's own finalization logic.
 
 ### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
@@ -303,19 +319,39 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `get_graph_id()` | `str` | Get the unique identifier of the current task graph instance |
 | `get_nodes()` | `list[str]` | All node names in registration order |
 | `get_edges()` | `dict[str, list[str]]` | Outgoing edge adjacency list (shares reference with the internal `OrderGraph`, caller should treat as read-only) |
 | `get_node_meta()` | `dict[str, dict[str, Any]]` | Build-time metadata for each node |
 | `get_source_nodes()` | `list[str]` | List of source node names (triggers graph analysis on demand) |
-| `get_graph_analysis()` | `dict` | Graph analysis info (graphId, graphMode, name, startTime, className, isDAG, layersDict) |
-| `get_structure_list()` | `list[str]` | Formatted tree text with borders |
 | `get_order_graph()` | `OrderGraph` | Internal ordered directed graph instance |
-| `get_lifecycle_path()` | `Path` | Absolute path to the task lifecycle persistence sqlite file; empty Path if not set |
+| `get_observers()` | `ObserverHub` | Graph-level observer hub |
+
+### Injection Interface
+
+```python
+def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+    """
+    Write injected tasks into the pending queue by node name. First best-effort inject tasks into
+    existing nodes, then uniformly report errors for unknown nodes.
+
+    :raises UnknownNodeError: There exists a target node not present in the graph
+    """
+
+
+def inject_terminations(self, nodes: Sequence[str]) -> None:
+    """
+    Inject termination signals into the specified nodes. First best-effort inject into existing nodes,
+    then uniformly report errors for unknown nodes.
+
+    :raises UnknownNodeError: There exists a target node not present in the graph
+    """
+```
+
+> `inject_tasks` / `inject_terminations` adopt a "best-effort injection first, centralized error reporting later" strategy, so a single unknown node will not cause the tasks/termination signals of other nodes to be dropped.
 
 ### get_node_meta Description
 
-Returns build-time metadata for each node. These fields are frozen before the reporter starts, so they are reported once along with the graph structure and do not participate in each round of state push:
+Returns build-time metadata for each node. These fields are fixed during runtime, reported once along with the graph structure, and do not enter each round of state push:
 
 ```python
 {
@@ -327,27 +363,9 @@ Returns build-time metadata for each node. These fields are frozen before the re
 }
 ```
 
-### get_graph_analysis Description
+### Graph-Level Events (Observers)
 
-`get_graph_analysis()` returns a dict with the following fields:
-
-```python
-{
-    "graphId": self.graph_id,
-    "graphMode": self.graph_mode,
-    "name": self.name,
-    "startTime": self.start_time,
-    "className": self.__class__.__name__,
-    "isDAG": self.is_dag,
-    "layersDict": self.layers_dict,
-}
-```
-
-### Runtime State Collection
-
-`TaskGraph` itself does not aggregate runtime snapshots. Each node collects its own state via `BaseTaskNode.get_snapshot()`,
-and `TaskReporter` iterates over the nodes and calls it during the state push cycle; derived metrics such as the global
-`total_*` are aggregated and computed by the frontend (`celestialflow-web`).
+`TaskGraph` broadcasts `GraphStartEvent` and `GraphEndEvent` to the observer hub during `_prepare_start()` / `_finish_start()`. The graph analysis information (graph name, mode, `is_dag`, node/edge/source node lists, node metadata, etc.) is reported all at once in the start event; for runtime monitoring, it is recommended to register graph-level observers via `add_observer()` rather than polling individual nodes.
 
 ## Lifecycle Diagram
 
@@ -417,5 +435,5 @@ graph.run({"source": tasks}, if_put_signal=False)
 ## Unconsumed Task Handling
 
 In `_finish_start()`, all remaining tasks are collected by iterating over `node_dict` and calling each node's `drain_task_queue()`,
-marking them as `UnconsumedError` and recording failure information to the lifecycle sqlite persistence file
-organized by date via `get_lifecycle_spout` (`LifecycleSpout`).
+marking them as `UnconsumedError` and recording failure information to the date-organized sqlite persistence file
+via the persistence layer (lifecycle / log).

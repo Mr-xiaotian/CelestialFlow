@@ -1,6 +1,6 @@
 # bench/bench_graph_mode.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目的
 
@@ -13,13 +13,13 @@
 - **タスク混合**：CPU 集約型（フィボナッチ）、I/O 集約型（sleep）、純粋計算（2 で割る、2 乗）
 - **入力**：`range(25, 32)`（7 個の純粋な成功タスク。早期バージョンには異常入力が含まれていたが、削除済み）
 - **リトライ設定**：`NodeA`、`NodeB1` で `ValueError` に対し `max_retries=1` を有効化（現在の入力では発火しない）
-- **Reporter**：未有効化（スクリプト内に `set_reporter(...)` / `add_observer(...)` の呼び出しが一切ない）
+- **オブザーバー/レポート**：無効（スクリプト内に `add_observer(...)` の呼び出しが一切なく、レポートアセンブリも経由しない）
 
 ### `bench_graph_1`
 - **構造**：6 ノード多層 DAG（`A → [B, C]`、`B → [D, E]`、`C → E`、`D → F`）
 - **タスク**：ランダム 0-2 秒 sleep（不均一負荷のシミュレーション）
 - **入力**：`range(10)`
-- **Reporter**：未有効化（スクリプト内に `set_reporter(...)` / `add_observer(...)` の呼び出しが一切ない）
+- **オブザーバー/レポート**：無効（スクリプト内に `add_observer(...)` の呼び出しが一切なく、レポートアセンブリも経由しない）
 
 ### `bench_graph_2`
 - **構造**：3 ノード DAG（NodeA → [NodeB, NodeC]）。ノードは直接 `TaskExecutor` を使用し、`TaskSplitter` で包まない（早期バージョンには Splitter が含まれていたが、削除済み）
@@ -34,7 +34,7 @@
 
 ## 発生し得る問題
 
-1. **Reporter はデフォルトで無効**：現在のスクリプトには `set_reporter(...)` や `add_observer(...)` の呼び出しが一切ないため、`.env` で `REPORT_HOST`/`REPORT_PORT` を設定していても**自動的には** reporter に接続しない。reporter を有効化する場合は、`bench_graph_*` の内部で明示的に `graph.set_reporter(...)` を呼び出し、かつサービスへの到達可能性を保証する必要がある。
+1. **レポート/オブザーバー未有効化**：現在のスクリプトには `add_observer(...)` の呼び出しが一切なく、レポートリソースを組み立てる入口も経由しないため、グラフにはデフォルト指標以外のカスタムオブザーバーは組み込まれず、レポートも行われない。レポートの有効化/無効化はプロジェクト級の `pyproject.toml` の `[tool.celestialflow]` 節（`if_report`、`report_url`）で駆動され、`.env` の `REPORT_HOST`/`REPORT_PORT`（この設定項目は削除済み）には依存しない。本スクリプトはレポートを有効化していない。
 2. **合計所要時間が長い**：`benchmark_graph` は `len(graph_modes) × len(execution_modes)` 回の完全なグラフ実行を行う。I/O 遅延を含む場合の合計時間は数分に達する可能性がある。
 
 ## 実行方法

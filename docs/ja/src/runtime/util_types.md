@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `util_types.py` はフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
@@ -11,11 +11,11 @@
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id  # 终止信号 ID
-        self.source = source  # 来源标识
+        self.id = _id  # 終了シグナル ID
+        self.source = source  # ソース識別子
 
 
-# 全局单例
+# グローバルシングルトン
 TERMINATION_SIGNAL = TerminationSignal()
 ```
 
@@ -26,7 +26,7 @@ TERMINATION_SIGNAL = TerminationSignal()
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids  # 终止信号 ID 列表
+        self.ids = ids  # 終了シグナル ID リスト
 ```
 
 ## NoOpContext
@@ -49,10 +49,10 @@ class NoOpContext:
 class ValueWrapper:
     def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
         """
-        :param value: 初始值
-        :param lock: 可选的线程锁。默认 None 表示自建一把锁；
-            传入已存在的 Lock 可让多个计数器共用同一把锁；
-            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
+        :param value: 初期値
+        :param lock: 任意のスレッドロック。デフォルトの None は自前のロックを作成することを示す；
+            既存の Lock を渡すと複数のカウンターが同じロックを共有できる；
+            明示的に NoOpContext を渡すとロックが無効になる（単一スレッドアクセス時のみ）
         """
         self.value = value
         self._lock = lock if lock is not None else Lock()
@@ -66,15 +66,15 @@ class ValueWrapper:
 
 > `lock=None` の場合に実際の `Lock` を自前で作成するため、`ValueWrapper` はデフォルトでスレッドセーフです；明示的に単一スレッドアクセスと分かっている場合にのみ `NoOpContext` を渡してロックを無効化すべきです。
 
-## StageStatus
+## NodeStatus
 
-タスクグラフノード（`BaseTaskNode` およびそのサブクラス、`TaskExecutor`、`TaskSplitter`、`TaskRouter` など）の実行状態を表す列挙型です。
+タスクグラフノード（`BaseTaskNode` およびそのサブクラス、`TaskExecutor`、`TaskSplitter`、`TaskRouter` など）のライフサイクル状態を表す列挙型です。
 
 ```python
-class StageStatus(IntEnum):
-    NOT_STARTED = 0  # 未启动
-    RUNNING = 1  # 运行中
-    STOPPED = 2  # 已停止
+class NodeStatus(IntEnum):
+    NOT_STARTED = 0  # 未起動
+    RUNNING = 1  # 実行中
+    STOPPED = 2  # 停止済み
 ```
 
 ## CTreeEvent
@@ -86,9 +86,40 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 | `TASK_INPUT` | `"task.input"` | タスクがシステムに入力 |
 | `TASK_SUCCESS` | `"task.success"` | タスク実行成功 |
 | `TASK_ERROR` | `"task.error"` | タスク実行失敗 |
+| `TASK_SKIP` | `"task.skip"` | タスクがスキップされる |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | リトライプレフィックス（リトライ回数を連結） |
 | `TERMINATION_INPUT` | `"termination.input"` | 終了シグナル注入 |
 | `TERMINATION_MERGE` | `"termination.merge"` | 終了シグナルマージ |
+
+## NodeMetrics
+
+単一ノードの指標スナップショット（読み取り専用 DTO、`@dataclass(frozen=True, slots=True)`）。指標オブザーバーがイベントに基づいて書き込みモデルを維持し、本クラスはある時点の読み取り専用スナップショットのみを保持します。
+
+| フィールド | 型 | 説明 |
+|------|------|------|
+| `node` | `str` | ノード名 |
+| `status` | `NodeStatus` | ノードのライフサイクル状態 |
+| `start_time` | `float` | 実行状態に入った壁時計時刻（秒）；未起動なら `0.0` |
+| `external_input` | `int` | 外部注入タスク数 |
+| `upstream_input` | `int` | 上流から提供されたタスク数 |
+| `input_total` | `int` | 入力タスク総数（外部注入と上流提供の合計） |
+| `succeeded` | `int` | 成功タスク数 |
+| `failed` | `int` | 失敗タスク数 |
+| `skipped` | `int` | スキップタスク数 |
+| `processed` | `int` | 処理済みタスク数（成功 + 失敗 + スキップ） |
+| `pending` | `int` | 未処理タスク数 |
+| `upstream_counts` | `dict[str, int]` | 各上流ノードが提供したタスク数のマッピング |
+| `downstream_counts` | `dict[str, int]` | 各下流ノードへ送信したタスク数のマッピング |
+
+## MetricsView
+
+指標の読み取り専用ビュー・プロトコル（`Protocol`）。書き込みモデルは指標オブザーバーがイベントに基づいて維持し、本プロトコルは不変の読み取り入口のみを公開します。ログ・レポートなどの消費者がクエリに使用し、可変の内部状態が外部に漏れるのを防ぎます。
+
+```python
+class MetricsView(Protocol):
+    def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
+    def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
+```
 
 ## 使用例
 
@@ -103,35 +134,59 @@ from celestialflow.runtime.util_types import (
     TerminationIdPool,
 )
 
-# 创建自定义终止信号
+# カスタム終了シグナルを作成
 signal = TerminationSignal(_id=42, source="my_source")
-print(f"信号 ID: {signal.id}, 来源: {signal.source}")
+print(f"シグナル ID: {signal.id}, ソース: {signal.source}")
 
-# 使用全局单例
-print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")  # -1
-print(f"默认来源: {TERMINATION_SIGNAL.source}")  # "input"
+# グローバルシングルトンを使用
+print(f"デフォルト終了シグナル ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"デフォルトソース: {TERMINATION_SIGNAL.source}")  # "input"
 print(
-    f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}"
-)  # False（每次创建新实例）
+    f"同じインスタンス: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False（毎回新しいインスタンスを作成）
 
-# 创建终止信号 ID 池
+# 終了シグナル ID プールを作成
 pool = TerminationIdPool(ids=[1, 2, 3])
-print(f"ID 池: {pool.ids}")  # [1, 2, 3]
+print(f"ID プール: {pool.ids}")  # [1, 2, 3]
 ```
 
-### StageStatus 列挙型
+### NodeStatus 列挙型
 
 ```python
-from celestialflow.runtime.util_types import StageStatus
+from celestialflow.runtime.util_types import NodeStatus
 
-# 枚举值
-print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
+# 列挙値
+print(f"NOT_STARTED = {NodeStatus.NOT_STARTED.value}")  # 0
+print(f"RUNNING = {NodeStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {NodeStatus.STOPPED.value}")  # 2
 
-# 状态转换
-status = StageStatus.NOT_STARTED
-print(f"初始状态: {status.name}")
+# 状態遷移
+status = NodeStatus.NOT_STARTED
+print(f"初期状態: {status.name}")
+```
+
+### NodeMetrics と MetricsView
+
+```python
+from celestialflow.runtime.util_types import NodeMetrics, NodeStatus, MetricsView
+
+# 読み取り専用の指標スナップショットを構築
+snapshot = NodeMetrics(
+    node="processor",
+    status=NodeStatus.RUNNING,
+    start_time=1234.5,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=3,
+    failed=1,
+    skipped=1,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(snapshot.processed)  # 5
 ```
 
 ### ValueWrapper
@@ -139,20 +194,20 @@ print(f"初始状态: {status.name}")
 ```python
 from celestialflow.runtime.util_types import ValueWrapper
 
-# 默认带真实线程锁
+# デフォルトで実際のスレッドロックを保持
 counter = ValueWrapper(value=10)
-print(f"初始值: {counter.value}")  # 10
+print(f"初期値: {counter.value}")  # 10
 
 counter.add(5)
-print(f"递增后: {counter.get()}")  # 15
+print(f"増加後: {counter.get()}")  # 15
 
-# 与其它计数器共用同一把锁
+# 別のカウンターと同じロックを共有
 from threading import Lock
 
 shared = Lock()
 a = ValueWrapper(value=0, lock=shared)
 b = ValueWrapper(value=0, lock=shared)
-print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
+print(f"ロック共有: {a.get_lock() is b.get_lock()}")  # True
 ```
 
 ### NoOpContext
@@ -160,12 +215,12 @@ print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
 ```python
 from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
-# 空上下文管理器，用于禁用 with 逻辑
+# 空のコンテキストマネージャ。with ロジックを無効化するために使用
 ctx = NoOpContext()
 with ctx:
-    print("这是一个无操作上下文")
+    print("これは無操作コンテキストです")
 
-# 单线程场景下显式关闭加锁
+# 単一スレッド環境でロックを明示的に無効化
 single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```
 
@@ -174,17 +229,17 @@ single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```python
 from celestialflow.runtime.util_types import CTreeEvent
 
-# 事件名称常量
-print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
-print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
-print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
-print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
-print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
-print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
+# イベント名定数
+print(f"タスク入力イベント: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"タスク成功イベント: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"タスク失敗イベント: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"リトライプレフィックス: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"終了注入イベント: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"終了マージイベント: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
 ## 注意事項
 
 - `ValueWrapper` はデフォルトで実際の `Lock` を使用するため、デフォルトでスレッドセーフです；`NoOpContext` は単一スレッドモードでロックのオーバーヘッドを明示的に排除するために使用します。
 - `TERMINATION_SIGNAL` はモジュールレベルのシングルトンで、デフォルトは `id=-1`、`source="input"` です。
-- `StageStatus` は `IntEnum` であり、整数と直接比較できます。
+- `NodeStatus` は `IntEnum` であり、整数と直接比較できます。

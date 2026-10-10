@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `util_types.py` defines the basic data types, enums, and helper classes used throughout the framework.
 
@@ -11,11 +11,11 @@ A sentinel object used to mark the end of a task queue. When a node receives thi
 ```python
 class TerminationSignal:
     def __init__(self, _id: int = -1, source: str = "input"):
-        self.id = _id  # 终止信号 ID
-        self.source = source  # 来源标识
+        self.id = _id  # Termination signal ID
+        self.source = source  # Source identifier
 
 
-# 全局单例
+# Global singleton
 TERMINATION_SIGNAL = TerminationSignal()
 ```
 
@@ -26,7 +26,7 @@ Termination signal ID pool, used to store all received termination signal IDs.
 ```python
 class TerminationIdPool:
     def __init__(self, ids: list[int]):
-        self.ids = ids  # 终止信号 ID 列表
+        self.ids = ids  # Termination signal ID list
 ```
 
 ## NoOpContext
@@ -49,10 +49,10 @@ A counter wrapper for intra-thread / single-process use, **which creates its own
 class ValueWrapper:
     def __init__(self, value: int, lock: Lock | NoOpContext | None = None):
         """
-        :param value: 初始值
-        :param lock: 可选的线程锁。默认 None 表示自建一把锁；
-            传入已存在的 Lock 可让多个计数器共用同一把锁；
-            显式传入 NoOpContext 则关闭加锁（仅适用于单线程访问）
+        :param value: Initial value
+        :param lock: Optional thread lock. Default None means a lock is created internally;
+            passing in an existing Lock lets multiple counters share the same lock;
+            explicitly passing NoOpContext disables locking (only for single-threaded access)
         """
         self.value = value
         self._lock = lock if lock is not None else Lock()
@@ -66,15 +66,15 @@ class ValueWrapper:
 
 > Because `lock=None` creates a real `Lock`, `ValueWrapper` is thread-safe by default; you should explicitly pass `NoOpContext` to disable locking only when single-threaded access is certain.
 
-## StageStatus
+## NodeStatus
 
-The running-state enum for task graph nodes (`BaseTaskNode` and its subclasses, such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
+The lifecycle-status enum of task graph nodes (`BaseTaskNode` and its subclasses, such as `TaskExecutor`, `TaskSplitter`, `TaskRouter`).
 
 ```python
-class StageStatus(IntEnum):
-    NOT_STARTED = 0  # 未启动
-    RUNNING = 1  # 运行中
-    STOPPED = 2  # 已停止
+class NodeStatus(IntEnum):
+    NOT_STARTED = 0  # Not started
+    RUNNING = 1  # Running
+    STOPPED = 2  # Stopped
 ```
 
 ## CTreeEvent
@@ -82,13 +82,44 @@ class StageStatus(IntEnum):
 CelestialTree event name constants, used for task tracking and visualization.
 
 | Constant | Value | Trigger Timing |
-|----------|-------|----------------|
+|------|-----|---------|
 | `TASK_INPUT` | `"task.input"` | Task enters the system |
 | `TASK_SUCCESS` | `"task.success"` | Task execution succeeded |
 | `TASK_ERROR` | `"task.error"` | Task execution failed |
+| `TASK_SKIP` | `"task.skip"` | Task is skipped |
 | `TASK_RETRY_PREFIX` | `"task.retry."` | Retry prefix (concatenated with retry count) |
 | `TERMINATION_INPUT` | `"termination.input"` | Termination signal injected |
 | `TERMINATION_MERGE` | `"termination.merge"` | Termination signals merged |
+
+## NodeMetrics
+
+A single-node metric snapshot (read-only DTO, `@dataclass(frozen=True, slots=True)`). The metric observer maintains the write model based on events; this class only holds a read-only snapshot at a given moment.
+
+| Field | Type | Description |
+|------|------|------|
+| `node` | `str` | Node name |
+| `status` | `NodeStatus` | Node lifecycle status |
+| `start_time` | `float` | Wall-clock time (seconds) when entering the running state; `0.0` if not started |
+| `external_input` | `int` | Number of externally injected tasks |
+| `upstream_input` | `int` | Number of tasks provided by upstream |
+| `input_total` | `int` | Total number of input tasks (sum of external injection and upstream-provided) |
+| `succeeded` | `int` | Number of successful tasks |
+| `failed` | `int` | Number of failed tasks |
+| `skipped` | `int` | Number of skipped tasks |
+| `processed` | `int` | Number of processed tasks (success + failure + skip) |
+| `pending` | `int` | Number of pending tasks |
+| `upstream_counts` | `dict[str, int]` | Mapping of task counts provided by each upstream node |
+| `downstream_counts` | `dict[str, int]` | Mapping of task counts sent to each downstream node |
+
+## MetricsView
+
+The metric read-only view protocol (`Protocol`). The write model is maintained by the metric observer based on events; this protocol only exposes an immutable read entry for consumers such as log and reporting, avoiding leaking mutable internal state.
+
+```python
+class MetricsView(Protocol):
+    def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
+    def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
+```
 
 ## Usage Examples
 
@@ -103,35 +134,59 @@ from celestialflow.runtime.util_types import (
     TerminationIdPool,
 )
 
-# 创建自定义终止信号
+# Create a custom termination signal
 signal = TerminationSignal(_id=42, source="my_source")
-print(f"信号 ID: {signal.id}, 来源: {signal.source}")
+print(f"Signal ID: {signal.id}, source: {signal.source}")
 
-# 使用全局单例
-print(f"默认终止信号 ID: {TERMINATION_SIGNAL.id}")  # -1
-print(f"默认来源: {TERMINATION_SIGNAL.source}")  # "input"
+# Use the global singleton
+print(f"Default termination signal ID: {TERMINATION_SIGNAL.id}")  # -1
+print(f"Default source: {TERMINATION_SIGNAL.source}")  # "input"
 print(
-    f"是同一个实例: {TERMINATION_SIGNAL is TerminationSignal()}"
-)  # False（每次创建新实例）
+    f"Same instance: {TERMINATION_SIGNAL is TerminationSignal()}"
+)  # False (a new instance is created each time)
 
-# 创建终止信号 ID 池
+# Create a termination signal ID pool
 pool = TerminationIdPool(ids=[1, 2, 3])
-print(f"ID 池: {pool.ids}")  # [1, 2, 3]
+print(f"ID pool: {pool.ids}")  # [1, 2, 3]
 ```
 
-### StageStatus Enum
+### NodeStatus Enum
 
 ```python
-from celestialflow.runtime.util_types import StageStatus
+from celestialflow.runtime.util_types import NodeStatus
 
-# 枚举值
-print(f"NOT_STARTED = {StageStatus.NOT_STARTED.value}")  # 0
-print(f"RUNNING = {StageStatus.RUNNING.value}")  # 1
-print(f"STOPPED = {StageStatus.STOPPED.value}")  # 2
+# Enum values
+print(f"NOT_STARTED = {NodeStatus.NOT_STARTED.value}")  # 0
+print(f"RUNNING = {NodeStatus.RUNNING.value}")  # 1
+print(f"STOPPED = {NodeStatus.STOPPED.value}")  # 2
 
-# 状态转换
-status = StageStatus.NOT_STARTED
-print(f"初始状态: {status.name}")
+# State transition
+status = NodeStatus.NOT_STARTED
+print(f"Initial status: {status.name}")
+```
+
+### NodeMetrics and MetricsView
+
+```python
+from celestialflow.runtime.util_types import NodeMetrics, NodeStatus, MetricsView
+
+# Construct a read-only metric snapshot
+snapshot = NodeMetrics(
+    node="processor",
+    status=NodeStatus.RUNNING,
+    start_time=1234.5,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=3,
+    failed=1,
+    skipped=1,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(snapshot.processed)  # 5
 ```
 
 ### ValueWrapper
@@ -139,20 +194,20 @@ print(f"初始状态: {status.name}")
 ```python
 from celestialflow.runtime.util_types import ValueWrapper
 
-# 默认带真实线程锁
+# Real thread lock by default
 counter = ValueWrapper(value=10)
-print(f"初始值: {counter.value}")  # 10
+print(f"Initial value: {counter.value}")  # 10
 
 counter.add(5)
-print(f"递增后: {counter.get()}")  # 15
+print(f"After increment: {counter.get()}")  # 15
 
-# 与其它计数器共用同一把锁
+# Share the same lock with other counters
 from threading import Lock
 
 shared = Lock()
 a = ValueWrapper(value=0, lock=shared)
 b = ValueWrapper(value=0, lock=shared)
-print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
+print(f"Shared lock: {a.get_lock() is b.get_lock()}")  # True
 ```
 
 ### NoOpContext
@@ -160,12 +215,12 @@ print(f"共用锁: {a.get_lock() is b.get_lock()}")  # True
 ```python
 from celestialflow.runtime.util_types import NoOpContext, ValueWrapper
 
-# 空上下文管理器，用于禁用 with 逻辑
+# Empty context manager, used to disable with logic
 ctx = NoOpContext()
 with ctx:
-    print("这是一个无操作上下文")
+    print("This is a no-op context")
 
-# 单线程场景下显式关闭加锁
+# Explicitly disable locking in single-threaded scenarios
 single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```
 
@@ -174,17 +229,17 @@ single_thread_counter = ValueWrapper(value=0, lock=NoOpContext())
 ```python
 from celestialflow.runtime.util_types import CTreeEvent
 
-# 事件名称常量
-print(f"任务输入事件: {CTreeEvent.TASK_INPUT}")  # "task.input"
-print(f"任务成功事件: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
-print(f"任务失败事件: {CTreeEvent.TASK_ERROR}")  # "task.error"
-print(f"重试前缀: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
-print(f"终止注入事件: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
-print(f"终止合并事件: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
+# Event name constants
+print(f"Task input event: {CTreeEvent.TASK_INPUT}")  # "task.input"
+print(f"Task success event: {CTreeEvent.TASK_SUCCESS}")  # "task.success"
+print(f"Task error event: {CTreeEvent.TASK_ERROR}")  # "task.error"
+print(f"Retry prefix: {CTreeEvent.TASK_RETRY_PREFIX}")  # "task.retry."
+print(f"Termination input event: {CTreeEvent.TERMINATION_INPUT}")  # "termination.input"
+print(f"Termination merge event: {CTreeEvent.TERMINATION_MERGE}")  # "termination.merge"
 ```
 
 ## Notes
 
 - `ValueWrapper` uses a real `Lock` by default, so it is thread-safe by default; `NoOpContext` is used to explicitly eliminate lock overhead in single-threaded mode.
 - `TERMINATION_SIGNAL` is a module-level singleton with default `id=-1` and `source="input"`.
-- `StageStatus` is an `IntEnum`, so it can be compared directly with integers.
+- `NodeStatus` is an `IntEnum`, so it can be compared directly with integers.

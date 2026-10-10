@@ -1,6 +1,6 @@
 # src/celestialflow/graph/util_order_graph.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `graph/util_order_graph.py` は、最小限のグラフ構造 `OrderGraph` と、それを中心とする一連の基礎的なグラフアルゴリズムを提供します。
 
@@ -140,4 +140,4 @@ print(levels)
 
 - 軽量なグラフ構造と基礎的なグラフアルゴリズムのみが必要な場合は、優先的に `OrderGraph` を使用してください。
 - `TaskGraph` の現在の解析ロジックとの一貫性を保つ必要がある場合は、ここにあるアルゴリズム関数を優先して使用してください。
-- 印刷可能なグラフ構造テキストをエクスポートする必要がある場合は、`util_render.py` を併用してください。
+- 印刷可能なグラフ構造テキストをエクスポートする必要がある場合は、`persist.util_render` 内の `render_structure_list` を併用してください。

@@ -1,8 +1,8 @@
 # src/celestialflow/graph/__init__.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
-Graph モジュールは CelestialFlow のコアスケジューリングシステムであり、タスクノード間の依存関係、実行フロー、ライフサイクルを管理します。柔軟なタスクグラフの構築、分析、レンダリング機能を提供します。
+Graph モジュールは CelestialFlow のコアスケジューリングシステムであり、タスクノード間の依存関係、実行フロー、ライフサイクルを管理します。柔軟なタスクグラフの構築と分析機能を提供します。
 
 ## モジュール概要
 
@@ -22,18 +22,21 @@ from celestialflow.graph import (
 )
 ```
 
+`__all__ = ["TaskChain", "TaskComplete", "TaskCross", "TaskGraph", "TaskGrid", "TaskLoop", "TaskWheel"]`
+
 ## ファイル説明
 
 ### コアファイル
 
 1. **core_graph.py** (`TaskGraph`)
-   - **役割**: コアスケジューラ。タスクノード（`BaseTaskNode` 派生オブジェクト）の依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します
+   - **役割**: コアスケジューラ。タスクノード（`BaseTaskNode` 派生オブジェクト）の依存関係、実行フロー、ライフサイクルを管理します
    - **主要機能**:
      - ノード間の依存関係の確立（`set_nodes` / `connect`）
      - タスクグラフの実行（`start` / `start_async`、`graph_mode` に基づく serial/thread/async 実行）
-     - 構築期のノードメタ情報とグラフ分析情報のエクスポート（`get_node_meta` / `get_graph_analysis` / `get_structure_list`）
-     - 初期タスクと永続化タスクの注入（`run` / `run_async` / `restore_db`）
-     - エラー永続化と未消費タスク処理（`drain_task_queue`）
+     - ノードの実行モード一括設定（`set_node_execution_mode`）と共有イベントクライアントの設定（`set_ctree`）
+     - グラフレベル観測者の登録（`add_observer`）とクエリ（`get_observers`）
+     - グラフ分析（`_build_analysis`：ソースノード識別、DAG 判定、階層計算）
+     - 初期タスクと永続化タスクの注入（`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`）
 
 2. **core_structure.py**（事前定義グラフ構造）
    - **役割**: 6 種類の事前定義タスクグラフ構造を提供し、一般的なパターンを簡素化します
@@ -56,10 +59,7 @@ from celestialflow.graph import (
      - `source_sccs()` / `source_nodes()`: ソース SCC を特定し代表的なソースノードを抽出
      - `compute_node_levels()`: SCC 凝縮グラフに基づくノード階層計算
 
-4. **util_render.py**
-   - **役割**: グラフ構造を枠線付きツリーテキストリストにレンダリング
-   - **主要関数**:
-     - `render_structure_list()`: ノード名リスト、隣接テーブル、ソースノードから枠線付きツリーテキストを生成
+> 説明：グラフ構造のツリー形式テキストレンダリング（`render_structure_list`）は本モジュールから `persist/util_render.py` へ移行されました。Graph モジュールはもはやレンダリングロジックを保持しません。
 
 ## モジュール連携
 
@@ -68,21 +68,19 @@ from celestialflow.graph import (
 - `TaskChain`、`TaskLoop` などは `TaskGraph` の特殊化実装です（`set_nodes` / `connect` ロジックをカプセル化）
 - `util_order_graph.py` はフレームワーク内部で統一して再利用される軽量グラフ構造と基礎グラフアルゴリズムを提供します
 - `TaskGraph` は現在 `OrderGraph` に基づいてソースノード識別、DAG 判定、階層分析を行います
-- `util_render.py` は実行時構造を枠線付きツリーテキストリストとして出力します
 
 ### 外部連携
 - **Node モジュールとの連携**: タスクグラフノード（`TaskExecutor` / `TaskSplitter` / `TaskRouter`）は `celestialflow.node` が提供し、`TaskGraph` は組み立て・接続・スケジューリングのみを担当
 - **Runtime モジュールとの連携**: ノード間通信パイプとして `TaskInQueue`/`TaskOutQueue` を使用
-- **Persistence モジュールとの連携**: `LifecycleSpout` により永続化を実現
-- **Observability モジュールとの連携**: `TaskReporter` により `celestialflow-web` サービスに状態をプッシュし、注入命令をプル
+- **Observer モジュールとの連携**: `add_observer()` でグラフレベル観測者を登録し、グラフ内の全ノードのイベントを受信。実行時リソースは `run_graph_resources` で一元管理
+- **Persistence モジュールとの連携**: 永続化エントリ（lifecycle / log）を通じてタスクの永続化と復元を実現（`restore_db`）
 
 ## 使用パターン
 
 1. **タスクグラフの構築**: `TaskExecutor` ノードを作成（必要に応じて `TaskSplitter` / `TaskRouter` を使用）→ `set_nodes()` で登録 → `connect()` で依存関係を確立
 2. **構造の選択**: 一般的なパターンには `TaskChain`/`TaskCross` などの事前定義構造を直接使用可能
-3. **設定**: `set_reporter()` / `set_ctree()` で外部サービスを統合
+3. **設定**: `set_ctree()` でイベントクライアントを注入、`add_observer()` でグラフレベル観測者を登録
 4. **実行**: `run()` または `run_async()` を呼び出す
-5. **監視**: `TaskReporter` が各ノードの `get_snapshot()` を定期的に呼び出して実行時状態を収集
 
 ## 使用例
 
@@ -122,9 +120,9 @@ graph.connect([s2], [s3])
 graph.run({s1.get_name(): [1, 2, 3]})
 
 # グラフ分析
-analysis = graph.get_graph_analysis()
-print(f"DAG か: {analysis['isDAG']}")
-print(f"階層: {analysis['layersDict']}")
+print(f"ソースノード: {graph.get_source_nodes()}")
+print(f"ノードリスト: {graph.get_nodes()}")
+print(f"エッジ隣接テーブル: {graph.get_edges()}")
 ```
 
 ### TaskChain 線形チェーン
@@ -141,10 +139,8 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# グラフ分析：DAG 判定と階層構造を確認
-analysis = chain.get_graph_analysis()
-print(f"DAG か: {analysis['isDAG']}")
-print(f"階層: {analysis['layersDict']}")
+# ノードとソースを確認
+print(chain.get_nodes())
 ```
 
 ### TaskCross クロス層
@@ -164,7 +160,6 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.get_structure_list())
 ```
 
 ### TaskGrid グリッド
@@ -179,7 +174,6 @@ s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.get_structure_list())
 ```
 
 ### TaskLoop リンググラフ
@@ -215,5 +209,5 @@ wheel.run({center.get_name(): ["data"]})
 - 線形フローには `TaskChain` を使用し、手動 `connect` は不要
 - マルチパス並行パイプラインには `TaskCross` または手動組み合わせを使用
 - 循環グラフ（`TaskLoop`/`TaskWheel`）では `if_put_signal=False` を推奨し、外部注入で停止
-- 外部監視システムとの連携が必要な場合は `set_reporter()` を使用
+- グラフ内のイベントを監視・受信する必要がある場合は `add_observer()` でグラフレベル観測者を登録
 - 非同期実行には `TaskGraph` の `graph_mode="async"` を使用し、`start_async()` / `run_async()` で起動

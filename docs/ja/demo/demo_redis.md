@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
@@ -276,8 +276,6 @@ flowchart LR
 ```env
 REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=
-REPORT_HOST=127.0.0.1
-REPORT_PORT=8000
 ```
 
 ### 3. リモート Worker の準備（Ack シナリオのみ必要）
@@ -327,4 +325,4 @@ python demo/demo_redis.py
 - `python-dotenv`
 - `redis`
 - `requests`（`demo_redis_ack_2` のダウンロード用）
-- 外部サービス：Redis、リモート Worker（オプション）、Reporter（オプション）
+- 外部サービス：Redis、リモート Worker（オプション）

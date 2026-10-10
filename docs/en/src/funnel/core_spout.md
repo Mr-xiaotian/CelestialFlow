@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_spout.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `BaseSpout` is the base class for all outlet classes, providing the common functionality of listening to a queue in a background thread and processing records.
 
@@ -82,14 +82,10 @@ def _after_stop(self) -> None:
 ## Internal Implementation
 
 ```python
-def _spout(self):
+def _spout(self) -> None:
     """Background thread main loop, continuously pulls records from the queue and calls _handle_record, exiting on termination signal."""
     while True:
-        try:
-            record = self._queue.get(timeout=0.5)
-        except Empty:
-            continue
-
+        record = self._queue.get()  # Blocking wait, no timeout
         if isinstance(record, TerminationSignal):
             break
 

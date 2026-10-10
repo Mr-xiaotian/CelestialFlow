@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -48,7 +48,7 @@ Routing logic: The `Origin` stage only outputs the original input integer as-is;
 - `demo_splitter_0` uses two independent calls `graph.set_graph_mode("thread")` and `graph.set_node_execution_mode("thread")` to uniformly set each `TaskExecutor` node to `"thread"` mode (`max_workers=4`); `TaskSplitter` does not explicitly set an execution mode and only acts as a splitting node passing tasks through.
 - `demo_splitter_1` indirectly uses `execution_mode="thread"`, `max_workers=50` (the `Process` stage) via `TaskChain`.
 - In `demo_router_0`, `Origin` / `StageA` / `StageB` all use `execution_mode="thread"` (`max_workers=4` / `2` / `2`); `Router` is a `TaskRouter` node and does not consume `execution_mode` itself.
-- Monitoring is wired in via `graph.set_reporter(TaskReporter(report_host, report_port, graph))`, connecting to the remote Reporter corresponding to the `REPORT_HOST`/`REPORT_PORT` environment variables; `graph.set_ctree(ctree_client)` is commented out in both `demo_splitter_0` and `demo_router_0`, while `demo_splitter_1` enables CelestialTree via `chain.set_ctree(ctree_client)`; to wire it in, first install `celestialtree` separately and confirm the corresponding call is not commented out.
+- `<graph>.set_ctree(ctree_client)` is commented out in each scenario (`demo_splitter_0` and `demo_router_0`), while `demo_splitter_1` enables CelestialTree via `chain.set_ctree(ctree_client)`; to wire it in, first install `celestialtree` separately and confirm the corresponding call is not commented out.
 - Redis remote collaboration examples have been migrated to `demo_redis.py`.
 
 ## Potential Issues
@@ -110,7 +110,7 @@ Wraps `range(100000)` as a list fed into Splitter, outputting individually to do
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskChain`, `TaskSplitter`, `TaskRouter`, `TaskReporter`)
+- `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskChain`, `TaskSplitter`, `TaskRouter`)
 - `demo_utils`
 - `python-dotenv`
-- External services: CelestialTree (optional), Reporter (optional)
+- External services: CelestialTree (optional)

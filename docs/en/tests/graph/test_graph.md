@@ -1,6 +1,6 @@
 # tests/graph/test_graph.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Purpose
 Comprehensively validates the core functionality of `TaskGraph` and its various topology subclasses (`TaskChain`, `TaskCross`, `TaskGrid`), covering synchronous/asynchronous/threaded execution, error propagation, SQLite replay, runtime snapshot counts, topology analysis, the execution mode matrix, source node derivation (including SCC), and cyclic graph behavior.
@@ -15,17 +15,18 @@ Comprehensively validates the core functionality of `TaskGraph` and its various 
 ### Summary Table
 
 | Test Class | Case Count | Coverage Points |
-|--------|--------|---------|
+|--------|--------|--------|
 | `TestTaskGraphBasic` | 10 | set_ctree updates existing nodes, unknown node name lookup error, two-node DAG, fan-out, fan-in, error propagation, DB replay, DB error type filtered replay, DB keeps pending records, unified exception group after finish |
-| `TestTaskGraphSnapshotCounts` | 3 | fan-in upstream counts, fan-out downstream counts, snapshot derivation of `tasks_processed`/`tasks_pending` |
+| `TestTaskGraphSnapshotCounts` | 3 | fan-in upstream counts, fan-out downstream counts, snapshot derivation of `processed`/`pending` |
 | `TestTaskGraphAsync` | 6 | async mode two-node, fan-out, fan-in, error propagation, async execution_mode, unified exception group after async finish |
 | `TestTaskGraphStructure` | 3 | Chain, Cross, Grid structures |
 | `TestTaskGraphAnalysis` | 5 | Node metadata, getters build analysis on demand, auto-rebuild cache after structure change, DAG detection, layer computation |
 | `TestNodeExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread mode two-node, fan-out, fan-in, error propagation, lambda, linear chain dispatch |
 | `TestSourceNodes` | 5 | Linear graph source, fan-in source, diamond graph source, single-source SCC representative, multi-source SCC returns one representative each |
-| `TestCyclicGraph` | 3 | Cyclic graph raises in serial mode, cyclic isDAG detection, same level within cycle + tail level |
-| **Total** | **48** | |
+| `TestCyclicGraph` | 3 | Cyclic graph raises in serial mode, cyclic is_dag detection, same level within cycle + tail level |
+| `TestTaskGraphReporterCapabilities` | 3 | `inject_tasks` / `inject_terminations` injection and unknown-node handling |
+| **Total** | **51** | |
 
 > **Note**: The statistics here cover test classes in `test_graph.py`. Dedicated tests for `TaskLoop` and `TaskWheel` are in `test_structure.py`.
 
@@ -52,9 +53,9 @@ graph LR
 - **Unified exception group after finish** (`test_start_raises_exception_group_after_finish`): Synchronous `start` raises the collected `ExceptionGroup` in a unified manner after `_finish_start`.
 
 #### Snapshot Edge Counts (`TestTaskGraphSnapshotCounts`)
-- `test_fan_in_upstream_counts`: The fan-in node's `get_snapshot()["upstream_counts"]` records the number of tasks provided by each upstream, and the `downstream_counts` of the upstream nodes correspond accordingly.
-- `test_fan_out_downstream_counts`: The fan-out node's `downstream_counts` records the number sent to each downstream.
-- `test_snapshot_restores_processed_and_pending`: The snapshot layer derives `tasks_processed` / `tasks_pending` / `tasks_succeeded`.
+- `test_fan_in_upstream_counts`: The fan-in node's `get_node_metrics("merge").upstream_counts` records the number of tasks provided by each upstream (`{"src_a": 2, "src_b": 2}`), and the upstream nodes' `downstream_counts` correspond accordingly.
+- `test_fan_out_downstream_counts`: The fan-out node's node metrics `downstream_counts` records the number sent to each downstream, and the downstream nodes' `upstream_counts` correspond accordingly.
+- `test_snapshot_restores_processed_and_pending`: After the graph runs, the node metrics snapshot derives `processed` / `pending` / `succeeded` (`processed == 3`, `pending == 0`).
 
 #### Async and Concurrency (`TestTaskGraphAsync`)
 - Two-node, fan-out, fan-in, and error propagation in async mode share the same semantics as synchronous mode.
@@ -78,9 +79,9 @@ Each case uses a two-node DAG with 5 input tasks, verifying both nodes succeed w
 
 #### Graph Structure Analysis (`TestTaskGraphAnalysis`)
 - **Node metadata** (`test_get_node_meta_covers_all_nodes`): `get_node_meta()` gives build-time metadata such as `class_name` and `execution_mode` for each node.
-- **On-demand build** (`test_getters_build_analysis_on_demand`): Analysis and structure getters (`get_graph_analysis`, `get_nodes`, `get_edges`, `get_structure_list`, `get_source_nodes`) should be usable directly even when `build()` is not explicitly called.
+- **On-demand build** (`test_getters_build_analysis_on_demand`): Analysis and structure getters (`is_dag`, `layers_dict`, `get_nodes`, `get_edges`, `get_source_nodes`) should be usable directly even when `build()` is not explicitly called.
 - **Auto-rebuild cache** (`test_getters_refresh_analysis_after_connect`): After `connect`, getters should automatically rebuild the analysis cache, and source nodes and levels update accordingly.
-- **DAG detection** (`test_dag_detection`): The `isDAG` flag should correctly reflect whether the graph has a cycle.
+- **DAG detection** (`test_dag_detection`): The `is_dag` attribute should correctly reflect whether the graph has a cycle.
 - **Layer computation** (`test_layer_computation`): Topological levels of a linear chain A→B→C are {A:0, B:1, C:2}.
 
 #### Complex Structures (`TestTaskGraphStructure`)
@@ -108,8 +109,13 @@ Verifies two-node serial, fan-out, fan-in, error propagation, lambda function su
 | Case | Verification Point |
 |------|--------|
 | `test_cyclic_serial_graph_raises` | Calling `get_source_nodes()` in serial graph_mode on a cyclic graph should raise `ConfigurationError` (matches `"TaskGraph contains a cycle while graph_mode='serial'"`) |
-| `test_cyclic_is_dag_false` | `isDAG` for s1→s2→s3→s1 should be `False` |
+| `test_cyclic_is_dag_false` | `is_dag` for s1→s2→s3→s1 should be `False` |
 | `test_cyclic_layers` | Nodes within the cycle (s1,s2,s3) share the same level, tail s4 is at cycle level + 1 |
+
+#### Injection Capabilities (`TestTaskGraphReporterCapabilities`)
+- `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: First injects tasks for an existing node, then throws `UnknownNodeError` for an unknown node; the injected tasks are consumed on the `run({})` path.
+- `test_inject_tasks_with_only_valid_nodes_does_not_raise`: Does not throw when all target nodes exist.
+- `test_inject_terminations_injects_valid_nodes_and_raises_for_missing`: First injects a termination signal for an existing node, then throws `UnknownNodeError` for an unknown node; the nodes that actually received the termination signal are collected via the registered `Observer.on_termination_input`.
 
 ## Important Details
 
@@ -118,7 +124,7 @@ Verifies two-node serial, fan-out, fan-in, error propagation, lambda function su
 - Calling `get_source_nodes()` in serial graph_mode on a cyclic graph triggers `ConfigurationError` (see `test_cyclic_serial_graph_raises`).
 
 ### Database Replay
-- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`: `statuses` defaults to `["failed", "pending"]`; `filter_by_error_type` is a keyword argument that, when enabled, filters `error_type` by each node's `metrics.get_retry_error_type_names()`, but `pending` records are always kept.
+- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`: `statuses` defaults to `["failed", "pending"]`; `filter_by_error_type` is a keyword argument that, when enabled, filters `error_type` by each node's `get_retry_error_type_names()`, but `pending` records are always kept.
 
 ### Lambda Support
 Lambda functions can be used as task functions in thread mode (`test_graph_thread_with_lambda`).
@@ -129,9 +135,11 @@ Lambda functions can be used as task functions in thread mode (`test_graph_threa
 |------|------|
 | `pytest` | Test framework |
 | `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
-| `celestialflow.persistence.util_sqlite` | `append_records` (DB replay cases write test records) |
-| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError` |
+| `celestialflow.persist.util_sqlite` | `append_records` (DB replay cases write test records) |
+| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient` (`set_ctree` case) |
+| `celestialflow.observer` | `Observer`, `TerminationInputEvent` (Reporter injection cases) |
+| `conftest` | `metrics_of` (retrieves the metric observer from the node hub snapshot for assertions) |
 
 ## How to Run
 

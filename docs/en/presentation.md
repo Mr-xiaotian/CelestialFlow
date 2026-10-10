@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ---
 
@@ -43,7 +43,7 @@ Starting from real engineering scenarios — need a task orchestration tool that
 - **Multi-Dimensional Execution Model**: Graph-level (serial/thread/async) × Node-level (serial/thread/async) combinations
 - **External Collaboration Examples**: A regular `TaskExecutor` can interface with Redis / Go Worker and other external systems
 - **Event Provenance**: Integrates CelestialTree, full task lifecycle traceability
-- **Status Reporting Chain**: Exchanges status and control instructions with `celestialflow-web` service via `TaskReporter`
+- **Status Reporting Chain**: Exchanges status and control instructions with the `celestialflow-web` service via `PushInlet`/`PushSpout`
 - **Zero Platform Dependency**: `pip install celestialflow`, run in a single line of code
 
 ---
@@ -65,7 +65,7 @@ Starting from real engineering scenarios — need a task orchestration tool that
   - Ensures correct termination for both DAG and cyclic graphs
 
 - **Metrics as First-Class**
-  - Each node has built-in `TaskMetrics`, thread-safe real-time counting
+  - The graph-level `MetricsObserver` maintains a read-only metrics snapshot `NodeMetrics` for each node based on observer events, with thread-safe real-time counting
 
 ---
 
@@ -92,13 +92,13 @@ graph TB
 
     subgraph Runtime Infrastructure
         I --> J[TaskInQueue / TaskOutQueue]
-        I --> K[TaskMetrics]
+        I --> K[NodeMetrics]
         I --> L[LogInlet / LifecycleInlet]
         I --> M[CelestialTree Events]
     end
 
     subgraph External Services
-        N[TaskReporter]
+        N[PushInlet / PushSpout]
         O[HTTP API]
     end
 
@@ -108,7 +108,7 @@ graph TB
 ```
 
 Notes:
-Top to bottom: User defines graph structure → Framework initializes resources and analysis → Executes per schedule mode → Runtime infrastructure provides queues, metrics, logs → `TaskReporter` optionally syncs status to external services.
+Top to bottom: User defines graph structure → Framework initializes resources and analysis → Executes per schedule mode → Runtime infrastructure provides queues, metrics, logs → `PushInlet`/`PushSpout` optionally syncs status to external services.
 
 ---
 
@@ -245,18 +245,21 @@ Each node holds its own `TaskDispatch`, so node-level `async` is also available 
 
 ## Slide 11: Metrics & Deduplication System
 
-### TaskMetrics — Thread-Safe Real-Time Counting
+### MetricsObserver / NodeMetrics — Thread-Safe Real-Time Counting
 
-- **Core Counters**:
-  - `external_input_counter`: Number of externally injected tasks (entering via `put_task`)
-  - `upstream_counter` / `downstream_counter`: Task counts between each upstream/downstream node (recorded separately by name)
-  - `success_counter`: Successfully processed count
-  - `fail_counter`: Final failure count (exceeded retry limit)
-  - `duplicate_counter`: Duplicate task count (a counting dimension retained by the framework)
+- **Graph-Level Observer**: `MetricsObserver` acts as an `Observer`, writing each node's counts, status, and run start time based on events, and exposes the read-only snapshot `NodeMetrics` via the `MetricsView` protocol
+- **Core Counts** (**`NodeMetrics`** fields):
+  - `external_input`: Number of externally injected tasks (entering via injection/`put_task`)
+  - `upstream_input` / `upstream_counts`: Task counts delivered by each upstream node (recorded separately by name)
+  - `downstream_counts`: Task counts sent to each downstream node
+  - `succeeded`: Successfully processed count
+  - `failed`: Final failure count (exceeded retry limit)
+  - `skipped`: Skipped task count (a deduplication/skip counting dimension retained by the framework)
+  - `processed`: `succeeded + failed + skipped`
+  - `pending`: `input_total - processed`
 
-- **Termination Judgment**: `is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
-
-- **Busy Time Measurement**: `begin_task()` / `end_task()` record the node's real busy wall-clock time; `get_elapsed()` returns the cumulative value
+- **Status & Time**: `NodeStatus` (`NOT_STARTED`/`RUNNING`/`STOPPED`) and `start_time` are maintained by `on_node_start`/`on_node_end`
+- **Termination Judgment**: `is_tasks_finished()` compares input and processed counts
 
 ---
 
@@ -376,12 +379,12 @@ CelestialFlowError (base class)
 
 | Layer | Technology | Purpose |
 |----|------|------|
-| Runtime side | `TaskReporter` | Periodically push graph structure, analysis, status, error info |
-| Protocol | HTTP + JSON | Two-way synchronization via pull / push interfaces |
-| Control side | External service | Returns reporting interval, injects tasks and termination signals |
+| Runtime side | `PushInlet`/`PushSpout` | Push graph meta, session shutdown, errors, and status snapshots |
+| Protocol | HTTP + JSON | Two-way synchronization via push / pull interfaces |
+| Control side | External service | Returns injected tasks and termination signals |
 | Storage side | SQLite + logs | Error records and structured logs still persisted by main repo |
 
-- **Main repo responsibility**: Provide status collection, error incremental sync, task injection entry
+- **Main repo responsibility**: `PushSpout` pushes periodically, `InjectionHandler` pulls injections, `PushSnapshotHandler` projects snapshots
 - **External service responsibility**: Consume status data and provide monitoring interface or console as needed
 
 ---
@@ -391,8 +394,8 @@ CelestialFlowError (base class)
 ### Three Core Capabilities
 
 **1. Status Sync**
-- Push graph structure, topology analysis, node status snapshots
-- Support judging whether remote end already holds current graph via `graph_id`
+- Push graph meta, session shutdown, and graph-level status snapshots
+- Sessions are identified by `session_id`, which the server uses to distinguish/shut down sessions
 
 **2. Error Sync**
 - Incrementally push error records based on `event_id`
@@ -404,19 +407,19 @@ CelestialFlowError (base class)
 
 ---
 
-## Slide 18: TaskReporter API Overview
+## Slide 18: Reporting / Injection API Overview
 
 ### REST Interface Design
 
 | Direction | Endpoint | Data |
 |------|------|------|
-| Pull | `/api/pull_server_state` | Current graph sync state, graph meta state, max `event_id` |
-| Pull | `/api/pull_injection` | Pending tasks and termination signals |
-| Push | `/api/push_status` | Update node status snapshots |
-| Push | `/api/push_graph_meta` | Update graph structure + graph analysis meta information |
-| Push | `/api/push_errors` | Update error records |
+| Push | `/api/push_graph_meta` | Graph meta (graph structure + topology + node meta information) |
+| Push | `/api/push_error` | Incrementally push task error records |
+| Push | `/api/push_snapshot` | Graph-level status snapshot (status, success/failure/skip/pending counts) |
+| Push | `/api/shutdown_session` | Notify session shutdown |
+| Pull | `/api/pull_injection` | Pending injection tasks and termination signals |
 
-- **Main repo no longer includes built-in Web frontend**: Here only defines the sync interfaces actually used by `TaskReporter`
+- **Main repo no longer includes built-in Web frontend**: Here only defines the sync interfaces actually used by `PushInlet`/`PushSpout`
 - **Interface design goal**: Allow external services to freely implement monitoring panels, consoles, or audit systems
 
 ---
@@ -639,7 +642,7 @@ Every design decision has trade-offs. CelestialFlow prioritizes "simple + reliab
   - Spout-Inlet pattern; just implement `_handle_record()` to customize output target
 
 - **Status Reporting Chain Replaceable**
-  - Only constrains `TaskReporter`'s pull / push protocol
+  - Only constrains `PushInlet`/`PushSpout`'s push / pull protocol
   - External service can evolve independently, not tightly bound to main repo
 
 ---

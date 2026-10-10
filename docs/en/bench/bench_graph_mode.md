@@ -1,6 +1,6 @@
 # bench/bench_graph_mode.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -13,13 +13,13 @@ Compare the task graph execution performance of complex DAGs under different com
 - **Task Mix**: CPU-intensive (Fibonacci), I/O-intensive (sleep), pure computation (divide by two, square)
 - **Input**: `range(25, 32)` (7 purely successful tasks; earlier versions included error inputs, which have been removed)
 - **Retry Settings**: `NodeA`, `NodeB1` enable `max_retries=1` for `ValueError` (not triggered under the current input)
-- **Reporter**: Not enabled (there is no `set_reporter(...)` / `add_observer(...)` call anywhere in the script)
+- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and it does not go through the reporting-assembly entry point)
 
 ### `bench_graph_1`
 - **Structure**: 6-node multi-layer DAG (A → [B, C]; B → [D, E]; C → E; D → F)
 - **Tasks**: Random 0-2 second sleep (simulating uneven load)
 - **Input**: `range(10)`
-- **Reporter**: Not enabled (there is no `set_reporter(...)` / `add_observer(...)` call anywhere in the script)
+- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and it does not go through the reporting-assembly entry point)
 
 ### `bench_graph_2`
 - **Structure**: 3-node DAG (NodeA → [NodeB, NodeC]); nodes use `TaskExecutor` directly and no longer wrap `TaskSplitter` (earlier versions included Splitter, which has been removed)
@@ -34,7 +34,7 @@ Compare the task graph execution performance of complex DAGs under different com
 
 ## Potential Issues
 
-1. **Reporter disabled by default**: There is no `set_reporter(...)` or `add_observer(...)` call in the current script, so regardless of whether `REPORT_HOST`/`REPORT_PORT` is configured in `.env`, the reporter will not auto-connect; to enable the reporter, you must explicitly call `graph.set_reporter(...)` inside `bench_graph_*` and ensure the service is reachable.
+1. **Reporting/observers not enabled**: There is no `add_observer(...)` call anywhere in the current script, and it does not pass through the entry point that wires up reporting resources, so the graph does not assemble any custom observers other than the default metrics, and nothing is reported. Reporting on/off is now driven by the `[tool.celestialflow]` section of the project-level `pyproject.toml` (`if_report`, `report_url`), no longer depending on `REPORT_HOST`/`REPORT_PORT` in `.env` (that configuration item has been removed); this script does not enable reporting.
 2. **Long total runtime**: `benchmark_graph` runs `len(graph_modes) × len(execution_modes)` full graph executions; total time can reach several minutes when I/O delays are included.
 
 ## How to Run

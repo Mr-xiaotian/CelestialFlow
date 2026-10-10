@@ -1,5 +1,7 @@
 # CelestialFlow — A Lightweight, Parallel, Graph-Based Python Task Scheduling Framework
 
+> 📅 Last Updated: 2026/09/24
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
 </p>
@@ -244,42 +246,45 @@ If you want to view bench content, this data also serves as the basis for some o
 ## File Structure
 
 ```
-📁 CelestialFlow	(664MB 611KB 462B)
-    📁 bench           	(296KB 101B)
-        📁 [1 excluded directory]                  (194KB 222B)
+📁 CelestialFlow	(539MB 107KB 283B)
+    📁 bench           	(316KB 409B)
+        📁 [1 excluded directory]                  	(193KB 163B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
+        🐍 bench_funnel_vs_lock.py          	(21KB 888B)
         🐍 bench_futures_memory.py          	(2KB 269B)
-        🐍 bench_gil_vs_nogil.py            	(10KB 101B)
-        🐍 bench_graph_mode.py              	(6KB 774B)
+        🐍 bench_gil_vs_nogil.py            	(10KB 552B)
+        🐍 bench_graph_mode.py              	(6KB 614B)
         🐍 bench_hash.py                    	(7KB 67B)
         🐍 bench_hash_container.py          	(3KB 1009B)
-        🐍 bench_hash_memory.py             	(3KB 642B)
-        🐍 bench_http_grpc.py               	(2KB 536B)
+        🐍 bench_hash_memory.py             	(3KB 655B)
+        🐍 bench_http_grpc.py               	(2KB 530B)
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
-        🐍 bench_observer.py                	(7KB 860B)
-        🐍 bench_persistence_spout.py       	(4KB 340B)
+        🐍 bench_observer.py                	(7KB 58B)
+        🐍 bench_persist_spout.py           	(4KB 323B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(146KB 197B)
-        📁 [1 excluded directory]  	(100KB 9B)
-        🐍 demo_executor.py 	(1KB 495B)
-        🐍 demo_funnel.py   	(2KB 289B)
-        🐍 demo_graph.py    	(3KB 222B)
-        🐍 demo_network.py  	(3KB 756B)
-        🐍 demo_nodes.py    	(4KB 212B)
-        🐍 demo_observer.py 	(4KB 270B)
-        🐍 demo_redis.py    	(9KB 131B)
-        🐍 demo_structure.py	(11KB 737B)
-        🐍 demo_utils.py    	(6KB 148B)
-    📁 docs            	(1MB 914KB 89B)
-        📁 en[collapsed]   	(632KB 604B)
-        📁 ja[collapsed]   	(718KB 778B)
-        📁 zh-CN[collapsed]	(586KB 755B)
+    📁 demo            	(604KB 612B)
+        📁 [3 excluded directories]   	(548KB 510B)
+        🐍 demo_executor.py  	(1KB 557B)
+        🐍 demo_funnel.py    	(2KB 289B)
+        🐍 demo_graph.py     	(2KB 975B)
+        🐍 demo_network.py   	(3KB 756B)
+        🐍 demo_nodes.py     	(3KB 915B)
+        🐍 demo_observer.py  	(2KB 1004B)
+        🐍 demo_redis.py     	(8KB 595B)
+        🐍 demo_skip_dedup.py	(6KB 286B)
+        🐍 demo_structure.py 	(8KB 448B)
+        🐍 demo_utils.py     	(6KB 263B)
+        🐍 demo_web.py       	(9KB 158B)
+    📁 docs            	(2MB 40KB 774B)
+        📁 en[collapsed]   	(689KB 413B)
+        📁 ja[collapsed]   	(788KB 343B)
+        📁 zh-CN[collapsed]	(611KB 18B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -288,64 +293,56 @@ If you want to view bench content, this data also serves as the basis for some o
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 822KB 642B)
-        📁 celestialflow[collapsed]         	(1MB 822KB 642B)
-    📁 tests           	(4MB 290KB 989B)
-        📁 benchmark[collapsed]    	(45KB 270B)
-        📁 funnel[collapsed]       	(96KB 339B)
-        📁 graph[collapsed]        	(768KB 424B)
-        📁 node[collapsed]         	(451KB 840B)
-        📁 observability[collapsed]	(188KB 1001B)
-        📁 persistence[collapsed]  	(393KB 151B)
-        📁 runtime[collapsed]      	(1MB 290KB 858B)
-        📁 [1 excluded directory]      	(487KB 637B)
-        🐍 conftest.py          	(1KB 38B)
-    📁 [12 excluded directories]	(650MB 21KB 212B)
+    📁 src             	(1MB 670KB 974B)
+        📁 celestialflow[collapsed]	(1MB 651KB 430B)
+        📁 [1 excluded directory]      	(19KB 544B)
+    📁 tests           	(3MB 34KB 484B)
+        📁 assembly[collapsed]   	(38KB 341B)
+        📁 benchmark[collapsed]  	(41KB 377B)
+        📁 funnel[collapsed]     	(96KB 339B)
+        📁 graph[collapsed]      	(801KB 83B)
+        📁 node[collapsed]       	(512KB 601B)
+        📁 observer[collapsed]   	(121KB 111B)
+        📁 persist[collapsed]    	(207KB 907B)
+        📁 persistence[collapsed]	(381KB 89B)
+        📁 reporter[collapsed]   	(171KB 861B)
+        📁 runtime[collapsed]    	(189KB 873B)
+        📁 ticker[collapsed]     	(54KB 761B)
+        📁 [1 excluded directory]    	(488KB 592B)
+        🐍 conftest.py        	(1KB 693B)
+    📁 [13 excluded directories]	(525MB 488KB 753B)
     ❓ .env            	(468B)
     ❓ .gitignore      	(1KB 315B)
-    📝 AGENTS.md       	(1KB 434B)
+    📝 AGENTS.md       	(1KB 1003B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
-    ⚙️ pyproject.toml  	(2KB 668B)
-    📝 README.md       	(17KB 298B)
-    🔒 uv.lock         	(120KB 752B)
+    ⚙️ pyproject.toml  	(2KB 858B)
+    📝 README.md       	(16KB 619B)
+    🔒 uv.lock         	(124KB 729B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.0</em>
+  <em>celestial-flow 3.3.2</em>
 </p>
 
 (This view was generated by `inst_file.FileTree.print_tree()` from my other project [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault). Conversion to an image was done with [Carbon](https://carbon.now.sh).)
 
 ## Version Log
 
-- 3.3.0
+- 3.3.2
   - feat:
-    - The `func_name` parameter is now completely removed from `TaskExecutor`
-      - With `executor_name` expressing the node, this layer of exposure is unnecessary
-      - This is also to be consistent with the state of `CelestialGraw`
-    - When sending status to `reporter`, include the graph's `class_name` information
-    - Removed the `from_edges` method in `OrderGraph`
+    - [IMPORTANT] Greatly expanded the `observer` mechanism, adding more hooks
+      - Added `ObserverHub` for management; it is itself an `observer`
+    - [IMPORTANT] Added the `ticker` mechanism, driven by periodic time
+      - As a complement to the purely event-driven `observer`
+    - Due to the complete refactor of the `reporter` mechanism, how it is enabled and used has also changed
+      - It is now configured in `.pyproject`
   - refactor:
-    - [IMPORTANT] Refactored the original `executor/stage` structure
-      - Originally a three-layer structure of `executor -> stage -> splitter/router`, which was overly complex
-      - Now the `stage` layer is removed, and `BaseTaskNode` is added as the only node recognized by the graph, while `executor` is treated as a node of the same level as `splitter/router`
-      - The current structure is `BaseTaskNode -> executor/splitter/router`
-    - Refactored the implementation of `render_structure_list` (formerly `format_structure_list_from_graph`)
-      - Now uses breadth-first instead of the original recursion
-      - At the same time, the input parameters directly use a list of node names in the form of `list[str]`, which means information like `func_name` and `execution_mode` is no longer displayed
-    - Modified the previously strange way of calling `collect_runtime_snapshot`
-      - Now the reporter will directly call `collect_runtime_snapshot` in `_push_status`
-    - Removed `get_summary` in `TaskExecutor`; this layer of wrapping is actually redundant
-      - At the same time, all `event_client.emit` no longer carries `summary` information
-    - Removed the `_node` parameter in `OrderGraph`
-      - Previously this parameter provided: all node names; node insertion order
-      - Now the former is provided by `_out`, while the latter is no longer valued
-    - Renamed `task_in` in `LifecycleInlet` to `task_input` to be consistent with the log side
-  - fix:
-    - Fixed the issue where worker crashes were ignored when `execution_mode = async`
-    - Fixed the ambiguous meaning of `retry_times` in task retry logs; now uses `fail_times`
-    - Fixed the issue where return values were not handled in reporter's `_push_*` methods
-    - Fixed the issue in `TaskReporter._pull_injection` where the wrong `put_task` was performed on the pulled task list
+    - [IMPORTANT] Folded `log` / `lifecycle` into the new `observer` system
+      - The structure is cleaner and more efficient
+    - [IMPORTANT] Split `reporter` into fully separated `push` and `pull`
+      - The former uses `PushInlet` to event-collect `error` `meta` data, and `PushSnapshotHandler` periodically collects status information
+      - The latter uses `InjectionHandler` to periodically collect injected tasks and injected termination signals from the server
+    - Folded the `metric` mechanism into the `observer` system
 
 For more past logs, see:
 

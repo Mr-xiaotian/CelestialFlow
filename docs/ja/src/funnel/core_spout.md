@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_spout.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `BaseSpout` はすべての出口クラスの基底クラスであり、バックグラウンドスレッドでキューを監視しレコードを処理する汎用機能を提供します。
 
@@ -82,14 +82,10 @@ def _after_stop(self) -> None:
 ## 内部実装
 
 ```python
-def _spout(self):
+def _spout(self) -> None:
     """バックグラウンドスレッドのメインループ。キューから継続的にレコードを取得し _handle_record を呼び出す。終了シグナル受信時に終了。"""
     while True:
-        try:
-            record = self._queue.get(timeout=0.5)
-        except Empty:
-            continue
-
+        record = self._queue.get()  # ブロック待機、タイムアウトなし
         if isinstance(record, TerminationSignal):
             break
 

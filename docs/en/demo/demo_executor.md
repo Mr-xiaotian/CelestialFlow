@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -63,7 +63,7 @@ flowchart TB
 
 - `max_workers = 6`
 - `max_retries = 1`
-- Progress bar added via `executor.add_observer(TaskProgress())`
+- A `print`-based console observer is added via `executor.add_observer(PrintObserver(executor.get_name()))`; all output is prefixed with the node name (e.g., `[FibonacciSerial] ...`)
 
 ## Potential Issues
 
@@ -79,23 +79,25 @@ python demo/demo_executor.py
 
 ## Expected Behavior
 
-After running, the three modes execute sequentially, with the main output being `tqdm` progress bars similar to:
+After running, the three modes execute sequentially, with the main output being the node lifecycle logs printed by `PrintObserver` (prefixed with the node name), similar to:
 
 ```text
-100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+[FibonacciSerial] total=1(+1)
+[FibonacciSerial] total=2(+1)
+...
+[FibonacciSerial] start total=12
+[FibonacciSerial] succeeded=1(+1), total=12
+[FibonacciSerial] succeeded=2(+1), total=12
+...
+[FibonacciSerial] failed=1(+1), total=12
+...
+[FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> When `TaskProgress` creates the progress bar it does not set `desc`, so the progress bar has no node-name prefix; the it/s values above are illustrative only.
-
 > **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`) and still fail after 1 retry; `""` triggers a type error (not in the retry list).
-> All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast, and the it/s differences on the progress bars primarily reflect scheduling overhead.
+> All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast.
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`)
+- `celestialflow` (`TaskExecutor`, `PrintObserver`)
 - `demo_utils` (`fibonacci`, `fibonacci_async`)
-- `demo_observer` (`TaskProgress`, locally defined by `demo_observer.py` in the same directory of this repository)
-
-> ⚠️ **Changed**: `demo_executor.py` currently still writes `from celestialflow import TaskProgress`, but `celestialflow` no longer exports `TaskProgress` (that class is now locally defined by `demo_observer.py`). Therefore, running `python demo/demo_executor.py` directly will raise `ImportError` at the import stage; you must change it to `from demo_observer import TaskProgress` for it to run normally.

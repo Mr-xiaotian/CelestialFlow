@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 役割
 `TaskLoop` と `TaskWheel` の2つの事前定義循環グラフ構造の専用解析能力を検証し、ならびに各種事前定義グラフ構造（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）の入力検証を行い、空入力や不正入力で静的に構築されたりクラッシュが発生したりしないことを確認します。
@@ -78,8 +78,8 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## 重要な詳細
 - `TaskLoop` は `run()` で起動しタスクを注入します（`run` のデフォルトは `if_put_signal=True` で、ソースノードに終了シグナルを自動補完してテストの終了を保証）。
-- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`get_graph_analysis()` / `get_source_nodes()` を直接呼び出して静的解析を行います。
-- テストの重点は「実行結果」ではなく「解析結果」（analysis dict）にあります。
+- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`is_dag`、`layers_dict` を直接読み取り、`get_source_nodes()` を呼び出して静的解析を行います。
+- テストの重点は「実行結果」ではなく「解析結果」にあります（グラフが DAG かどうか、階層分布、ソースノード）。
 - 入力検証テストはすべて純粋な構築操作であり、グラフの起動を伴いません。
 
 ## 注意事項

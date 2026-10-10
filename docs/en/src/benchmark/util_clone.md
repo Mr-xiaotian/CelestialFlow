@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `benchmark/util_clone.py` provides functionality for cloning executors and task graphs, used for performance testing and configuration reuse.
 
@@ -62,7 +62,7 @@ Cloning flow:
 3. Clone each node and build a mapping from the original node name to the cloned node
 4. Register all cloned nodes via `set_nodes()` and rebuild the connection relationships between nodes with `connect()`
 5. Copy graph configuration (`name`, `graph_mode`)
-6. Copy the CelestialTree (`clone_event_client`) and Reporter configuration (`NullTaskReporter` / `TaskReporter` can be cloned; other types raise `ConfigurationError`)
+6. Copy the CelestialTree event client (cloned via `clone_event_client`)
 
 > ⚠️ **`clone_graph` does not guarantee preservation of all node types**: only `TaskExecutor` nodes will be cloned as the same type; specialized nodes such as `TaskSplitter` / `TaskRouter` will neither be cloned as the same subclass, nor will their split / route behavior be preserved. This tool is an internal benchmark utility, and only applies to task graphs that "consist entirely of `TaskExecutor` and are used for benchmarking".
 
@@ -113,16 +113,16 @@ def process_b(x: int) -> int:
 
 # Create the original graph
 graph = TaskGraph(name="CloneDemo", graph_mode="thread")
-node_a = TaskExecutor("A", process_a)
-node_b = TaskExecutor("B", process_b)
-graph.set_nodes(nodes=[node_a, node_b])
-graph.connect([node_a], [node_b])
+stage_a = TaskExecutor("A", process_a)
+stage_b = TaskExecutor("B", process_b)
+graph.set_nodes(nodes=[stage_a, stage_b])
+graph.connect([stage_a], [stage_b])
 
 # Clone the graph for testing
 cloned_graph = clone_graph(graph)
 
 # Run the cloned graph
-init_tasks = {node_a.get_name(): [1, 2, 3]}
+init_tasks = {stage_a.get_name(): [1, 2, 3]}
 cloned_graph.run(init_tasks)
 ```
 
@@ -188,21 +188,21 @@ async def async_task(x: int) -> int:
 
 
 async def main():
-    node_a = TaskExecutor("A", task)
-    node_b = TaskExecutor("B", task)
-    async_node_a = TaskExecutor("A", async_task)
-    async_node_b = TaskExecutor("B", async_task)
+    stage_a = TaskExecutor("A", task)
+    stage_b = TaskExecutor("B", task)
+    async_stage_a = TaskExecutor("A", async_task)
+    async_stage_b = TaskExecutor("B", async_task)
 
     sync_graph = TaskGraph(name="BenchSync")
-    sync_graph.set_nodes(nodes=[node_a, node_b])
+    sync_graph.set_nodes(nodes=[stage_a, stage_b])
     async_graph = TaskGraph(name="BenchAsync")
-    async_graph.set_nodes(nodes=[async_node_a, async_node_b])
+    async_graph.set_nodes(nodes=[async_stage_a, async_stage_b])
 
     # benchmark_graph internally uses clone_graph and returns a result dictionary
     results = await benchmark_graph(
         sync_graph=sync_graph,
         async_graph=async_graph,
-        init_tasks_dict={node_a.get_name(): range(100)},
+        init_tasks_dict={stage_a.get_name(): range(100)},
         graph_modes=["serial", "thread", "async"],
         execution_modes=["serial", "thread", "async"],
     )

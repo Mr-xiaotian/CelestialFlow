@@ -1,10 +1,10 @@
 # src/celestialflow/node/util_types.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `util_types.py` は `node` モジュールにノード層特有の型エイリアスを提供します。現状は `AnyTaskNode` 型エイリアス 1 つだけを定義し、`TaskGraph` などの上位構造が「任意のノード」としてノードオブジェクトを参照できるようにします。
 
-> ランタイムで使われる `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` / `TerminationSignal` / `CTreeEvent` / `ValueWrapper` などのコア型は本ファイルには含まれず、それぞれ `celestialflow.runtime` と `celestialflow.runtime.util_types` で提供されます。詳細は `docs/zh-CN/src/runtime/__init__.md` を参照。
+> ランタイムで使われる `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TerminationSignal` / `CTreeEvent` / `EventClient` などのコア型は本ファイルには含まれず、それぞれ `celestialflow.runtime` と `celestialflow.runtime.util_types` で提供されます。詳細は `docs/zh-CN/src/runtime/__init__.md` を参照。
 
 ## 公開型
 

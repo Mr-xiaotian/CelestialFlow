@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 概要
 
@@ -59,9 +59,9 @@
 
 | エクスポートシンボル | 説明 |
 |----------|------|
-| `BaseObserver` | オブザーバー基底クラス。on_start / on_success / on_failure などのインターフェースを定義 |
+| `Observer` | オブザーバー基底クラス。on_start / on_success / on_failure などのコールバックインターフェースを定義 |
+| `ObserverHub` | オブザーバーハブ。イベントを一連の子オブザーバーにブロードキャスト |
 | `PrintObserver` | print ベースのコンソール進捗オブザーバー。タスク実行カウントをスレッドセーフに出力 |
-| `TaskReporter` | タスクレポーター。HTTP 経由でタスク実行イベントをレポート |
 
 ---
 
@@ -83,7 +83,20 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 | エクスポートシンボル | 説明 |
 |----------|------|
 | `load_records` | SQLite データベースから全実行レコードを読み込み |
-| `load_tasks_grouped_by_stage` | ステージ名でグループ化して実行レコードを読み込み |
+| `load_tasks_grouped_by_node` | ノードごとにグループ化してタスクレコードを読み込み |
+
+---
+
+### ticker — 定時駆動
+
+Ticker ベースの定時タスクイベント駆動能力を提供します。
+
+| エクスポートシンボル | 説明 |
+|----------|------|
+| `Ticker` | 周期的にトリガーされるイベントジェネレーター |
+| `TickEvent` | 1 回の tick で生成されるイベントオブジェクト |
+| `TickHandler` | TickEvent を処理するコールバックインターフェース型 |
+| `TickHub` | tick イベントを一連の TickHandler にブロードキャストするハブ |
 
 ---
 
@@ -100,13 +113,14 @@ SQLite ベースのレコード読み込みとクエリ機能を提供します�
 
 ## `__all__` リスト
 
-完全な公開 API リスト（現在 21 シンボル）：
+完全な公開 API リスト（現在 25 シンボル）：
 
 ```python
 __all__ = [
     "BaseInlet",
-    "BaseObserver",
     "BaseSpout",
+    "Observer",
+    "ObserverHub",
     "PrintObserver",
     "TaskChain",
     "TaskComplete",
@@ -115,16 +129,19 @@ __all__ = [
     "TaskGraph",
     "TaskGrid",
     "TaskLoop",
-    "TaskReporter",
     "TaskRouter",
     "TaskSplitter",
     "TaskWheel",
     "TerminationSignal",
+    "TickEvent",
+    "TickHandler",
+    "TickHub",
+    "Ticker",
     "benchmark_executor",
     "benchmark_graph",
     "format_table",
     "load_records",
-    "load_tasks_grouped_by_stage",
+    "load_tasks_grouped_by_node",
 ]
 ```
 
@@ -222,7 +239,7 @@ graph TD
     end
 
     subgraph observability
-        O["BaseObserver<br/>PrintObserver<br/>TaskReporter"]
+        O["Observer<br/>ObserverHub<br/>PrintObserver"]
     end
 
     subgraph benchmark
@@ -230,7 +247,11 @@ graph TD
     end
 
     subgraph persistence
-        P["load_records<br/>load_tasks_grouped_by_stage"]
+        P["load_records<br/>load_tasks_grouped_by_node"]
+    end
+
+    subgraph ticker
+        K["Ticker<br/>TickEvent<br/>TickHandler<br/>TickHub"]
     end
 
     subgraph runtime
@@ -243,5 +264,6 @@ graph TD
     Init --> O
     Init --> U
     Init --> P
+    Init --> K
     Init --> R
 ```

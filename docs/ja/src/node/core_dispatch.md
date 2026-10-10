@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_dispatch.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `core_dispatch.py` は `TaskDispatch[T, R, Y]` を定義します。これは `BaseTaskNode` が保持する「タスクスケジューラ」コンポーネントです。ノードオブジェクトの入力キューから `TaskEnvelope` / 終了シグナルを取得し、`execution_mode` に応じてシリアル / スレッド / 非同期のいずれかでノードコールバックを呼び出します。さらに、終了シグナルのマージ、スレッドプールの初期化 / 解放、worker 例外の記録などを担当します。
 
@@ -27,7 +27,7 @@ class TaskDispatch[T, R, Y]:
 | `max_workers` | `int` | 並行数の上限 |
 | `_pool` | `ThreadPoolExecutor | None` | スレッドプール（thread モードでのみ使用） |
 
-> スケジューラはホストオブジェクトを介して `task_node.metrics` / `process_task_success` / `handle_task_fail` / `log_task_retry` / `get_name` / `ctree_client.emit` / `task_queue` / `yield_queue` などを逆方向に呼び出します。
+> スケジューラはホストオブジェクトを介して `task_node.observers` / `process_task_success` / `handle_task_fail` / `log_task_retry` / `get_name` / `ctree_client.emit` / `task_queue` / `yield_queue` などを逆方向に呼び出します。
 
 ## 公開スケジューリングメソッド
 
@@ -62,11 +62,11 @@ try:
         if isinstance(envelope, TerminationIdPool):
             termination_signal = _process_termination_signal(envelope)
             break
-        # 限流：pending 数 ≥ max_workers 时阻塞
+        # 流量制限：pending の数が max_workers 以上の場合、完了済み futures を待ってブロック
         while len(pending) >= max_workers:
             _, pending = wait(pending, return_when=FIRST_COMPLETED)
         pending.add(_pool.submit(_worker, envelope))
-    wait(pending)
+    wait(pending)  # 現在のバッチ全体の完了を待機
     yield_queue.put(termination_signal)
 finally:
     _release_pool()
@@ -83,7 +83,7 @@ async def sem_worker(envelope):
         await _async_worker(envelope)
 
 while True:
-    envelope = await asyncio.to_thread(task_queue.get)  # 不阻塞事件循环
+    envelope = await asyncio.to_thread(task_queue.get)  # イベントループをブロックしない
     if isinstance(envelope, TerminationIdPool):
         termination_signal = _process_termination_signal(envelope)
         break
@@ -101,11 +101,41 @@ yield_queue.put(termination_signal)
 |------|------|
 | `_call_sync(task) -> R` | 同期コールバックを呼び出す；awaitable を返した場合は `ConfigurationError` を送出 |
 | `_call_async(task) -> R` | 非同期コールバックを呼び出す；戻り値が awaitable でない場合は `ConfigurationError` を送出 |
-| `_worker(envelope) -> None` | 単一タスクを同期実行：`for fail_times in range(1, max_retries + 2)` でループし、`retry_exceptions` に該当する場合は `task_node.log_task_retry` を呼び出し、そうでなければ `handle_task_fail` を呼び出し；最外層の `try` が捕捉した例外は `get_log_inlet().worker_crash` でレポート；`finally` で `task_node.metrics.end_task()` を呼び出し |
+| `_worker(envelope) -> None` | 単一タスクを同期実行：まず `skip_func` を判定し、次に `for fail_times in range(1, max_retries + 2)` でリトライループ；`retry_exceptions` に該当する場合は `task_node.log_task_retry` を呼び出し、リトライ上限に達するか非リトライ可能例外なら `handle_task_fail` を呼び出し；成功時は `process_task_success` を呼び出し。最外層の `try` が捕捉した未処理例外は `task_node.observers.on_worker_crash(WorkerCrashEvent(...))` でレポート |
 | `_async_worker(envelope) -> None` | 非同期版 `_worker`、`await self._call_async(task)` を使用 |
-| `_process_termination_signal(pool) -> TerminationSignal` | `TerminationIdPool.ids` 内のすべての id を `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` により単一の `TerminationSignal(source=task_node.get_name())` にマージし、`get_log_inlet().termination_merge(...)` を書き込む |
+| `_process_termination_signal(pool) -> TerminationSignal` | `TerminationIdPool.ids` 内のすべての id を `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` により単一の `TerminationSignal(source=task_node.get_name())` にマージし、`TerminationMergeEvent` をブロードキャスト |
 | `_init_pool(execution_mode)` | `execution_mode == "thread"` かつ `_pool is None` の場合のみ `ThreadPoolExecutor(max_workers=self.max_workers)` を構築 |
 | `_release_pool()` | `_pool` をシャットダウンしてクリア（スレッドモード終了時に呼び出し） |
+
+### `_worker` リトライループの詳細
+
+```python
+def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
+    try:
+        task = task_envelope.get_task()
+        if self.task_node.skip_func is not None and self.task_node.skip_func(task):
+            self.task_node.handle_task_skip(task_envelope)
+            return
+
+        max_retries = self.task_node.max_retries
+        for fail_times in range(1, max_retries + 2):
+            try:
+                start_perf = time.perf_counter()
+                result = self._call_sync(task)
+                self.task_node.process_task_success(task_envelope, result, start_perf)
+                return
+            except Exception as exception:
+                if fail_times > max_retries or not isinstance(
+                    exception, self.task_node.retry_exceptions
+                ):
+                    self.task_node.handle_task_fail(task_envelope, exception)
+                    return
+                self.task_node.log_task_retry(task_envelope, exception, fail_times)
+    except Exception as e:
+        self.task_node.observers.on_worker_crash(
+            WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
+        )
+```
 
 ## 主要なデータフロー
 
@@ -126,6 +156,7 @@ sequenceDiagram
         else 通常エンベロープ
             D->>W: _worker(envelope)
             W->>N: process_task_success / handle_task_fail / log_task_retry
+            N->>N: observers が対応するイベントをブロードキャスト
         end
     end
 ```
@@ -136,7 +167,7 @@ sequenceDiagram
 |------|---------|
 | `ConfigurationError` | 同期呼び出しが awaitable を返す / 非同期呼び出しが非 awaitable を返す |
 | `InitializationError` | `dispatch_thread` 内で `_pool is None`（理論上 `_init_pool` で保証されているが、コードにフォールバック保持） |
-| `get_log_inlet().worker_crash(e)` | `_worker` / `_async_worker` の最外層 `try` が `process_task_success` / `handle_task_fail` / `log_task_retry` の外側で送出された例外を捕捉 |
+| `WorkerCrashEvent` | `_worker` / `_async_worker` の最外層 `try` が `process_task_success` / `handle_task_fail` / `log_task_retry` の外側で送出された例外を捕捉し、`observers.on_worker_crash` でレポート（フレームワークパスには送出しない） |
 
 ## ホスト `BaseTaskNode` との関係
 
@@ -146,7 +177,7 @@ classDiagram
         +TaskDispatch dispatch
         +TaskInQueue task_queue
         +TaskOutQueue yield_queue
-        +TaskMetrics metrics
+        +ObserverHub observers
         +EventClient ctree_client
     }
     class TaskDispatch {
@@ -167,7 +198,8 @@ classDiagram
 ## 注意事項
 
 1. **ホストの型は `BaseTaskNode` であって `TaskExecutor` ではない**：実際に渡されるのが `TaskSplitter` / `TaskRouter` であっても、スケジューラは `BaseTaskNode` インターフェースを介してのみホストにアクセスします。
-2. **終了シグナルのパス**：単一の `TerminationSignal` は `TaskInQueue` で他の発生源とマージされ `TerminationIdPool` となります；スケジューラはプールを受信した際に一括して `TERMINATION_MERGE` を emit します。
+2. **終了シグナルのパス**：単一の `TerminationSignal` は `TaskInQueue` で他の発生源とマージされ `TerminationIdPool` となります；スケジューラはプールを受信した際に一括して `TERMINATION_MERGE` を emit し、`TerminationMergeEvent` をブロードキャストします。
 3. **スレッドプールのライフサイクル**：`_pool` は `dispatch_thread` 内でのみ一時的に存在し、開始前に `_init_pool`、終了時に `_release_pool` が呼ばれます。そのため、同一スケジューラは複数回の `start` をまたいで再利用できません。
 4. **非同期パスはイベントループをブロックしない**：`dispatch_async` は `asyncio.to_thread(task_queue.get)` で入力をプルし、`asyncio.Semaphore` と組み合わせて「受信しながら実行」しつつイベントループをブロックしません。
-5. **重複排除ロジックは含まれなくなった**：スケジューラは実行のみを担当し、タスクの重複判定機能はノード層から全面的に削除されました。`TaskMetrics.duplicate_counter` / `BaseObserver.on_task_duplicate` は歴史的なカウントインターフェースとしてのみ残されています。
+5. **観測者によるクラッシュのレポート**：worker のフォールバック例外は `get_log_inlet().worker_crash` に書き込むのではなく、`task_node.observers.on_worker_crash` で `WorkerCrashEvent` をブロードキャストし、登録済み観測者（`LogInlet` など）が記録方法を決定します。
+6. **スキップ判定のサポート**：`_worker` / `_async_worker` は実行前に `skip_func` を判定し、該当する場合は `handle_task_skip` を呼び出して直接リターンします。

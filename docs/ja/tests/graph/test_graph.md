@@ -1,6 +1,6 @@
 # tests/graph/test_graph.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 役割
 `TaskGraph` およびその各種トポロジサブクラス（`TaskChain`、`TaskCross`、`TaskGrid`）のコア機能を全面的に検証し、同期/非同期/スレッド実行、エラー伝播、SQLite リプレイ、ランタイムスナップショットカウント、トポロジ解析、実行モードマトリクス、ソースノード導出（SCC 含む）、循環グラフの動作をカバーします。
@@ -17,15 +17,16 @@
 | テストクラス | ケース数 | カバレッジポイント |
 |-------------|---------|------------------|
 | `TestTaskGraphBasic` | 10 | set_ctree による既存ノードの更新、未知ノード名検索例外、2ノード DAG、ファンアウト、ファンイン、エラー伝播、DB リプレイ、DB エラータイプフィルタリプレイ、DB での pending 保持、finish 後の例外グループ一括送出 |
-| `TestTaskGraphSnapshotCounts` | 3 | fan-in 上流カウント、fan-out 下流カウント、スナップショットによる `tasks_processed`/`tasks_pending` の導出 |
+| `TestTaskGraphSnapshotCounts` | 3 | fan-in 上流カウント、fan-out 下流カウント、指標による `processed`/`pending` の導出 |
 | `TestTaskGraphAsync` | 6 | async モード 2ノード、ファンアウト、ファンイン、エラー伝播、async execution_mode、async finish 後の例外グループ一括送出 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 構造 |
 | `TestTaskGraphAnalysis` | 5 | ノードメタ情報、ゲッターによるオンデマンドな解析構築、構造変更後のキャッシュ自動再構築、DAG 検出、階層計算 |
 | `TestNodeExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread モード 2ノード、ファンアウト、ファンイン、エラー伝播、lambda、線形鎖スケジューリング |
 | `TestSourceNodes` | 5 | 線形グラフ source、ファンイン source、ダイヤモンドグラフ source、単一ソース SCC 代表点、複数ソース SCC は各1点を返す |
-| `TestCyclicGraph` | 3 | serial モードでの循環グラフ例外送出、循環グラフ isDAG 検出、循環内同層 + 尾の階層 |
-| **合計** | **48** | |
+| `TestCyclicGraph` | 3 | serial モードでの循環グラフ例外送出、循環グラフ is_dag 検出、循環内同層 + 尾の階層 |
+| `TestTaskGraphReporterCapabilities` | 3 | `inject_tasks` / `inject_terminations` で注入し、未知ノードを処理 |
+| **合計** | **51** | |
 
 > **説明**: ここでの統計は `test_graph.py` 内のテストクラスです。`TaskLoop` と `TaskWheel` の専用テストは `test_structure.py` にあります。
 
@@ -52,9 +53,9 @@ graph LR
 - **finish 後の例外グループ一括送出** (`test_start_raises_exception_group_after_finish`): 同期 `start` は `_finish_start` 後に収集された `ExceptionGroup` を一括送出します。
 
 #### スナップショット辺カウント (`TestTaskGraphSnapshotCounts`)
-- `test_fan_in_upstream_counts`: fan-in ノードの `get_snapshot()["upstream_counts"]` は各上流が提供したタスク数を記録し、上流ノードの `downstream_counts` も対応して一致します。
-- `test_fan_out_downstream_counts`: fan-out ノードの `downstream_counts` は各下流へ送信した数を記録します。
-- `test_snapshot_restores_processed_and_pending`: スナップショット層は `tasks_processed` / `tasks_pending` / `tasks_succeeded` を導出します。
+- `test_fan_in_upstream_counts`: `metrics_of(graph).get_node_metrics("merge").upstream_counts` で、fan-in ノードが各上流から提供されたタスク数を記録すること（`{"src_a": 2, "src_b": 2}`）を検証。上流ノードの `downstream_counts` も対応して一致します。
+- `test_fan_out_downstream_counts`: node metrics の `downstream_counts` で各下流へ送信した数を記録し、下流ノードの `upstream_counts` も対応して一致します。
+- `test_snapshot_restores_processed_and_pending`: グラフ実行後の node metrics スナップショットで `processed` / `pending` / `succeeded` を導出（`processed == 3`、`pending == 0`）。
 
 #### 非同期と並行 (`TestTaskGraphAsync`)
 - async モードの2ノード、ファンアウト、ファンイン、エラー伝播は同期モードとセマンティクスが一致。
@@ -78,9 +79,9 @@ graph LR
 
 #### グラフ構造解析 (`TestTaskGraphAnalysis`)
 - **ノードメタ情報** (`test_get_node_meta_covers_all_nodes`): `get_node_meta()` は各ノードに対して `class_name`、`execution_mode` などの構築期メタ情報を返します。
-- **オンデマンド構築** (`test_getters_build_analysis_on_demand`): 解析と構造のゲッター（`get_graph_analysis`、`get_nodes`、`get_edges`、`get_structure_list`、`get_source_nodes`）は明示的に build しなくても直接利用可能なはずです。
-- **キャッシュ自動再構築** (`test_getters_refresh_analysis_after_connect`): `connect` 後、ゲッターは解析キャッシュを自動的に再構築すべきであり、ソースノードと階層もそれに伴って更新されます。
-- **DAG 検出** (`test_dag_detection`): `isDAG` フラグがグラフに循環があるかどうかを正しく反映すべきです。
+- **オンデマンド構築** (`test_getters_build_analysis_on_demand`): 解析と構造のゲッター（`is_dag`、`layers_dict`、`get_nodes`、`get_edges`、`get_source_nodes`）が明示的な build なしでも直接利用可能なこと。
+- **キャッシュ自動再構築** (`test_getters_refresh_analysis_after_connect`): `connect` 後、ゲッターは解析キャッシュを自動的に再構築し、ソースノードと階層もそれに伴って更新されること。
+- **DAG 検出** (`test_dag_detection`): `is_dag` 属性がグラフに循環があるかどうかを正しく反映すること。
 - **階層計算** (`test_layer_computation`): 線形チェーン A→B→C のトポロジ階層が {A:0, B:1, C:2} であることを検証。
 
 #### 複雑な構造 (`TestTaskGraphStructure`)
@@ -108,8 +109,13 @@ graph LR
 | ケース | 検証ポイント |
 |--------|------------|
 | `test_cyclic_serial_graph_raises` | serial graph_mode 時に `get_source_nodes()` を呼ぶと循環グラフは `ConfigurationError` をスローすべき（`"TaskGraph contains a cycle while graph_mode='serial'"` にマッチ） |
-| `test_cyclic_is_dag_false` | s1→s2→s3→s1 の `isDAG` が `False` であること |
+| `test_cyclic_is_dag_false` | s1→s2→s3→s1 の `is_dag` が `False` であること |
 | `test_cyclic_layers` | 循環内ノード (s1,s2,s3) が同層、尾の s4 が循環階層 + 1 |
+
+#### 注入能力 (`TestTaskGraphReporterCapabilities`)
+- `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: 先に存在ノードへタスクを注入し、次に未知ノードで `UnknownNodeError` をスロー。注入タスクは `run({})` パスで消費されます。
+- `test_inject_tasks_with_only_valid_nodes_does_not_raise`: すべてのターゲットノードが存在する場合、例外はスローされないこと。
+- `test_inject_terminations_injects_valid_nodes_and_raises_for_missing`: 先に存在ノードへ終了シグナルを注入し、次に未知ノードで `UnknownNodeError` をスロー。登録した `Observer.on_termination_input` で実際に終了シグナルを受け取ったノードを収集します。
 
 ## 重要な詳細
 
@@ -118,7 +124,7 @@ graph LR
 - serial graph_mode 時に循環グラフで `get_source_nodes()` を呼ぶと `ConfigurationError` がトリガーされます（`test_cyclic_serial_graph_raises` 参照）。
 
 ### データベースリプレイ
-- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` のデフォルトは `["failed", "pending"]`；`filter_by_error_type` はキーワード引数で、有効にするとノードの `metrics.get_retry_error_type_names()` に基づいて `error_type` をフィルタリングしますが、`pending` レコードは常に保持されます。
+- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` のデフォルトは `["failed", "pending"]`；`filter_by_error_type` はキーワード引数で、有効にすると各ノードの `get_retry_error_type_names()` に基づいて `error_type` をフィルタリングしますが、`pending` レコードは常に保持されます。
 
 ### Lambda サポート
 スレッドモードでは lambda をタスク関数として使用可能（`test_graph_thread_with_lambda`）。
@@ -129,14 +135,16 @@ graph LR
 |------|------|
 | `pytest` | テストフレームワーク |
 | `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
-| `celestialflow.persistence.util_sqlite` | `append_records`（DB リプレイケースでテストレコードを書き込む） |
-| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError` |
+| `celestialflow.persist.util_sqlite` | `append_records`（DB リプレイケースでテストレコードを書き込む） |
+| `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient`（`set_ctree` ケース） |
+| `celestialflow.observer` | `Observer`, `TerminationInputEvent`（Reporter 注入ケース） |
+| `conftest` | `metrics_of`（ノード hub スナップショットから指標オブザーバーを取り戻しアサーションに使用） |
 
 ## 実行方法
 
 ```bash
-# 全部実行
+# すべて実行
 pytest tests/graph/test_graph.py -v
 
 # 構造テストのみ（マルチスレッド含む）

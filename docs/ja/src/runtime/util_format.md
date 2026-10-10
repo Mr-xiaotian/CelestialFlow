@@ -1,10 +1,8 @@
 # src/celestialflow/runtime/util_format.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 `runtime/util_format.py` は汎用フォーマットユーティリティ関数を提供し、文字列の切り詰め、テーブルレンダリング、値クラスタリングなどの機能を含みます。
-
-> 注意: 現在のファイルパスは `src/celestialflow/runtime/util_format.py` です。旧パス `src/celestialflow/utils/util_format.py` は廃止されました。
 
 ## 主要関数
 

@@ -1,6 +1,6 @@
 # demo/ デモ概要
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 説明
 
@@ -22,17 +22,17 @@
 | ドキュメント | ソースコード | デモ目標 | 外部サービス要否 |
 |------|------|---------|:---------------:|
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` の serial / thread / async 3 つの実行モード | 不要 |
-| `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に `TaskProgress` と組み込み `PrintObserver` を登録 | 不要 |
+| `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に組み込み `PrintObserver` とカスタムオブザーバーを登録 | 不要 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | タスクグラフから独立して、`BaseInlet` / `BaseSpout` でイベント収集パイプラインを構築 | 不要 |
-| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ型パイプライン | Reporter / CelestialTree（オプション） |
-| `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジの web レポートデモ | Reporter（オプション） |
-| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | Reporter / CelestialTree（オプション） |
-| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | Reporter / CelestialTree（オプション） |
-| `demo_redis.md` | `demo/demo_redis.py` | 通常の `TaskExecutor` で Redis タスク投入、結果確認、外部タスクソースを実現 | Redis、Reporter（オプション） |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ型パイプライン | CelestialTree（オプション） |
+| `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジ、およびローカル指標出力デモ | 不要 |
+| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | CelestialTree（オプション） |
+| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | CelestialTree（オプション） |
+| `demo_redis.md` | `demo/demo_redis.py` | 通常の `TaskExecutor` で Redis タスク投入、結果確認、外部タスクソースを実現 | Redis（オプション） |
 | `demo_network.md` | `demo/demo_network.py` | `TaskCross` でニューラルネットワークトポロジとパラメータ化線形ノードを構築 | 不要 |
 | `demo_utils.md` | `demo/demo_utils.py` | 各デモスクリプトで共有されるヘルパー関数とタスク関数 | 不要 |
 
-> **注意**：表中の「外部サービス要否」はデフォルトエントリを直接実行する際の強い依存を指します。オプションサービスが準備できていない場合、通常はレポート送信がスキップされるだけで、デモが終了することはありません。
+> **注意**：表中の「外部サービス要否」はデフォルトエントリを直接実行する際の強い依存を指します。オプションサービスが準備できていない場合、通常は対応する統合がスキップされるだけで、デモが終了することはありません。
 
 ## ドキュメントインデックス
 
@@ -52,7 +52,7 @@
 |------|------|
 | `demo_observer.md` | オブザーバー、進捗報告、ライフサイクルコールバックデモ |
 | `demo_funnel.md` | Inlet / Spout パイプライン動作とデータフローデモ |
-| `demo_web.md` | 複雑トポロジを Reporter 経由で web ダッシュボードにレポートするデモ |
+| `demo_web.md` | 複雑トポロジとローカル `MetricsObserver` を組み合わせて各ノードの指標を出力するデモ |
 | `demo_redis.md` | Redis 関連統合サンプル |
 
 ### ヘルパー関数
@@ -73,7 +73,6 @@ python demo/demo_structure.py
 
 一部のデモは追加環境に依存します。例：
 
-- Reporter サービス
 - Redis サービス
 - CelestialTree サービス
 

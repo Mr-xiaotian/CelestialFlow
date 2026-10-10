@@ -1,10 +1,10 @@
 # src/celestialflow/node/util_types.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `util_types.py` provides type aliases specific to the `node` module. It currently defines a single `AnyTaskNode` type alias, which is used by upper-layer structures such as `TaskGraph` to reference node objects in an "any node" form.
 
-> The core types actually used at runtime — `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` / `TerminationSignal` / `CTreeEvent` / `ValueWrapper` — are not defined in this file; they are provided by `celestialflow.runtime` and `celestialflow.runtime.util_types` respectively. See `docs/en/src/runtime/__init__.md` for details.
+> The core types actually used at runtime — `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TerminationSignal` / `CTreeEvent` / `EventClient` — are not defined in this file; they are provided by `celestialflow.runtime` and `celestialflow.runtime.util_types` respectively. See `docs/en/src/runtime/__init__.md` for details.
 
 ## Public Types
 

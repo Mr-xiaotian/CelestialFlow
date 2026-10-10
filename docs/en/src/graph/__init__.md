@@ -1,8 +1,8 @@
 # src/celestialflow/graph/__init__.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
-The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction, analysis, and serialization capabilities.
+The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction and analysis capabilities.
 
 ## Module Overview
 
@@ -22,18 +22,21 @@ from celestialflow.graph import (
 )
 ```
 
+`__all__ = ["TaskChain", "TaskComplete", "TaskCross", "TaskGraph", "TaskGrid", "TaskLoop", "TaskWheel"]`
+
 ## File Descriptions
 
 ### Core Files
 
 1. **core_graph.py** (`TaskGraph`)
-   - **Purpose**: Core scheduler, manages dependency relationships, execution flow, resource allocation, and lifecycle of task nodes (`BaseTaskNode` derivatives)
+   - **Purpose**: Core scheduler, manages dependency relationships, execution flow, and lifecycle of task nodes (`BaseTaskNode` derivatives)
    - **Key Features**:
      - Establish inter-node dependencies (`set_nodes` / `connect`)
      - Execute task graphs (`start` / `start_async`, runs in serial/thread/async according to `graph_mode`)
-     - Build-time node metadata and graph analysis info export (`get_node_meta` / `get_graph_analysis` / `get_structure_list`)
-     - Initial task and persisted task injection (`run` / `run_async` / `restore_db`)
-     - Error persistence and unconsumed task handling (`drain_task_queue`)
+     - Batch-set node execution modes (`set_node_execution_mode`) and shared event client (`set_ctree`)
+     - Graph-level observer registration (`add_observer`) and query (`get_observers`)
+     - Graph analysis (`_build_analysis`: source node identification, DAG detection, level computation)
+     - Initial task and persisted task injection (`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`)
 
 2. **core_structure.py** (Predefined graph structures)
    - **Purpose**: Provides six predefined task graph structures, simplifying common patterns
@@ -42,7 +45,7 @@ from celestialflow.graph import (
      - `TaskLoop`: Cyclic structure, head-to-tail connection
      - `TaskCross`: Multi-layer cross structure, parallel within layers, fully connected between layers
      - `TaskComplete`: Complete graph, each node connects to all other nodes
-     - `TaskWheel`: Hub-and-spoke structure, center connects to ring nodes
+     - `TaskWheel`: Hub-and-spoke structure, center connects to all ring nodes
      - `TaskGrid`: 2D grid, nodes connect to right and below neighbors
 
 ### Utility Files
@@ -56,33 +59,28 @@ from celestialflow.graph import (
      - `source_sccs()` / `source_nodes()`: Locate source SCCs and extract representative source nodes
      - `compute_node_levels()`: Compute node levels based on SCC condensation graph
 
-4. **util_render.py**
-   - **Purpose**: Renders graph structures as tree-style text with borders
-   - **Key Functions**:
-     - `render_structure_list()`: Generates bordered tree-style text from a node name list, adjacency table, and source nodes
+> Note: The tree-style text rendering of graph structures (`render_structure_list`) has been moved from this module to `persist/util_render.py`; the Graph module no longer holds rendering logic.
 
 ## Module Relationships
 
 ### Internal Relationships
 - `TaskGraph` is the base class; all other structures inherit from it
 - `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_nodes` / `connect` logic)
-- `util_order_graph.py` provides the shared internal graph structure and foundational graph algorithms
+- `util_order_graph.py` provides the shared internal lightweight graph structure and foundational graph algorithms
 - `TaskGraph` currently performs source node identification, DAG detection, and level analysis on top of `OrderGraph`
-- `util_render.py` outputs runtime structures as bordered tree-style text
 
 ### External Relationships
 - **With Node Module**: Task graph nodes (`TaskExecutor` / `TaskSplitter` / `TaskRouter`) are provided by `celestialflow.node`; `TaskGraph` is only responsible for assembly, connection, and scheduling
 - **With Runtime Module**: Uses `TaskInQueue`/`TaskOutQueue` as inter-node communication pipes
-- **With Persistence Module**: Achieves persistence via `LifecycleSpout`
-- **With Observability Module**: Pushes state to `celestialflow-web` service and pulls injection commands via `TaskReporter`
+- **With Observer Module**: Registers graph-level observers via `add_observer()` to receive events from all nodes in the graph; runtime resources are managed uniformly through `run_graph_resources`
+- **With Persistence Module**: Achieves task persistence and recovery (`restore_db`) through the persistence entry points (lifecycle / log)
 
 ## Usage Patterns
 
 1. **Build Task Graph**: Create `TaskExecutor` nodes (use `TaskSplitter` / `TaskRouter` as needed) → `set_nodes()` register → `connect()` establish dependencies
 2. **Choose Structure**: For common patterns, directly use predefined structures like `TaskChain`/`TaskCross`
-3. **Configure**: Integrate external services via `set_reporter()` / `set_ctree()`
+3. **Configure**: Inject an event client via `set_ctree()`, register graph-level observers via `add_observer()`
 4. **Execute**: Call `run()` or `run_async()`
-5. **Monitor**: `TaskReporter` periodically calls each node's `get_snapshot()` to collect runtime state
 
 ## Usage Examples
 
@@ -122,9 +120,9 @@ graph.connect([s2], [s3])
 graph.run({s1.get_name(): [1, 2, 3]})
 
 # Graph analysis
-analysis = graph.get_graph_analysis()
-print(f"Is DAG: {analysis['isDAG']}")
-print(f"Layers: {analysis['layersDict']}")
+print(f"Source nodes: {graph.get_source_nodes()}")
+print(f"Node list: {graph.get_nodes()}")
+print(f"Edge adjacency list: {graph.get_edges()}")
 ```
 
 ### TaskChain Linear Chain
@@ -141,10 +139,8 @@ nodes = [
 chain = TaskChain(name="DataPipeline", nodes=nodes, graph_mode="thread")
 chain.run({nodes[0].get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# Graph analysis: view DAG detection and layer structure
-analysis = chain.get_graph_analysis()
-print(f"Is DAG: {analysis['isDAG']}")
-print(f"Layers: {analysis['layersDict']}")
+# View nodes and sources
+print(chain.get_nodes())
 ```
 
 ### TaskCross Cross Layers
@@ -164,7 +160,6 @@ layer2 = [
 
 cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [10, 20]})
-print(cross.get_structure_list())
 ```
 
 ### TaskGrid Grid
@@ -179,7 +174,6 @@ s11 = TaskExecutor("D", func=lambda x: x * x)
 
 grid = TaskGrid(name="GridPipeline", grid=[[s00, s01], [s10, s11]])
 grid.run({s00.get_name(): [1, 2]})
-print(grid.get_structure_list())
 ```
 
 ### TaskLoop Cyclic Graph
@@ -215,5 +209,5 @@ wheel.run({center.get_name(): ["data"]})
 - Use `TaskChain` for linear flows; no need to manually `connect`
 - Use `TaskCross` or manual composition for multi-path parallel pipelines
 - For cyclic graphs (`TaskLoop`/`TaskWheel`), recommend `if_put_signal=False` and stop via external injection
-- For external monitoring system integration, use `set_reporter()`
+- When you need to monitor/receive events in the graph, register graph-level observers via `add_observer()`
 - For async execution, use `TaskGraph` with `graph_mode="async"`, started via `start_async()` / `run_async()`

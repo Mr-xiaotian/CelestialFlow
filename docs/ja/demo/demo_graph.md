@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
@@ -106,7 +106,7 @@ Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内�
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）、Reporter（オプション）
+- 外部サービス：CelestialTree（オプション）

@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_errors.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 

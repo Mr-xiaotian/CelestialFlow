@@ -1,6 +1,6 @@
 # src/celestialflow/graph/core_structure.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 TaskStructure モジュールは複数の事前定義タスクグラフ構造を提供し、ユーザーが複雑なタスクフローを迅速に構築できるようにします。すべての構造は `TaskGraph` を継承しています。
 
@@ -235,10 +235,9 @@ chain = TaskChain(name="ETL", nodes=[s1, s2, s3], graph_mode="thread")
 # 起動
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# 構造化トポロジーテキストとノード数を取得
-tree_lines = chain.get_structure_list()
+# ノード数と構造を取得
 print(f"チェーンのステージ数: {len(chain.get_nodes())}")
-print("\n".join(tree_lines))
+print(chain.get_edges())
 ```
 
 ### TaskCross 完全例
@@ -270,7 +269,7 @@ layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyz
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_structure_list())
+print(cross.get_nodes())
 ```
 
 ### TaskGrid 完全例
@@ -286,7 +285,7 @@ n11 = TaskExecutor("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
-print(grid.get_structure_list())
+print(grid.get_nodes())
 ```
 
 ### TaskLoop 完全例
@@ -322,7 +321,7 @@ ring_nodes = [
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.run({center.get_name(): [42]})
-print(wheel.get_structure_list())
+print(wheel.get_nodes())
 ```
 
 ### TaskComplete 完全例
@@ -341,5 +340,5 @@ complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,
 )
-print(complete.get_structure_list())
+print(complete.get_nodes())
 ```

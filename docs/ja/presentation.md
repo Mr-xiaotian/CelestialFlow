@@ -1,6 +1,6 @@
 # CelestialFlow 技術共有
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ---
 
@@ -43,7 +43,7 @@
 - **多次元実行モデル**：グラフ級 (serial/thread/async) × ノード級 (serial/thread/async) の組み合わせ
 - **外部連携サンプル**：通常の `TaskExecutor` で Redis / Go Worker などの外部システムに接続可能
 - **イベントソース**：CelestialTree 統合、タスクの全ライフサイクルを追跡可能
-- **状態レポートチェーン**：`TaskReporter` と `celestialflow-web` サービスによる状態と制御命令の交換
+- **状態レポートチェーン**：`PushInlet`/`PushSpout` と `celestialflow-web` サービスによる状態と制御命令の交換
 - **ゼロプラットフォーム依存**：`pip install celestialflow`、1行のコードで実行可能
 
 ---
@@ -65,7 +65,7 @@
   - DAG および循環グラフの両方で正しい終了を保証
 
 - **指標を第一級市民に (Metrics as First-Class)**
-  - 各ノードに `TaskMetrics` を内蔵、スレッドセーフなリアルタイムカウント
+  - グラフ級 `MetricsObserver` がオブザーバーイベントに基づいて各ノードの読み取り専用指標スナップショット `NodeMetrics` を維持し、スレッドセーフにリアルタイムカウント
 
 ---
 
@@ -92,13 +92,13 @@ graph TB
 
     subgraph ランタイム基盤
         I --> J[TaskInQueue / TaskOutQueue]
-        I --> K[TaskMetrics 指標]
+        I --> K[NodeMetrics 指標]
         I --> L[LogInlet / LifecycleInlet]
         I --> M[CelestialTree イベント]
     end
 
     subgraph 外部サービス
-        N[TaskReporter]
+        N[PushInlet / PushSpout]
         O[HTTP API]
     end
 
@@ -108,7 +108,7 @@ graph TB
 ```
 
 備考：
-上から下へ：ユーザーがグラフ構造を定義 → フレームワークがリソースと分析を初期化 → スケジュールモードに従って実行 → ランタイム基盤がキュー、指標、ログを提供 → `TaskReporter` がオプションで外部サービスに状態を同期。
+上から下へ：ユーザーがグラフ構造を定義 → フレームワークがリソースと分析を初期化 → スケジュールモードに従って実行 → ランタイム基盤がキュー、指標、ログを提供 → `PushInlet`/`PushSpout` がオプションで外部サービスに状態を同期。
 
 ---
 
@@ -127,7 +127,7 @@ TaskGraph(
 - **スケジュールモード**：
   - `serial`：ノードを順次起動、依存関係はキューが自然に保証
   - `thread` / `async`：ノードを並行起動、スレッドまたはコルーチンで並行実行
-- **状態管理**：`node_dict`（ノードオブジェクト集合）、`node.get_snapshot()`（ノードのランタイム状態スナップショット）、`get_node_meta()`（ノードメタ情報）
+- **状態管理**：`node_dict`（ノードオブジェクト集合）、`metrics_of(graph).get_node_metrics(...)`（ノード指標スナップショット）、`get_node_meta()`（ノードメタ情報）
 - **グラフ分析**：NetworkX ベースで有向グラフを構築、DAG 性質を検出、トポロジー階層を計算
 
 ---
@@ -146,7 +146,7 @@ classDiagram
         +execution_mode: str
         +max_workers: int
         +max_retries: int
-        +metrics: TaskMetrics
+        +metrics: NodeMetrics
         +run(init_tasks_dict)
         +run_async(init_tasks_dict)
     }
@@ -245,18 +245,21 @@ graph TD
 
 ## Slide 11: 指標と重複排除システム
 
-### TaskMetrics — スレッドセーフなリアルタイムカウント
+### MetricsObserver / NodeMetrics — スレッドセーフなリアルタイムカウント
 
-- **コアカウンター**：
-  - `external_input_counter`：外部注入タスク数（`put_task` 経由で進入）
-  - `upstream_counter` / `downstream_counter`：各上流・下流ノードとのタスクカウント（名前ごとに個別記録）
-  - `success_counter`：成功処理数
-  - `fail_counter`：最終失敗数（リトライ回数超過）
-  - `duplicate_counter`：重複タスクカウント（フレームワークが保持するカウント次元）
+- **グラフ級オブザーバー**：`MetricsObserver` は `Observer` としてイベントに基づいて各ノードのカウント、状態、実行開始時刻を書き込み、`MetricsView` プロトコルを通じて読み取り専用スナップショット `NodeMetrics` を公開
+- **コアカウント項目**（`NodeMetrics` フィールド）：
+  - `external_input`：外部注入タスク数（注入/`put_task` 経由で進入）
+  - `upstream_input` / `upstream_counts`：各上流ノードが配信するタスクカウント（名前ごとに個別記録）
+  - `downstream_counts`：各下流ノードへ送信するタスクカウント
+  - `succeeded`：成功処理数
+  - `failed`：最終失敗数（リトライ回数超過）
+  - `skipped`：スキップタスク数（フレームワークが保持する重複排除/スキップカウント次元）
+  - `processed`：`succeeded + failed + skipped`
+  - `pending`：`input_total - processed`
 
-- **終了判定**：`is_tasks_finished()` = `get_input_count() == success + fail + duplicate`
-
-- **忙碌時間の実測**：`begin_task()` / `end_task()` がノードの実際のビジーウォールクロック時間を記録し、`get_elapsed()` が累計値を返す
+- **状態と時刻**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）と `start_time` は `on_node_start`/`on_node_end` が維持
+- **終了判定**：`is_tasks_finished()` が入力と処理済みカウントを比較
 
 ---
 
@@ -335,9 +338,9 @@ graph LR
 
 - **ログレベル**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **エラー永続化**：SQLite 形式、`stage`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` などのフィールドを含む
+- **エラー永続化**：SQLite 形式、`node`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` などのフィールドを含む
 
-- **エラー分析ツール**：`load_records()`、`load_tasks_grouped_by_stage()` で次元ごとに失敗タスクを集約
+- **エラー分析ツール**：`load_records()`、`load_tasks_grouped_by_node()` で次元ごとに失敗タスクを集約
 
 ---
 
@@ -376,12 +379,12 @@ CelestialFlowError (基底クラス)
 
 | 層 | 技術 | 用途 |
 |----|------|------|
-| ランタイム側 | `TaskReporter` | グラフ構造、分析、状態、エラー情報を周期的にプッシュ |
-| プロトコル | HTTP + JSON | pull / push インターフェースで双方向同期 |
-| 制御側 | 外部サービス | レポート間隔、タスク注入、終了信号を返却 |
+| ランタイム側 | `PushInlet`/`PushSpout` | グラフメタ情報、セッション終了、エラー、状態スナップショットをプッシュ |
+| プロトコル | HTTP + JSON | push / pull インターフェースで双方向同期 |
+| 制御側 | 外部サービス | 注入タスクと終了信号を返却 |
 | ストレージ側 | SQLite + ログ | エラーレコードと構造化ログの永続化は主リポジトリが担当 |
 
-- **主リポジトリの責務**：状態収集、エラー増分同期、タスク注入入口を提供
+- **主リポジトリの責務**：`PushSpout` が周期的にプッシュ、`InjectionHandler` が注入をプル、`PushSnapshotHandler` がスナップショットを投影
 - **外部サービスの責務**：状態データを消費し、必要に応じて監視画面やコンソールを提供
 
 ---
@@ -391,8 +394,8 @@ CelestialFlowError (基底クラス)
 ### 3大コア能力
 
 **1. 状態同期**
-- グラフ構造、トポロジー分析、ノード状態スナップショットをプッシュ
-- `graph_id` でリモート側が現在のグラフをすでに保持しているかを判断可能
+- グラフメタ情報、セッション終了、グラフ級状態スナップショットをプッシュ
+- `session_id` でセッションを識別し、サーバー側がこれに基づいてセッションを区別/終了
 
 **2. エラー同期**
 - `event_id` ベースでエラーレコードを増分プッシュ
@@ -404,20 +407,20 @@ CelestialFlowError (基底クラス)
 
 ---
 
-## Slide 18: TaskReporter API 一覧
+## Slide 18: レポート / 注入 API 一覧
 
 ### REST インターフェース設計
 
 | 方向 | エンドポイント | データ |
 |------|------|------|
-| Pull | `/api/pull_server_state` | 現在のグラフ同期状態、グラフメタ情報状態、最大 `event_id` |
+| Push | `/api/push_graph_meta` | グラフメタ情報（グラフ構造 + トポロジー + ノードメタ情報） |
+| Push | `/api/push_error` | タスクエラーレコードを増分プッシュ |
+| Push | `/api/push_snapshot` | グラフ級状態スナップショット（状態、成功/失敗/スキップ/保留中カウント） |
+| Push | `/api/shutdown_session` | セッション終了を通知 |
 | Pull | `/api/pull_injection` | 注入待ちタスクと終了信号 |
-| Push | `/api/push_status` | ノード状態スナップショットを更新 |
-| Push | `/api/push_graph_meta` | グラフ構造 + グラフ分析メタ情報を更新 |
-| Push | `/api/push_errors` | エラーレコードを更新 |
 
-- **主リポジトリには Web フロントエンドを内蔵しない**：ここでは `TaskReporter` が実際に使用する同期インターフェースのみを定義
-- **インターフェース設計目標**：外部サービスが監視画面、コンソール、監査システムを自由に実装できるようにする
+- **主リポジトリには Web フロントエンドを内蔵しない**：ここでは `PushInlet`/`PushSpout` が実際に使用する同期インターフェースのみを定義
+- **インターフェース設計目標**：外部サービスが監視パネル、コンソール、監査システムを自由に実装できるようにする
 
 ---
 
@@ -639,7 +642,7 @@ graph LR
   - Spout-Inlet パターン、`_handle_record()` を実装するだけで出力先をカスタマイズ可能
 
 - **状態レポートチェーン交換可能**
-  - `TaskReporter` の pull / push プロトコルのみを規定
+  - `PushInlet`/`PushSpout` の push / pull プロトコルのみを規定
   - 外部サービスは主リポジトリと強く結合せず独立に進化可能
 
 ---

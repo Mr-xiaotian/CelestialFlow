@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Purpose
 
@@ -36,7 +36,7 @@ __all__ = [
 | `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | Splitter, splitting a single task into multiple sub-tasks (1→N) |
 | `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | Router; `func` returns a `{downstream name: payload}` mapping and dispatches accordingly |
 
-> None of the three node classes defines its own `__init__`; they directly reuse `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)`; `func` is required.
+> None of the three node classes defines its own `__init__`; they directly reuse `BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50, skip_func=None)`; `func` is required.
 
 ## Usage Examples
 
@@ -93,9 +93,10 @@ router = TaskRouter("LengthRouter", route_by_length)
 
 - **`core_node`**: Defines the base class `BaseTaskNode` and internal scheduler `TaskDispatch`, which serve as the runtime skeleton for all nodes.
 - **`core_nodes`**: Provides the three public node classes.
-- **`runtime`**: Nodes depend on `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` for queue and metrics communication.
-- **`observability`**: Reports execution progress via `BaseObserver`.
-- **`persistence`**: Persists task lifecycle and logs via `LifecycleInlet` / `LogInlet`.
+- **`runtime`**: Nodes depend on `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` for queue and event communication.
+- **`observer`**: Nodes broadcast events through `ObserverHub`; `MetricsObserver` maintains counts based on events.
+- **`persist`**: `LifecycleInlet` / `LogInlet` consume events as observers, persisting task lifecycle and logs.
+- **`assembly`**: When a single node runs independently, `run_node_resources` assembles the `MetricsObserver` / `LifecycleInlet` / `LogInlet` observers and spouts.
 
 ## Notes
 

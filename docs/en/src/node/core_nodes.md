@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_nodes.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 `core_nodes.py` provides the three concrete node classes that CelestialFlow exposes publicly:
 
@@ -47,6 +47,7 @@ def __init__(
     max_retries: int = 1,
     max_queue_size: int = 0,
     max_info: int = 50,
+    skip_func: Callable[[T], bool] | None = None,
 ): ...
 ```
 
@@ -66,11 +67,11 @@ The general-purpose executor: maps a single input to a single result and is resp
 
 `process_task_success(envelope, result, start_perf)` →
 
-1. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
-2. `self.metrics.add_success_count()`;
-3. `get_lifecycle_inlet().task_success(task_id, result)`;
-4. `get_log_inlet().task_success(name, repr(task), repr(result), elapsed, task_id, result_id)` to write the log;
-5. For each downstream target (`self.yield_queue.get_target_names()`): `add_downstream_count(target)`, re-emit a `TASK_INPUT` event, write lifecycle / log input records, and `yield_queue.put_target(target, TaskEnvelope(result, downstream_input_id))`.
+1. Take `task = envelope.get_task()` and `task_id = envelope.get_id()`;
+2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
+3. Compute `elapsed = time.perf_counter() - start_perf`;
+4. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))`;
+5. For each downstream target (`self.yield_queue.get_target_names()`): emit a `TASK_INPUT` event to obtain `downstream_input_id`, broadcast `TaskInputEvent` (`from_node=self.get_name()`), and `yield_queue.put_target(target_name, TaskEnvelope(task=result, id=downstream_input_id))`.
 
 ### Example
 
@@ -101,11 +102,9 @@ for task, result in executor.get_success_pairs():
 `process_task_success(envelope, result, start_perf)` →
 
 1. `result_list = list(result)` to materialize the result (supports generators);
-2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
-3. `self.metrics.add_success_count()`;
-4. `get_lifecycle_inlet().task_success(task_id, result_list)`;
-5. `get_log_inlet().task_success(...)` to write the log;
-6. For each downstream target: `add_downstream_count(target, len(result_list))` to add the send count in one go; then for each `item` in `result_list`, emit a `TASK_INPUT` event separately, write lifecycle / log input records, and `yield_queue.put_target(target, TaskEnvelope(item, downstream_input_id))`.
+2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
+3. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(..., result=result_list, result_repr=...))` (with `result` materialized as a list);
+4. For each downstream target and each `item in result_list`: emit a `TASK_INPUT` event, broadcast `TaskInputEvent`, and `yield_queue.put_target(target_name, TaskEnvelope(item, downstream_input_id))`.
 
 > An empty iterable legitimately produces 0 sub-tasks (it does not raise); a generator input is fully materialized by `list()` before dispatch.
 
@@ -148,12 +147,10 @@ graph.run({"Splitter": [["a", "b", "c"]]})
 
 `process_task_success(envelope, result, start_perf)` →
 
-1. Validate whether each target name in `result` is registered in `self.metrics.downstream_counter`; if an unregistered target exists, raise `InvalidOptionError("Unknown target", unknown[0], self.metrics.downstream_counter.keys())`;
-2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
-3. `self.metrics.add_success_count()`;
-4. `get_lifecycle_inlet().task_success(task_id, task)` (note: the lifecycle success record is the **input task** `task`, not the mapping `result`);
-5. `get_log_inlet().task_success(name, repr(task), repr(result), elapsed, task_id, result_id)` to write the log;
-6. For each `(target, yie)` in `result.items()`: `add_downstream_count(target)`, emit a `TASK_INPUT` event, write lifecycle / log input records, and `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))` — what the downstream receives is the **payload corresponding to that target** `yie`, not the router's input task.
+1. Validate whether each target name in `result` is registered in `self.yield_queue.get_target_names()`; if an unregistered target exists, raise `InvalidOptionError("Unknown target", unknown[0], known_targets)`;
+2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
+3. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(..., result=result, result_repr=...))`;
+4. For each `(target, yie)` in `result.items()`: emit a `TASK_INPUT` event, broadcast `TaskInputEvent`, and `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))` — what the downstream receives is the **payload corresponding to that target** `yie`, not the router's input task.
 
 ### Example
 
@@ -183,14 +180,15 @@ graph.run({router.get_name(): ["hi", "hello world", "ok"]})
 | Exception | Triggered Scenario |
 |-----------|--------------------|
 | `InvalidOptionError` | In `TaskRouter.process_task_success`, `result` contains a target name not bound via `connect_to` |
-| `ConfigurationError` | Inherited from `BaseTaskNode`: `async` mode but `func` is not a coroutine; `func` parameter count ≠ 1, etc. |
-| `CallableParameterKindError` | Signature validation inherited from `BaseTaskNode._set_func` |
+| `ConfigurationError` | Inherited from `BaseTaskNode`: `async` mode but `func` is not a coroutine; `func` / `skip_func` parameter count ≠ 1, etc. |
+| `CallableParameterKindError` | Signature validation inherited from `BaseTaskNode._set_func` / `set_skip_func` |
 
 ## Notes
 
 1. **The direct base class is `BaseTaskNode`**: `TaskSplitter` / `TaskRouter` are **not** subclasses of `TaskExecutor`. They each handle a different `process_task_success` semantic.
 2. **`func` is required**: Since there is no custom `__init__`, all three classes must provide `func`; the defaults are `execution_mode="serial"` and `max_retries=1`.
-3. **Router targets must be pre-bound**: The target string returned by `func` must appear in `self.metrics.downstream_counter` (i.e. registered at least via `graph.connect` / `connect_to`); otherwise an `InvalidOptionError` is raised.
+3. **Router targets must be pre-bound**: The target string returned by `func` must appear in `self.yield_queue.get_target_names()` (i.e. registered at least via `graph.connect` / `connect_to`); otherwise an `InvalidOptionError` is raised.
 4. **Each router target receives its own payload**: A single routing can return multiple targets, and each downstream receives only the value of the corresponding key.
-5. **Runtime components are automatically initialized**: All three node classes automatically initialize `metrics / task_queue / yield_queue / dispatch` etc. through `BaseTaskNode.__init__`, with no need to re-create them.
-6. **No more `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**: The split and route logic is now entirely handled by the passed-in `func`; the classes themselves only dispatch the result of `func` downstream.
+5. **Runtime components are automatically initialized**: All three node classes automatically initialize `task_queue` / `yield_queue` / `dispatch` / `observers` etc. through `BaseTaskNode.__init__`, with no need to re-create them.
+6. **Result broadcasting and persistence**: The node itself only broadcasts `TaskSuccessEvent` / `TaskInputEvent`; `MetricsObserver` / `LifecycleInlet` / `LogInlet` update counts and write to disk based on these events; the node no longer writes lifecycle / log directly.
+7. **No more `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**: The split and route logic is now entirely handled by the passed-in `func`; the classes themselves only dispatch the result of `func` downstream.

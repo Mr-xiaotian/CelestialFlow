@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
@@ -222,7 +222,7 @@ flowchart TD
 - DAG 構造：`demo_chain` の `TaskChain` は `graph_mode` を明示的に渡さず、その 5 つのノードはすべて `execution_mode="serial"` を使用する。`demo_cross` / `demo_network` / `demo_star` / `demo_fanin` / `demo_grid` のノードはほとんどが `execution_mode="thread"`
 - `demo_grid`：`TaskGrid` はデフォルトの `graph_mode="thread"` を使用する（ソースコードでは `graph_mode` を明示的に渡していない）
 - 循環グラフ：`demo_loop` / `demo_wheel` / `demo_complete` / `demo_multi_cycle` はいずれも明示的に `if_put_signal=False` を渡す（つまり自動終了シグナルを注入しない）。`demo_chain` も同様に `if_put_signal=False` を渡す。循環グラフを実行するときは手動終了の準備を推奨
-- 各デモは `<graph>.set_reporter(TaskReporter(report_host, report_port, <graph>))` を通じて Reporter に接続する。各サンプルの `<graph>.set_ctree(ctree_client)` はすべてコメントアウトされており、デフォルトでは CelestialTree を有効化しない。実際に有効かどうかは `REPORT_HOST`/`REPORT_PORT`/`CTREE_HOST` などの環境変数とサービス側の準備状況に依存する
+- 各デモは `<graph>.set_ctree(ctree_client)` のコメント状態で CelestialTree を有効化するかどうかを制御する（デフォルトではコメントアウトされ、有効化しない）。実際に有効かどうかは `CTREE_HOST`/`CTREE_HTTP_PORT`/`CTREE_GRPC_PORT` などの環境変数とサービス側の準備状況に依存する
 - `demo_network`、`demo_star`、`demo_fanin`、`demo_wheel` は定義済みだが、`__main__` からは呼び出されない
 
 ## 発生しうる問題
@@ -238,7 +238,7 @@ flowchart TD
 python demo/demo_structure.py
 ```
 
-> **注意**：`__main__` は `demo_chain()`、`demo_forest()`、`demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()` を順に呼び出す。`demo_forest()` が未定義のため、スクリプトは `demo_chain()` の終了後に `NameError` で中断する。他の構造を実行したい場合は、`__main__` 内で対応する関数を直接呼び出すこと。
+> **注意**：`__main__` は `demo_chain()`、`demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()` を順に呼び出す。うち `demo_loop`、`demo_complete`、`demo_multi_cycle` は循環グラフであり、継続的に実行される可能性があるため、**Ctrl+C** で手動終了できるように準備することを推奨。他の構造（`demo_network`、`demo_star` など）を実行したい場合は、`__main__` 内で対応する関数を直接呼び出すこと。
 
 ## 想定される動作
 
@@ -291,7 +291,7 @@ Grid33: success=180  fail=0
 
 ## 依存関係
 
-- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`、`TaskReporter`）
+- `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`）
 - `demo_utils`
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）、Reporter（オプション）
+- 外部サービス：CelestialTree（オプション）

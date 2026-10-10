@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 目標
 
@@ -63,7 +63,7 @@ flowchart TB
 
 - `max_workers = 6`
 - `max_retries = 1`
-- `executor.add_observer(TaskProgress())` でプログレスバーを追加
+- `executor.add_observer(PrintObserver(executor.get_name()))` で `print` ベースのコンソールオブザーバーを追加。出力はすべてノード名をプレフィックスとする（例: `[FibonacciSerial] ...`）
 
 ## 発生しうる問題
 
@@ -79,23 +79,25 @@ python demo/demo_executor.py
 
 ## 想定される動作
 
-実行後、3 つのモードが順に実行され、主な出力は `tqdm` プログレスバーとなる。例：
+実行後、3 つのモードが順に実行され、主に `PrintObserver` がノードライフサイクルログ（ノード名をプレフィックスとする）を出力する。例：
 
 ```text
-100%|██████████| 12/12 [00:00<00:00, 15000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 4000.00it/s]
-100%|██████████| 12/12 [00:00<00:00, 3000.00it/s]
+[FibonacciSerial] total=1(+1)
+[FibonacciSerial] total=2(+1)
+...
+[FibonacciSerial] start total=12
+[FibonacciSerial] succeeded=1(+1), total=12
+[FibonacciSerial] succeeded=2(+1), total=12
+...
+[FibonacciSerial] failed=1(+1), total=12
+...
+[FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> `TaskProgress` はプログレスバー作成時に `desc` を設定していないため、プログレスバーにノード名のプレフィックスは付かない。上記の it/s はあくまで例示である。
-
-> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、1 回リトライされた後でも失敗する。`""` は型エラーをトリガーする（リトライ対象外）。
-> 3 つのモードはいずれも `demo_utils` の反復版フィボナッチ（O(n)）を使用し、単一タスクの計算自体は非常に高速である。プログレスバー上の it/s の差は主にスケジューリングオーバーヘッドを反映している。
+> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）は失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、1 回リトライされた後でも失敗する。`""` は型エラーをトリガーする（リトライ対象外）。
+> 3 つのモードはいずれも `demo_utils` の反復版フィボナッチ（O(n)）を使用し、単一タスクの計算自体は非常に高速である。
 
 ## 依存関係
 
-- `celestialflow`（`TaskExecutor`）
+- `celestialflow`（`TaskExecutor`、`PrintObserver`）
 - `demo_utils`（`fibonacci`、`fibonacci_async`）
-- `demo_observer`（`TaskProgress`、本リポジトリの同ディレクトリの `demo_observer.py` がローカル定義）
-
-> ⚠️ **変更あり**：`demo_executor.py` には依然として `from celestialflow import TaskProgress` と書かれているが、`celestialflow` はもはや `TaskProgress` をエクスポートしていない（このクラスは現在 `demo_observer.py` がローカル定義している）。そのため `python demo/demo_executor.py` を直接実行するとインポート段階で `ImportError` がスローされ、正常に実行するには `from demo_observer import TaskProgress` に変更する必要がある。

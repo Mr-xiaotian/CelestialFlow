@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/__init__.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 実行器/タスクグラフのクローン（clone）とベンチマークテスト（benchmark）機能を提供します。本モジュールは依存チェーンの最上位に位置し、他のモジュールに依存できますが、他のモジュールから依存されるべきではありません。
 
@@ -70,11 +70,7 @@ graph TD
     end
 
     subgraph runtime
-        R["format_table / clone_event_client"]
-    end
-
-    subgraph observability
-        O["ReporterProtocol / TaskReporter / NullTaskReporter"]
+        R["format_table / clone_event_client / ConfigurationError"]
     end
 
     UB --> UC
@@ -83,7 +79,7 @@ graph TD
     UB --> R
     UC --> S
     UC --> G
-    UC --> O
+    UC --> R
 ```
 
 ## 注意事項

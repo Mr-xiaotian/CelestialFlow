@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
 ## 役割
 
@@ -10,9 +10,9 @@
 
 ```python
 from celestialflow.node import (
-    TaskExecutor,  # 通用任务执行器
-    TaskSplitter,  # 1→N 任务拆分器
-    TaskRouter,  # 条件路由器
+    TaskExecutor,  # 汎用タスク実行器
+    TaskSplitter,  # 1→N タスク分割器
+    TaskRouter,  # 条件ルーター
 )
 ```
 
@@ -36,7 +36,7 @@ __all__ = [
 | `TaskSplitter` | `core_nodes` | `BaseTaskNode[T, Iterable[RItem], RItem]` | 分割器。単一タスクを複数のサブタスクに分割（1→N） |
 | `TaskRouter` | `core_nodes` | `BaseTaskNode[T, dict[str, Y], Y]` | ルーター。`func` が `{下流名: ペイロード}` マッピングを返し、それに基づいて振り分け |
 
-> 3 つのノードクラスはいずれも独自の `__init__` を定義せず、`BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50)` をそのまま再利用します；`func` は必須です。
+> 3 つのノードクラスはいずれも独自の `__init__` を定義せず、`BaseTaskNode.__init__(name, func, *, execution_mode="serial", max_workers=None, max_retries=1, max_queue_size=0, max_info=50, skip_func=None)` をそのまま再利用します；`func` は必須です。
 
 ## 使用例
 
@@ -69,7 +69,7 @@ def split_chars(text: str) -> list[str]:
 
 splitter = TaskSplitter("CharSplitter", split_chars)
 
-# 配合下游 TaskGraph:
+# 下流 TaskGraph と組み合わせる:
 # graph.connect([splitter], [downstream])
 # splitter.run(["abc"])
 ```
@@ -93,9 +93,10 @@ router = TaskRouter("LengthRouter", route_by_length)
 
 - **`core_node`**: 基底クラス `BaseTaskNode` と内部スケジューラ `TaskDispatch` を定義し、すべてのノードのランタイム骨格です。
 - **`core_nodes`**: 3 つの公共ノードクラスを提供します。
-- **`runtime`**: ノードは `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` を通じてキューとメトリクスを通信します。
-- **`observability`**: `BaseObserver` を通じて実行進捗をレポートします。
-- **`persistence`**: `LifecycleInlet` / `LogInlet` を通じてタスクのライフサイクルとログを永続化します。
+- **`runtime`**: ノードは `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` を通じてキューとイベントの通信を行います。
+- **`observer`**: ノードは `ObserverHub` を通じてイベントをブロードキャストし、`MetricsObserver` がイベントに基づいてカウントを維持します。
+- **`persist`**: `LifecycleInlet` / `LogInlet` は観測者としてイベントを消費し、タスクのライフサイクルとログをディスクに永続化します。
+- **`assembly`**: 単一ノードが単独で動作する場合、`run_node_resources` が `MetricsObserver` / `LifecycleInlet` / `LogInlet` の観測者と spout を組み立てます。
 
 ## 注意事項
 

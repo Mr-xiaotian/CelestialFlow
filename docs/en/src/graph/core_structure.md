@@ -1,6 +1,6 @@
 # src/celestialflow/graph/core_structure.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 The TaskStructure module provides multiple predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
 
@@ -235,10 +235,9 @@ chain = TaskChain(name="ETL", nodes=[s1, s2, s3], graph_mode="thread")
 # Start
 chain.run({s1.get_name(): [" 10 ", " 20 ", " 30 "]})
 
-# Get the structured topology text and node count
-tree_lines = chain.get_structure_list()
+# Get the node count and structure
 print(f"Chain stage count: {len(chain.get_nodes())}")
-print("\n".join(tree_lines))
+print(chain.get_edges())
 ```
 
 ### TaskCross Full Example
@@ -270,7 +269,7 @@ layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyz
 
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
-print(cross.get_structure_list())
+print(cross.get_nodes())
 ```
 
 ### TaskGrid Full Example
@@ -286,7 +285,7 @@ n11 = TaskExecutor("Square", func=lambda x: x * x)
 
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
-print(grid.get_structure_list())
+print(grid.get_nodes())
 ```
 
 ### TaskLoop Full Example
@@ -322,7 +321,7 @@ ring_nodes = [
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
 wheel.run({center.get_name(): [42]})
-print(wheel.get_structure_list())
+print(wheel.get_nodes())
 ```
 
 ### TaskComplete Full Example
@@ -341,5 +340,5 @@ complete.run(
     {nodes[0].get_name(): [10]},
     if_put_signal=False,
 )
-print(complete.get_structure_list())
+print(complete.get_nodes())
 ```

@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -276,8 +276,6 @@ The `.env` file in the project root should contain at least:
 ```env
 REDIS_HOST=127.0.0.1
 REDIS_PASSWORD=
-REPORT_HOST=127.0.0.1
-REPORT_PORT=8000
 ```
 
 ### 3. Prepare Remote Workers (only needed for Ack scenarios)
@@ -327,4 +325,4 @@ You can also directly open [demo_redis.py](https://github.com/Mr-xiaotian/Celest
 - `python-dotenv`
 - `redis`
 - `requests` (for `demo_redis_ack_2` downloads)
-- External services: Redis, remote Worker (optional), Reporter (optional)
+- External services: Redis, remote Worker (optional)

@@ -1,8 +1,8 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/09
 
-`TaskGraph` は CelestialFlow のコアスケジューラであり、一連のタスクノード（`BaseTaskNode` 派生オブジェクト、パブリック API は `TaskExecutor`、`TaskSplitter`、`TaskRouter`）の依存関係、実行フロー、リソース割り当て、ライフサイクルを管理します。
+`TaskGraph` は CelestialFlow のコアスケジューラであり、一連のタスクノード（`BaseTaskNode` 派生オブジェクト、パブリック API は `TaskExecutor`、`TaskSplitter`、`TaskRouter`）の依存関係、実行フロー、ライフサイクルを管理します。
 
 > 注意: `TaskGraph` は単一回使用のオブジェクトです。一度 `start()` / `start_async()` / `run()` が完了した後、現在のインスタンスが安全にリセットされて再起動できることは保証されません。同じフローを繰り返し実行する必要がある場合は、新しい `TaskGraph` と関連するタスクノードを再作成してください。
 
@@ -34,7 +34,7 @@ class TaskGraph:
   - `thread`: スレッド並行実行。各ノードが独立スレッドで起動
   - `async`: 非同期並行実行。実行中のイベントループコンテキストでの呼び出しが必要（[`start_async`](#start_async) 参照）
 
-`__init__` は `_set_name`、`set_graph_mode`、`set_reporter(NullTaskReporter())`、`set_ctree(LocalEventClient())`、`_init_state()` を順に呼び出します。
+`__init__` は `_set_name`、`set_graph_mode`、`set_ctree(LocalEventClient())`、`_init_state()` を順に呼び出します。
 
 ## グラフ構築
 
@@ -76,7 +76,7 @@ def connect[R](
 
 ```python
 def _set_name(self, name: str) -> None:
-    """タスクグラフ名を設定し、graph_id = f"{name}@{int(time.time() * 1000)}" を生成します。"""
+    """タスクグラフ名を設定します。"""
 ```
 
 ### set_graph_mode
@@ -100,17 +100,6 @@ def set_node_execution_mode(self, execution_mode: str) -> None:
     """
 ```
 
-### set_reporter
-
-```python
-def set_reporter(self, reporter: ReporterProtocol) -> None:
-    """
-    タスクグラフにバインドされるレポーターを設定します。
-
-    :param reporter: レポーターインスタンス
-    """
-```
-
 ### set_ctree
 
 ```python
@@ -124,6 +113,29 @@ def set_ctree(self, ctree_client: EventClient) -> None:
 > デフォルトでは、`TaskGraph` は内部で `LocalEventClient()` を使用してローカルのインクリメンタルイベント ID を生成するため、`celestialtree` がインストールされていなくても、コア実行リンクは正常に動作します。
 >
 > イベントを CelestialTree に報告したい場合は、まず `celestialtree` を追加インストールし、対応するクライアントインスタンスを自身で構築して `set_ctree()` に渡す必要があります。
+
+## 観測者
+
+### add_observer
+
+```python
+def add_observer(self, observer: Observer) -> None:
+    """
+    グラフレベル観測者を登録します。
+
+    グラフレベル観測者はグラフ内の全ノードのイベントを受信します。この登録は run() / run_async()
+    パスのみで有効です（これらのエントリはグラフレベルの hub を各ノードに注入します）。
+    """
+```
+
+グラフレベル観測者は `_inject_observers()` によって各ノードに注入されます。注入されるのは hub オブジェクト自体であるため、実行時にグラフレベル hub へ観測者を追加・削除すると即座に全ノードへ反映されます。
+
+### get_observers
+
+```python
+def get_observers(self) -> ObserverHub:
+    """グラフレベル観測者 hub を返します。ノード以外の協作者が観測者としてイベントを公開するために使用します。"""
+```
 
 ## グラフ分析
 
@@ -168,11 +180,13 @@ def run(
     """
     タスクグラフを実行します。フロー：
     1. _build_analysis() を呼び出してグラフ分析を構築
-    2. funnel_scope() の下で、init_tasks_dict 内の各タスクを対応するノードに注入（node.put_task）
+    2. run_graph_resources コンテキストの下で、init_tasks_dict 内の各タスクを対応するノードに注入（node.put_task）
     3. if_put_signal=True の場合、ソースノードに自動的に終了シグナルを注入
     4. start() を呼び出して実行を起動
     """
 ```
+
+実行時の観測者注入、グローバル funnel 観測者の登録、`lifecycle` / `log` spout の起動停止は `run_graph_resources` コンテキストで一元的に管理されます。
 
 ### run_async
 
@@ -207,8 +221,8 @@ def restore_db(
     """
 ```
 
-このメソッドは内部で `load_tasks_grouped_by_stage()` を呼び出して永続化タスクレコードを読み込み、
-`node.metrics.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし（`pending` レコードは常に保持）、
+このメソッドは内部で `load_tasks_grouped_by_node()`（`persist.util_sqlite` 由来）を呼び出して永続化タスクレコードを読み込み、
+`node.get_retry_error_type_names()` で回復可能なエラータイプをフィルタリングし（`pending` レコードは常に保持）、
 最終的に `run()` を再利用して実行します。
 
 ### ライフサイクル制約
@@ -252,19 +266,19 @@ async def start_async(self) -> None:
 ```python
 def _prepare_start(self) -> None:
     """
-    起動前準備：グラフ起動ログ（get_log_inlet().graph_start）を記録し、reporter.start() を呼び出します。
-    本メソッドはスレッドやファイルハンドルなどの実行時リソースを作成します。
+    起動前準備：グラフレベル観測者 hub に on_graph_start イベントをブロードキャストします。
+    本メソッドはスレッドやファイルハンドルなどの実行時リソースを作成します。呼び出し側は finally で _finish_start を実行することを保証すべきです。
     """
 
 
 def _finish_start(self, start_perf: float) -> list[Exception]:
     """
     起動後の終了処理：全ノードを走査して drain_task_queue() を呼び出し未消費タスクを収集し、
-    reporter を停止し、グラフ終了ログを記録し、スレッド参照をクリーンアップして、収集した例外リストを返します。
+    on_graph_end イベントをブロードキャストし、スレッド参照をクリーンアップして、収集した例外リストを返します。
     """
 ```
 
-`lifecycle` / `log` spout の起動と停止は外側の `funnel_scope()` によって統一的に管理されます。
+`lifecycle` / `log` 関連 spout、節拍器の起動と停止は外側の `run_graph_resources` によって一元的に管理され、本メソッドはグラフオブジェクト自身の終了ロジックのみを担当します。
 
 ### _execute_nodes_serial / _execute_nodes_thread / _execute_nodes_async
 
@@ -302,19 +316,37 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 
 | メソッド | 戻り値型 | 説明 |
 |------|---------|------|
-| `get_graph_id()` | `str` | 現在のタスクグラフインスタンスの一意識別子を取得 |
 | `get_nodes()` | `list[str]` | 登録順に全ノード名を返す |
 | `get_edges()` | `dict[str, list[str]]` | 出辺隣接テーブル（内部 `OrderGraph` との共有参照。呼び出し側は読み取り専用とすべき） |
 | `get_node_meta()` | `dict[str, dict[str, Any]]` | 各ノードの構築期メタ情報 |
 | `get_source_nodes()` | `list[str]` | ソースノード名のリスト（オンデマンドでグラフ分析をトリガー） |
-| `get_graph_analysis()` | `dict` | グラフ分析情報（graphId, graphMode, name, startTime, className, isDAG, layersDict） |
-| `get_structure_list()` | `list[str]` | 枠線付きのフォーマット済みツリーテキスト |
 | `get_order_graph()` | `OrderGraph` | 内部の順序付き有向グラフインスタンス |
-| `get_lifecycle_path()` | `Path` | タスクライフサイクル永続化 sqlite ファイルの絶対パス。未設定時は空 Path を返す |
+| `get_observers()` | `ObserverHub` | グラフレベル観測者 hub |
+
+### 注入インターフェース
+
+```python
+def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+    """
+    ノード名ごとに注入タスクを実行待ちキューに書き込みます。存在するノードへまず尽力して注入し、その後で未知ノードを一括でエラーにします。
+
+    :raises UnknownNodeError: グラフ内に存在しない対象ノードがある場合
+    """
+
+
+def inject_terminations(self, nodes: Sequence[str]) -> None:
+    """
+    指定ノードへ終了シグナルを注入します。存在するノードへまず尽力して注入し、その後で未知ノードを一括でエラーにします。
+
+    :raises UnknownNodeError: グラフ内に存在しない対象ノードがある場合
+    """
+```
+
+> `inject_tasks` / `inject_terminations` は「まず尽力注入、その後一括エラー」戦略を採用しているため、単一の未知ノードがあってもその他のノードのタスク/終了シグナルが破棄されることはありません。
 
 ### get_node_meta の説明
 
-各ノードの構築期メタ情報を返します。これらのフィールドは reporter の起動前に凍結されるため、グラフ構造とともに一度だけ報告され、毎回の状態プッシュには含まれません：
+各ノードの構築期メタ情報を返します。これらのフィールドは実行期に固定で、グラフ構造とともに一度だけ報告され、毎回の状態プッシュには含まれません：
 
 ```python
 {
@@ -326,27 +358,9 @@ async def _execute_node_async(self, node: AnyTaskNode) -> None:
 }
 ```
 
-### get_graph_analysis の説明
+### グラフレベルイベント（観測者）
 
-`get_graph_analysis()` は以下のフィールドを含む辞書を返します：
-
-```python
-{
-    "graphId": self.graph_id,
-    "graphMode": self.graph_mode,
-    "name": self.name,
-    "startTime": self.start_time,
-    "className": self.__class__.__name__,
-    "isDAG": self.is_dag,
-    "layersDict": self.layers_dict,
-}
-```
-
-### 実行時状態の収集
-
-`TaskGraph` 自体は実行時スナップショットを集約しません。各ノードは `BaseTaskNode.get_snapshot()` を通じて自身の状態を収集し、
-`TaskReporter` が状態プッシュ周期でノードを走査してこれを呼び出します；グローバルな `total_*` などの派生指標はフロントエンド
-（`celestialflow-web`）が集約して計算します。
+`TaskGraph` は `_prepare_start()` / `_finish_start()` 段階で観測者 hub へ `GraphStartEvent` と `GraphEndEvent` をブロードキャストします。グラフ分析情報（グラフ名、モード、`is_dag`、ノード/辺/ソースノードリスト、ノードメタ情報など）は起動イベントで一度だけ報告されます。実行時モニタリングは単一ノードへのポーリングではなく、`add_observer()` でグラフレベル観測者を登録して行うことを推奨します。
 
 ## ライフサイクル図
 
@@ -417,5 +431,5 @@ graph.run({"source": tasks}, if_put_signal=False)
 ## 未消費タスク処理
 
 `_finish_start()` 内で `node_dict` を反復し、各ノードの `drain_task_queue()` を呼び出して全残存タスクを収集し、
-それらを `UnconsumedError` としてマークし、`get_lifecycle_spout`（`LifecycleSpout`）を通じて日付別に組織された lifecycle
-sqlite 永続化ファイルに失敗情報を記録します。
+それらを `UnconsumedError` としてマークし、永続化層（lifecycle / log）を通じて日付別に組織された sqlite
+永続化ファイルに失敗情報を記録します。

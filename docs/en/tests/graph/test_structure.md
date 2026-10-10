@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Purpose
 Verifies the dedicated analysis capabilities of two predefined cyclic graph structures, `TaskLoop` and `TaskWheel`, as well as the input validation for various predefined graph structures (`TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`), ensuring that empty/illegal inputs do not cause silent construction or crashes.
@@ -14,7 +14,7 @@ Verifies the dedicated analysis capabilities of two predefined cyclic graph stru
 
 | Test Class | Case Count | Coverage Target |
 |--------|--------|---------|
-| `TestTaskLoop` | 2 | isDAG identified as False, cycle nodes share the same level, source node derivation returns a representative |
+| `TestTaskLoop` | 2 | is_dag identified as False, cycle nodes share the same level, source node derivation returns a representative |
 | `TestTaskWheel` | 2 | Center at level 0, Ring at level 1, source node returns only Center |
 | `TestStructureValidation` | 10 | Empty nodes / empty layers / empty grid / empty first row / mismatched row length / single-node Complete / empty input validation for each structure |
 | **Total** | **14** | |
@@ -22,7 +22,7 @@ Verifies the dedicated analysis capabilities of two predefined cyclic graph stru
 ## Key Test Flows
 
 ### TaskLoop Analysis
-- Verifies `isDAG` is correctly identified as `False`.
+- Verifies `is_dag` is correctly identified as `False`.
 - Verifies that all nodes within the cycle are assigned to the same logical level.
 - Verifies that source node derivation selects a representative from the cycle as the injection point.
 
@@ -78,8 +78,8 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 ## Important Details
 - `TaskLoop` is started via `run()` and injects tasks (`run` defaults to `if_put_signal=True`, automatically emitting a termination signal for the source node to ensure test exit).
-- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_node_execution_mode()`, it directly calls `get_graph_analysis()` / `get_source_nodes()` for static analysis.
-- The test focus is on "analysis results" (analysis dict) rather than "execution results."
+- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_node_execution_mode()`, it directly reads `is_dag` and `layers_dict` and calls `get_source_nodes()` for static analysis.
+- The test focus is on "analysis results" (whether the graph is a DAG, level distribution, source nodes) rather than "execution results."
 - The input validation tests are pure construction operations and do not involve graph startup.
 
 ## Notes

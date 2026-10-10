@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -8,7 +8,7 @@ Demonstrate how to register different types of observers for `TaskExecutor` in C
 
 This file showcases two approaches simultaneously:
 
-- Using the custom `TaskProgress` defined in this file (inherits `BaseObserver`, a `tqdm`-based progress bar observer)
+- Using the custom `TaskProgress` defined in this file (inherits `Observer`, a `tqdm`-based progress bar observer)
 - Directly using the built-in `PrintObserver` of `celestialflow` (pass `name` at construction as the output prefix; the example passes `executor.get_name()`)
 
 ## Demo Content
@@ -27,10 +27,10 @@ flowchart TB
     Input["Input tasks<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
     Progress["TaskProgress"] -.monitor.-> Executor
     Custom["PrintObserver<br/>celestialflow built-in"] -.monitor.-> Executor
-    Executor --> Start["on_start"]
-    Executor --> Added["on_task_added"]
+    Executor --> NodeStart["on_node_start"]
+    Executor --> TaskInput["on_task_input"]
     Executor --> Success["on_task_success"]
-    Executor --> Finish["on_finish"]
+    Executor --> NodeEnd["on_node_end"]
 ```
 
 ## Key Configuration
@@ -51,18 +51,18 @@ Observer overview:
 
 | Callback | Output / Purpose |
 |------|------|
-| `on_start` | Prints `[{name}] start total={total}` |
-| `on_task_added` | Adds to the total and prints `[{name}] total={total}(+{count})` |
-| `on_task_success` | Counts successes and prints `[{name}] succeeded={n}(+{count}), total={total}` |
-| `on_task_fail` | Counts failures and prints `[{name}] failed={n}(+{count}), total={total}` |
-| `on_task_duplicate` | Counts duplicates and prints `[{name}] duplicated={n}(+{count}), total={total}` |
-| `on_finish` | Prints `[{name}] finish total=..., succeeded=..., failed=..., duplicated=...` |
+| `on_node_start` | Prints `[{name}] start total={total}` |
+| `on_task_input` | Accumulates the total and prints `[{name}] total={total}(+1)` |
+| `on_task_success` | Counts successes and prints `[{name}] succeeded={n}(+1), total={total}` |
+| `on_task_fail` | Counts failures and prints `[{name}] failed={n}(+1), total={total}` |
+| `on_task_skip` | Counts skips and prints `[{name}] skipped={n}(+1), total={total}` |
+| `on_node_end` | Prints `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
 
 ## Potential Issues
 
 1. **Default `main()` runs both `demo_progress_observer` and `demo_print_observer`**: Both observers execute in sequence, first showing the tqdm progress bar, then outputting logs.
-2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_task_added`, `on_start`, `on_task_success`, and `on_finish`.
-3. **`on_task_added` arrives before `on_start`**: `run()` injects all tasks before starting the executor, so by the time `on_start` fires, `total` has already accumulated to its final value (`PrintObserver` prints several `total=...(+1)` lines first, then `start total=7`). `TaskProgress` also relies on this, using the accumulated `_total` to create the progress bar in `on_start`.
+2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_task_input`, `on_node_start`, `on_task_success`, and `on_node_end`.
+3. **`on_task_input` arrives before `on_node_start`**: `run()` injects all tasks before starting the executor, so by the time `on_node_start` fires, `total` has already accumulated to its final value (`PrintObserver` prints several `total=...(+1)` lines first, then `start total=7`). `TaskProgress` also relies on this, using the accumulated `_total` to create the progress bar in `on_node_start`.
 4. **No assertions**: This is a demo script. It does not validate result values; it only demonstrates observer invocation timing.
 5. **Computation time varies with input**: The current Fibonacci is iterative O(n); single-task time grows linearly with `n`, but the difference between `fibonacci(31)` and `fibonacci(25)` is still at the microsecond level and will not significantly affect total duration.
 
@@ -98,10 +98,10 @@ When running `demo_print_observer()`, it prints observer lifecycle logs similar 
 [FibonacciSerial2] succeeded=2(+1), total=7
 ...
 [FibonacciSerial2] succeeded=7(+1), total=7
-[FibonacciSerial2] finish total=7, succeeded=7, failed=0, duplicated=0
+[FibonacciSerial2] finish total=7, skipped=0, succeeded=7, failed=0
 ```
 
-To observe failure and duplicate events, you can change the input back to a list containing invalid values or duplicates, for example:
+To observe failure, skip, and retry events, you can change the input back to a list containing invalid values, duplicates, or illegal inputs, for example:
 
 ```python
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
@@ -110,10 +110,11 @@ test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 This makes it easier to trigger:
 
 - `on_task_fail`
-- `on_task_duplicate`
+- `on_task_skip`
+- `on_task_retry`
 
 ## Dependencies
 
-- `celestialflow` (`BaseObserver`, `PrintObserver`, `TaskExecutor`; `TaskProgress` is locally defined by `demo_observer.py` in the same directory of this repository)
+- `celestialflow` (`Observer`, `PrintObserver`, `TaskExecutor`; `TaskProgress` is locally defined by `demo_observer.py` in the same directory of this repository)
 - `demo_utils` (`fibonacci`)
 - `tqdm` (dependency for the `TaskProgress` progress bar)

@@ -1,6 +1,6 @@
 # demo/ Demo Overview
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Description
 
@@ -22,17 +22,17 @@ If this is your first encounter with the project, we recommend reading in the fo
 | Document | Source | Demo Objective | Requires External Service? |
 |------|------|---------|:---------------:|
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor`'s three execution modes: serial / thread / async | No |
-| `demo_observer.md` | `demo/demo_observer.py` | Registering `TaskProgress` and the built-in `PrintObserver` for `TaskExecutor` | No |
+| `demo_observer.md` | `demo/demo_observer.py` | Registering the built-in `PrintObserver` and a custom observer for `TaskExecutor` | No |
 | `demo_funnel.md` | `demo/demo_funnel.py` | Standalone use of `BaseInlet` / `BaseSpout` to build event collection pipeline, independent of task graphs | No |
-| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` fan-out/fan-in ETL and async staged pipelines | Reporter / CelestialTree (optional) |
-| `demo_web.md` | `demo/demo_web.py` | Forest DAG and complex-topology web reporting demo with Splitter/Router | Reporter (optional) |
-| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`, `TaskRouter`, and chain/cyclic graph structures | Reporter / CelestialTree (optional) |
-| `demo_structure.md` | `demo/demo_structure.py` | Predefined topologies: `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete` | Reporter / CelestialTree (optional) |
-| `demo_redis.md` | `demo/demo_redis.py` | Implementing Redis task submission, result acknowledgment, and external task sources with ordinary `TaskExecutor` | Redis, Reporter (optional) |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` fan-out/fan-in ETL and async staged pipelines | CelestialTree (optional) |
+| `demo_web.md` | `demo/demo_web.py` | Forest DAG and a complex-topology demo with Splitter/Router that prints local metrics | No |
+| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`, `TaskRouter`, and chain/cyclic graph structures | CelestialTree (optional) |
+| `demo_structure.md` | `demo/demo_structure.py` | Predefined topologies: `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete` | CelestialTree (optional) |
+| `demo_redis.md` | `demo/demo_redis.py` | Implementing Redis task submission, result acknowledgment, and external task sources with ordinary `TaskExecutor` | Redis (optional) |
 | `demo_network.md` | `demo/demo_network.py` | Building neural network topology and parameterized linear nodes with `TaskCross` | No |
 | `demo_utils.md` | `demo/demo_utils.py` | Shared helper functions and task functions used across demo scripts | No |
 
-> **Note**: "Requires External Service?" in the table refers to hard dependencies when running the default entry point directly; optional services that are not ready will typically only skip reporting and will not cause the demo to exit.
+> **Note**: "Requires External Service?" in the table refers to hard dependencies when running the default entry point directly; optional services that are not ready will typically only skip the corresponding integration and will not cause the demo to exit.
 
 ## Document Index
 
@@ -52,7 +52,7 @@ If this is your first encounter with the project, we recommend reading in the fo
 |------|------|
 | `demo_observer.md` | Observer, progress reporting, and lifecycle callback demos |
 | `demo_funnel.md` | Inlet / Spout pipeline behavior and data flow demos |
-| `demo_web.md` | Complex topology reported to the web dashboard via the Reporter |
+| `demo_web.md` | Complex topology printing per-node metrics via the local `MetricsObserver` |
 | `demo_redis.md` | Redis-related integration examples |
 
 ### Utility Functions
@@ -73,7 +73,6 @@ python demo/demo_structure.py
 
 Some demos require additional environments, such as:
 
-- Reporter service
 - Redis service
 - CelestialTree service
 

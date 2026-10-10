@@ -1,6 +1,6 @@
 # bench/bench_observer.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -41,7 +41,7 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 ## Potential Issues
 
 1. **TTY buffering of print**: `print()` defaults to line-buffered; when output goes to a real terminal, screen refresh may be triggered, which is slower than redirecting to a file. The overhead of `print` may differ across terminal environments.
-2. **`tqdm`'s deferred `total` creation**: `TqdmObserver` waits until `on_start` to create the progress bar, and accumulates the total in `on_task_added` (that callback may arrive before `on_start`). Since `run()` injects all tasks before starting, `total` at `on_start` already includes the tasks injected before startup; if there are further `on_task_added` events afterward, the progress bar expands dynamically, but this does not affect the correctness of the benchmark results.
+2. **`tqdm`'s deferred `total` creation**: `TqdmObserver` creates the progress bar in the `on_node_start` callback and accumulates the total in the `on_task_input` callback (that callback may arrive before `on_node_start`, so `on_task_input` only accumulates the total when the progress bar is not yet created). Since `run()` injects all tasks before starting the node, `total` at `on_node_start` already includes the tasks injected before startup; if further `on_task_input` events arrive afterward, the progress bar expands dynamically, but this does not affect the correctness of the benchmark results.
 3. **Warm-up effect**: The first run may be affected by bytecode cache warm-up, import initialization, or system cache, making subsequent rounds faster. `bench_observer_multirun()` mitigates this by averaging across multiple rounds.
 4. **Fibonacci computation itself is already small enough**: For light tasks, the I/O overhead of observer callbacks may dominate; the absolute numbers from benchmarks will vary by machine, but the **relative ratios** should remain consistent across platforms.
 

@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/09
 
 ## Objective
 
@@ -87,7 +87,7 @@ Executes Extract → Normalize/Enrich → Load sequentially, each Stage internal
 ...
 ```
 
-> When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
+> Each Extract produces 1 record, which is processed separately by Normalize and Enrich and then aggregated by Load. When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
 
 ### Async Pipeline (`demo_async_pipeline`)
 
@@ -106,7 +106,7 @@ Two-stage sequential execution: `AsyncDouble` first completes all 20 tasks, then
 
 ## Dependencies
 
-- `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskReporter`)
+- `celestialflow` (`TaskGraph`, `TaskExecutor`)
 - `demo_utils` (`extract_record`, `transform_normalize`, `transform_enrich`, `load_record`, `async_double`, `async_to_str`)
 - `python-dotenv`
-- External services: CelestialTree (optional), Reporter (optional)
+- External services: CelestialTree (optional)
