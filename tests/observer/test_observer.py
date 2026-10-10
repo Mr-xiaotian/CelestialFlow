@@ -23,7 +23,6 @@ from celestialflow.observer import (
     TaskSuccessEvent,
     TerminationInputEvent,
     TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 from celestialflow.runtime.util_errors import ConfigurationError
 from conftest import metrics_of
@@ -108,10 +107,6 @@ class RecordingObserver(Observer):
 
     def on_termination_merge(self, event: TerminationMergeEvent) -> None:
         """记录终止信号合并事件。"""
-        self.events.append(event)
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """记录工作器崩溃事件。"""
         self.events.append(event)
 
     def on_node_end(self, event: NodeEndEvent) -> None:

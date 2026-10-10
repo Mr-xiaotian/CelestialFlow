@@ -20,7 +20,6 @@ from celestialflow.observer import (
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
-    WorkerCrashEvent,
 )
 from celestialflow.persist import LifecycleInlet, LifecycleSpout
 from celestialflow.observer import MetricsObserver
@@ -346,7 +345,7 @@ class TestDispatchAsync:
 # ── 参数化 ──────────────────────────────────────────────
 
 
-# ── worker 崩溃兜底 ────────────────────────────────────
+# ── observer 异常隔离兜底 ──────────────────────────────
 
 
 class _CrashOnFailObserver(Observer):
@@ -361,18 +360,6 @@ class _CrashOnFailObserver(Observer):
         self.calls += 1
         msg = "observer boom"
         raise RuntimeError(msg)
-
-
-class _RecordingCrashObserver(Observer):
-    """记录 ``on_worker_crash`` 事件。"""
-
-    def __init__(self) -> None:
-        """初始化崩溃记录列表。"""
-        self.crashes: list[Exception] = []
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """记录崩溃异常。"""
-        self.crashes.append(event.exception)
 
 
 class _CrashOnRetryObserver(Observer):
@@ -404,7 +391,7 @@ def _run_dispatch(dispatch: TaskDispatch[Any, Any], mode: str) -> None:
         asyncio.run(_run_async())
 
 
-class TestWorkerCrashKeepsTerminationSignal:
+class TestHandlerCrashKeepsTerminationSignal:
     """回归测试：失败/重试处理链自身崩溃时，终止信号仍必须发出。"""
 
     @pytest.mark.parametrize("mode", ["serial", "thread", "async"])
@@ -412,7 +399,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         self, mode: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """失败处理链中 observer 抛异常时，异常被 hub 隔离，
-        终止信号照常发出，不触发 ``worker_crash``。"""
+        终止信号照常发出。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
             max_retries=0,
@@ -420,17 +407,13 @@ class TestWorkerCrashKeepsTerminationSignal:
         )
         observer = _CrashOnFailObserver()
         executor.add_observer(observer)
-        recording = _RecordingCrashObserver()
-        executor.add_observer(recording)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         _put(executor, 42)
         _put_termination(executor)
         _run_dispatch(dispatch, mode)
 
-        # 异常在 observer hub 层被隔离，不应到达 worker_crash
         assert observer.calls == 1
-        assert len(recording.crashes) == 0
 
         results = _collect_results(executor)
         assert len(results) == 1
@@ -442,7 +425,7 @@ class TestWorkerCrashKeepsTerminationSignal:
         self, mode: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """重试回调抛异常时，异常被 hub 隔离，调度继续直到重试耗尽，
-        终止信号照常发出，不触发 ``worker_crash``。"""
+        终止信号照常发出。"""
         executor = _make_executor(
             _async_always_fail if mode == "async" else _always_fail,
             max_retries=1,
@@ -450,8 +433,6 @@ class TestWorkerCrashKeepsTerminationSignal:
         )
         observer = _CrashOnRetryObserver()
         executor.add_observer(observer)
-        recording = _RecordingCrashObserver()
-        executor.add_observer(recording)
         dispatch = TaskDispatch(executor, executor.func, max_workers=1)
 
         _put(executor, 42)
@@ -462,7 +443,6 @@ class TestWorkerCrashKeepsTerminationSignal:
         assert len(results) == 1
         assert isinstance(results[0], TerminationSignal)
         assert observer.calls == 1
-        assert len(recording.crashes) == 0
         # 重试后仍失败，最终计入一次失败
         assert metrics_of(executor).get_node_metrics(executor.get_name()).failed == 1
 
