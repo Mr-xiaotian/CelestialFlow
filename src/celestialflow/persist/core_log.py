@@ -18,7 +18,6 @@ from ..observer.core_event import (
     TaskSuccessEvent,
     TerminationInputEvent,
     TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 from ..observer.core_observer import Observer
 from ..runtime.util_constant import LEVEL_DICT
@@ -79,7 +78,7 @@ class LogInlet(BaseInlet, Observer):
     线程安全日志包装类，所有日志通过队列发送到监听线程写入。
 
     以观察者形式消费全部事件：图结构、节点启停、任务输入/成功/失败/跳过/重试、
-    终止信号、工作器崩溃与上报器日志均通过对应的观察者回调记录。
+    终止信号与上报器日志均通过对应的观察者回调记录。
     """
 
     def __init__(self, metrics_view: MetricsView, log_level: str = "INFO") -> None:
@@ -174,22 +173,6 @@ class LogInlet(BaseInlet, Observer):
             + f"{event.execution_mode}-{event.max_workers}. Use {event.elapsed:.2f}s. "
             + f"{node_success} tasks succeeded, {node_fail} tasks failed, "
             + f"{node_skip} tasks skipped.",
-        )
-
-    # ==== 工作线程 ====
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """
-        记录工作器崩溃
-
-        :param event: 工作器崩溃事件
-        """
-        exception = event.exception
-        exception_type = type(exception).__name__
-        exception_text = str(exception).replace("\n", " ")
-        self._log(
-            "CRITICAL",
-            f"In '{event.node}', Worker crashed: ({exception_type}){exception_text}.",
         )
 
     # ==== 任务 ====

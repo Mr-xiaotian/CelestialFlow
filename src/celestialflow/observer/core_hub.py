@@ -16,7 +16,6 @@ from .core_event import (
     TaskSuccessEvent,
     TerminationInputEvent,
     TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 from .core_observer import Observer
 
@@ -210,21 +209,6 @@ class ObserverHub(Observer):
             try:
                 try:
                     observer.on_termination_merge(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """
-        转发工作器崩溃事件。
-
-        :param event: 工作器崩溃事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_worker_crash(event)
                 except Exception as e:
                     observer.handle_exception(e)
             except Exception as e:

@@ -16,7 +16,6 @@ from .core_event import (
     TaskSuccessEvent,
     TerminationInputEvent,
     TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 from .core_hub import ObserverHub
 from .core_metrics import MetricsObserver
@@ -39,5 +38,4 @@ __all__ = [
     "TaskSuccessEvent",
     "TerminationInputEvent",
     "TerminationMergeEvent",
-    "WorkerCrashEvent",
 ]

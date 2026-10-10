@@ -162,18 +162,6 @@ class TerminationMergeEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class WorkerCrashEvent:
-    """工作器崩溃事件。
-
-    :param node: 崩溃工作器所属的节点名称
-    :param exception: 导致崩溃的异常
-    """
-
-    node: str
-    exception: Exception
-
-
-@dataclass(frozen=True, slots=True)
 class GraphStartEvent:
     """任务图启动事件。
 

@@ -15,7 +15,6 @@ from .core_event import (
     TaskSuccessEvent,
     TerminationInputEvent,
     TerminationMergeEvent,
-    WorkerCrashEvent,
 )
 
 
@@ -89,14 +88,6 @@ class Observer:
         终止信号合并回调。
 
         :param event: 终止信号合并事件
-        """
-        ...
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        """
-        工作器崩溃回调。
-
-        :param event: 工作器崩溃事件
         """
         ...
 

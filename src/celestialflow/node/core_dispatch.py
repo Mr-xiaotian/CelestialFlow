@@ -13,7 +13,7 @@ from concurrent.futures import (
 )
 from typing import TYPE_CHECKING
 
-from ..observer import TerminationMergeEvent, WorkerCrashEvent
+from ..observer import TerminationMergeEvent
 from ..runtime import TaskEnvelope
 from ..runtime.util_errors import ConfigurationError, InitializationError
 from ..runtime.util_types import CTreeEvent, TerminationIdPool, TerminationSignal
@@ -149,10 +149,8 @@ class TaskDispatch[T, R, Y]:
                     # 重试
                     self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
-        except Exception as e:
-            self.task_node.observers.on_worker_crash(
-                WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
-            )
+        except Exception as exception:
+            self.task_node.handle_task_fail(task_envelope, exception)
 
     async def _async_worker(self, task_envelope: TaskEnvelope[T]) -> None:
         """
@@ -186,10 +184,8 @@ class TaskDispatch[T, R, Y]:
                     # 重试
                     self.task_node.log_task_retry(task_envelope, exception, fail_times)
 
-        except Exception as e:
-            self.task_node.observers.on_worker_crash(
-                WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
-            )
+        except Exception as exception:
+            self.task_node.handle_task_fail(task_envelope, exception)
 
     # ==== 调度 ====
     def dispatch_serial(self) -> None:
