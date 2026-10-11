@@ -35,10 +35,10 @@ def bench_no_ctree() -> None:
     )
     # chain.set_ctree(False)
 
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
     chain.run({"splitter": [range(int(1e4))]})
     end_time = time.perf_counter()
-    print(f"bench_no_ctree: {end_time - start_time}")
+    print(f"bench_no_ctree: {end_time - start_perf}")
 
 
 def bench_http_ctree() -> None:
@@ -60,10 +60,10 @@ def bench_http_ctree() -> None:
     )
     chain.set_ctree(http_ctree_client)
 
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
     chain.run({"splitter": [range(int(1e4))]})
     end_time = time.perf_counter()
-    print(f"bench_http_ctree: {end_time - start_time}")
+    print(f"bench_http_ctree: {end_time - start_perf}")
 
 
 def bench_grpc_ctree() -> None:
@@ -85,10 +85,10 @@ def bench_grpc_ctree() -> None:
     )
     chain.set_ctree(grpc_ctree_client)
 
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
     chain.run({"splitter": [range(int(1e4))]})
     end_time = time.perf_counter()
-    print(f"bench_grpc_ctree: {end_time - start_time}")
+    print(f"bench_grpc_ctree: {end_time - start_perf}")
 
 
 def main() -> None:

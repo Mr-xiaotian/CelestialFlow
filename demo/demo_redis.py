@@ -113,7 +113,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
     """等待任务完成"""
     key, task_id = task
     redis_client: redis.Redis = get_redis()
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
 
     while True:
         result = cast(str | None, redis_client.hget(f"{key}:output", str(task_id)))
@@ -127,7 +127,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
                 raise RemoteWorkerError(str(result_obj.get("error")))
             raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
-        if (time.perf_counter() - start_time) > redis_timeout:
+        if (time.perf_counter() - start_perf) > redis_timeout:
             raise CelestialFlowTimeoutError(
                 f"Redis ack timeout: task_id={task_id} not acknowledged"
             )

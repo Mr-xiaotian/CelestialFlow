@@ -102,7 +102,7 @@ async def benchmark_graph(
             run_tasks: dict[str, Iterable[Any]] = {
                 node_name: list(tasks) for node_name, tasks in base_tasks.items()
             }
-            start_time = time.perf_counter()
+            start_perf = time.perf_counter()
             if graph_mode == "async":
                 await cloned_graph.run_async(run_tasks)
             else:
@@ -110,7 +110,7 @@ async def benchmark_graph(
                     await asyncio.to_thread(cloned_graph.run, run_tasks)
                 else:
                     cloned_graph.run(run_tasks)
-            time_list.append(time.perf_counter() - start_time)
+            time_list.append(time.perf_counter() - start_perf)
 
         test_table_list.append(time_list)
 
