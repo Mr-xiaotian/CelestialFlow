@@ -604,8 +604,8 @@ class TestTaskGraphAnalysis:
         edges = graph.get_edges()
         source_names = set(graph.get_source_nodes())
 
-        assert graph.is_dag is True
-        assert s1.get_name() in graph.layers_dict[0]
+        assert graph.is_dag() is True
+        assert s1.get_name() in graph.get_layers()[0]
         assert set(node_names) == {s1.get_name(), s2.get_name()}
         assert edges == {s1.get_name(): [s2.get_name()], s2.get_name(): []}
         assert source_names == {s1.get_name()}
@@ -626,8 +626,8 @@ class TestTaskGraphAnalysis:
         refreshed_sources = set(graph.get_source_nodes())
 
         assert refreshed_sources == {s1.get_name()}
-        assert s1.get_name() in graph.layers_dict[0]
-        assert s2.get_name() in graph.layers_dict[1]
+        assert s1.get_name() in graph.get_layers()[0]
+        assert s2.get_name() in graph.get_layers()[1]
 
     def test_dag_detection(self):
         """DAG 检测正确"""
@@ -641,7 +641,7 @@ class TestTaskGraphAnalysis:
         # 调用 build_analysis（通过 run 触发）
         graph.run({"s1": [1]})
 
-        assert graph.is_dag is True
+        assert graph.is_dag() is True
 
     def test_layer_computation(self):
         """DAG 层级计算正确"""
@@ -656,7 +656,7 @@ class TestTaskGraphAnalysis:
 
         graph.run({"s1": [1]})
 
-        layers = graph.layers_dict
+        layers = graph.get_layers()
         # s1 在第 0 层, s2 在第 1 层, s3 在第 2 层
         assert s1.get_name() in layers[0]
         assert s2.get_name() in layers[1]
@@ -1005,7 +1005,7 @@ class TestCyclicGraph:
 
         graph.run({"s1": [1]})
 
-        assert graph.is_dag is False
+        assert graph.is_dag() is False
 
     def test_cyclic_layers(self):
         """环内节点同层，尾巴节点层级更高"""
@@ -1023,7 +1023,7 @@ class TestCyclicGraph:
 
         graph.run({"s1": [1]})
 
-        layers = graph.layers_dict
+        layers = graph.get_layers()
         cycle_names = {s1.get_name(), s2.get_name(), s3.get_name()}
         cycle_layer = None
         for layer_idx, layer_names in layers.items():

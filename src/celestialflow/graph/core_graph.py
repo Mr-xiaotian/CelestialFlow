@@ -48,13 +48,13 @@ class TaskGraph:
     threads: list[threading.Thread]
     node_dict: dict[str, AnyTaskNode]
     _analysis_dirty: bool
-    source_names: list[str]
+    _source_names: list[str]
     order_graph: OrderGraph
     start_time: float
     observers: ObserverHub
     ctree_client: EventClient
-    is_dag: bool
-    layers_dict: dict[int, list[str]]
+    _is_dag: bool
+    _layers_dict: dict[int, list[str]]
     _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
@@ -94,9 +94,6 @@ class TaskGraph:
 
         # 用于保存每个节点的运行信息
         self.node_dict = {}
-
-        # 用于保存源节点列表（由 _build_analysis 自动计算）
-        self.source_names = []
 
         # 用于保存图结构的邻接表
         self.order_graph = OrderGraph()
@@ -237,13 +234,13 @@ class TaskGraph:
         if self._analysis_dirty is False:
             return
         
-        self.source_names = source_nodes(self.order_graph)
-        self.is_dag = is_dag(self.order_graph)
+        self._source_names = source_nodes(self.order_graph)
+        self._is_dag = is_dag(self.order_graph)
         node_level_dict = compute_node_levels(self.order_graph)
-        self.layers_dict = cluster_by_value_sorted(node_level_dict)
+        self._layers_dict = cluster_by_value_sorted(node_level_dict)
         self._analysis_dirty = False
 
-        if not self.is_dag and self.graph_mode == "serial":
+        if not self._is_dag and self.graph_mode == "serial":
             raise ConfigurationError(
                 "TaskGraph contains a cycle while graph_mode='serial'; "
                 "serial startup may block or leave tasks unconsumed. "
@@ -254,7 +251,7 @@ class TaskGraph:
         """
         将终止信号放入所有源节点的队列中。
         """
-        for source_name in self.source_names:
+        for source_name in self._source_names:
             self.node_dict[source_name].put_signal()
 
     # ==== 执行 ====
@@ -386,7 +383,7 @@ class TaskGraph:
                 graph_mode=self.graph_mode,
                 start_time=self.start_time,
                 class_name=self.__class__.__name__,
-                is_dag=self.is_dag,
+                is_dag=self.is_dag(),
                 nodes=self.get_nodes(),
                 edges=self.get_edges(),
                 source_nodes=self.get_source_nodes(),
@@ -508,7 +505,7 @@ class TaskGraph:
         启动下一个。层展开序保证每个节点的所有上游都先于它启动，因此
         执行顺序不再依赖节点注册顺序。
         """
-        for node_name_list in self.layers_dict.values():
+        for node_name_list in self._layers_dict.values():
             for node_name in node_name_list:
                 node = self.node_dict[node_name]
                 self._execute_node(node)
@@ -602,7 +599,31 @@ class TaskGraph:
         :return: 源节点列表
         """
         self._build_analysis()
-        return self.source_names
+        return self._source_names
+
+    def is_dag(self) -> bool:
+        """
+        判断任务图是否为有向无环图（DAG）。
+
+        与 :meth:`get_source_nodes` 一致，返回前按需重建图分析缓存。
+
+        :return: 若图为 DAG 则返回 ``True``，否则返回 ``False``
+        :rtype: bool
+        """
+        self._build_analysis()
+        return self._is_dag
+
+    def get_layers(self) -> dict[int, list[str]]:
+        """
+        获取按层级分组的节点名称映射。
+
+        与 :meth:`get_source_nodes` 一致，返回前按需重建图分析缓存。
+
+        :return: ``{层级: 节点名称列表}`` 映射
+        :rtype: dict[int, list[str]]
+        """
+        self._build_analysis()
+        return self._layers_dict
 
     def get_order_graph(self) -> OrderGraph:
         """
