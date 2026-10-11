@@ -22,6 +22,7 @@ def to_status_snapshot(
     return {
         node: {
             "start_time": node_metrics.start_time,
+            "end_time": node_metrics.end_time,
             "status": node_metrics.status,
             "tasks_input": node_metrics.input_total,
             "tasks_succeeded": node_metrics.succeeded,

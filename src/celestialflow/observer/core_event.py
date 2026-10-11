@@ -12,11 +12,13 @@ class NodeStartEvent:
     :param node: 节点名称
     :param execution_mode: 节点执行模式
     :param max_workers: 最大并发数
+    :param start_time: 节点启动时间
     """
 
     node: str
     execution_mode: str
     max_workers: int
+    start_time: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,12 +29,14 @@ class NodeEndEvent:
     :param execution_mode: 节点执行模式
     :param max_workers: 最大并发数
     :param elapsed: 节点运行耗时（秒）
+    :param end_time: 节点结束时间
     """
 
     node: str
     execution_mode: str
     max_workers: int
     elapsed: float
+    end_time: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,8 +196,10 @@ class GraphEndEvent:
     """任务图结束事件。
 
     :param graph: 任务图名称
+    :param end_time: 任务图结束时间
     :param elapsed: 任务图运行耗时（秒）
     """
 
     graph: str
+    end_time: float
     elapsed: float

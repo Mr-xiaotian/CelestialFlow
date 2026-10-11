@@ -549,6 +549,7 @@ class BaseTaskNode[T, R, Y]:
                 node=self.get_name(),
                 execution_mode=self.execution_mode,
                 max_workers=self.max_workers,
+                start_time=time.time(),
             )
         )
 
@@ -568,6 +569,7 @@ class BaseTaskNode[T, R, Y]:
                     execution_mode=self.execution_mode,
                     max_workers=self.max_workers,
                     elapsed=elapsed,
+                    end_time=time.time(),
                 )
             )
         except Exception as exception:

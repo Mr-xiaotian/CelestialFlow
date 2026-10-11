@@ -50,7 +50,6 @@ class TaskGraph:
     _analysis_dirty: bool
     _source_names: list[str]
     order_graph: OrderGraph
-    start_time: float
     observers: ObserverHub
     ctree_client: EventClient
     _is_dag: bool
@@ -98,9 +97,6 @@ class TaskGraph:
         # 用于保存图结构的邻接表
         self.order_graph = OrderGraph()
         self._analysis_dirty = True
-
-        # 用于保存任务图启动时间
-        self.start_time = 0.0
 
         # 用于保存观察者
         self.observers = ObserverHub()
@@ -381,7 +377,7 @@ class TaskGraph:
             GraphStartEvent(
                 graph=self.name,
                 graph_mode=self.graph_mode,
-                start_time=self.start_time,
+                start_time=time.time(),
                 class_name=self.__class__.__name__,
                 is_dag=self.is_dag(),
                 nodes=self.get_nodes(),
@@ -414,6 +410,7 @@ class TaskGraph:
             self.observers.on_graph_end(
                 GraphEndEvent(
                     graph=self.name,
+                    end_time=time.time(),
                     elapsed=time.perf_counter() - start_perf,
                 )
             )
@@ -442,7 +439,6 @@ class TaskGraph:
             ``start()`` 为一次性调用；构建期方法在启动前可多次调用。
         """
         start_perf = time.perf_counter()
-        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:
@@ -482,7 +478,6 @@ class TaskGraph:
             raise InvalidOptionError("graph mode", self.graph_mode, ("async",))
 
         start_perf = time.perf_counter()
-        self.start_time = time.time()
         error_list: list[Exception] = []
 
         try:

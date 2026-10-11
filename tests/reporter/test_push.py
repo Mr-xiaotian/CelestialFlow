@@ -80,7 +80,7 @@ def _start_event() -> GraphStartEvent:
 
 def _end_event() -> GraphEndEvent:
     """构造一个任务图结束事件。"""
-    return GraphEndEvent(graph="g1", elapsed=1.5)
+    return GraphEndEvent(graph="g1", end_time=456.0, elapsed=1.5)
 
 
 def _dequeue(spout: PushSpout) -> PushRecord:
@@ -137,6 +137,9 @@ def test_inlet_maps_graph_end_event() -> None:
 
     record = _dequeue(spout)
     assert record.kind == "graph_end"
+    assert record.graph == "g1"
+    assert record.end_time == 456.0
+    assert record.elapsed == 1.5
 
 
 def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:

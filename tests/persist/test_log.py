@@ -43,9 +43,9 @@ class TestLogPersistence:
             inlet.on_task_retry(
                 TaskRetryEvent("func", None, "hello world", ValueError("oops"), 0, 1)
             )
-            inlet.on_graph_end(GraphEndEvent("test_graph", 1.0))
+            inlet.on_graph_end(GraphEndEvent("test_graph", 2.0, 1.0))
             inlet.on_node_start(
-                NodeStartEvent('node', 'parallel', 4)
+                NodeStartEvent('node', 'parallel', 4, 1.0)
             )
             wait_until(
                 lambda: spout.log_path.exists()

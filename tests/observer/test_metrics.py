@@ -76,24 +76,26 @@ class TestMetricsObserverEvents:
     def test_node_status_transitions(self):
         """节点启停事件应维护运行状态。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1))
+        observer.on_node_start(NodeStartEvent("a", "serial", 1, 10.0))
         running = observer.get_node_metrics("a")
         assert running is not None
         assert running.status == NodeStatus.RUNNING
-        assert running.start_time > 0.0
+        assert running.start_time == 10.0
+        assert running.end_time == 0.0
 
-        observer.on_node_end(NodeEndEvent("a", "serial", 1, 0.0))
+        observer.on_node_end(NodeEndEvent("a", "serial", 1, 0.5, 20.0))
         stopped = observer.get_node_metrics("a")
         assert stopped is not None
         assert stopped.status == NodeStatus.STOPPED
+        assert stopped.end_time == 20.0
 
 
 class TestMetricsObserverGraphView:
     def test_cells_are_isolated_between_nodes(self):
         """不同节点的存储格互不影响。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1))
-        observer.on_node_start(NodeStartEvent("b", "serial", 1))
+        observer.on_node_start(NodeStartEvent("a", "serial", 1, 1.0))
+        observer.on_node_start(NodeStartEvent("b", "serial", 1, 2.0))
 
         observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
 
@@ -106,8 +108,8 @@ class TestMetricsObserverGraphView:
     def test_graph_metrics_covers_all_registered_nodes(self):
         """``get_graph_metrics`` 应覆盖所有已登记节点。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1))
-        observer.on_node_start(NodeStartEvent("b", "serial", 1))
+        observer.on_node_start(NodeStartEvent("a", "serial", 1, 1.0))
+        observer.on_node_start(NodeStartEvent("b", "serial", 1, 2.0))
 
         snapshot = observer.get_graph_metrics()
 

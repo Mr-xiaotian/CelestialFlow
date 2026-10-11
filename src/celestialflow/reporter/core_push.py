@@ -22,7 +22,7 @@ class PushRecord:
     一条待推送的上报记录。
 
     ``kind`` 决定推送目标与生效字段：``"graph_start"`` 使用图元信息字段，
-    ``"graph_end"`` 无额外字段，``"task_fail"`` 使用任务失败字段，
+    ``"graph_end"`` 使用图结束字段，``"task_fail"`` 使用任务失败字段，
     ``"snapshot"`` 使用状态快照字段；与当前 ``kind`` 无关的字段保持默认值。
     """
 
@@ -40,6 +40,10 @@ class PushRecord:
     node_meta: dict[str, dict[str, Any]] = field(
         default_factory=dict[str, dict[str, Any]]
     )
+
+    # on_graph_end
+    end_time: float = 0.0
+    elapsed: float = 0.0
 
     # on_task_fail
     event_id: int = 0
@@ -218,7 +222,14 @@ class PushInlet(BaseInlet, Observer):
 
         :param event: 任务图结束事件
         """
-        self._funnel(PushRecord(kind="graph_end"))
+        self._funnel(
+            PushRecord(
+                kind="graph_end",
+                graph=event.graph,
+                end_time=event.end_time,
+                elapsed=event.elapsed,
+            )
+        )
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         """

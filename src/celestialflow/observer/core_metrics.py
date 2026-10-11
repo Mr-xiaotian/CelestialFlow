@@ -1,7 +1,6 @@
 # observer/core_metrics.py
 from __future__ import annotations
 
-import time
 from threading import Lock
 
 from ..runtime.util_types import NodeMetrics, NodeStatus
@@ -40,6 +39,7 @@ class MetricsObserver(Observer):
 
         self._status: dict[str, NodeStatus] = {}
         self._start_time: dict[str, float] = {}
+        self._end_time: dict[str, float] = {}
         self._external: dict[str, int] = {}
         self._success: dict[str, int] = {}
         self._fail: dict[str, int] = {}
@@ -57,6 +57,7 @@ class MetricsObserver(Observer):
         """
         self._status.setdefault(node, NodeStatus.NOT_STARTED)
         self._start_time.setdefault(node, 0.0)
+        self._end_time.setdefault(node, 0.0)
         self._external.setdefault(node, 0)
         self._success.setdefault(node, 0)
         self._fail.setdefault(node, 0)
@@ -84,6 +85,7 @@ class MetricsObserver(Observer):
             node=node,
             status=self._status[node],
             start_time=self._start_time[node],
+            end_time=self._end_time[node],
             external_input=external_input,
             upstream_input=upstream_input,
             input_total=input_total,
@@ -107,7 +109,8 @@ class MetricsObserver(Observer):
         with self._lock:
             self._ensure(event.node)
             self._status[event.node] = NodeStatus.RUNNING
-            self._start_time[event.node] = time.time()
+            self._start_time[event.node] = event.start_time
+            self._end_time[event.node] = 0.0
 
     def on_node_end(self, event: NodeEndEvent) -> None:
         """
@@ -118,6 +121,7 @@ class MetricsObserver(Observer):
         with self._lock:
             self._ensure(event.node)
             self._status[event.node] = NodeStatus.STOPPED
+            self._end_time[event.node] = event.end_time
 
     # ==== 任务事件 ====
 

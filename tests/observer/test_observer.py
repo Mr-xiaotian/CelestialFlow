@@ -146,6 +146,8 @@ class TestExecutorObserver:
         assert len(successes) == 3
 
         assert starts[0].node == "ObserverTest"
+        assert starts[0].start_time > 0
+        assert ends[0].end_time > 0
         assert all(event.from_node is None for event in inputs)
         assert observer.events[-1] is ends[0]
 
@@ -498,6 +500,7 @@ class TestGraphObserver:
         assert starts[0].start_time > 0
         assert len(ends) == 1
         assert ends[0].graph == "graph_event_observer"
+        assert ends[0].end_time > 0
 
     def test_structure_supports_graph_observer(self):
         """结构类（TaskChain）同样支持图级观察者"""

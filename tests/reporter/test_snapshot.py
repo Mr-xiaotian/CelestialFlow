@@ -56,6 +56,7 @@ def make_metrics(node: str, *, succeeded: int = 0) -> NodeMetrics:
         node=node,
         status=NodeStatus.RUNNING,
         start_time=1.0,
+        end_time=0.0,
         external_input=succeeded,
         upstream_input=0,
         input_total=succeeded,
@@ -93,6 +94,8 @@ def test_to_status_snapshot_projects_node_metrics() -> None:
 
     assert set(snapshot) == {"s1"}
     node = snapshot["s1"]
+    assert node["start_time"] == 1.0
+    assert node["end_time"] == 0.0
     assert node["status"] == NodeStatus.RUNNING
     assert node["tasks_input"] == 3
     assert node["tasks_succeeded"] == 3
@@ -123,7 +126,7 @@ def test_handler_pushes_final_snapshot_on_graph_end() -> None:
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=5)})
     handler = PushSnapshotHandler(view, inlet)
 
-    handler.on_graph_end(GraphEndEvent(graph="g1", elapsed=1.0))
+    handler.on_graph_end(GraphEndEvent(graph="g1", end_time=2.0, elapsed=1.0))
 
     record = spout.get_queue().get()
     assert isinstance(record, PushRecord)
