@@ -58,7 +58,6 @@ def _start_event() -> GraphStartEvent:
         graph="g1",
         graph_mode="thread",
         start_time=123.0,
-        class_name="TaskGraph",
         is_dag=True,
         nodes=["s1", "s2"],
         edges={"s1": ["s2"], "s2": []},
@@ -120,7 +119,6 @@ def test_inlet_maps_graph_start_event() -> None:
     assert record.graph == "g1"
     assert record.graph_mode == "thread"
     assert record.start_time == 123.0
-    assert record.class_name == "TaskGraph"
     assert record.is_dag is True
     assert record.nodes == ["s1", "s2"]
     assert record.edges == {"s1": ["s2"], "s2": []}

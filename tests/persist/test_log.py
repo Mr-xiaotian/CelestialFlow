@@ -26,7 +26,6 @@ class TestLogPersistence:
                     graph="test_graph",
                     graph_mode="thread",
                     start_time=1.0,
-                    class_name="TaskGraph",
                     is_dag=True,
                     nodes=["node"],
                     edges={"node": []},

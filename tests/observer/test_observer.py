@@ -495,7 +495,6 @@ class TestGraphObserver:
         assert starts[0].edges == {"only": []}
         assert starts[0].source_nodes == ["only"]
         assert starts[0].node_meta["only"]["class_name"] == "TaskExecutor"
-        assert starts[0].class_name == "TaskGraph"
         assert starts[0].is_dag is True
         assert starts[0].start_time > 0
         assert len(ends) == 1

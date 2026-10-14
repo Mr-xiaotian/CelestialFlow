@@ -32,7 +32,6 @@ class PushRecord:
     graph: str = ""
     graph_mode: str = ""
     start_time: float = 0.0
-    class_name: str = ""
     is_dag: bool = False
     nodes: list[str] = field(default_factory=list[str])
     edges: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
@@ -119,7 +118,6 @@ class PushSpout(BaseSpout):
                     "graph": record.graph,
                     "graph_mode": record.graph_mode,
                     "start_time": record.start_time,
-                    "class_name": record.class_name,
                     "is_dag": record.is_dag,
                     "nodes": record.nodes,
                     "edges": record.edges,
@@ -204,7 +202,6 @@ class PushInlet(BaseInlet, Observer):
                 graph=event.graph,
                 graph_mode=event.graph_mode,
                 start_time=event.start_time,
-                class_name=event.class_name,
                 is_dag=event.is_dag,
                 nodes=event.nodes,
                 edges=event.edges,

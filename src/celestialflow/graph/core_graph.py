@@ -378,7 +378,6 @@ class TaskGraph:
                 graph=self.name,
                 graph_mode=self.graph_mode,
                 start_time=time.time(),
-                class_name=self.__class__.__name__,
                 is_dag=self.is_dag(),
                 nodes=self.get_nodes(),
                 edges=self.get_edges(),
