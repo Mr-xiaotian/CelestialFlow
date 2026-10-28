@@ -13,8 +13,19 @@
 
 ### 关于 `core_*` 文件与 `util_*` 文件
 
-- 在模块级 `__init__.py` 中只能导出 `core_*` 开头的文件。
-- 以 `core_*` 代码为主, 如果 `util_*` 代码与前者冲突, 优先修改 `util_*` 代码。
+- 面向框架使用者的类、函数与常量放在 `core_*` 中；只供项目内部模块之间使用的放在 `util_*` 中。
+- 包级 `__init__.py` 只再导出 `core_*` 中的公开符号，不导出 `util_*` 中的任何符号。
+- 跨包 import 时：
+  - `core_*` 符号通过目标包导入，依赖其 `__init__.py` 的再导出，
+    例如 `from ..runtime import ReportConfig`；
+  - `util_*` 符号直接导入具体文件，
+    例如 `from ..runtime.util_format import cluster_by_value_sorted`。
+- 同一包内部 import 时，`core_*` 之间直接导入具体文件
+  （例如 `from .core_event import GraphStartEvent`），避免经由包 `__init__.py`
+  造成循环导入；`util_*` 始终直接导入文件。
+- 若某个 `core_*` 符号需要跨包使用但尚未在目标包 `__init__.py` 中导出，
+  先补充再导出，不要直接 import 该模块。
+- tests 遵循相同规则；需要验证 `util_*` 内部细节时，直接导入对应文件。
 
 ### 修改完文件
 
