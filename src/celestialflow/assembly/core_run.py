@@ -9,8 +9,7 @@ from pathlib import Path
 import requests
 
 from ..observer import MetricsObserver, ObserverHub
-from ..persist.core_lifecycle import LifecycleInlet, LifecycleSpout
-from ..persist.core_log import LogInlet, LogSpout
+from ..persist import LifecycleInlet, LifecycleSpout, LogInlet, LogSpout
 from ..reporter import (
     InjectionHandler,
     InjectionTarget,
@@ -18,7 +17,9 @@ from ..reporter import (
     PushSnapshotHandler,
     PushSpout,
 )
-from ..runtime.core_config import ReportConfig, normalize_log_level
+from ..runtime import ReportConfig
+from ..runtime.core_config import DEFAULT_LOG_LEVEL
+from ..runtime.util_log_level import normalize_log_level
 from ..ticker import Ticker, TickHub
 
 _TICK_INTERVAL: float = 1.0
@@ -30,7 +31,7 @@ def run_graph_resources(
     observers: ObserverHub,
     injection_target: InjectionTarget,
     *,
-    log_level: str = "INFO",
+    log_level: str = DEFAULT_LOG_LEVEL,
     report: ReportConfig | None = None,
 ) -> Generator[Path | None, None, None]:
     """
@@ -49,7 +50,7 @@ def run_graph_resources(
 
     :param observers: 任务图自身的观察者 hub
     :param injection_target: 任务注入目标，通常是任务图自身
-    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``"INFO"``
+    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
     :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
@@ -114,7 +115,7 @@ def run_graph_resources(
 def run_node_resources(
     observers: ObserverHub,
     *,
-    log_level: str = "INFO",
+    log_level: str = DEFAULT_LOG_LEVEL,
 ) -> Generator[Path | None, None, None]:
     """
     单节点运行期资源：内部创建并注册指标观察者，仅装配 ``lifecycle`` + ``log``。
@@ -124,7 +125,7 @@ def run_node_resources(
     无需外部持有。退出时统一停止 spout，保证运行期即使抛出异常也能完成回收。
 
     :param observers: 节点自身的观察者 hub
-    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``"INFO"``
+    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
     """

@@ -11,34 +11,13 @@ from dataclasses import dataclass
 from typing import cast
 from urllib.parse import urlsplit
 
-from .util_constant import LEVEL_DICT
-from .util_errors import ConfigurationError, InvalidOptionError
+from .util_errors import ConfigurationError
 
 DEFAULT_REPORT_URL = "http://127.0.0.1:5005"
 """``ReportConfig`` 未显式指定地址时使用的默认上报地址。"""
 
-
-def normalize_log_level(log_level: str) -> str:
-    """
-    校验并规范化日志级别。
-
-    级别名不区分大小写，首尾空白会被忽略；规范化结果为
-    :data:`~celestialflow.runtime.util_constant.LEVEL_DICT` 中的大写键名。
-
-    :param log_level: 待校验的日志级别
-    :return: 规范化后的日志级别（大写）
-    :rtype: str
-    :raises ConfigurationError: ``log_level`` 不是字符串时
-    :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
-    """
-    raw = cast(object, log_level)
-    if not isinstance(raw, str):
-        raise ConfigurationError(f"log level must be a string, got {raw!r}.")
-
-    normalized = raw.strip().upper()
-    if normalized not in LEVEL_DICT:
-        raise InvalidOptionError("log level", log_level, tuple(LEVEL_DICT.keys()))
-    return normalized
+DEFAULT_LOG_LEVEL = "INFO"
+"""运行入口未显式指定日志级别时使用的默认值。"""
 
 
 @dataclass(frozen=True, slots=True)

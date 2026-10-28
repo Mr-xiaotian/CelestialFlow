@@ -19,7 +19,8 @@ from ..observer import (
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
-from ..runtime.core_config import ReportConfig, normalize_log_level
+from ..runtime import ReportConfig
+from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -230,7 +231,7 @@ class TaskGraph:
         """
         if self._analysis_dirty is False:
             return
-        
+
         self._source_names = source_nodes(self.order_graph)
         self._is_dag = is_dag(self.order_graph)
         node_level_dict = compute_node_levels(self.order_graph)
@@ -258,7 +259,7 @@ class TaskGraph:
         init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -270,13 +271,11 @@ class TaskGraph:
 
         :param init_tasks_dict: 任务列表字典，键为节点名称，值为任务列表
         :param if_put_signal: 是否注入终止信号，默认 True
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
-        log_level = normalize_log_level(log_level)
-
         self._build_analysis()
         self._inject_observers()
 
@@ -307,7 +306,7 @@ class TaskGraph:
         init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -317,13 +316,11 @@ class TaskGraph:
 
         :param init_tasks_dict: 初始任务字典，键为节点名称，值为任务可迭代对象
         :param if_put_signal: 是否注入终止信号，默认 True
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
-        log_level = normalize_log_level(log_level)
-
         self._build_analysis()
         self._inject_observers()
 
@@ -356,7 +353,7 @@ class TaskGraph:
         *,
         filter_by_error_type: bool = False,
         if_put_signal: bool = True,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -368,7 +365,7 @@ class TaskGraph:
             ``error_type``，默认 ``False``
         :param if_put_signal: 是否在恢复任务注入后，为所有源节点补发终止信号，
             默认 ``True``
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses

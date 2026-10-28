@@ -20,6 +20,7 @@ from ..observer.core_event import (
     TerminationMergeEvent,
 )
 from ..observer.core_observer import Observer
+from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
 from ..runtime.util_types import MetricsView
@@ -81,12 +82,17 @@ class LogInlet(BaseInlet, Observer):
     终止信号与上报器日志均通过对应的观察者回调记录。
     """
 
-    def __init__(self, metrics_view: MetricsView, log_level: str = "INFO") -> None:
+    def __init__(
+        self,
+        metrics_view: MetricsView,
+        log_level: str = DEFAULT_LOG_LEVEL,
+    ) -> None:
         """
         初始化日志收集器。
 
         :param metrics_view: 指标只读视图，用于记录节点汇总
-        :param log_level: 日志级别，低于此级别的日志不记录，默认 "INFO"
+        :param log_level: 日志级别，低于此级别的日志不记录，默认
+            ``DEFAULT_LOG_LEVEL``
         """
         self._metrics_view = metrics_view
         self.log_level: str = log_level.upper()

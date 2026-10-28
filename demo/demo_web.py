@@ -11,6 +11,7 @@ from celestialflow import (
     TaskGraph,
     TaskRouter,
     TaskSplitter,
+    ReportConfig,
 )
 
 
@@ -196,7 +197,10 @@ def demo_forest() -> None:
         node_f.get_name(): list(range(21, 31)),
     }
 
-    graph.run(init_tasks)
+    graph.run(
+        init_tasks,
+        report=ReportConfig("http://localhost:5005/")
+    )
 
 
 def demo_topology_topology() -> None:
@@ -297,21 +301,10 @@ def demo_topology_topology() -> None:
 
     # 输入：24 个任务（其中 3 / 5 / 8 / 12 与前面的值重复）。
     seeds = [*range(1, 21), 3, 5, 8, 12]
-    print(f"[demo] 注入 {len(seeds)} 个任务（含 4 个重复值）")
-    graph.run({"Ingest": seeds})
-
-    # 结果摘要。
-    print("\n[demo] 各节点计数:")
-    for name in ["Ingest", "Normalize", "Validate", "Splitter", "Router",
-                 "StageA", "StageB", "StageC", "Collect"]:
-        metrics = _metrics_of(graph).get_node_metrics(name)
-        assert metrics is not None
-        print(
-            f"  {name:<9} input={metrics.input_total:<4} "
-            f"ok={metrics.succeeded:<4} "
-            f"fail={metrics.failed:<3} "
-            f"skip={metrics.skipped}"
-        )
+    graph.run(
+        {"Ingest": seeds},
+        report=ReportConfig("http://localhost:5005/")
+    )
 
 
 if __name__ == "__main__":

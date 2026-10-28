@@ -30,7 +30,7 @@ from ..runtime import (
     TaskInQueue,
     TaskOutQueue,
 )
-from ..runtime.core_config import normalize_log_level
+from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_errors import (
     ConfigurationError,
     InvalidOptionError,
@@ -446,7 +446,7 @@ class BaseTaskNode[T, R, Y]:
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
     ) -> None:
         """
         执行任务。
@@ -457,12 +457,10 @@ class BaseTaskNode[T, R, Y]:
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
-        log_level = normalize_log_level(log_level)
-
         error_list: list[Exception] = []
 
         try:
@@ -487,7 +485,7 @@ class BaseTaskNode[T, R, Y]:
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
     ) -> None:
         """
         异步启动任务节点。
@@ -496,12 +494,10 @@ class BaseTaskNode[T, R, Y]:
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
-        log_level = normalize_log_level(log_level)
-
         error_list: list[Exception] = []
 
         try:
@@ -527,7 +523,7 @@ class BaseTaskNode[T, R, Y]:
         statuses: Iterable[str] | None = None,
         *,
         filter_by_error_type: bool = False,
-        log_level: str = "INFO",
+        log_level: str = DEFAULT_LOG_LEVEL,
     ) -> None:
         """
         从 sqlite 持久化库中读取当前节点的任务并启动执行。
@@ -536,7 +532,7 @@ class BaseTaskNode[T, R, Y]:
         :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
         :param filter_by_error_type: 是否按当前执行器的 ``retry_exceptions`` 过滤
             ``error_type``，默认 ``False``
-        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_tasks = load_tasks_grouped_by_node(db_path, statuses)
