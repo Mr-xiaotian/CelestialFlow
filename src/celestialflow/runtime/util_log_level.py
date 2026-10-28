@@ -1,7 +1,7 @@
 # runtime/util_log_level.py
-"""日志级别校验工具。
+"""日志级别默认值与校验工具。
 
-仅提供运行入口内部使用的级别规范化，不属于对外配置 API。
+仅提供运行入口内部使用的默认值与级别规范化，不属于对外配置 API。
 """
 
 from __future__ import annotations
@@ -10,6 +10,9 @@ from typing import cast
 
 from .util_constant import LEVEL_DICT
 from .util_errors import ConfigurationError, InvalidOptionError
+
+DEFAULT_LOG_LEVEL = "INFO"
+"""运行入口未显式指定日志级别时使用的默认值。"""
 
 
 def normalize_log_level(log_level: str) -> str:

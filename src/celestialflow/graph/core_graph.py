@@ -20,7 +20,6 @@ from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
 from ..runtime import ReportConfig
-from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -30,6 +29,7 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
+from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 
 

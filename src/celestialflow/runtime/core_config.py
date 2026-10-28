@@ -16,9 +16,6 @@ from .util_errors import ConfigurationError
 DEFAULT_REPORT_URL = "http://127.0.0.1:5005"
 """``ReportConfig`` 未显式指定地址时使用的默认上报地址。"""
 
-DEFAULT_LOG_LEVEL = "INFO"
-"""运行入口未显式指定日志级别时使用的默认值。"""
-
 
 @dataclass(frozen=True, slots=True)
 class ReportConfig:

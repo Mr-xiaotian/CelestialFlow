@@ -18,8 +18,7 @@ from ..reporter import (
     PushSpout,
 )
 from ..runtime import ReportConfig
-from ..runtime.core_config import DEFAULT_LOG_LEVEL
-from ..runtime.util_log_level import normalize_log_level
+from ..runtime.util_log_level import DEFAULT_LOG_LEVEL, normalize_log_level
 from ..ticker import Ticker, TickHub
 
 _TICK_INTERVAL: float = 1.0

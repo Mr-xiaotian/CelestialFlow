@@ -6,11 +6,12 @@ from time import localtime, strftime
 from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observer.core_event import (
+from ..observer import (
     GraphEndEvent,
     GraphStartEvent,
     NodeEndEvent,
     NodeStartEvent,
+    Observer,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
@@ -19,10 +20,9 @@ from ..observer.core_event import (
     TerminationInputEvent,
     TerminationMergeEvent,
 )
-from ..observer.core_observer import Observer
-from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_constant import LEVEL_DICT
 from ..runtime.util_errors import InitializationError, InvalidOptionError
+from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
 from ..runtime.util_types import MetricsView
 from .util_render import render_structure_list
 

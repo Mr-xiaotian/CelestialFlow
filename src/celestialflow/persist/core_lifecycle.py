@@ -7,14 +7,14 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observer.core_event import (
+from ..observer import (
+    Observer,
     TaskFailEvent,
     TaskInputEvent,
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
 )
-from ..observer.core_observer import Observer
 from ..runtime.util_errors import InitializationError
 from .util_payload import to_persisted_payload
 from .util_sqlite import (

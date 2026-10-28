@@ -30,7 +30,6 @@ from ..runtime import (
     TaskInQueue,
     TaskOutQueue,
 )
-from ..runtime.core_config import DEFAULT_LOG_LEVEL
 from ..runtime.util_errors import (
     ConfigurationError,
     InvalidOptionError,
@@ -39,6 +38,7 @@ from ..runtime.util_errors import (
 )
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import format_repr
+from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
 from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,

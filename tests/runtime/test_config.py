@@ -1,9 +1,6 @@
 import pytest
 
-from celestialflow.runtime.core_config import (
-    DEFAULT_REPORT_URL,
-    ReportConfig,
-)
+from celestialflow.runtime import DEFAULT_REPORT_URL, ReportConfig
 from celestialflow.runtime.util_errors import ConfigurationError
 
 
