@@ -8,6 +8,8 @@ from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleSpout
 from celestialflow.persist.core_log import LogInlet, LogSpout
 from celestialflow.reporter import PushInlet, PushSnapshotHandler, PushSpout
+from celestialflow.runtime.core_config import DEFAULT_REPORT_URL, ReportConfig
+from celestialflow.runtime.util_errors import InvalidOptionError
 from celestialflow.ticker import Ticker
 
 
@@ -40,13 +42,17 @@ def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
     monkeypatch.setattr(core_run, 'LogSpout', _RecordingLogSpout)
 
 
-def _patch_recording_push_spouts(monkeypatch, used: list[str]) -> None:
+def _patch_recording_push_spouts(
+    monkeypatch, used: list[str], urls: list[str] | None = None
+) -> None:
     """将图入口引用的推送 spout 替换为记录构造函数调用的子类。"""
 
     class _RecordingPushSpout(PushSpout):
-        def __init__(self, *args, **kwargs) -> None:
-            super().__init__(*args, **kwargs)
+        def __init__(self, session_id, base_url, timeout=3.0) -> None:
+            super().__init__(session_id, base_url, timeout)
             used.append('push')
+            if urls is not None:
+                urls.append(base_url)
 
     monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
 
@@ -101,32 +107,26 @@ class TestGraphRunResources:
 
         assert set(stopped) == {'lifecycle', 'log'}
 
-    def test_uses_push_spout_when_if_report_enabled(self, tmp_path, monkeypatch):
-        """``if_report`` 为真且配置了 ``report_url`` 时图入口使用 ``PushSpout``。"""
+    def test_uses_push_spout_when_report_enabled(self, tmp_path, monkeypatch):
+        """传入 ``ReportConfig`` 时图入口使用 ``PushSpout`` 并采用其地址。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\n'
-            'if_report = true\n'
-            'report_url = "http://127.0.0.1:9000"\n',
-            encoding='utf-8',
-        )
         used: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, used)
+        urls: list[str] = []
+        _patch_recording_push_spouts(monkeypatch, used, urls)
 
-        with run_graph_resources(ObserverHub(), _InjectionTarget()):
+        with run_graph_resources(
+            ObserverHub(),
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
             pass
 
         assert used == ['push']
+        assert urls == ['http://127.0.0.1:9000']
 
-    def test_no_push_spout_when_if_report_disabled(self, tmp_path, monkeypatch):
-        """``if_report`` 为假时图入口不创建任何推送通道（即使配置了 ``report_url``）。"""
+    def test_no_push_spout_when_report_disabled(self, tmp_path, monkeypatch):
+        """未传 ``report`` 时图入口不创建任何推送通道。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\n'
-            'if_report = false\n'
-            'report_url = "http://127.0.0.1:9000"\n',
-            encoding='utf-8',
-        )
         used: list[str] = []
         _patch_recording_push_spouts(monkeypatch, used)
 
@@ -135,34 +135,33 @@ class TestGraphRunResources:
 
         assert used == []
 
-    def test_uses_default_url_when_if_report_enabled_without_url(
+    def test_uses_default_url_when_report_enabled_without_url(
         self, tmp_path, monkeypatch
     ):
-        """``if_report`` 为真但未配置 ``report_url`` 时，用默认地址构建 ``PushSpout``。"""
+        """``ReportConfig()`` 使用默认地址构建 ``PushSpout``。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\nif_report = true\n', encoding='utf-8'
-        )
-        used: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, used)
+        urls: list[str] = []
+        _patch_recording_push_spouts(monkeypatch, [], urls)
 
-        with run_graph_resources(ObserverHub(), _InjectionTarget()):
+        with run_graph_resources(
+            ObserverHub(),
+            _InjectionTarget(),
+            report=ReportConfig(),
+        ):
             pass
 
-        assert used == ['push']
+        assert urls == [DEFAULT_REPORT_URL]
 
     def test_registers_snapshot_handler_before_push_inlet(self, tmp_path, monkeypatch):
         """启用上报时，快照处理器应注册在 PushInlet 之前，保证终态快照先于下线通知入队。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\n'
-            'if_report = true\n'
-            'report_url = "http://127.0.0.1:9000"\n',
-            encoding='utf-8',
-        )
         observers = ObserverHub()
 
-        with run_graph_resources(observers, _InjectionTarget()):
+        with run_graph_resources(
+            observers,
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
             snapshot = observers._snapshot()
 
         kinds = [type(observer).__name__ for observer in snapshot]
@@ -175,20 +174,43 @@ class TestGraphRunResources:
     ):
         """启用上报时应启动快照节拍器，并在退出时停止。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\n'
-            'if_report = true\n'
-            'report_url = "http://127.0.0.1:9000"\n',
-            encoding='utf-8',
-        )
         events: list[str] = []
         _patch_recording_push_spouts(monkeypatch, events)
         _patch_recording_ticker(monkeypatch, events)
 
-        with run_graph_resources(ObserverHub(), _InjectionTarget()):
+        with run_graph_resources(
+            ObserverHub(),
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
             pass
 
         assert events == ['push', 'ticker-start', 'ticker-stop']
+
+    def test_log_level_argument(self, tmp_path, monkeypatch):
+        """图入口应按 ``log_level`` 参数构造 ``LogInlet``，并规范化为大写。"""
+        monkeypatch.chdir(tmp_path)
+        observers = ObserverHub()
+
+        with run_graph_resources(observers, _InjectionTarget(), log_level='error'):
+            inlets = [
+                observer
+                for observer in observers._snapshot()
+                if isinstance(observer, LogInlet)
+            ]
+
+        assert len(inlets) == 1
+        assert inlets[0].log_level == 'ERROR'
+
+    def test_rejects_invalid_log_level(self, tmp_path, monkeypatch):
+        """非法 ``log_level`` 应在进入运行期资源时抛出 ``InvalidOptionError``。"""
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(InvalidOptionError):
+            with run_graph_resources(
+                ObserverHub(), _InjectionTarget(), log_level='VERBOSE'
+            ):
+                pass
 
 
 class TestNodeRunResources:
@@ -204,15 +226,12 @@ class TestNodeRunResources:
             assert len(snapshot) == 3
             assert any(isinstance(observer, MetricsObserver) for observer in snapshot)
 
-    def test_log_level_from_pyproject(self, tmp_path, monkeypatch):
-        """``LogInlet`` 的日志级别应从项目级 ``pyproject.toml`` 读取。"""
+    def test_log_level_argument(self, tmp_path, monkeypatch):
+        """``LogInlet`` 的日志级别应来自 ``log_level`` 参数。"""
         monkeypatch.chdir(tmp_path)
-        (tmp_path / 'pyproject.toml').write_text(
-            '[tool.celestialflow]\nlog_level = "ERROR"\n', encoding='utf-8'
-        )
         observers = ObserverHub()
 
-        with run_node_resources(observers):
+        with run_node_resources(observers, log_level='error'):
             inlets = [
                 observer
                 for observer in observers._snapshot()
@@ -220,6 +239,14 @@ class TestNodeRunResources:
             ]
             assert len(inlets) == 1
             assert inlets[0].log_level == 'ERROR'
+
+    def test_rejects_invalid_log_level(self, tmp_path, monkeypatch):
+        """非法 ``log_level`` 应抛出 ``InvalidOptionError``。"""
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(InvalidOptionError):
+            with run_node_resources(ObserverHub(), log_level='VERBOSE'):
+                pass
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
         """节点入口退出时应停止 lifecycle / log spout。"""

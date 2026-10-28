@@ -30,6 +30,7 @@ from ..runtime import (
     TaskInQueue,
     TaskOutQueue,
 )
+from ..runtime.core_config import normalize_log_level
 from ..runtime.util_errors import (
     ConfigurationError,
     InvalidOptionError,
@@ -445,6 +446,7 @@ class BaseTaskNode[T, R, Y]:
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,
+        log_level: str = "INFO",
     ) -> None:
         """
         执行任务。
@@ -455,12 +457,19 @@ class BaseTaskNode[T, R, Y]:
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
         :return: ``None``
+        :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
+        log_level = normalize_log_level(log_level)
+
         error_list: list[Exception] = []
 
         try:
-            with run_node_resources(self.observers) as lifecycle_db_path:
+            with run_node_resources(
+                self.observers,
+                log_level=log_level,
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)
@@ -478,6 +487,7 @@ class BaseTaskNode[T, R, Y]:
         task_source: Iterable[T],
         *,
         if_put_signal: bool = True,
+        log_level: str = "INFO",
     ) -> None:
         """
         异步启动任务节点。
@@ -486,12 +496,19 @@ class BaseTaskNode[T, R, Y]:
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
         :return: ``None``
+        :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
+        log_level = normalize_log_level(log_level)
+
         error_list: list[Exception] = []
 
         try:
-            with run_node_resources(self.observers) as lifecycle_db_path:
+            with run_node_resources(
+                self.observers,
+                log_level=log_level,
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for task in task_source:
                     self.put_task(task)
@@ -510,6 +527,7 @@ class BaseTaskNode[T, R, Y]:
         statuses: Iterable[str] | None = None,
         *,
         filter_by_error_type: bool = False,
+        log_level: str = "INFO",
     ) -> None:
         """
         从 sqlite 持久化库中读取当前节点的任务并启动执行。
@@ -518,6 +536,7 @@ class BaseTaskNode[T, R, Y]:
         :param statuses: 记录状态过滤列表，默认 ``["failed", "pending"]``
         :param filter_by_error_type: 是否按当前执行器的 ``retry_exceptions`` 过滤
             ``error_type``，默认 ``False``
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_tasks = load_tasks_grouped_by_node(db_path, statuses)
@@ -534,7 +553,7 @@ class BaseTaskNode[T, R, Y]:
             ]
         tasks = [cast(T, record["task_json"]) for record in records]
 
-        self.run(tasks)
+        self.run(tasks, log_level=log_level)
 
     # ==== 启动 ====
 

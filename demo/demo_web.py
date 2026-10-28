@@ -214,8 +214,8 @@ def demo_topology_topology() -> None:
     - 进度条: 成功 / 失败 / 跳过四段比例
     - 生命周期: 重试次数 (retry_times) 随失败记录持久化
 
-    上报由 pyproject.toml 的 [tool.celestialflow] if_report / report_url 控制;
-    未开启时 demo 仍可独立运行。
+    上报通过 ``graph.run(..., report=ReportConfig(url=...))`` 显式开启;
+    未传入 ``report`` 时 demo 仍可独立运行。
     """
     # 节点定义：混合 serial / thread 执行模式。
     ingest = TaskExecutor(
@@ -292,8 +292,8 @@ def demo_topology_topology() -> None:
     graph.connect([router], [stage_a, stage_b, stage_c])
     graph.connect([stage_a, stage_b, stage_c], [collect])
 
-    # 上报到 web（可选）：在 pyproject.toml 的 [tool.celestialflow] 中设置
-    # if_report = true 与 report_url 后，框架会自动推送状态并拉取注入。
+    # 上报到 web（可选）：调用 graph.run 时传入
+    # report=ReportConfig(url=...)，框架会自动推送状态并拉取注入。
 
     # 输入：24 个任务（其中 3 / 5 / 8 / 12 与前面的值重复）。
     seeds = [*range(1, 21), 3, 5, 8, 12]

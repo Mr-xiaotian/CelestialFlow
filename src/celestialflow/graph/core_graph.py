@@ -19,6 +19,7 @@ from ..observer import (
 from ..persist.util_sqlite import (
     load_tasks_grouped_by_node,
 )
+from ..runtime.core_config import ReportConfig, normalize_log_level
 from ..runtime.util_errors import (
     ConfigurationError,
     DuplicateNodeError,
@@ -257,6 +258,8 @@ class TaskGraph:
         init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
+        log_level: str = "INFO",
+        report: ReportConfig | None = None,
     ) -> None:
         """
         运行任务链，注入初始任务并启动执行。
@@ -267,15 +270,25 @@ class TaskGraph:
 
         :param init_tasks_dict: 任务列表字典，键为节点名称，值为任务列表
         :param if_put_signal: 是否注入终止信号，默认 True
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
+        :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
+        log_level = normalize_log_level(log_level)
+
         self._build_analysis()
         self._inject_observers()
 
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(self.observers, self) as lifecycle_db_path:
+            with run_graph_resources(
+                self.observers,
+                self,
+                log_level=log_level,
+                report=report,
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -294,6 +307,8 @@ class TaskGraph:
         init_tasks_dict: dict[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
+        log_level: str = "INFO",
+        report: ReportConfig | None = None,
     ) -> None:
         """
         运行任务链，注入初始任务并启动执行。
@@ -302,15 +317,25 @@ class TaskGraph:
 
         :param init_tasks_dict: 初始任务字典，键为节点名称，值为任务可迭代对象
         :param if_put_signal: 是否注入终止信号，默认 True
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
+        :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
         """
+        log_level = normalize_log_level(log_level)
+
         self._build_analysis()
         self._inject_observers()
 
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(self.observers, self) as lifecycle_db_path:
+            with run_graph_resources(
+                self.observers,
+                self,
+                log_level=log_level,
+                report=report,
+            ) as lifecycle_db_path:
                 self._lifecycle_db_path = lifecycle_db_path
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
@@ -331,6 +356,8 @@ class TaskGraph:
         *,
         filter_by_error_type: bool = False,
         if_put_signal: bool = True,
+        log_level: str = "INFO",
+        report: ReportConfig | None = None,
     ) -> None:
         """
         从 sqlite 持久化库中读取任务，按持久化记录中的节点名分组后启动任务图。
@@ -341,6 +368,8 @@ class TaskGraph:
             ``error_type``，默认 ``False``
         :param if_put_signal: 是否在恢复任务注入后，为所有源节点补发终止信号，
             默认 ``True``
+        :param log_level: 日志过滤级别，默认 ``"INFO"``
+        :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         """
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_records = load_tasks_grouped_by_node(db_path, statuses)
@@ -360,7 +389,12 @@ class TaskGraph:
                 ]
             tasks[name] = [record["task_json"] for record in records]
 
-        self.run(tasks, if_put_signal=if_put_signal)
+        self.run(
+            tasks,
+            if_put_signal=if_put_signal,
+            log_level=log_level,
+            report=report,
+        )
 
     # ==== 启动 ====
 
