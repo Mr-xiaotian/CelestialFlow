@@ -247,12 +247,10 @@ class TaskDispatch[T, R, Y]:
         task_queue = self.task_node.task_queue
         yield_queue = self.task_node.yield_queue
 
-        semaphore = asyncio.Semaphore(self.max_workers)
         pending: set[asyncio.Task[None]] = set()
 
-        async def sem_worker(envelope: TaskEnvelope[T]) -> None:
-            async with semaphore:
-                await self._async_worker(envelope)
+        async def worker(envelope: TaskEnvelope[T]) -> None:
+            await self._async_worker(envelope)
 
         while True:
             envelope = await asyncio.to_thread(task_queue.get)
@@ -260,11 +258,18 @@ class TaskDispatch[T, R, Y]:
                 termination_signal = self._process_termination_signal(envelope)
                 break
 
-            task = asyncio.create_task(sem_worker(envelope))
-            pending.add(task)
-            task.add_done_callback(pending.discard)
+            while len(pending) >= self.max_workers:
+                _done, pending = await asyncio.wait(
+                    pending,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
 
-        _ = await asyncio.gather(*pending, return_exceptions=True)
+            task = asyncio.create_task(worker(envelope))
+            pending.add(task)
+
+        if pending:
+            await asyncio.gather(*pending)
+
         yield_queue.put(termination_signal)
 
     # ==== 清理 ====
