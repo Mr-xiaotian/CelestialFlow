@@ -115,7 +115,7 @@ class BaseTaskNode[T, R, Y]:
 
         self.set_execution_mode(execution_mode)
         self.max_workers = max_workers or min(32, (os.cpu_count() or 1) + 4)
-        self.max_retries = max_retries
+        self.max_retries = max(max_retries, 0)
         self.retry_exceptions = ()
         self.max_queue_size = max_queue_size
         self.max_info = max_info
