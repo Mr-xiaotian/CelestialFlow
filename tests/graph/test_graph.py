@@ -1,3 +1,5 @@
+import sqlite3
+
 import pytest
 
 from celestialflow import (
@@ -11,7 +13,7 @@ from celestialflow.observer import (
     Observer,
     TerminationInputEvent,
 )
-from celestialflow.persist.util_sqlite import append_records
+from celestialflow.persist.util_sqlite import connect_db, insert_record
 from celestialflow.runtime.util_errors import (
     ConfigurationError,
     NodeNotFoundError,
@@ -19,6 +21,23 @@ from celestialflow.runtime.util_errors import (
 )
 from celestialflow.runtime.util_event import LocalEventClient
 from conftest import metrics_of
+
+
+def _insert_records(sqlite_path, records: list[dict[str, object]]) -> int:
+    """测试辅助：直接向 sqlite 追加记录，重复 event_id 时跳过。"""
+    conn = connect_db(sqlite_path)
+    try:
+        inserted = 0
+        for record in records:
+            try:
+                if insert_record(conn, record):
+                    inserted += 1
+            except sqlite3.IntegrityError:
+                continue
+        conn.commit()
+        return inserted
+    finally:
+        conn.close()
 
 
 # =========================
@@ -175,7 +194,7 @@ class TestTaskGraphBasic:
     def test_graph_restore_db(self, tmp_path):
         """任务图默认应按节点名分组读取 failed 与 pending 任务并启动。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {
@@ -231,7 +250,7 @@ class TestTaskGraphBasic:
     def test_graph_restore_db_filters_error_type_when_enabled(self, tmp_path):
         """图级 restore_db 开启过滤时，应按各节点的 retry_exceptions 回放。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {
@@ -289,7 +308,7 @@ class TestTaskGraphBasic:
     def test_graph_restore_db_filter_keeps_pending_records(self, tmp_path):
         """图级 restore_db 过滤开启时，pending 记录仍应继续回放。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {

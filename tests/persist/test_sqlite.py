@@ -1,25 +1,56 @@
 import json
+import sqlite3
 
 import pytest
 
 from celestialflow.persist.util_sqlite import (
-    append_records,
-    clear_records,
     connect_db,
     delete_record_by_event_id,
-    get_max_event_id_in_fail,
     insert_record,
-    load_records,
-    load_records_after_event_id_in_fail,
     load_task_error_records,
     load_task_result_records,
     normalize_record,
-    query_error_type_counts,
-    query_records,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
+    row_to_record_dict,
     update_retry_by_event_id,
 )
+
+
+def _insert_records(sqlite_path, records: list[dict[str, object]]) -> int:
+    """测试辅助：直接向 sqlite 追加记录，重复 event_id 时跳过。"""
+    conn = connect_db(sqlite_path)
+    try:
+        inserted = 0
+        for record in records:
+            try:
+                if insert_record(conn, record):
+                    inserted += 1
+            except sqlite3.IntegrityError:
+                continue
+        conn.commit()
+        return inserted
+    finally:
+        conn.close()
+
+
+def _fetch_records(sqlite_path, status: str = "failed") -> list[dict[str, object]]:
+    """测试辅助：按状态读取当前 sqlite 中的记录。"""
+    conn = connect_db(sqlite_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, event_id, ts, node, status, error_type, error_message, task_json
+                 , result_json, retry_times
+            FROM records
+            WHERE status = ?
+            ORDER BY id ASC
+            """,
+            [status],
+        ).fetchall()
+        return [row_to_record_dict(row) for row in rows]
+    finally:
+        conn.close()
 
 
 @pytest.fixture
@@ -138,7 +169,7 @@ class TestSpliteUtils:
         finally:
             conn.close()
 
-        records = load_records(sqlite_path)
+        records = _fetch_records(sqlite_path)
 
         assert len(records) == 2
         assert records[0]["id"] == 1
@@ -150,219 +181,6 @@ class TestSpliteUtils:
         assert records[1]["task_json"] == ["A", "B"]
         assert records[1]["result_json"] is None
 
-    def test_append_and_query_records(self, sqlite_path, sample_errors):
-        """测试追加写入以及分页、筛选、排序查询。"""
-        appended = append_records(sqlite_path, sample_errors)
-        assert appended == 3
-
-        total, total_pages, page_items = query_records(
-            sqlite_path,
-            page=1,
-            page_size=2,
-            node="",
-            keyword="task",
-            sort_order="newest",
-        )
-        assert total == 2
-        assert total_pages == 1
-        assert [item["event_id"] for item in page_items] == [3, 1]
-
-        total, total_pages, page_items = query_records(
-            sqlite_path,
-            page=1,
-            page_size=10,
-            node="s2",
-            keyword="boom",
-            sort_order="oldest",
-        )
-        assert total == 1
-        assert total_pages == 1
-        assert page_items[0]["event_id"] == 2
-        assert page_items[0]["task_json"] == ["A", "B"]
-
-    def test_clear_records(self, sqlite_path, sample_errors):
-        """测试直接清空 records 表。"""
-        appended = append_records(sqlite_path, sample_errors[1:])
-        assert appended == 3
-
-        clear_records(sqlite_path)
-
-        assert load_records(sqlite_path) == []
-
-    def test_get_max_event_id_in_fail(self, sqlite_path):
-        """测试只统计 failed 状态中的最大 event_id。"""
-        append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 5,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 5},
-                },
-                {
-                    "event_id": 9,
-                    "node": "s1",
-                    "status": "success",
-                    "task_json": {"value": 9},
-                    "result_json": {"ok": True},
-                },
-                {
-                    "event_id": 7,
-                    "node": "s2",
-                    "status": "failed",
-                    "task_json": {"value": 7},
-                },
-            ],
-        )
-
-        assert get_max_event_id_in_fail(sqlite_path) == 7
-
-    def test_get_max_event_id_in_fail_returns_none_when_no_failed(self, sqlite_path):
-        """测试没有 failed 记录时返回 None。"""
-        append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 9,
-                    "node": "s1",
-                    "status": "success",
-                    "task_json": {"value": 9},
-                    "result_json": {"ok": True},
-                }
-            ],
-        )
-
-        assert get_max_event_id_in_fail(sqlite_path) is None
-
-    def test_load_records_after_event_id_in_fail(self, sqlite_path):
-        """测试按 failed 的 event_id 下界增量读取记录。"""
-        appended = append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 3,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 3},
-                },
-                {
-                    "event_id": 5,
-                    "node": "s2",
-                    "status": "success",
-                    "task_json": {"value": 5},
-                    "result_json": {"ok": True},
-                },
-                {
-                    "event_id": 7,
-                    "node": "s3",
-                    "status": "failed",
-                    "task_json": {"value": 7},
-                },
-            ],
-        )
-
-        assert appended == 3
-        assert [
-            item["event_id"]
-            for item in load_records_after_event_id_in_fail(sqlite_path, 3)
-        ] == [7]
-
-    def test_query_error_type_counts(self, sqlite_path):
-        """测试按错误类型聚合全部 failed 记录。"""
-        appended = append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 1,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 1},
-                    "error_type": "ValueError",
-                },
-                {
-                    "event_id": 2,
-                    "node": "s2",
-                    "status": "failed",
-                    "task_json": {"value": 2},
-                    "error_type": "TypeError",
-                },
-                {
-                    "event_id": 3,
-                    "node": "s3",
-                    "status": "failed",
-                    "task_json": {"value": 3},
-                    "error_type": "ValueError",
-                },
-                {
-                    "event_id": 4,
-                    "node": "s1",
-                    "status": "success",
-                    "task_json": {"value": 4},
-                    "result_json": {"ok": True},
-                    "error_type": "IgnoredError",
-                },
-            ],
-        )
-        assert appended == 4
-
-        assert query_error_type_counts(sqlite_path) == [
-            {"error_type": "ValueError", "count": 2},
-            {"error_type": "TypeError", "count": 1},
-        ]
-
-    def test_query_error_type_counts_filters_by_node(self, sqlite_path):
-        """测试按节点过滤错误类型聚合结果。"""
-        appended = append_records(
-            sqlite_path,
-            [
-                {
-                    "event_id": 1,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 1},
-                    "error_type": "ValueError",
-                },
-                {
-                    "event_id": 2,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 2},
-                    "error_type": "TypeError",
-                },
-                {
-                    "event_id": 3,
-                    "node": "s1",
-                    "status": "failed",
-                    "task_json": {"value": 3},
-                    "error_type": "TypeError",
-                },
-                {
-                    "event_id": 4,
-                    "node": "s2",
-                    "status": "failed",
-                    "task_json": {"value": 4},
-                    "error_type": "RuntimeError",
-                },
-            ],
-        )
-        assert appended == 4
-
-        assert query_error_type_counts(sqlite_path, node="s1") == [
-            {"error_type": "TypeError", "count": 2},
-            {"error_type": "ValueError", "count": 1},
-        ]
-
-    def test_append_records_skips_duplicate_event_ids(self, sqlite_path, sample_errors):
-        """测试追加写入会跳过已存在的 event_id，保证重复同步幂等。"""
-        appended = append_records(sqlite_path, sample_errors[1:3])
-        assert appended == 2
-
-        appended = append_records(sqlite_path, [sample_errors[1], sample_errors[3]])
-
-        assert appended == 1
-        assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 2, 3]
-
     def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 更新记录状态与错误信息。"""
         waiting_record = {
@@ -371,7 +189,7 @@ class TestSpliteUtils:
             "status": "waiting",
             "task_json": {"value": 9},
         }
-        appended = append_records(sqlite_path, [waiting_record])
+        appended = _insert_records(sqlite_path, [waiting_record])
         assert appended == 1
 
         conn = connect_db(sqlite_path)
@@ -389,7 +207,7 @@ class TestSpliteUtils:
             conn.close()
 
         assert updated is True
-        failed_records = load_records(sqlite_path, "failed")
+        failed_records = _fetch_records(sqlite_path, "failed")
         assert len(failed_records) == 1
         assert failed_records[0]["event_id"] == 19
         assert failed_records[0]["status"] == "failed"
@@ -405,7 +223,7 @@ class TestSpliteUtils:
             "status": "pending",
             "task_json": {"value": 8},
         }
-        appended = append_records(sqlite_path, [pending_record])
+        appended = _insert_records(sqlite_path, [pending_record])
         assert appended == 1
 
         conn = connect_db(sqlite_path)
@@ -421,7 +239,7 @@ class TestSpliteUtils:
             conn.close()
 
         assert updated is True
-        success_records = load_records(sqlite_path, "success")
+        success_records = _fetch_records(sqlite_path, "success")
         assert len(success_records) == 1
         assert success_records[0]["event_id"] == 8
         assert success_records[0]["status"] == "success"
@@ -437,7 +255,7 @@ class TestSpliteUtils:
             "status": "pending",
             "task_json": {"value": 7},
         }
-        appended = append_records(sqlite_path, [pending_record])
+        appended = _insert_records(sqlite_path, [pending_record])
         assert appended == 1
 
         conn = connect_db(sqlite_path)
@@ -455,7 +273,7 @@ class TestSpliteUtils:
             conn.close()
 
         assert updated is True
-        pending_records = load_records(sqlite_path, "pending")
+        pending_records = _fetch_records(sqlite_path, "pending")
         assert len(pending_records) == 1
         assert pending_records[0]["status"] == "pending"
         assert pending_records[0]["retry_times"] == 2
@@ -483,7 +301,7 @@ class TestSpliteUtils:
 
     def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 删除记录。"""
-        appended = append_records(sqlite_path, sample_errors[1:])
+        appended = _insert_records(sqlite_path, sample_errors[1:])
         assert appended == 3
 
         conn = connect_db(sqlite_path)
@@ -494,11 +312,11 @@ class TestSpliteUtils:
             conn.close()
 
         assert deleted is True
-        assert [item["event_id"] for item in load_records(sqlite_path)] == [1, 3]
+        assert [item["event_id"] for item in _fetch_records(sqlite_path)] == [1, 3]
 
     def test_load_task_error_records_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 node 聚合。"""
-        appended = append_records(sqlite_path, sample_errors)
+        appended = _insert_records(sqlite_path, sample_errors)
         assert appended == 3
 
         pairs = load_task_error_records(sqlite_path, "s1")
@@ -516,7 +334,7 @@ class TestSpliteUtils:
             "status": "pending",
             "task_json": {"value": 8},
         }
-        appended = append_records(sqlite_path, [pending_record])
+        appended = _insert_records(sqlite_path, [pending_record])
         assert appended == 1
 
         conn = connect_db(sqlite_path)

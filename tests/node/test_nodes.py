@@ -9,7 +9,8 @@ import pytest
 
 from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
 from celestialflow.persist.util_sqlite import (
-    append_records,
+    connect_db,
+    insert_record,
     load_task_error_records,
     load_task_result_records,
 )
@@ -42,6 +43,23 @@ def _counts(node: TaskExecutor[Any, Any]) -> dict[str, int]:
         "tasks_processed": metrics.processed,
         "tasks_pending": metrics.pending,
     }
+
+
+def _insert_records(sqlite_path: Path, records: list[dict[str, Any]]) -> int:
+    """测试辅助：直接向 sqlite 追加记录，重复 event_id 时跳过。"""
+    conn = connect_db(sqlite_path)
+    try:
+        inserted = 0
+        for record in records:
+            try:
+                if insert_record(conn, record):
+                    inserted += 1
+            except sqlite3.IntegrityError:
+                continue
+        conn.commit()
+        return inserted
+    finally:
+        conn.close()
 
 
 def add_one(x: int) -> int:
@@ -195,7 +213,7 @@ class TestTaskExecutor:
     def test_restore_db(self, tmp_path: Path) -> None:
         """默认应读取属于自己名称的 failed 与 pending 任务。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {
@@ -250,7 +268,7 @@ class TestTaskExecutor:
     ) -> None:
         """开启错误类型过滤时只回放命中 retry_exceptions 的记录。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {
@@ -299,7 +317,7 @@ class TestTaskExecutor:
     def test_restore_db_filter_keeps_pending_records(self, tmp_path: Path) -> None:
         """开启错误类型过滤时仍应保留 pending 记录。"""
         sqlite_path = tmp_path / "lifecycle.sqlite3"
-        appended = append_records(
+        appended = _insert_records(
             sqlite_path,
             [
                 {
