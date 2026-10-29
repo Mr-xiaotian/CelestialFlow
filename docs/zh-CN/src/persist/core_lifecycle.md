@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_lifecycle.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `persist/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / skipped，以及重试次数更新），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
 
@@ -136,7 +136,7 @@ hub.on_task_input(
 lifecycle_spout.stop()
 ```
 
-实际使用中，`LifecycleInlet` 通常由 `assembly/core_run.py` 装配并在任务图运行期间持久化任务生命周期。读取已持久化记录请使用 `util_sqlite` 的 `load_records` / `load_task_error_records` / `load_task_result_records` 等函数。
+实际使用中，`LifecycleInlet` 通常由 `assembly/core_run.py` 装配并在任务图运行期间持久化任务生命周期。读取已持久化记录请使用 `util_sqlite` 的读取函数：`load_tasks_grouped_by_node`（按 node 分组读取指定状态的记录）、`load_task_error_records`（读取某 node 的 `(task, error)` 配对）、`load_task_result_records`（读取某 node 的 `(task, result)` 配对）。
 
 ## 注意事项
 
@@ -144,3 +144,4 @@ lifecycle_spout.stop()
 2. **即时 commit**：每次写操作实际改动记录后立即 commit，保证数据不丢失。
 3. **Inlet 只写队列**：不直接操作数据库，所有 I/O 在 `LifecycleSpout` 的后台线程中完成。
 4. **观察者回调驱动**：本类不再提供 `task_input` / `task_success` 等手工调用方法，而是通过 `on_*` 事件回调消费生命周期。
+5. **跨包导入**：`Observer` 与各 `*Event` 统一通过 `from ..observer import (...)` 包级导入，遵循 `core_*` 跨包导入规则。

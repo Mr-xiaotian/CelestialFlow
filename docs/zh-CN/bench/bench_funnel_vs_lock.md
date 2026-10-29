@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -25,7 +25,7 @@
 
 | 场景 | 同步方式 | 说明 |
 |------|---------|------|
-| `lock` | `ValueWrapper` + 共享 `Lock` | 生产者持锁更新，写操作同步可见。对应 `TaskMetrics` 中计数器共享同一把锁的用法 |
+| `lock` | `ValueWrapper` + 共享 `Lock` | 生产者持锁更新，写操作同步可见。对应 `MetricsObserver` 中用 `threading.Lock` 保护共享计数的用法 |
 | `nolock` | `ValueWrapper`，不挂锁 | 刻意不加锁的基线，用于量化锁本身的开销，而非正确性演示（见下方“可能出现的问题”） |
 | `sharded` | 每个生产者一个无锁 `ValueWrapper` | 结束时汇总。无任何跨线程争用，但只适用于可聚合负载，无法表达共享记录流 |
 | `funnel` | `BaseInlet` + `BaseSpout` | 生产者调用 `emit` 入队；`CountingSpout` 单线程串行消费并更新状态 |
@@ -88,6 +88,9 @@ flowchart LR
 参数合法性由 `validate_args()` 校验（`--items >= 0`、`--producers >= 1`、`--readers >= 0`、`--work-iters >= 0`、`--repeats >= 1`），非法值在打印配置头之前直接报错退出。
 
 脚本会把项目 `src/` 目录插入 `sys.path`，因此无需安装包即可直接运行。
+
+启动时会打印配置头：`python` 版本行、`GIL` 状态（通过 `sys._is_gil_enabled()` 探测，无该属性时显示 `unknown`）、`items`、`producers`、`readers`、`work_iters`、`repeats` 与实际参与运行的 `scenarios`。
+另外 `--producers < 2` 会告警“没有可观察的争用”，`--readers > 0` 且生产者多于 1 时会提示读线程与写线程争用同一把锁。
 
 ## 可能出现的问题
 
@@ -178,7 +181,7 @@ python bench/bench_funnel_vs_lock.py
 uv run python bench/bench_funnel_vs_lock.py
 ```
 
-若项目未安装为可导入包，也可以直接使用本地虚拟环境解释器：
+也可以用本地虚拟环境解释器运行：
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_funnel_vs_lock.py

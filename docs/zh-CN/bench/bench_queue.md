@@ -1,6 +1,6 @@
 # bench/bench_queue.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -17,7 +17,10 @@
 | `Redis Stream` | Redis `xadd`/`xread` | xadd, xread, xlen, empty-check |
 
 - **规模**：`COUNT = 100_000`
-- **Redis 配置**：从 `.env` 读取（`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`）
+- **Redis 配置**：通过 `load_dotenv()` 从 `.env` 读取（`REDIS_HOST` 默认 `127.0.0.1`、`REDIS_PORT` 默认 `6379`、`REDIS_PASSWORD` 可选），固定 `db=0`、`decode_responses=True`
+- **Redis key**：List 用 `redis_queue`（`lpush` 写入、`rpop` 取出），Stream 用 `redis_stream`（`xadd` 写入、`xread` 读取）
+- **Redis 阶段**：先 `ping()` 成功再 `flushdb()` 清库，然后依次跑 List 与 Stream；任一步抛异常都会打印 `⚠️ Redis tests skipped` 并跳过剩余 Redis 测试
+- **Stream 读取**：`xread({key: last_id}, count=1000, block=0)` 循环直到累计读到 `COUNT` 条
 
 ## 可能出现的问题
 

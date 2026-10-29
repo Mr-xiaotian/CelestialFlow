@@ -1,26 +1,28 @@
 # bench/bench_hash_memory.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
 对比 SHA1 哈希值以 `str`（40 字符 hex）、`bytes`（20 字节原始）、`int`（160-bit 整数）三种类型存入 `set` 时的内存占用与查询性能，为 `processed_set` 的数据类型选择提供依据。
 
+> 脚本用 `random.seed(42)` + `random.randbytes(20)` **现场构造**键，以模拟 SHA1 digest 的长度与分布（便于 `tracemalloc` 捕获分配），并不真的计算 SHA1。
+
 ## 测试策略
 
 | 类型 | 构造方式 | 单对象大小 | 说明 |
 |------|----------|-----------|------|
-| `str` | `randbytes(20).hex()` | 81 B | 原始方案，40 字符 hex 字符串 |
-| `bytes` | `randbytes(20)` | 53 B | 当前方案，`hashlib.sha1().digest()` 直接输出 |
-| `int` | `int.from_bytes(randbytes(20), 'big')` | 48 B | 最紧凑，但失去固定长度语义 |
+| `str` | `random.randbytes(20).hex()` | 81 B | 原始方案，40 字符 hex 字符串 |
+| `bytes` | `random.randbytes(20)` | 53 B | 当前方案，对等 `hashlib.sha1().digest()` 的输出形态 |
+| `int` | `int.from_bytes(random.randbytes(20), "big")` | 48 B | 最紧凑，但失去固定长度语义 |
 
 ## 测量维度
 
 - **单对象大小**：`sys.getsizeof()` 返回的 Python 对象内存
-- **set 总内存增量**：`tracemalloc` 现场构造 N 个对象加入 set，快照差值
+- **set 总内存增量**：`tracemalloc` 现场构造 N 个对象加入 set，快照 `compare_to(..., "lineno")` 后只累加 `size_diff > 0` 的部分
 - **每条目平均开销**：总增量 / N（含 set 桶、指针等开销）
-- **构建耗时**：N 次 `set.add()` 的总时间
-- **查询延迟**：命中 / 未命中各 0.3s 稳态测量，报告单次纳秒数
+- **构建耗时**：N 次 `set.add()` 的总时间（与内存测量分开各构造一次，互不干扰）
+- **查询延迟**：命中样本取 `list(s)[0]`，未命中样本分别为 `"0" * 40` / `b"\x00" * 20` / `0`，各做 0.3s 稳态循环后折算为 ns/次
 
 ## 基准结果（实测）
 

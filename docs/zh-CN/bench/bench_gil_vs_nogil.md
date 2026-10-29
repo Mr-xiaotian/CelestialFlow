@@ -1,6 +1,6 @@
 # bench/bench_gil_vs_nogil.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -27,8 +27,9 @@
 
 - **CPU 任务**：执行纯 Python 整数循环和哈希式混合运算，尽量压中 Python 字节码执行开销
 - **I/O 任务**：`time.sleep()` 模拟阻塞等待
-- **图结构**：固定为 3 个 node 的简单串联流水线，避免图拓扑差异干扰结果
-- **重复次数**：默认每个 workload 运行 3 次，并统计平均值 / 最小值 / 最大值
+- **图结构**：固定为 3 个 node 的简单串联流水线（`node_1 → node_2 → node_3`），避免图拓扑差异干扰结果
+- **重复次数**：默认每个 workload 运行 3 次，统计平均值 / 最小值 / 最大值 / 标准差（`stdev_seconds`，单轮时为 `0.0`）
+- **正确性校验**：每次运行后通过 `metrics_of()` 从运行对象的 hub 中取回 `MetricsObserver`，比对 sink 节点的 `succeeded` 数与任务数，不一致直接抛 `RuntimeError`
 
 ## 关键配置
 
@@ -37,13 +38,14 @@
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `repeats` | `3` | 每个 workload 的重复次数 |
-| `workers` | `0` | 自动取 `min(os.cpu_count(), 16)` |
+| `workers` | `0` | 自动取 `min(os.cpu_count() or 1, 16)` |
 | `cpu_tasks` | `128` | `TaskExecutor` CPU 测试任务数 |
 | `cpu_loops` | `120000` | 单个 CPU 任务的循环强度 |
 | `pipeline_tasks` | `96` | `TaskGraph` 流水线任务数 |
 | `pipeline_loops` | `60000` | 流水线 CPU 任务的循环强度 |
 | `io_tasks` | `96` | I/O 流水线任务数 |
 | `io_sleep_ms` | `10.0` | 每个 I/O 任务的 sleep 时长（毫秒） |
+| `json-out` | `None` | 可选的 JSON 输出路径；给出时把完整 payload（环境信息 + 参数 + 各 workload 统计）写入该文件 |
 
 ## 运行方式
 

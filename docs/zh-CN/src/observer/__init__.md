@@ -1,6 +1,6 @@
 # src/celestialflow/observer/__init__.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `observer` 模块是 CelestialFlow 的**可观测性模块**，负责观察者协议、任务 / 节点 / 任务图事件类型、事件分发中心，以及内置的指标与进度输出观察者。
 
@@ -25,7 +25,6 @@ __all__ = [
     "TaskSuccessEvent",
     "TerminationInputEvent",
     "TerminationMergeEvent",
-    "WorkerCrashEvent",
 ]
 ```
 
@@ -40,16 +39,15 @@ __all__ = [
 | `NodeStartEvent` / `NodeEndEvent` | `core_event` | 节点启动 / 结束事件 |
 | `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` | `core_event` | 任务输入 / 成功 / 失败 / 跳过 / 重试事件 |
 | `TerminationInputEvent` / `TerminationMergeEvent` | `core_event` | 终止信号输入 / 合并事件 |
-| `WorkerCrashEvent` | `core_event` | 工作器崩溃事件 |
 | `GraphStartEvent` / `GraphEndEvent` | `core_event` | 任务图启动 / 结束事件 |
 
 ## 文件说明
 
 1. **core_observer.py**（`Observer`）
-   - **作用**: 执行器生命周期观察者基类，声明 12 个事件回调与 `handle_exception`。
+   - **作用**: 执行器生命周期观察者基类，声明 11 个事件回调与 `handle_exception`。
    - **特点**: 所有回调均提供默认空实现，不是 ABC，子类按需覆写。
 
-2. **core_event.py**（12 个事件 `dataclass`）
+2. **core_event.py**（11 个事件 `dataclass`）
    - **作用**: 定义任务 / 节点 / 任务图生命周期全部事件类型。
    - **特点**: 均为 `frozen=True, slots=True` 的只读数据类，作为观察者回调参数。
 
@@ -80,6 +78,7 @@ __all__ = [
 
 ### 事件驱动与分发
 - **事件对象为回调参数**: 所有回调都接收 `core_event.py` 中定义的只读 `dataclass`，携带丰富字段。
+- **显式生命周期时间戳**: 节点 / 任务图的起止时间由事件字段（`start_time` / `end_time`）携带，观察者无需自行调用 `time.time()` 采样。
 - **多播分发**: `ObserverHub` 一次性向所有注册观察者广播同一事件。
 - **异常隔离**: 单个观察者回调抛出的异常由 hub 捕获并交给该观察者自身的 `handle_exception`，**不中断**其余观察者的分发，也不逃逸到框架执行路径。
 

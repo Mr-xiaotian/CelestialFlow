@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_log.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `persist/core_log.py` 模块提供了一个线程安全的日志系统，通过生产者-消费者模式将日志统一收集、格式化和持久化到 `logs/` 目录下的文本文件。核心组件为 `LogSpout` 与 `LogInlet`。
 
@@ -29,7 +29,7 @@ flowchart LR
 `LogInlet` 继承 `BaseInlet, Observer`，把日志系统接入事件总线：
 
 1. **LogInlet (生产者 + 观察者)**：
-   - 覆写全部事件回调（图 / 节点 / 任务 / 终止信号 / 工作器崩溃），在回调中调用 `_log()` 记录对应日志。
+   - 覆写全部事件回调（图 / 节点 / 任务 / 终止信号），在回调中调用 `_log()` 记录对应日志。
    - 记录节点启停时通过 `metrics_view` 读取节点汇总（如输入总数、成功 / 失败 / 跳过数）。
    - 支持基于日志级别的过滤，减少不必要的通信。
 
@@ -49,7 +49,7 @@ flowchart LR
 | INFO | 30 | 一般信息，如节点 / 图启停、图结构打印 |
 | WARNING | 40 | 警告信息，如任务重试 |
 | ERROR | 50 | 错误信息，如任务失败 |
-| CRITICAL | 60 | 严重错误，如节点 / 工作器崩溃 |
+| CRITICAL | 60 | 严重错误（当前内置回调未使用该级别） |
 
 ## LogSpout
 
@@ -78,11 +78,11 @@ logs/
 ### 初始化
 
 ```python
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 ```
 
 - `metrics_view`: 指标只读视图（`MetricsView`），用于在节点启停时记录节点汇总。
-- `log_level`: 最低日志级别，低于此级别的日志不记录；非法级别抛 `InvalidOptionError`。
+- `log_level`: 最低日志级别，低于此级别的日志不记录；默认取 `runtime.util_log_level.DEFAULT_LOG_LEVEL`（当前为 `"INFO"`），传入值会先 `upper()`，非法级别抛 `InvalidOptionError`。
 
 ### 事件回调与日志级别
 
@@ -101,12 +101,6 @@ inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
 |------|---------|------|
 | `on_node_start(event)` | INFO | 记录节点启动，并输出执行的任务数与执行模式 |
 | `on_node_end(event)` | INFO | 记录节点结束，并输出成功 / 失败 / 跳过统计与耗时 |
-
-#### 工作线程 (Worker)
-
-| 回调 | 日志级别 | 说明 |
-|------|---------|------|
-| `on_worker_crash(event)` | CRITICAL | 记录工作器崩溃 |
 
 #### 任务 (Task)
 
@@ -137,7 +131,7 @@ metrics_view = MetricsObserver()
 log_spout = LogSpout()
 log_spout.start()
 
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 # 将 inlet 注册到节点的 ObserverHub，消费事件并记录日志
 # hub.on_node_start(NodeStartEvent(node="NodeA", ...)) -> 写入日志
 

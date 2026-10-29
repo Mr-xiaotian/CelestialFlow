@@ -1,6 +1,6 @@
 # tests/graph/test_order_graph.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 验证 `celestialflow.graph.util_order_graph` 中的基础图分析能力，包括 `OrderGraph` 构建、层级计算（`compute_node_levels`）、源节点查找（`source_nodes`）、SCC 划分（`tarjan_scc`），以及深度超过 Python 默认递归上限（约 1000）时的迭代算法回归。
@@ -19,7 +19,7 @@
 | `TestBuildOrderGraph` | 3 | 线性链 / 含环 / 孤立节点的图构建 | 节点数、边总数、`successors` 邻接方向正确 |
 | `TestComputeNodeLevels` | 5 | 线性 DAG、扇出 DAG、简单环、带尾巴的环、不连通图 | 层级递增、B/C 同层、环内共享层级、尾巴比环高一层、各连通分量独立从 0 开始 |
 | `TestFindSourceNodes` | 4 | 线性 DAG、多源、纯环、轮状拓扑 | 入度为 0 的源节点；纯环 SCC 返回一个代表点；Center 是唯一 source |
-| `TestDeepGraphRegression` | 3 | 5000 节点深链 / 深环 / 经 TaskGraph 全链路建图 | 深链 SCC 全单点、无 RecursionError；深环收敛为单一 SCC；`get_nodes` / `get_source_nodes` / `layers_dict` 正常 |
+| `TestDeepGraphRegression` | 3 | 5000 节点深链 / 深环 / 经 TaskGraph 全链路建图 | 深链 SCC 全单点、无 RecursionError；深环收敛为单一 SCC；`get_nodes()` / `get_source_nodes()` / `is_dag()` / `get_layers()` 正常 |
 | **合计** | **15** | | |
 
 ## 关键测试流程
@@ -36,7 +36,7 @@
 4. **深图回归** (`TestDeepGraphRegression`):
    - 深链（5000 节点）：`tarjan_scc` 全部为单点 SCC、源节点为 `n0`、层级线性递增到 4999。
    - 深环（5000 节点）：全部节点收敛为单一 SCC。
-   - 深链经 `TaskGraph`（`graph_mode="thread"`）全链路建图与分析不崩溃，`layers_dict[4999] == ["n4999"]`，`get_nodes()` 返回 5000 个节点，`get_source_nodes() == ["n0"]`、`is_dag is True`。
+   - 深链经 `TaskGraph`（`graph_mode="thread"`）全链路建图与分析不崩溃：`get_nodes()` 返回 5000 个节点，`get_source_nodes() == ["n0"]`，`is_dag()` 返回 `True`，且 `get_layers()[4999] == ["n4999"]`。
 
 ## 测试辅助函数
 - `_make_graph(edges)`: 从边定义（含隐式出现的下游节点）构造测试图。
@@ -75,7 +75,7 @@ pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 | `TestBuildOrderGraph` | < 0.1s（纯内存计算） |
 | `TestComputeNodeLevels` | < 0.1s |
 | `TestFindSourceNodes` | < 0.1s |
-| `TestDeepGraphRegression` | ~1s（5000 节点规模，纯内存计算） |
+| `TestDeepGraphRegression` | ~0.2s（5000 节点规模，纯内存计算） |
 
 ## 重要细节
 - 除 `TestDeepGraphRegression.test_deep_chain_through_taskgraph` 外均为纯内存计算，执行速度极快。
@@ -83,3 +83,4 @@ pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 
 ## 注意事项
 - 测试代码位于 `tests/graph/test_order_graph.py`，对应实现位于 `src/celestialflow/graph/util_order_graph.py`。
+- 注意两处同名符号来源不同：`util_order_graph.is_dag(graph)` 是模块级函数（Kahn 算法判断 `OrderGraph`），而 `TaskGraph.is_dag()` 是图对象的方法（按需构建分析缓存后返回布尔值）；深图用例断言的是后者。

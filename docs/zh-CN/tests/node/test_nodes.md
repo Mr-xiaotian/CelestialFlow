@@ -1,10 +1,10 @@
 # tests/node/test_nodes.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 
-验证 `celestialflow.node.core_nodes` 中三个具体节点类 `TaskExecutor` / `TaskSplitter` / `TaskRouter` 的执行、拆分、路由行为，覆盖串行 / 线程 / 异步三种执行模式、从 sqlite 持久化回放、节点初始化约束、路由未知目标报错以及绑定在多模式下保持稳定。
+验证 `celestialflow.node.core_nodes` 中三个具体节点类 `TaskExecutor` / `TaskSplitter` / `TaskRouter` 的执行、拆分、路由与跳过行为，覆盖串行 / 线程 / 异步三种执行模式、从 sqlite 持久化回放、节点初始化约束、`skip_func` 语义、路由未知目标报错以及绑定在多模式下保持稳定。
 
 ## 核心测试对象
 
@@ -13,10 +13,11 @@
 | `TaskExecutor` | 被测类 | 通用执行器，验证 `serial` / `thread` / `async`、异常处理、retry、restore_db、结果持久化、扇出载荷语义 |
 | `TaskSplitter` | 被测类 | 1→N 拆分器，验证 `downstream_counts`、空可迭代、生成器、自定义拆分函数 |
 | `TaskRouter` | 被测类 | 路由器，`func` 返回 `dict[str, Y]` 映射；验证 `downstream_counts`、未知 target 失败提示、按目标分发、绑定跨模式稳定 |
-| `append_records` | 工具 | 来自 `celestialflow.persist.util_sqlite`，直接写入失败 / pending 记录用于回放测试 |
+| `TaskSkip`（`skip_func` / `handle_task_skip`） | 被测行为 | 跳过判定不调用任务函数、只计 `skipped`、不消耗重试，并可被覆写；`task.skip` 事件与 `skipped` 生命周期记录的完整链路 |
+| `_insert_records` / `connect_db` / `insert_record` | 工具 | 用 `connect_db` 建连后逐条 `insert_record` 写入失败 / pending 记录（重复 `event_id` 跳过），用于回放测试 |
 | `load_task_error_records` / `load_task_result_records` | 工具 | 读取 sqlite 中的 task-error / task-result 对，用于断言生命周期持久化结果 |
 | `build_result_dict` | 工具 | 聚合 `get_success_pairs` 与 `get_error_pairs` 为 `{task: result_or_error_str}` |
-| `_counts` | 工具 | 经 `metrics_of(node).get_node_metrics(name)` 取出节点指标快照并映射为旧字段名字典 |
+| `_counts` | 工具 | 经 `metrics_of(node).get_node_metrics(name)` 取出 `NodeMetrics`，并映射为 `tasks_input` / `tasks_succeeded` / `tasks_failed` / `tasks_skipped` / `tasks_processed` / `tasks_pending` 六个键的字典 |
 
 ## 关键测试场景
 
@@ -39,6 +40,20 @@
 | `test_rejects_multi_argument_func` | 多参函数应抛 `ConfigurationError` |
 | `test_name_and_execution_mode` | `get_name()` 与 `execution_mode` 暴露正确 |
 | `test_fanout_downstream_records_result_as_input` | 普通 executor 扇出时，下游记录的是上游的结果而非上游的输入 |
+
+### `TestTaskSkip` — 跳过行为（9 用例）
+
+| 用例 | 覆盖目标 |
+|------|---------|
+| `test_no_skip_func_executes_all_tasks` | 未配置 `skip_func` 时 `tasks_skipped == 0`、全部任务执行成功 |
+| `test_serial_skip_matching_tasks` | 串行模式下偶数任务被跳过：`executed == [1, 3, 5]`，`skipped=2` / `succeeded=3` / `failed=0` / `pending=0` |
+| `test_thread_skip` | 线程模式下 `skip_func` 同样生效（负数跳过 2 个、成功 3 个） |
+| `test_async_skip` | 异步模式下 `skip_func` 同样生效（`0` 被跳过 1 个、成功 2 个） |
+| `test_skip_does_not_consume_retries` | 被跳过的任务不调用 `func`（`call_count == 0`）、不触发重试与失败处理 |
+| `test_set_skip_func_none_disables_skip` | `set_skip_func(None)` 清除判定后任务恢复正常执行，`skipped == 0` |
+| `test_skip_func_signature_validation` | `skip_func` 参数个数不是 1（0 参 / 2 参）时，构造 `TaskExecutor` 抛 `ConfigurationError` |
+| `test_skip_overridden_handler_receives_envelope` | 覆写 `handle_task_skip` 可收到被跳过的 `TaskEnvelope`（`[-1, -2]`），`skipped == 2` |
+| `test_skip_full_chain` | 跳过任务发布 `CTreeEvent.TASK_SKIP` 事件（2 次），并在 lifecycle 中留下 `["skipped", "success", "skipped"]` 状态序列 |
 
 ### `TestTaskSplitter` — 拆分器（5 用例）
 
@@ -88,6 +103,14 @@ flowchart LR
         PR --> RC[(downstream_counts)]
         PR --> Down3[(指定下游节点)]
     end
+
+    subgraph "TaskSkip"
+        Q4[task_queue] --> Skip{skip_func 命中?}
+        Skip -- 是 --> HTS[handle_task_skip]
+        HTS --> SK[(skipped 计数 + task.skip 事件)]
+        HTS --> SkDB[(lifecycle: skipped)]
+        Skip -- 否 --> Exec[正常执行]
+    end
 ```
 
 > 指标计数经 `metrics_of(graph).get_node_metrics(name).downstream_counts` 读取；`downstream_counts` 为节点间实际发送次数的映射（未发送的边不出现）。
@@ -97,9 +120,10 @@ flowchart LR
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
 | `TestTaskExecutor` | 15 | 三种执行模式、retry 命中/不命中、sqlite 回放（含按 error_type 过滤）、持久化、回调签名校验、扇出载荷语义 |
+| `TestTaskSkip` | 9 | 默认不跳过、串行/线程/异步跳过、跳过不消耗重试、`set_skip_func(None)`、签名校验、覆写 handler、`task.skip` 事件与 lifecycle 记录 |
 | `TestTaskSplitter` | 5 | 默认参数、图集成、空可迭代、生成器、自定义拆分函数 |
 | `TestTaskRouter` | 6 | 默认参数、`func` 返回映射、图集成、未知 target 报错、按载荷分发、绑定跨模式稳定 |
-| **合计** | **26** | |
+| **合计** | **35** | |
 
 ## 运行方式
 
@@ -108,13 +132,16 @@ flowchart LR
 pytest tests/node/test_nodes.py -v
 
 # 仅运行 TaskExecutor 测试
-pytest tests/node/test_nodes.py -k "TaskExecutor" -v
+pytest tests/node/test_nodes.py -k "TestTaskExecutor" -v
+
+# 仅运行跳过行为测试
+pytest tests/node/test_nodes.py -k "TaskSkip" -v
 
 # 仅运行 TaskSplitter 测试
 pytest tests/node/test_nodes.py -k "TaskSplitter" -v
 
 # 仅运行 TaskRouter 测试
-pytest tests/node/test_nodes.py -k "TaskRouter" -v
+pytest tests/node/test_nodes.py -k "TestTaskRouter" -v
 
 # 仅运行 sqlite 回放用例
 pytest tests/node/test_nodes.py -k "restore_db" -v
@@ -125,12 +152,14 @@ pytest tests/node/test_nodes.py -k "restore_db" -v
 | 测试类 | 耗时 |
 |--------|------|
 | `TestTaskExecutor` | < 2.0s（含 sqlite 持久化与回放） |
+| `TestTaskSkip` | < 1.0s（含 lifecycle sqlite 写入） |
 | `TestTaskSplitter` | < 1.0s |
 | `TestTaskRouter` | < 1.0s |
 
 ## 注意事项
 
-- `test_restore_db*` 用例通过 `append_records` 直接写入 sqlite（记录字段 `node` 为节点名称），验证恢复回放逻辑。
+- `test_restore_db*` 用例通过本文件的 `_insert_records` 辅助函数写入 sqlite：它先用 `connect_db` 建立连接，再逐条调用 `insert_record`（重复 `event_id` 触发 `sqlite3.IntegrityError` 时跳过），最后统一 `commit()` 并关闭连接；记录字段 `node` 为节点名称。
+- `test_skip_full_chain` 通过 `executor.set_ctree(ctree)` 注入最小事件客户端，断言 `CTreeEvent.TASK_SKIP` 出现 2 次，并直接查询 `records` 表确认状态序列为 `skipped / success / skipped`。
 - `test_router_unknown_target_fails_with_hint` 通过 `load_task_error_records` 与 `get_node_metrics(...).failed / processed` 断言未知目标失败，错误 message 含 `Unknown target: <name>` 与允许目标列表，而非在 router 层抛出异常。
 - `test_router_binding_survives_mode_switch` 与 `test_connect_to_binding_survives_execution_mode_switch`（见 test_node.md）均为回归测试，覆盖绑定在多模式下保持稳定的语义。
 - 异步用例需 `pytest-asyncio` 插件（项目已配置 `pytest.mark.asyncio`）。

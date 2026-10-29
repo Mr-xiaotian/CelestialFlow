@@ -1,12 +1,12 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
 在更复杂的生产者-消费者拓扑（SPSC、MPSC、SPMC）下，对比 `multiprocessing.Queue` 与基于 `shared_memory` 的自定义环形缓冲区性能。为 CelestialFlow 在高吞吐场景下的 IPC 优化提供深度数据。
 
-> **注意**：框架已移除 `stage_mode="process"` 及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
+> **注意**：框架已移除 `process` 图模式及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
 
 ## 测试内容
 
@@ -17,15 +17,19 @@
 | SPMC | 1 | 4 | 单生产者多消费者 |
 
 - **规模**：`COUNT = 100_000`，`REPEAT = 3`
-- **SharedMemory 配置**：`SLOT_COUNT = 1024`，每个 slot 大小 = 4B 长度前缀 + payload
+- **负载**：两种机制传输的都是 **bytes payload**（`int` 模式为 `struct.pack("<Q", i)`，其余模式为 UTF-8 字符串字节），避免把 pickle 开销混入对比
+- **SharedMemory 配置**：`SLOT_COUNT = 1024`，每个 slot 大小 = 4B 长度前缀 + `payload_max_bytes(mode)`（`int` 8 / `small` 32 / `medium` 160 / `large` 4200）
 - **同步原语**：`Lock`（保护读写索引）、`Semaphore`（空/满槽位计数）
+- **校验**：按拓扑把 `COUNT` 均分给生产者与消费者，比较汇总后的 `consumed` 与 `checksum`（`int` 为等差数列求和，其余为 payload 长度之和），不一致抛 `RuntimeError`
+- **启动方式**：`__main__` 中尝试 `set_start_method("spawn")`，已设置过则忽略 `RuntimeError`
 
 ## 关键实现
 
 ### SharedMemory Ring 协议
-1. **Producer**：`empty_slots.acquire()` → `write_lock` 下写入 payload → `full_slots.release()`
-2. **Consumer**：`full_slots.acquire()` → `read_lock` 下读取 payload → `empty_slots.release()`
-3. **关键设计**：`full_slots.release()` 在锁外执行，最大化并发度
+1. **Producer**：`empty_slots.acquire()` → `write_lock` 下认领 slot、写入长度前缀与 payload → `full_slots.release()`
+2. **Consumer**：`full_slots.acquire()` → `read_lock` 下认领 slot、读取 payload → `empty_slots.release()`
+3. **关键设计**：`full_slots.release()` 在锁外执行，最大化并发度；MPSC 下必须让 `write_lock` 覆盖整段 payload 写入，否则消费者可能读到写了一半的 slot
+4. 每个进程在 `finally` 中 `shm.close()`，主进程在所有子进程结束后 `shm.close()` + `shm.unlink()`
 
 ## 可能出现的问题
 
@@ -126,4 +130,5 @@ python bench/bench_mpqueue_vs_shared_memory.py
 
 ## 依赖
 
-- `bench_utils.summarize`
+- `bench_utils.summarize`（同目录模块）
+- Python 标准库：`multiprocessing`（`Queue`、`Lock`、`Semaphore`、`Value`、`Process`、`shared_memory`、`set_start_method`）、`struct`

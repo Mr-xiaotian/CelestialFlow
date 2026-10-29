@@ -1,6 +1,6 @@
 # 教程（Tutorial）：构建一个图片爬虫
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 本教程将通过一个完整的实战项目——**百度图片爬虫**，带你从零开始学习 CelestialFlow 的使用。
 
@@ -263,12 +263,15 @@ graph.connect([stage_download], [stage_save])
 
 ### 3.3 启用状态上报（可选）
 
+上报通过运行入口的 `report` 参数显式启用。构造 `ReportConfig` 即表示启用；不传 `report`（或传 `None`）则完全关闭上报：
+
 ```python
-# 将运行状态上报到celestialflow-web服务
-graph.set_reporter(TaskReporter(report_host, report_port, graph))
+from celestialflow import ReportConfig
+
+report = ReportConfig("http://127.0.0.1:5005")
 ```
 
-主仓当前已不再内置 Web 服务。如果你有独立部署的 `celestialflow-web` 项目或自定义 HTTP 服务，可以在这里启用上报；否则可以直接跳过这一段。
+主仓当前已不再内置 Web 服务。如果你有独立部署的 `celestialflow-web` 项目或自定义 HTTP 服务，可以在运行任务图时把该配置传给 `graph.run(..., report=report)`；否则可以直接跳过这一段。`ReportConfig` 只接受 `http` / `https` 地址，末尾的 `/` 会被自动去掉。
 
 ### 3.4 运行任务图
 
@@ -276,7 +279,7 @@ graph.set_reporter(TaskReporter(report_host, report_port, graph))
 # 准备初始任务
 init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
-# 启动
+# 启动（需要上报时传入 report=report；不上报则省略该参数）
 print("开始爬取图片...")
 graph.run(init_tasks)
 ```
@@ -296,11 +299,12 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
+    ReportConfig,
     TaskExecutor,
     TaskSplitter,
     TaskGraph,
-    TaskReporter,
 )
+from celestialflow.observer import MetricsObserver
 
 # ========== 处理函数 ==========
 
@@ -411,14 +415,22 @@ if __name__ == "__main__":
     # 构建图
     graph = build_crawler_graph(KEYWORDS[0])
 
+    # 注册指标观察者，运行结束后从这里读取统计
+    metrics = MetricsObserver()
+    graph.add_observer(metrics)
+
     # 运行
+    # 需要上报时改为：
+    # graph.run({"搜索页面": KEYWORDS}, report=ReportConfig("http://127.0.0.1:5005"))
     print("开始爬取图片...")
     graph.run({"搜索页面": KEYWORDS})
 
     # 统计
     print(f"\n爬取完成!")
-    print(f"成功: {stage_search.get_counts()['tasks_succeeded']}")
-    print(f"失败: {stage_search.get_counts()['tasks_failed']}")
+    result = metrics.get_node_metrics("存储文件")
+    assert result is not None
+    print(f"成功: {result.succeeded}")
+    print(f"失败: {result.failed}")
 ```
 
 ---
@@ -434,10 +446,10 @@ python crawler.py
 
 ### 5.2 查看运行状态
 
-运行过程中，你可以通过日志、观察者或节点 `get_snapshot()` 快照查看：
+运行过程中，你可以通过日志、观察者或图查询接口查看：
 
-1. **节点处理进度**：每个阶段的成功、失败、待处理统计（通过 `get_counts()` 或 `get_snapshot()` 获取）
-2. **图结构信息**：通过 `graph.get_structure_list()` 或 `graph.get_order_graph()` 查看
+1. **节点处理进度**：运行前 `graph.add_observer(MetricsObserver())` 并保留实例，运行后调用 `get_node_metrics(节点名)` 或 `get_graph_metrics()` 读取成功、失败、跳过与待处理统计
+2. **图结构信息**：通过 `graph.get_nodes()`、`graph.get_edges()`、`graph.get_node_meta()`、`graph.get_layers()` 查看
 3. **错误信息**：下载失败的图片 URL 和异常日志
 4. **任务注入**：通过 `node.put_task()` 继续注入新的关键词，或 `node.put_signal()` 注入终止信号
 

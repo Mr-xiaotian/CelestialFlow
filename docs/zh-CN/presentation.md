@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ---
 
@@ -258,7 +258,7 @@ graph TD
   - `processed`：`succeeded + failed + skipped`
   - `pending`：`input_total - processed`
 
-- **状态与时间**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）与 `start_time` 由 `on_node_start`/`on_node_end` 维护
+- **状态与时间**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）由 `on_node_start`/`on_node_end` 维护；`start_time` / `end_time` 直接取对应事件携带的时间戳，指标观察者不再自行采样系统时间
 - **终止判定**：`is_tasks_finished()` 比较输入与已处理计数
 
 ---
@@ -340,7 +340,7 @@ graph LR
 
 - **错误持久化**：SQLite 格式，含 `node`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` 等字段
 
-- **错误分析工具**：`load_records()`、`load_tasks_grouped_by_node()` 按维度聚合失败任务
+- **错误分析工具**：`load_task_error_records()`、`load_task_result_records()`、`load_tasks_grouped_by_node()` 按维度读取并聚合失败/成功任务
 
 ---
 

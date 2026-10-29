@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_constant.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 `runtime/util_constant.py` 定义运行时全局常量，主要是日志级别映射表 `LEVEL_DICT`。
 
@@ -114,4 +114,5 @@ print(validate_level("VERBOSE"))  # False
 
 ## 注意事项
 
-- `LEVEL_DICT` 被 `util_config` 中 `load_log_level_from_pyproject()` 用于校验用户配置的日志级别，不要随意修改级别数值。
+- `LEVEL_DICT` 是日志级别的唯一合法值集合：`runtime/util_log_level.py` 的 `normalize_log_level()` 用它校验并规范化运行入口传入的 `log_level`，`LogInlet` 用它做级别过滤与比较，不要随意修改级别数值。
+- 本文件是 `util_*` 模块，不在 `celestialflow.runtime` 的 `__all__` 中，需通过完整路径导入。

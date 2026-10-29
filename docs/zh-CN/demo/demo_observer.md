@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -107,11 +107,10 @@ python demo/demo_observer.py
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-这样更容易触发：
+这样更容易让 `on_task_fail` / `on_task_skip` 触发；但要注意：
 
-- `on_task_fail`
-- `on_task_skip`
-- `on_task_retry`
+- `TaskProgress` 只实现了 `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end`，没有重试回调。
+- `PrintObserver` 只实现了 `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip`，同样**没有实现 `on_task_retry`**。虽然 `Observer` 基类提供 `on_task_retry` 回调，但本 demo 的两个 observer 都不会对其产生输出。
 
 ## 依赖
 

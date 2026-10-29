@@ -1,6 +1,6 @@
 # demo/demo_skip_dedup.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -42,7 +42,12 @@ flowchart LR
 
 - 被跳过的任务既不执行 `no_op`，也不消耗重试次数。
 - 因此 `succeeded` 等于去重后的数量，`skipped` 等于重复任务数。
-- 运行后通过 `PrintObserver` 输出节点日志，并从 `MetricsObserver` 读取 `input_total` / `succeeded` / `skipped` 打印汇总。
+- 运行后通过 `PrintObserver` 输出节点日志，并从 `MetricsObserver` 读取 `input_total` / `succeeded` / `skipped` 打印汇总：
+
+```text
+[executor] input=6, succeeded=3, skipped=3
+[executor] 去重后保留的任务: [1, 2, 3]
+```
 
 ### 场景二：Graph 中间节点去重（`demo_skip_dedup_graph`）
 
@@ -60,7 +65,7 @@ flowchart LR
 运行后打印各节点计数：
 
 ```text
-[demo] 各节点计数:
+[graph] 各节点计数:
   Generator  input=3    ok=3    fail=0  skip=0    pending=0
   Dedup      input=9    ok=4    fail=0  skip=5    pending=0
   Sink       input=4    ok=4    fail=0  skip=0    pending=0

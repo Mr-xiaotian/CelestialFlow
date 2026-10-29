@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_node.py` 定义了 CelestialFlow 节点层的核心基类 `BaseTaskNode[T, R, Y]`。它把"队列通信 / 任务调度 / 事件追踪 / 观察者回调"等运行期关注点集中到一个对象中，并暴露 `run` / `start` 等入口方法给上层 `TaskExecutor` / `TaskSplitter` / `TaskRouter` 复用。
 
@@ -22,7 +22,7 @@
 | `func` | `Callable[[T], R]` 或 `Callable[[T], Awaitable[R]]` | 实际执行任务的回调 |
 | `execution_mode` | `str` | `'serial'` / `'thread'` / `'async'`，默认 `'serial'` |
 | `max_workers` | `int` | 最大并发工作数（默认 `min(32, cpu_count+4)`） |
-| `max_retries` | `int` | 单任务最大重试次数（`1` 表示"原始一次 + 重试一次"） |
+| `max_retries` | `int` | 单任务最大重试次数（`1` 表示"原始一次 + 重试一次"）；构造时以 `max(max_retries, 0)` 夹取，负值统一视为 `0` |
 | `retry_exceptions` | `tuple[type[Exception], ...]` | 可重试的异常类型集合，通过 `set_retry_exceptions` 注册 |
 | `max_queue_size` | `int` | 输入队列容量上限（`0` 表示无界） |
 | `max_info` | `int` | 日志中每条任务字符串的最大长度（默认 `50`） |
@@ -54,9 +54,9 @@ classDiagram
         +put_task(task)
         +put_signal()
         +drain_task_queue()
-        +run(task_source)
-        +run_async(task_source)
-        +restore_db(db_path)
+        +run(task_source, log_level)
+        +run_async(task_source, log_level)
+        +restore_db(db_path, log_level)
         +start()
         +start_async()
         +get_meta()
@@ -90,7 +90,7 @@ def __init__(
 1. 通过 `set_name` 写入名称，通过 `_set_func` 校验回调签名（必须只接受 1 个位置参数），否则抛 `ConfigurationError`；
 2. `set_skip_func` 注册任务跳过判定函数（同样要求单位置参数），`None` 表示不跳过；
 3. `set_execution_mode` 校验模式合法性；若 `execution_mode == "async"` 但 `func` 不是 `iscoroutinefunction`，抛 `ConfigurationError`；
-4. 初始化 `max_workers / max_retries / max_queue_size / max_info`，并预置 `retry_exceptions` 为空元组；
+4. 初始化 `max_workers / max_retries / max_queue_size / max_info`：`max_workers` 缺省时取 `min(32, (os.cpu_count() or 1) + 4)`；`max_retries` 通过 `max(max_retries, 0)` 夹取，负值按 `0` 处理；随后预置 `retry_exceptions` 为空元组；
 5. 默认安装 `LocalEventClient()`，可通过后续 `set_ctree(...)` 替换；
 6. 实例化 `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)`，并新建 `TaskInQueue`（`out_name` 为节点名） / `TaskOutQueue`（`in_name` 为节点名） / `ObserverHub`；
 7. `_lifecycle_db_path` 初始化为 `None`，待独立运行时由装配入口写入。
@@ -150,13 +150,19 @@ def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
 
 ## 入口方法
 
-### `run(task_source, *, if_put_signal=True)`
+### `run(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
 ```python
-def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
+def run(
+    self,
+    task_source: Iterable[T],
+    *,
+    if_put_signal: bool = True,
+    log_level: str = DEFAULT_LOG_LEVEL,
+) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(self.observers) as lifecycle_db_path:
+        with run_node_resources(self.observers, log_level=log_level) as lifecycle_db_path:
             self._lifecycle_db_path = lifecycle_db_path
             for task in task_source:
                 self.put_task(task)
@@ -169,32 +175,40 @@ def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
         raise ExceptionGroup("Errors occurred during run", error_list)
 ```
 
-`run_node_resources`（位于 `celestialflow.assembly`）负责装配单节点运行期资源：创建 `MetricsObserver`，并注入 `LifecycleInlet` / `LogInlet` 观察者及对应 spout，统一启停。它产出 lifecycle 数据库路径。
+参数：
 
-### `async run_async(task_source, *, if_put_signal=True)`
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `task_source` | `Iterable[T]` | 必填 | 待注入的任务源 |
+| `if_put_signal` | `bool` | `True` | 注入完任务后是否自动 `put_signal()` |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` 的日志过滤级别，原样透传给 `run_node_resources` |
 
-异步版本，调用 `await self.start_async()`，同样在 `run_node_resources` 上下文内执行。
+`run_node_resources`（位于 `celestialflow.assembly`）负责装配单节点运行期资源：创建 `MetricsObserver`，并注入 `LifecycleInlet` / `LogInlet` 观察者及对应 spout，统一启停。它产出 lifecycle 数据库路径。`log_level` 会被 `normalize_log_level` 规范化（忽略大小写与首尾空白），非法级别抛 `InvalidOptionError`，非字符串抛 `ConfigurationError`。
 
-### `restore_db(db_path, statuses=None, *, filter_by_error_type=False)`
+### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
+
+异步版本，参数含义与 `run` 完全一致（含 `log_level` 透传），区别是最后调用 `await self.start_async()`，同样在 `run_node_resources(self.observers, log_level=log_level)` 上下文内执行。
+
+### `restore_db(db_path, statuses=None, *, filter_by_error_type=False, log_level=DEFAULT_LOG_LEVEL)`
 
 从 sqlite 数据库加载上次未完成的任务并重放：
 
 1. `statuses` 默认 `["failed", "pending"]`；
 2. 通过 `load_tasks_grouped_by_node(db_path, statuses)` 按节点名取出记录；
 3. 当 `filter_by_error_type=True` 时，用 `get_retry_error_type_names()` 过滤 `error_type`（`pending` 记录始终保留）；
-4. 取出 `record["task_json"]` 后调用 `self.run(tasks)`。
+4. 取出 `record["task_json"]` 后调用 `self.run(tasks, log_level=log_level)`，即 `log_level` 会继续透传到独立运行入口。
 
 ### `start()`
 
-- 准备阶段 `_prepare_start` 广播 `NodeStartEvent`（含 `execution_mode` / `max_workers`）；
+- 准备阶段 `_prepare_start` 广播 `NodeStartEvent`（含 `execution_mode` / `max_workers` / `start_time=time.time()`）；
 - 根据 `execution_mode` 选择 `dispatch.dispatch_serial()` / `dispatch.dispatch_thread()`；`async` 走 `start_async`，否则抛 `InvalidOptionError`；
-- 收尾阶段 `_finish_start` 广播 `NodeEndEvent`（含 `elapsed`）；
+- 收尾阶段 `_finish_start` 广播 `NodeEndEvent`（含 `elapsed` 与 `end_time=time.time()`）；
 - 任何阶段异常最终会被聚合成 `ExceptionGroup("Errors occurred during execution", ...)` 抛出。
 
 ### `async start_async()`
 
 - 仅当 `execution_mode == "async"` 合法，否则抛 `InvalidOptionError`；
-- 内部 `await self.dispatch.dispatch_async()`，收尾广播 `NodeEndEvent`。
+- 内部 `await self.dispatch.dispatch_async()`，收尾广播 `NodeEndEvent`（同样携带 `end_time`）。
 
 ## 结果 / 事件 / 错误处理
 
@@ -296,8 +310,8 @@ node.run([1, 2, 3, 4])
 
 | 异常 | 触发场景 |
 |------|---------|
-| `ConfigurationError` | `_set_func` / `set_skip_func` 中参数数量 ≠ 1；`set_execution_mode("async")` 但 `func` 非协程 |
-| `InvalidOptionError` | `execution_mode` 不在 `("serial", "thread", "async")`；`start()` 时模式既非 serial 也非 thread |
+| `ConfigurationError` | `_set_func` / `set_skip_func` 中参数数量 ≠ 1；`set_execution_mode("async")` 但 `func` 非协程；`log_level` 不是字符串 |
+| `InvalidOptionError` | `execution_mode` 不在 `("serial", "thread", "async")`；`start()` 时模式既非 serial 也非 thread；`run` / `run_async` / `restore_db` 的 `log_level` 不在允许的级别集合中 |
 | `CallableParameterKindError` | 回调存在非 `POSITIONAL_ONLY` / `POSITIONAL_OR_KEYWORD` 参数 |
 | `NotImplementedError` | 子类未覆写 `process_task_success` |
 | `ExceptionGroup` | `run` / `run_async` / `start` / `start_async` 过程中任何异常最终聚合抛出 |

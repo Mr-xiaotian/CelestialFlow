@@ -1,6 +1,6 @@
 # bench/ 基准测试总览
 
-> 📅 最后更新日期: 2026/09/14
+> 📅 最后更新日期: 2026/10/30
 
 ## 说明
 
@@ -41,7 +41,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| `bench_persistence_spout.md` | 持久化 spout 的日志 / lifecycle 写入性能 |
+| `bench_persist_spout.md` | 持久化 spout 的日志 / lifecycle 写入性能 |
 | `bench_queue.md` | 队列实现基准测试 |
 | `bench_ipc_queue.md` | 进程间队列通信开销测试 |
 | `bench_mpqueue_vs_shared_memory.md` | `multiprocessing.Queue` 与共享内存方案对比 |

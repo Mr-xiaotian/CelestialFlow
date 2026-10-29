@@ -1,6 +1,6 @@
 # src/celestialflow/persist/__init__.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `persist` 模块是 CelestialFlow 的**持久化模块**，提供任务生命周期（Lifecycle）与运行日志（Log）的记录、写入与查询能力。其中 `LifecycleInlet` / `LogInlet` 作为观察者消费任务事件并写入队列，`LifecycleSpout` / `LogSpout` 在后台线程从队列取出记录并落盘。
 
@@ -35,7 +35,7 @@ __all__ = [
 
 2. **core_log.py**（`LogSpout`, `LogInlet`）
    - **作用**: 运行日志收集与持久化。
-   - **写入方式**: `LogInlet` 继承 `BaseInlet, Observer`，覆写全部事件回调（图 / 节点 / 任务 / 终止信号 / 工作器崩溃）记录日志，并依据 `metrics_view` 写入节点汇总；`LogSpout` 继承 `BaseSpout`，把日志写入 `logs/` 目录下的文本文件。
+   - **写入方式**: `LogInlet` 继承 `BaseInlet, Observer`，覆写全部事件回调（图 / 节点 / 任务 / 终止信号）记录日志，并依据 `metrics_view` 写入节点汇总；`LogSpout` 继承 `BaseSpout`，把日志写入 `logs/` 目录下的文本文件。
    - **日志格式**: 每行包含 `timestamp level message`。
 
 3. **util_payload.py**
@@ -43,8 +43,8 @@ __all__ = [
    - **关键函数**: `to_persisted_payload(task)`——基本类型透传、容器递归、其他类型降级为 `str()`。
 
 4. **util_sqlite.py**
-   - **作用**: SQLite 数据库的连接管理和记录 CRUD 操作工具。
-   - **关键函数**: `connect_db`、`insert_record`、`promote_record_to_{success,skipped,failed}_by_event_id`、`update_retry_by_event_id`、`load_records`、`query_records`、`load_task_{error,result}_records` 等。
+   - **作用**: SQLite 数据库的连接管理与记录读写工具。
+   - **关键函数**: `connect_db`、`normalize_record`、`row_to_record_dict`、`insert_record`、`promote_record_to_{success,skipped,failed}_by_event_id`、`update_retry_by_event_id`、`delete_record_by_event_id`、`load_tasks_grouped_by_node`、`load_task_{error,result}_records`。写入类函数复用调用方传入的 `conn`；读取类函数自行建立并关闭连接。
 
 5. **util_render.py**
    - **作用**: 图结构渲染工具，将节点 / 边 / 源节点渲染为带边框的树形文本。
@@ -110,7 +110,7 @@ hub.add_observer(metrics_view)
 lifecycle_spout = LifecycleSpout()
 log_spout = LogSpout()
 hub.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-hub.add_observer(LogInlet(metrics_view, "INFO").bind_spout(log_spout))
+hub.add_observer(LogInlet(metrics_view).bind_spout(log_spout))
 
 lifecycle_spout.start()
 log_spout.start()
@@ -122,5 +122,5 @@ lifecycle_spout.stop()
 ## 注意事项
 
 1. **观察者消费事件**：`LifecycleInlet` / `LogInlet` 不再提供 `task_input` / `task_success` 等手工调用方法，而是在对应观察者回调（`on_task_*` / `on_graph_*` 等）中记录。
-2. **构造参数**：`LogInlet` 构造时需传入 `metrics_view`（`MetricsView`）与可选 `log_level`（默认 `"INFO"`）。
+2. **构造参数**：`LogInlet` 构造时需传入 `metrics_view`（`MetricsView`）与可选 `log_level`（默认 `runtime.util_log_level.DEFAULT_LOG_LEVEL`，当前为 `"INFO"`）。
 3. **`__all__` 仅含核心类**：工具函数位于 `util_*` 文件，需按需从 `celestialflow.persist.util_xxx` 导入。

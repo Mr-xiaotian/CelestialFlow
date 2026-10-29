@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/__init__.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 提供执行器/任务图的克隆（clone）与基准测试（benchmark）能力。该模块位于依赖链顶层，可依赖其他模块，但不应被其他模块依赖。
 
@@ -86,6 +86,7 @@ graph TD
 
 - **克隆机制**：所有克隆操作通过构造新实例并复制关键参数实现，原对象与克隆对象完全独立。
 - **状态隔离**：基准测试中每次运行都使用克隆对象，避免状态污染影响测试结果。
+- **克隆保真度**：`clone_executor` 只复制 `name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` 与 `retry_exceptions`；`max_queue_size`、`skip_func` 与已注册的观察者都不会随克隆传递（观察者不共享也避免了计数器重复累加）。
 - **函数引用**：克隆只复制函数引用，不深拷贝函数本身。
 - **异步要求**：`benchmark_executor` 和 `benchmark_graph` 均为异步函数，需要 `await` 或 `asyncio.run` 调用。
 - **内部工具定位**：`clone_executor` / `clone_graph` 等克隆函数不是公共 API，可能随 benchmark 内部实现调整而改变签名或语义。

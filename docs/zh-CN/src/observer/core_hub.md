@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_hub.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_hub.py` 定义了观察者**分发中心** `ObserverHub`。它本身也是 `Observer`，将收到的每个事件按注册顺序转发给已注册的观察者。它是节点与各下游观察者之间的广播枢纽。
 
@@ -12,7 +12,7 @@ class ObserverHub(Observer):
 
     def add_observer(self, observer: Observer) -> None: ...
 
-    # 继承 Observer 的 12 个事件回调 + handle_exception
+    # 继承 Observer 的 11 个事件回调 + handle_exception
     def on_node_start(self, event: NodeStartEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     # ... 依次对每个事件向所有观察者转发 ...

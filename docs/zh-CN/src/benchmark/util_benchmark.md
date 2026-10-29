@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_benchmark.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 `benchmark/util_benchmark.py` 提供了执行器和任务图的性能基准测试功能，用于对比不同执行模式的性能差异。
 
@@ -38,12 +38,15 @@ async def benchmark_executor(
 ```
 
 测试流程：
-1. 克隆执行器模板（`async` 模式克隆 `async_executor`，其余模式克隆 `sync_executor`），避免状态污染
-2. 调用 `set_execution_mode(mode)` 设置当前测试模式
-3. `serial`/`thread` 模式：调用 `run(task_list)`（内部完成任务注入、终止信号注入并启动）；`async` 模式：调用 `await run_async(task_list)`
-4. 记录各模式耗时，通过 `format_table` 输出时间表格
+1. `task_source` 先整体物化为 `task_list`（`list(task_source)`），因此后续所有模式跑的是同一批任务
+2. 逐个遍历 `execution_modes`；`async` 模式克隆 `async_executor`，其余模式克隆 `sync_executor`，避免状态污染
+3. 调用 `set_execution_mode(mode)` 设置当前测试模式
+4. 用 `time.perf_counter()` 取起点 `start_perf`，随后 `serial`/`thread` 模式调用 `run(task_list)`（内部完成任务注入、终止信号注入并启动），`async` 模式调用 `await run_async(task_list)`；差值 `time.perf_counter() - start_perf` 记为该模式耗时
+5. 通过 `format_table(use_time, execution_modes, ["Time"])` 输出时间表格并 `print`；返回结果字典
 
-输出示例（`format_table` 生成的带边框表格，数值单位为秒）：
+> 计时窗口包裹的是 `run()` / `run_async()` 整体调用，因此**包含运行期资源（`lifecycle` / `log` spout、观察者）的装配与收尾**，而非纯任务执行耗时。
+
+输出示例（`format_table` 生成的带边框表格，数值单位为秒；行名列为 `#`，数据列为 `Time`）：
 ```
 +--------+--------+
 | #      | Time   |
@@ -83,11 +86,14 @@ async def benchmark_graph(
 ```
 
 测试流程：
-1. 遍历 `graph_modes` × `execution_modes` 的全部组合
-2. 克隆任务图（`execution_mode="async"` 时克隆 `async_graph`，否则克隆 `sync_graph`）。`clone_graph` 内部断言所有节点都是 `TaskExecutor`，若含 `TaskSplitter` 等特化节点会抛出 `ConfigurationError`
-3. 调用 `set_graph_mode(graph_mode)` 与 `set_node_execution_mode(execution_mode)`
-4. `graph_mode="async"` 时执行 `await run_async()`；其余图模式执行 `run()`，其中 `execution_mode="async"` 的组合在函数内部通过 `asyncio.to_thread(...)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
-5. 记录耗时，通过 `format_table` 输出时间表格
+1. `init_tasks_dict` 先整体浅拷贝为 `base_tasks`（每个节点的任务再物化成 `list`），保证每个单元格都从原始任务集出发
+2. 遍历 `graph_modes` × `execution_modes` 的全部组合
+3. 克隆任务图（`execution_mode="async"` 时克隆 `async_graph`，否则克隆 `sync_graph`）。`clone_graph` 内部通过 `isinstance` 检查所有节点都是 `TaskExecutor`，若含 `TaskSplitter` 等特化节点会抛出 `ConfigurationError`
+4. 调用 `set_graph_mode(graph_mode)` 与 `set_node_execution_mode(execution_mode)`，并为当前单元格重新复制一份任务字典
+5. 用 `time.perf_counter()` 取起点 `start_perf`：`graph_mode="async"` 时执行 `await run_async()`；其余图模式执行 `run()`，其中 `execution_mode="async"` 的组合通过 `asyncio.to_thread(cloned_graph.run, run_tasks)` 启动，避免与 `benchmark_graph()` 自身的事件循环冲突
+6. 记录 `time.perf_counter() - start_perf`，通过 `format_table(test_table_list, graph_modes, execution_modes, "graph/execution")` 输出时间表格，行名列为 `graph/execution`
+
+> 计时窗口同样包裹整体 `run()` / `run_async()` 调用，包含运行期资源装配与收尾。
 
 输出示例（数值单位为秒）：
 ```
@@ -226,23 +232,26 @@ asyncio.run(
 ### 返回值
 
 `benchmark_executor` 返回包含以下内容的字典：
-- `use_time`: 各模式的耗时列表（与 `execution_modes` 一一对应）
-- `execution_modes`: 测试的执行模式列表
-- `table`: 格式化后的时间表格字符串
+- `use_time`: `list[list[float]]`，每个 `execution_mode` 一行、每行只有一个元素（对应表格唯一的 `Time` 列），行顺序与 `execution_modes` 一致
+- `execution_modes`: 测试的执行模式列表（对应表格的行名）
+- `table`: 格式化后的时间表格字符串（列名为 `["Time"]`，行号列标题为默认的 `#`）
 
 `benchmark_graph` 返回包含以下内容的字典：
-- `use_time`: `graph_modes × execution_modes` 的耗时矩阵（行、列与表格对应）
-- `table`: 格式化后的时间表格字符串
+- `use_time`: `list[list[float]]`，`graph_modes × execution_modes` 的耗时矩阵（行、列与表格对应）
+- `table`: 格式化后的时间表格字符串（行名列为 `graph/execution`）
 - `graph_modes`: 测试的图模式列表（对应表格的行）
 - `execution_modes`: 测试的执行模式列表（对应表格的列）
 
 ## 注意事项
 
 1. **克隆机制**: 每次测试都会克隆原始对象，避免状态污染
-2. **任务固定**: 所有测试使用相同的任务列表，保证公平性
+2. **任务固定**: `benchmark_executor` 会先把任务源物化，`benchmark_graph` 会为每个单元格重新复制任务列表，保证各模式跑同一批任务
 3. **资源竞争**: 线程模式可能因资源竞争影响结果，建议多次测试
 4. **异步要求**: `benchmark_executor` 和 `benchmark_graph` 都是异步函数，需要 `await` 或 `asyncio.run`
 5. **模板分离**: `benchmark_executor` 与 `benchmark_graph` 都需要分别提供同步/异步模板，因为 `execution_mode="async"` 需要 async 函数
 6. **矩阵完整性**: `benchmark_graph` 当前实现默认覆盖 `serial/thread/async × serial/thread/async` 的 9 种组合
 7. **节点类型限制**: 内部使用的 `clone_graph` 仅支持 `TaskExecutor` 节点；图中含 `TaskSplitter` / `TaskRouter` 等特化节点时会抛出 `ConfigurationError`
-8. **内部工具**: `util_benchmark.py` 本体属于 benchmark 内部模块，外部代码请通过 `from celestialflow import benchmark_executor / benchmark_graph` 访问
+8. **非法模式**: `execution_modes` / `graph_modes` 中传入 `serial` / `thread` / `async` 以外的字符串时，会在 `set_execution_mode()` / `set_graph_mode()` 处抛出 `InvalidOptionError`
+9. **计时口径**: 两个函数都使用 `time.perf_counter()`，计时窗口包含 `run()` / `run_async()` 的运行期资源装配与收尾，因此数值偏大且不等于纯任务执行时间
+10. **克隆丢失的配置**: `clone_executor` 只复制 `name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` 与 `retry_exceptions`，`max_queue_size`、`skip_func` 与已注册的观察者都会回到默认值
+11. **内部工具**: `util_benchmark.py` 本体属于 benchmark 内部模块，外部代码请通过 `from celestialflow import benchmark_executor / benchmark_graph` 访问

@@ -1,6 +1,6 @@
 # src/celestialflow/graph/__init__.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 Graph 模块是 CelestialFlow 的核心调度系统，负责管理任务节点之间的依赖关系、执行流程和生命周期。它提供了灵活的任务图构建与分析功能。
 
@@ -35,8 +35,8 @@ from celestialflow.graph import (
      - 执行任务图（`start` / `start_async`，按 `graph_mode` 串行/线程/异步执行）
      - 批量设置节点执行模式（`set_node_execution_mode`）与共享事件客户端（`set_ctree`）
      - 图级观察者注册（`add_observer`）与查询（`get_observers`）
-     - 图分析（`_build_analysis`：源节点识别、DAG 判定、层级计算）
-     - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`）
+     - 图分析（`_build_analysis` 惰性重建：源节点识别、DAG 判定、层级计算；公开入口为 `get_source_nodes()` / `is_dag()` / `get_layers()`）
+     - 初始任务与持久化任务注入（`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`），运行入口支持 `log_level` 与 `report`（`ReportConfig`）参数
 
 2. **core_structure.py**（预定义图结构）
    - **作用**: 提供六种预定义的任务图结构，简化常见模式
@@ -67,7 +67,7 @@ from celestialflow.graph import (
 - `TaskGraph` 是基础类，所有其他结构继承自它
 - `TaskChain`、`TaskLoop` 等是 `TaskGraph` 的特化实现（封装了 `set_nodes` / `connect` 逻辑）
 - `util_order_graph.py` 提供框架内部统一复用的轻量图结构和基础图算法
-- `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析
+- `TaskGraph` 当前基于 `OrderGraph` 完成源节点识别、DAG 判定与层级分析；分析结果由 `_analysis_dirty` 标记驱动惰性重建，公开读取入口为 `get_source_nodes()` / `is_dag()` / `get_layers()`
 
 ### 外部关联
 - **与 Node 模块**: 任务图节点（`TaskExecutor` / `TaskSplitter` / `TaskRouter`）由 `celestialflow.node` 提供，`TaskGraph` 仅负责装配、连接与调度
@@ -80,7 +80,7 @@ from celestialflow.graph import (
 1. **构建任务图**: 创建 `TaskExecutor` 节点（按需使用 `TaskSplitter` / `TaskRouter`）→ `set_nodes()` 注册 → `connect()` 建立依赖
 2. **选择结构**: 对常见模式可直接使用 `TaskChain`/`TaskCross` 等预定义结构
 3. **配置**: 通过 `set_ctree()` 注入事件客户端、`add_observer()` 注册图级观察者
-4. **执行**: 调用 `run()` 或 `run_async()`
+4. **执行**: 调用 `run()` 或 `run_async()`；可通过 `log_level`（默认 `"INFO"`）设置日志级别，通过 `report=ReportConfig(...)` 启用远程上报（默认 `None` 表示不上报）
 
 ## 使用示例
 
@@ -119,11 +119,32 @@ graph.connect([s2], [s3])
 # 执行
 graph.run({s1.get_name(): [1, 2, 3]})
 
-# 图分析
+# 图分析（首次读取时按需计算）
 print(f"源节点: {graph.get_source_nodes()}")
+print(f"是否 DAG: {graph.is_dag()}")  # 注意 is_dag 是方法
+print(f"层级: {graph.get_layers()}")
 print(f"节点列表: {graph.get_nodes()}")
 print(f"边邻接表: {graph.get_edges()}")
 ```
+
+### 启用日志级别与远程上报
+
+```python
+from celestialflow import TaskExecutor, TaskGraph
+from celestialflow.runtime import ReportConfig
+
+node = TaskExecutor("Only", func=lambda x: x + 1)
+graph = TaskGraph(name="Reported", graph_mode="thread")
+graph.set_nodes([node])
+
+graph.run(
+    {node.get_name(): [1, 2, 3]},
+    log_level="DEBUG",
+    report=ReportConfig(url="http://127.0.0.1:5005"),
+)
+```
+
+> 使用 `report` 前请确认该地址上有接收服务；传 `report=None`（默认）表示完全关闭上报。
 
 ### TaskChain 线性链
 
@@ -188,8 +209,12 @@ nodes = [
 ]
 
 loop = TaskLoop(name="FeedbackLoop", nodes=nodes)
-# 环结构建议 if_put_signal=False 避免提前终止
-loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
+# 环图不能直接 run（会一直阻塞）；需在外部条件满足后注入终止信号：
+# loop.inject_terminations([n.get_name() for n in nodes])
+# loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
+
+print(loop.is_dag())  # False
+print(loop.get_layers())  # 同一环内的节点共享层级
 ```
 
 ### TaskWheel 轮状图
@@ -198,16 +223,29 @@ loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
 from celestialflow import TaskWheel, TaskExecutor
 
 center = TaskExecutor("Center", func=lambda x: f"processed: {x}")
-ring = [TaskExecutor(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
+
+def make_ring_node(index: int) -> TaskExecutor:
+    # 节点回调必须只接受一个位置参数，因此用闭包捕获下标
+    def handle(x: str) -> str:
+        return f"ring-{index}: {x}"
+
+    return TaskExecutor(f"R{index}", func=handle)
+
+
+ring = [make_ring_node(i) for i in range(3)]
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
-wheel.run({center.get_name(): ["data"]})
+
+# 同样属于环图：执行前需自行准备外部终止注入
+print(wheel.get_nodes())  # ['Center', 'R0', 'R1', 'R2']
+print(wheel.is_dag())  # False
 ```
 
 ## 最佳实践
 
 - 线性流程使用 `TaskChain`，无需手动 `connect`
 - 多路并行流水线使用 `TaskCross` 或手动组合
-- 有环图（`TaskLoop`/`TaskWheel`）建议 `if_put_signal=False`，通过外部注入停止
+- 有环图（`TaskLoop` / `TaskWheel` / `TaskComplete`）不能用于 `serial` 模式，且 `run()` 会一直阻塞，需在外部条件满足后调用 `inject_terminations()` 注入终止信号
 - 需要监控/接收图中事件时使用 `add_observer()` 注册图级观察者
 - 异步执行使用 `TaskGraph` 的 `graph_mode="async"`，并通过 `start_async()` / `run_async()` 启动
+- 图分析结果通过 `get_source_nodes()` / `is_dag()` / `get_layers()` 读取（均为方法调用），不要访问已私有化的 `_source_names` / `_is_dag` / `_layers_dict`

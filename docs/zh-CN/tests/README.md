@@ -1,6 +1,6 @@
 # tests/ 测试总览
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 说明
 
@@ -15,7 +15,7 @@
 1. `conftest.md`：先看测试辅助工具与共享初始化说明
 2. `runtime/`：理解基础类型、队列、异常和调度原语的覆盖范围
 3. `graph/`：理解图结构、任务拓扑的核心测试
-4. `observability/`：最后看 Reporter 与上报链路的集成测试
+4. `observability/`：最后看观察者与指标采集的集成测试
 
 ## 文档索引
 
@@ -23,7 +23,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| `conftest.md` | 全局 fixture、测试辅助工具与共享初始化说明 |
+| `conftest.md` | 全局测试辅助工具与共享初始化说明 |
 
 ### 子目录说明
 
@@ -31,9 +31,9 @@
 |------|------|
 | `funnel/test_inlet.md` / `test_spout.md` | Inlet / Spout 管道相关测试 |
 | `graph/test_graph.md` 等 | `TaskGraph`、拓扑分析与结构导出相关测试 |
-| `observability/test_observer.md` / `test_reporter.md` | 观察者、Reporter、注入与上报相关测试 |
-| `persistence/test_lifecycle.md` 等 | 生命周期 / 日志 / sqlite 工具等持久化相关测试 |
-| `runtime/test_envelope.md` 等 | 队列、信封、异常、计数器等基础运行时测试 |
+| `observability/test_observer.md` / `test_metrics.md` | 观察者回调与指标观察者相关测试 |
+| `persistence/test_lifecycle.md` 等 | 生命周期 / 日志 / sqlite 工具等持久化相关测试（源码位于 `tests/persist/`） |
+| `runtime/test_envelope.md` 等 | 队列、信封、异常、日志级别、计数器等基础运行时测试 |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` 基准测试与 clone 工具测试 |
 
 ## 如何使用
@@ -44,7 +44,8 @@
 pytest tests -v
 pytest tests/runtime -v
 pytest tests/graph -v
-pytest tests/observability -v
+pytest tests/observer -v
+pytest tests/persist -v
 ```
 
 也可以按关键字筛选：

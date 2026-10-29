@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -75,40 +75,19 @@ python demo/demo_graph.py
 
 ## 预期行为
 
+脚本没有注册任何 observer，也没有 `print` 语句，因此运行期间**不会向终端输出任务级日志或统计摘要**；只能通过外部观察（例如 celestialflow-web 上报，本 demo 未启用）或自行在 `demo_utils` 的任务函数里加日志来确认执行过程。
+
 ### ETL 管道（`demo_etl_fan_out_fan_in`）
 
-依次执行 Extract → Normalize/Enrich → Load，每个 Stage 内部通过 `print` 或 sleep
-休眠输出执行日志。脚本本身不主动打印最终的 Graph Summary 或各 Stage 计数，
-需人工确认（mock 输出仅作示意）。
-
-```
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
-[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
-[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
-[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
-...
-```
-
-> 每个 Extract 产生 1 条记录，经 Normalize 和 Enrich 分别处理后由 Load 聚合。当输入为 `range(1, 16)` 时，Extract 处理 15 条记录，Normalize 与 Enrich 各接收 15 条，Load 节点共接收 30 条任务（15 × 2 下游）。
+依次执行 Extract → Normalize/Enrich → Load，每个任务函数内部只做 `sleep` 与数据变换。当输入为 `list(range(1, 16))` 时，Extract 处理 15 条记录，Normalize 与 Enrich 各接收 15 条，Load 节点共接收 30 条任务（15 × 2 下游）。例如 Extract 产出 `{'id': 1, 'value': 10, 'label': 'item_1'}`，Normalize 追加 `normalized: 0.1`，Enrich 追加 `category: 'odd'`。
 
 ### 异步流水线（`demo_async_pipeline`）
 
-两阶段顺序执行：先 `AsyncDouble` 完成所有 20 个任务，再 `AsyncToStr` 逐个接收并格式化输出。
-
-```
-[AsyncDouble] Input: 1 -> Output: 2
-[AsyncDouble] Input: 2 -> Output: 4
-...
-[AsyncToStr] Input: 2 -> Output: 'result=2'
-[AsyncToStr] Input: 4 -> Output: 'result=4'
-...
-```
-
-> 总执行时间约 1-3 秒（需人工确认），主要受内置 `sleep`（`async_double` 0.3s + `async_to_str` 0.2s）和 8 协程并发调度影响。
+两阶段顺序执行：先把 `list(range(1, 21))` 的 20 个任务交给 `AsyncDouble`，其结果再流入 `AsyncToStr`。按 `async_double` 的 0.3s 与 `async_to_str` 的 0.2s sleep 估算，总耗时约 1~2 秒（`AsyncDouble` 8 并发、`AsyncToStr` 8 并发）。
 
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）
+- `celestialtree`（模块级 `import`，缺失时脚本无法启动；`graph.set_ctree(...)` 默认被注释，服务端并非必需）

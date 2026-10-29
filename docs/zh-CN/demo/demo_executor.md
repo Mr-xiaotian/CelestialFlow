@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | 异步斐波那契 | 协程并发 |
 
 - **输入**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **异常设计**：两个 `0` 与 `None` 会触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），因 `set_retry_exceptions(ValueError)` 自动重试 1 次后仍失败；`""` 会触发类型错误（`<=` 不支持 `str` 与 `int` 比较），不在重试列表中直接失败
+- **异常设计**：两个 `0` 命中 `fibonacci` 中的 `n <= 0` 判定而抛出 `ValueError`，因 `set_retry_exceptions(ValueError)` 会自动重试 1 次，重试后仍失败；`None` 与 `""` 在 `n <= 0` 处触发 `TypeError`（Python 3 不支持 `NoneType` / `str` 与 `int` 比较），不在重试列表中，直接失败
 
 ## 关键配置
 
@@ -94,7 +94,7 @@ python demo/demo_executor.py
 [FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 与 `None` 触发 `ValueError`（在 Python 3 中 `None <= 0` 为 `True`），并经 1 次重试后仍失败；`""` 触发类型错误（不在重试列表中）。
+> **说明**：12 个任务中，4 个非法输入（两个 `0`、`None`、`""`）会导致失败；其余 8 个为合法斐波那契任务。其中两个 `0` 触发 `ValueError`，经 1 次重试后仍失败；`None` 与 `""` 在 `n <= 0` 处触发 `TypeError`（不在重试列表中，直接失败）。
 > 三种模式均使用 `demo_utils` 中的迭代版斐波那契（O(n)），单任务计算本身非常快。
 
 ## 依赖

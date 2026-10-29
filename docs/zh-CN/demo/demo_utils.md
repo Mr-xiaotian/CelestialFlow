@@ -1,6 +1,6 @@
 # demo/demo_utils.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -28,14 +28,18 @@ flowchart TD
     Async --> Graph
     Async --> GraphAsync["demo_graph.py<br/>(demo_async_pipeline)"]
     Fib --> Executor["demo_executor.py"]
+    Fib --> Observer["demo_observer.py"]
     Fib --> Redis0["demo_redis.py<br/>(demo_redis_ack_0)"]
     Sleep1 --> RedisDemo["demo_redis.py<br/>(demo_redis_ack_0/1/2, demo_redis_source_0)"]
+    Sleep1 --> StagesRouter0["demo_nodes.py<br/>(demo_router_0)"]
     Url --> StagesSplitter0["demo_nodes.py<br/>(demo_splitter_0)"]
     Url --> Redis2["demo_redis.py<br/>(demo_redis_ack_2)"]
-    Router --> StagesRouter0["demo_nodes.py<br/>(demo_router_0)"]
+    Router --> StagesRouter0
     Misc --> Redis1["demo_redis.py<br/>(demo_redis_ack_1)"]
     Misc --> StagesSplitter1["demo_nodes.py<br/>(demo_splitter_1)"]
+    Misc --> SkipDedup["demo_skip_dedup.py"]
     Compute --> Structure["demo_structure.py"]
+    Compute --> Web["demo_web.py<br/>(demo_forest)"]
 ```
 
 > 图中仅展示主要函数与演示脚本的对应关系，省略了辅助函数和非核心依赖。
@@ -51,12 +55,12 @@ flowchart TD
 ### Sleep 变体
 - `sleep_1` / `sleep_1_async`：纯延迟 1 秒
 
-### 带 sleep 的运算（demo_structure 用）
-- `operate_sleep` / `operate_sleep_A~E`：二元运算，延迟 1 秒
-- `add_one_sleep`：含多条件异常边界（`n>30`、`n==0`、`n is None`）
+### 带 sleep 的运算
+- `operate_sleep` / `operate_sleep_A~E`：二元运算 `(a + b, a * b)`，延迟 1 秒；当前 `demo/` 下的脚本未直接引用
+- `add_one_sleep`：含多条件异常边界（`n>30`、`n==0`、`n is None`），被 `demo_structure.py`、`demo_web.py` 使用
 
 ### URL 处理函数（demo_nodes 用）
-- `generate_urls_sleep` / `log_urls_sleep` / `download_sleep` / `parse_sleep`
+- `generate_urls_sleep` / `log_urls_sleep` / `download_sleep` / `parse_sleep`：先随机 sleep 4~6 秒，再调用对应的纯逻辑版本（`generate_urls` / `log_urls` / `download` / `parse`）；纯逻辑版本内部按固定规则制造 `ValueError`（如 `url_3*`、偶数解析结果）
 - `download_to_file`：真实 HTTP 下载到本地文件
 
 ### ETL 模拟函数（demo_graph 用）
@@ -74,7 +78,7 @@ flowchart TD
 
 ## 与 tests/ 的关系
 
-本文件 docstring 声明其函数“用于测试文件”（Shared helper functions and classes used across test files），且 `fibonacci`/`fibonacci_async` 为迭代 O(n) 版本（与 `bench/bench_execution_mode.py` 保持一致）。不过当前 `tests/` 目录下并不存在 `test_utils.py`（`tests/utils/` 为空），也没有测试文件引用 `demo_utils`。后续如需让测试复用这些函数，建议将公共工具提取到 `celestialflow/utils/` 下的独立模块。
+本文件 docstring 声明其函数“用于测试文件”（Shared helper functions and classes used across test files），且 `fibonacci`/`fibonacci_async` 为迭代 O(n) 版本（与 `bench/bench_execution_mode.py` 保持一致）。不过当前 `tests/` 下既没有与 `demo_utils` 对应的副本（也没有 `tests/utils/` 目录），也没有任何测试文件引用 `demo_utils`。demo_utils 实际上只服务于 `demo/` 下的演示脚本；后续如需让测试复用这些函数，建议将公共工具提取到 `src/celestialflow/` 下的独立模块。
 
 ## 可能出现的问题
 
@@ -84,9 +88,14 @@ flowchart TD
 
 ## 运行方式
 
-此文件为共享模块，不直接运行：
+此文件为共享模块，不直接运行。它不位于任何包内，需在 `demo/` 目录下执行导入：
+
 ```python
 from demo_utils import fibonacci, sleep_1, router_even
+
+print(fibonacci(10))  # 55
+print(sleep_1("done"))  # 1 秒后输出 done
+print(router_even(4))  # {'StageA': 4}
 ```
 
 ## 依赖

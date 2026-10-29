@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_inlet.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 `BaseInlet` 是所有入口类（Inlet）的基类，负责将记录通过队列发送到对应的 `BaseSpout`。
 
@@ -49,7 +49,7 @@ def bind_spout(self, spout: BaseSpout) -> Self:
 
 - 将当前 inlet 绑定到指定的 `BaseSpout` 实例。
 - 内部会复用 spout 的输入队列（`_queue`）和待处理计数器（`_counter`）。
-- 返回自身，支持链式调用：`LogInlet(log_level).bind_spout(spout)`。
+- 返回自身，支持链式调用：`LogInlet(metrics_view, log_level).bind_spout(spout)`。
 - 未绑定前调用 `_funnel()` 会抛出 `InitializationError`。
 
 ### _funnel（protected）
@@ -96,8 +96,8 @@ classDiagram
 
 | 子类 | 所在文件 | 职责 |
 |------|---------|------|
-| `LogInlet` | `persistence/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | 生命周期记录，将任务进入/成功/失败/重试持久化到 SQLite |
+| `LogInlet` | `persist/core_log.py` | 日志记录，追踪任务入队/出队/终止全过程 |
+| `LifecycleInlet` | `persist/core_lifecycle.py` | 生命周期记录，将任务进入/成功/失败/重试持久化到 SQLite |
 
 ## 使用示例
 

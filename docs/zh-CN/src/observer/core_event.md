@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_event.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_event.py` 定义了观察者体系中的**全部事件类型**。它们作为观察者回调的入参，描述任务 / 节点 / 任务图生命周期的各类变化。所有事件均为 `frozen=True, slots=True` 的只读 `dataclass`。
 
@@ -8,8 +8,8 @@
 
 | 事件 | 字段 | 触发时机 |
 |------|------|----------|
-| `NodeStartEvent` | `node`、`execution_mode`、`max_workers` | 节点启动 |
-| `NodeEndEvent` | `node`、`execution_mode`、`max_workers`、`elapsed` | 节点结束 |
+| `NodeStartEvent` | `node`、`execution_mode`、`max_workers`、`start_time` | 节点启动 |
+| `NodeEndEvent` | `node`、`execution_mode`、`max_workers`、`elapsed`、`end_time` | 节点结束 |
 | `TaskInputEvent` | `node`、`task`、`task_repr`、`input_id`、`from_node` | 任务进入节点输入队列 |
 | `TaskSuccessEvent` | `node`、`task`、`task_repr`、`result`、`result_repr`、`elapsed`、`task_id`、`success_id` | 任务成功处理 |
 | `TaskFailEvent` | `node`、`task`、`task_repr`、`exception`、`task_id`、`error_id` | 任务最终失败 |
@@ -17,9 +17,8 @@
 | `TaskRetryEvent` | `node`、`task`、`task_repr`、`exception`、`task_id`、`retry_times` | 任务失败但触发重试 |
 | `TerminationInputEvent` | `node`、`termination_id` | 终止信号进入输入队列 |
 | `TerminationMergeEvent` | `node`、`parent_ids`、`termination_id` | 多来源终止信号被合并 |
-| `WorkerCrashEvent` | `node`、`exception` | 工作线程 / 协程在兜底层捕获到未处理异常 |
-| `GraphStartEvent` | `graph`、`graph_mode`、`start_time`、`class_name`、`is_dag`、`nodes`、`edges`、`source_nodes`、`node_meta` | 任务图启动 |
-| `GraphEndEvent` | `graph`、`elapsed` | 任务图结束 |
+| `GraphStartEvent` | `graph`、`graph_mode`、`start_time`、`is_dag`、`nodes`、`edges`、`source_nodes`、`node_meta` | 任务图启动 |
+| `GraphEndEvent` | `graph`、`end_time`、`elapsed` | 任务图结束 |
 
 ## 字段说明
 
@@ -40,12 +39,19 @@
 
 - `from_node`：上游来源节点名称；`None` 表示由外部直接注入。此字段是 `MetricsObserver` 区分外部注入与上游投递的依据。
 
+### 生命周期时间戳
+
+- `start_time`：节点 / 任务图启动的墙钟时间（秒），由 `NodeStartEvent` / `GraphStartEvent` 携带。
+- `end_time`：节点 / 任务图结束的墙钟时间（秒），由 `NodeEndEvent` / `GraphEndEvent` 携带。
+- `elapsed`：节点 / 任务图运行耗时（秒）。
+
+时间戳在构造事件时一次性写入，下游观察者（如 `MetricsObserver`）直接读取事件字段，不再自行调用 `time.time()` 采样。
+
 ### 图元信息（`GraphStartEvent`）
 
 - `graph`：任务图名称。
 - `graph_mode`：任务图运行模式。
 - `start_time`：任务图启动时间。
-- `class_name`：任务图类名。
 - `is_dag`：是否为 DAG 任务图。
 - `nodes`：任务图节点名称列表。
 - `edges`：任务图边邻接表（`{from_name: [to_name, ...]}`）。
@@ -81,7 +87,6 @@ from celestialflow.observer import (
     ObserverHub,
     TaskFailEvent,
     TaskSuccessEvent,
-    WorkerCrashEvent,
 )
 
 
@@ -91,9 +96,6 @@ class MyObserver(Observer):
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         print(f"{event.node} 失败: {event.exception}")
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        print(f"{event.node} 工作器崩溃: {event.exception}")
 
 
 hub = ObserverHub()

@@ -1,6 +1,6 @@
 # tests/node/test_node.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 
@@ -96,7 +96,7 @@ pytest tests/node/test_node.py -k "execution_mode" -v
 
 ## 注意事项
 
-- `test_connect_to_binding_survives_execution_mode_switch` 是回归测试：`connect_to` 建立的下游队列池 `yield_queue` 与上游输入源 `source_names` 在切换执行模式后保持稳定，不因重建调度器而丢失绑定。
+- `test_connect_to_binding_survives_execution_mode_switch` 是回归测试：`connect_to` 建立的下游队列池 `yield_queue` 与上游输入队列 `TaskInQueue.source_names` 在切换执行模式后保持稳定，不因重建调度器而丢失绑定。
 - `get_meta()` 只返回构建期元信息（`class_name` / `execution_mode` / `max_workers`），供图结构一次性上报使用。
 - `TestBaseTaskNodeStartErrors` 通过 `monkeypatch.setattr` 替换 `_prepare_start` 与 `_finish_start` 两个**内部钩子**，验证同步 / 异步启动时异常都被聚合为 `ExceptionGroup` 抛出。
 - `ExceptionGroup` 仅在 Python 3.11+ 可用，本仓库基于 Python 3.14 满足要求。

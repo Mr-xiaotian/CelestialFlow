@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `util_types.py` 定义了框架中使用的基础数据类型、枚举和辅助类。
 
@@ -99,7 +99,8 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 |------|------|------|
 | `node` | `str` | 节点名称 |
 | `status` | `NodeStatus` | 节点生命周期状态 |
-| `start_time` | `float` | 进入运行状态的墙钟时间（秒）；未启动为 `0.0` |
+| `start_time` | `float` | 节点**进入**运行状态的墙钟时间（秒）；未启动为 `0.0` |
+| `end_time` | `float` | 节点**退出**运行状态的墙钟时间（秒）；未退出为 `0.0` |
 | `external_input` | `int` | 外部注入任务数 |
 | `upstream_input` | `int` | 上游提供任务数 |
 | `input_total` | `int` | 输入任务总数（外部注入与上游提供之和） |
@@ -110,6 +111,8 @@ CelestialTree 事件名称常量，用于任务追踪和可视化。
 | `pending` | `int` | 待处理任务数 |
 | `upstream_counts` | `dict[str, int]` | 各上游节点提供的任务数量映射 |
 | `downstream_counts` | `dict[str, int]` | 发往各下游节点的任务数量映射 |
+
+> `start_time` / `end_time` 是**墙钟时间**（`time.time()` 返回值，单位秒），分别对应节点进入与退出运行状态的时刻。节点尚未启动时 `start_time` 为 `0.0`；节点尚未退出时 `end_time` 为 `0.0`，因此「运行中」的节点 `end_time - start_time` 没有意义，应先判断 `end_time != 0.0`。
 
 ## MetricsView
 
@@ -175,6 +178,7 @@ snapshot = NodeMetrics(
     node="processor",
     status=NodeStatus.RUNNING,
     start_time=1234.5,
+    end_time=0.0,  # 尚未退出运行状态
     external_input=3,
     upstream_input=2,
     input_total=5,
@@ -187,6 +191,26 @@ snapshot = NodeMetrics(
     downstream_counts={"store": 5},
 )
 print(snapshot.processed)  # 5
+print(snapshot.end_time)  # 0.0（节点仍在运行）
+
+# 节点退出后可由 end_time 计算实际运行时长
+finished = NodeMetrics(
+    node="processor",
+    status=NodeStatus.STOPPED,
+    start_time=1234.5,
+    end_time=1240.0,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=4,
+    failed=1,
+    skipped=0,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(f"运行时长: {finished.end_time - finished.start_time:.1f}s")  # 5.5s
 ```
 
 ### ValueWrapper

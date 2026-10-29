@@ -1,35 +1,36 @@
 # tests/runtime/test_config.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
-验证 `celestialflow.runtime.util_config` 中的 `load_report_url_from_pyproject` 与 `load_if_report_from_pyproject` 两个函数，确保它们能从项目级 `pyproject.toml` 的 `[tool.celestialflow]` 节正确读取上报地址与上报开关，并在配置缺失或非法时回退到默认值 / 抛出 `ConfigurationError`。
+验证 `celestialflow.runtime.ReportConfig` 的构造校验与地址规范化：默认地址回退、首尾空白与末尾斜杠的清理、以及非字符串/空串/非法协议等非法输入是否通过 `ConfigurationError` 拒绝；同时验证配置对象不可变。
 
 ## 核心测试对象
-- `load_report_url_from_pyproject()`: 读取 `report_url`；未配置或没有 `pyproject.toml` 时返回 `DEFAULT_REPORT_URL`（`http://127.0.0.1:5005`）。
-- `load_if_report_from_pyproject()`: 读取 `if_report`；未配置或没有 `pyproject.toml` 时返回 `False`；配置为非布尔时抛出 `ConfigurationError`。
-- `DEFAULT_REPORT_URL`: 上报地址的默认常量，作为无配置时的回退值。
+- `ReportConfig`: 冻结的 dataclass（`frozen=True, slots=True`），唯一字段为 `url`，构造时在 `__post_init__` 中完成校验与规范化。
+- `DEFAULT_REPORT_URL`: 未显式指定地址时使用的默认上报地址（`http://127.0.0.1:5005`），由 `celestialflow.runtime` 包再导出。
+- `ConfigurationError`: 非法地址统一抛出的自定义配置异常。
 
-## 测试辅助
-- `tmp_path` + `monkeypatch.chdir`: 在临时目录写入 `pyproject.toml` 后再调用被测函数，隔离对真实工作目录的依赖。
+## 测试覆盖矩阵
+
+| 测试类 | 用例数 | 覆盖目标 |
+|--------|--------|---------|
+| `TestReportConfig` | 6 | 默认地址、空白与末尾斜杠规范化、空串拒绝、非 `http`/`https` 协议拒绝、非字符串拒绝、对象冻结 |
 
 ## 关键测试场景
 
-### `load_report_url_from_pyproject`
-1. **读取已配置地址** (`test_load_report_url_reads_report_url`): `pyproject.toml` 配置 `report_url = "http://127.0.0.1:9000"` 时返回该地址。
-2. **未配置时的默认值** (`test_load_report_url_defaults_when_absent`): 仅有 `log_level` 而无 `report_url` 时返回 `DEFAULT_REPORT_URL`。
-3. **无 `pyproject.toml`** (`test_load_report_url_defaults_without_pyproject`): 空目录下返回 `DEFAULT_REPORT_URL`。
-
-### `load_if_report_from_pyproject`
-1. **读取已配置开关** (`test_load_if_report_reads_true`): `if_report = true` 时返回 `True`。
-2. **未配置时默认关闭** (`test_load_if_report_defaults_to_false`): 仅配置 `report_url` 而无 `if_report` 时返回 `False`（开关与地址解耦）。
-3. **无 `pyproject.toml`** (`test_load_if_report_returns_false_without_pyproject`): 空目录下返回 `False`。
-4. **非布尔配置抛错** (`test_load_if_report_rejects_non_boolean`): `if_report = "yes"` 时抛出 `ConfigurationError`。
+### `TestReportConfig`
+1. **默认地址** (`test_default_url`): 无参构造的 `ReportConfig().url == DEFAULT_REPORT_URL`。
+2. **规范化为去斜杠地址** (`test_strips_whitespace_and_trailing_slash`): `ReportConfig(url=" http://127.0.0.1:9000/ ")` 的 `url` 为 `"http://127.0.0.1:9000"`，避免与上报端点拼接出双斜杠。
+3. **拒绝空白串** (`test_rejects_empty_url`): `url="   "` 去除空白后为空，抛 `ConfigurationError`。
+4. **拒绝非 HTTP 协议** (`test_rejects_non_http_scheme`): `url="ftp://127.0.0.1:9000"` 抛 `ConfigurationError`。
+5. **拒绝非字符串** (`test_rejects_non_string_url`): `url=5005` 抛 `ConfigurationError`。
+6. **不可变性** (`test_is_frozen`): 构造后对 `url` 赋值抛 `AttributeError`。
 
 ## 测试重点
-- **默认回退**: 上报地址与开关在配置缺失时都有明确的默认值。
-- **开关解耦**: `report_url` 的存在不会隐式启用上报；`if_report` 必须显式为 `true`。
-- **非法输入**: `if_report` 非布尔时通过 `ConfigurationError` 拒绝，而非静默忽略。
+- **启动前校验**: 地址在 `ReportConfig` 构造阶段即完成校验，非法配置会在运行期资源启动之前失败。
+- **规范化**: 首尾空白被 `strip()`、末尾斜杠被 `rstrip("/")` 去除，保证端点拼接路径稳定。
+- **显式启用语义**: 上报开启与否由是否向运行入口传入 `ReportConfig` 决定；`ReportConfig` 本身不再是「开关 + 地址」的组合配置。
+- **失败模式明确**: 所有非法地址都以 `ConfigurationError` 拒绝，而非静默回退到默认值。
 
 ## 运行方式
 
@@ -37,13 +38,18 @@
 # 全部执行
 pytest tests/runtime/test_config.py -v
 
-# 仅运行上报地址相关测试
-pytest tests/runtime/test_config.py -k "report_url" -v
+# 仅运行默认地址与规范化用例
+pytest tests/runtime/test_config.py -k "default_url or strips_whitespace" -v
 
-# 仅运行上报开关相关测试
-pytest tests/runtime/test_config.py -k "if_report" -v
+# 仅运行非法输入与冻结相关用例
+pytest tests/runtime/test_config.py -k "rejects or frozen" -v
 ```
 
+## 重要细节
+- 实现中 `url` 经 `urlsplit` 校验：协议必须是 `http` / `https`，且必须存在 `netloc`（如 `http://` 这类缺少主机的地址同样被拒绝）；测试用例通过 `ftp://` 覆盖协议非法分支。
+- 因为 `slots=True` 且 `frozen=True`，实例既不能动态添加属性，也不能在构造后改写 `url`。
+- 全部用例为纯内存构造，无文件/网络副作用。
+
 ## 注意事项
-- 相关实现位于 `src/celestialflow/runtime/util_config.py`。
-- 所有用例均通过 `monkeypatch.chdir` 切换工作目录，测试快速且无真实网络/文件副作用。
+- 相关实现位于 `src/celestialflow/runtime/core_config.py`，公开符号由 `src/celestialflow/runtime/__init__.py` 再导出。
+- 宿主项目 `pyproject.toml` 不再参与上报配置读取，配置必须由调用方显式传入。

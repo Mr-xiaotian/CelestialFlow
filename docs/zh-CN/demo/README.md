@@ -1,6 +1,6 @@
 # demo/ 演示总览
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 说明
 
@@ -13,7 +13,7 @@
 如果你是第一次接触项目，建议按下面顺序阅读：
 
 1. `demo_executor.md`：先理解 `TaskExecutor` 的基本执行方式
-2. `demo_graph.md`：再看 `TaskGraph` 如何连接 stage 形成 DAG
+2. `demo_graph.md`：再看 `TaskGraph` 如何连接节点形成 DAG
 3. `demo_structure.md`：继续看链、网格、环、完全图等结构化封装
 4. `demo_observer.md`：最后看运行过程中的观察与进度展示
 
@@ -25,7 +25,7 @@
 | `demo_observer.md` | `demo/demo_observer.py` | 为 `TaskExecutor` 注册内置 `PrintObserver` 与自定义观察者 | 否 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | 脱离任务图，单独使用 `BaseInlet` / `BaseSpout` 构建事件采集管道 | 否 |
 | `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` 的扇出/扇入 ETL 与异步分阶段流水线 | CelestialTree（可选） |
-| `demo_web.md` | `demo/demo_web.py` | 森林 DAG 与含 Splitter/Router 的复杂拓扑及本地指标打印演示 | 否 |
+| `demo_web.md` | `demo/demo_web.py` | 森林 DAG 与含 Splitter/Router 的复杂拓扑；通过 `ReportConfig` 上报到 `celestialflow-web` | `celestialflow-web`（可选） |
 | `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | CelestialTree（可选） |
 | `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` 等预定义拓扑 | CelestialTree（可选） |
 | `demo_redis.md` | `demo/demo_redis.py` | 用普通 `TaskExecutor` 实现 Redis 任务投递、结果确认与外部任务源 | Redis（可选） |
@@ -52,7 +52,7 @@
 |------|------|
 | `demo_observer.md` | 观察者、进度上报与生命周期回调演示 |
 | `demo_funnel.md` | Inlet / Spout 管道行为与数据流转演示 |
-| `demo_web.md` | 复杂拓扑配合本地 `MetricsObserver` 打印各节点指标的演示 |
+| `demo_web.md` | 复杂拓扑通过 `ReportConfig` 上报状态到 `celestialflow-web` 的演示 |
 | `demo_redis.md` | Redis 相关集成示例 |
 
 ### 辅助函数

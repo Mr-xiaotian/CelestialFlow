@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_observer.py` 定义了执行器生命周期观察者的**基类** `Observer`。它声明了任务 / 节点 / 任务图全生命周期的事件回调接口，所有回调均提供默认空实现，实现方继承本基类即可只覆写关心的方法。
 
@@ -16,7 +16,6 @@ class Observer:
     def on_task_retry(self, event: TaskRetryEvent) -> None: ...
     def on_termination_input(self, event: TerminationInputEvent) -> None: ...
     def on_termination_merge(self, event: TerminationMergeEvent) -> None: ...
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     def on_graph_start(self, event: GraphStartEvent) -> None: ...
     def on_graph_end(self, event: GraphEndEvent) -> None: ...
@@ -39,7 +38,6 @@ class Observer:
 | `on_task_retry` | `TaskRetryEvent` | 任务失败但触发重试 |
 | `on_termination_input` | `TerminationInputEvent` | 终止信号进入输入队列 |
 | `on_termination_merge` | `TerminationMergeEvent` | 多来源终止信号被合并 |
-| `on_worker_crash` | `WorkerCrashEvent` | 工作线程/协程在兜底层捕获到未处理异常 |
 | `on_graph_start` | `GraphStartEvent` | 任务图启动 |
 | `on_graph_end` | `GraphEndEvent` | 任务图结束 |
 

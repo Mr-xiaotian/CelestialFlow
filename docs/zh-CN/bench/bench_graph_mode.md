@@ -1,6 +1,6 @@
 # bench/bench_graph_mode.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -13,13 +13,13 @@
 - **任务混合**：CPU 密集型（斐波那契）、I/O 密集型（sleep）、纯计算（除二、平方）
 - **输入**：`range(25, 32)`（7 个纯成功任务；早期版本含异常输入，已移除）
 - **重试设置**：`NodeA`、`NodeB1` 对 `ValueError` 启用 `max_retries=1`（当前输入下不触发）
-- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，也未走上报装配）
+- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，`benchmark_graph` 也不接收 `report`，故不上报）
 
 ### `bench_graph_1`
 - **结构**：6 节点多层 DAG（A → [B, C]；B → [D, E]；C → E；D → F）
 - **任务**：随机 0-2 秒睡眠（模拟不均匀负载）
 - **输入**：`range(10)`
-- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，也未走上报装配）
+- **观察者/上报**：未启用（脚本中没有任何 `add_observer(...)` 调用，`benchmark_graph` 也不接收 `report`，故不上报）
 
 ### `bench_graph_2`
 - **结构**：3 节点 DAG（NodeA → [NodeB, NodeC]），节点直接使用 `TaskExecutor`，不再包 `TaskSplitter`（早期版本含 Splitter，已移除）
@@ -34,7 +34,7 @@
 
 ## 可能出现的问题
 
-1. **上报/观察者未开启**：当前脚本中没有任何 `add_observer(...)` 调用，且不经过装配上报资源的入口，因此图中不装配除默认指标外的自定义观察者，也不会上报。上报的启停改由项目级 `pyproject.toml` 的 `[tool.celestialflow]` 节（`if_report`、`report_url`）驱动，而不再依赖 `.env` 中的 `REPORT_HOST`/`REPORT_PORT`（该配置项已移除）；本脚本并未启用上报。
+1. **上报/观察者未启用**：当前脚本中没有任何 `add_observer(...)` 调用，`benchmark_graph` 也不接收 `report` 参数，因此既不会装配自定义观察者，也不会向远端上报。上报现在完全由运行入口的显式参数控制——`graph.run(..., report=ReportConfig(url=...))` 传入 `ReportConfig` 即启用，不传 `report` 即关闭，没有任何隐式开关。本脚本未传，故处于关闭状态。
 2. **总耗时长**：`benchmark_graph` 会运行 `len(graph_modes) × len(execution_modes)` 次完整图执行，含 I/O 延迟时总时间可达数分钟。
 
 ## 运行方式
@@ -284,7 +284,7 @@ python bench/bench_graph_mode.py
 ### 2026/09/19 — node 重构 + bench_graph_2 去 Splitter 后重跑（Windows）
 
 > 环境：Windows，Python 3.14.3，Reporter **未启用**
-> 源码变更：`stage` → `node` 重命名；busy time 改为实测（`metrics.begin_task/end_task`）代替估算；`node.snapshot` → `node.get_snapshot`；reporter 合并 structure+analysis 为 `graph_meta`
+> 源码变更（本轮运行时的状态，部分 API 其后又有调整）：`stage` → `node` 重命名；busy time 改为实测（`metrics.begin_task/end_task`）代替估算；`node.snapshot` → `node.get_snapshot`（快照能力后来迁到 `reporter` 的 `PushSnapshotHandler`，节点/图不再提供该方法）；reporter 合并 structure+analysis 为 `graph_meta`
 > 脚本变更：`bench_graph_2` 移除 `TaskSplitter`，改为 3 节点 DAG 直接将 `range(10_000)` 注入 `NodeA`
 
 #### `bench_graph_0` — 4 节点 DAG，CPU+I/O 混合，7 个任务
@@ -337,5 +337,4 @@ python bench/bench_graph_mode.py
 ## 依赖
 
 - `celestialflow`（`TaskGraph`、`TaskExecutor`、`benchmark_graph`）
-- `python-dotenv`
-- 外部服务：Reporter 服务（可选）
+- 外部服务：无必需依赖；上报服务仅在显式传入 `ReportConfig` 时才需要

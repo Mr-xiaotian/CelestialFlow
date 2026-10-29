@@ -1,6 +1,6 @@
 # bench/bench_observer.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -15,8 +15,8 @@
 | 场景 | 观察者 | 说明 |
 |------|--------|------|
 | **无观察者** | `None` | 裸执行器，没有任何回调输出，作为基准线 |
-| **print 日志** | `PrintObserver` | 每个生命周期事件都执行一次带 `name` 前缀的 `print()`，模拟简单日志输出 |
-| **tqdm 进度条** | `TqdmObserver` | 每个生命周期事件都更新 `tqdm` 进度条，提供可视化反馈 |
+| **print 日志** | `PrintObserver` | 在 node 起止与任务输入 / 成功 / 失败 / 跳过回调中打印带 `name` 前缀的统计行，模拟简单日志输出 |
+| **tqdm 进度条** | `TqdmObserver` | 在 node 起止与任务输入 / 成功 / 失败 / 跳过回调中更新 `tqdm` 进度条，提供可视化反馈 |
 
 ### 任务负载
 
@@ -37,6 +37,40 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 | `execution_mode` | `serial` | 所有场景均使用串行模式，控制变量，仅观察 observer 影响 |
 | `max_workers` | 1 | 单 worker，避免并行调度干扰 |
 | `max_retries` | 0 | 不重试，排除重试逻辑带来的额外耗时 |
+
+## 关键函数
+
+### `run_benchmark`
+
+```python
+def run_benchmark(
+    name: str,
+    task_data: list[Any],
+    func: Any,
+    *,
+    observer: Observer | None = None,
+) -> float
+```
+
+构造一个 `TaskExecutor(name, func, execution_mode="serial", max_workers=1, max_retries=0)`，
+若传入 `observer` 则调用 `executor.add_observer(observer)`，随后用 `time.perf_counter()`
+包住 `executor.run(task_data)` 并返回耗时（秒）。每次调用都新建执行器，避免状态残留。
+
+### `TqdmObserver`
+
+`TqdmObserver` 继承框架的 `Observer` 基类，只覆写与进度相关的回调：
+
+| 回调 | 行为 |
+|------|------|
+| `on_node_start` | 用当前累计的 `_total` 创建 `tqdm(total=...)` |
+| `on_task_input` | `_total += 1`；进度条已创建时同步扩展 `total` 并 `refresh()` |
+| `on_task_success` / `on_task_fail` / `on_task_skip` | 复用 `_advance(1)` 推进进度 |
+| `on_node_end` | 关闭进度条 |
+
+### 工作函数
+
+- `fibonacci(n)`：**迭代**实现（`O(n)`），非递归；`n <= 0` 抛 `ValueError`，非 `int` 抛 `TypeError`
+- `cpu_intensive(x)`：纯 CPU 循环，用于放大观察者开销；**当前脚本未在任何场景中调用**
 
 ## 可能出现的问题
 
@@ -129,5 +163,5 @@ runs = 10  # 从 5 改为 10，获得更稳定的均值
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`BaseObserver`、`PrintObserver`）
+- `celestialflow`（`Observer`、`PrintObserver`、`TaskExecutor`，以及 `celestialflow.observer` 下的各类事件类型）
 - `tqdm`（`TqdmObserver` 使用）

@@ -1,6 +1,6 @@
 # tests/observer/test_observer.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 
@@ -10,12 +10,12 @@
 
 | 类 / 对象 | 来源 | 说明 |
 |-----------|------|------|
-| `Observer` | `celestialflow.observer` | 观测器基类，提供 `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_worker_crash` / `on_graph_start` / `on_graph_end` 等事件回调 |
+| `Observer` | `celestialflow.observer` | 观测器基类，提供 `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_node_end` / `on_graph_start` / `on_graph_end` 共 11 个事件回调，外加 `handle_exception` 作为回调异常处理器 |
 | `ObserverHub` | `celestialflow.observer` | 观测器聚合器，显式实现每个 `on_*` 方法并向注册的观测器广播；拒绝循环注册 |
 | `PrintObserver` | `celestialflow` | 内置观测器，构造参数为 `name`，输出 `[<name>] start` / `[<name>] finish` 日志，维护 `total` / `succeeded` / `failed` 计数 |
 | `MetricsObserver` | `celestialflow.observer` | 指标观察者，测试经 `metrics_of(executor)` 读取节点指标 |
 | `TaskExecutor` / `TaskGraph` / `TaskChain` | `celestialflow` | 运行宿主，负责在生命周期中向观测器触发事件 |
-| 事件类型 | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `WorkerCrashEvent` / `GraphStartEvent` / `GraphEndEvent` |
+| 事件类型 | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `GraphStartEvent` / `GraphEndEvent` |
 
 ## 测试覆盖矩阵
 
@@ -38,7 +38,7 @@
 | `TestGraphObserver` | `test_node_local_observer_runs_before_graph_observer` | 同一节点内，节点本地观测器先于图级观测器被调用 |
 | `TestGraphObserver` | `test_graph_hub_is_injected_as_object` | 注入的是 hub 对象本身：run 之后再注册的图级观测器依然生效 |
 | `TestGraphObserver` | `test_run_async_injects_graph_observers` | `run_async` 路径同样完成图级观测器注入 |
-| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | 图级观测器收到 `GraphStartEvent` / `GraphEndEvent`，启动事件携带图元信息（`nodes` / `edges` / `source_nodes` / `node_meta` / `class_name` / `is_dag`） |
+| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | 图级观测器收到 `GraphStartEvent` / `GraphEndEvent`；启动事件携带 `graph` / `graph_mode` / `is_dag` / `nodes` / `edges` / `source_nodes` / `node_meta`，其中 `node_meta["only"]["class_name"] == "TaskExecutor"`（`class_name` 属于节点元信息，不再是事件顶层字段） |
 | `TestGraphObserver` | `test_structure_supports_graph_observer` | 结构类（`TaskChain`）同样支持图级观测器 |
 | `TestGraphObserver` | `test_graph_rejects_cycle_between_graph_and_node_hub` | 将 node hub 注册进 graph hub 后，注入会因循环引用而抛 `ConfigurationError` |
 

@@ -1,6 +1,6 @@
 # tests/persist/test_log.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 
@@ -49,4 +49,5 @@ pytest tests/persist/test_log.py -k "skip" -v
 - 测试使用 `monkeypatch.chdir(tmp_path)` 切换工作目录，确保日志文件写入临时路径下的 `logs/` 目录。
 - 日志文件的具体路径通过 `spout.log_path` 属性获取。
 - `LogInlet` 通过 `bind_spout` 绑定到 `LogSpout`，事件经队列异步写入文件。
+- 两个用例都显式传入 `log_level`；源码中 `LogInlet(..., log_level=DEFAULT_LOG_LEVEL)` 的默认值来自 `celestialflow.runtime.util_log_level.DEFAULT_LOG_LEVEL`（当前为 `"INFO"`），测试未覆盖默认值分支。
 - 相关实现位于 `src/celestialflow/persist/core_log.py`。

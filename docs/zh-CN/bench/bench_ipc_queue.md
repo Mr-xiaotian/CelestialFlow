@@ -1,31 +1,33 @@
 # bench/bench_ipc_queue.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
 在真实跨进程场景下对比多种 Python IPC（进程间通信）机制的性能：MPQueue、SimpleQueue、Pipe、Manager().Queue。为 CelestialFlow 在多进程模式下的队列选型提供数据支持。
 
-> **注意**：框架已移除 `stage_mode="process"` 及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
+> **注意**：框架已移除 `process` 图模式及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
 
 ## 测试内容
 
 | 机制 | 说明 | 拓扑支持 |
 |------|------|----------|
-| `MPQueue` | 标准多进程队列 | SPSC |
-| `SimpleQueue` | 无锁简化队列 | SPSC |
-| `Pipe` | 双向/单向管道 | SPSC |
-| `Manager().Queue` | 基于 Manager 服务器的队列 | SPSC |
+| `MPQueue` | `multiprocessing.Queue`，带 feeder 线程与锁 | SPSC |
+| `SimpleQueue` | `multiprocessing.SimpleQueue`，直接写管道的简化队列（无 feeder 线程、不支持 `qsize`） | SPSC |
+| `Pipe` | `Pipe(duplex=False)` 单向管道 | SPSC |
+| `Manager().Queue` | 基于 Manager 服务器进程的队列 | SPSC |
 
 - **规模**：`COUNT = 100_000`，`REPEAT = 3`
-- **负载模式**：`int`（Python 整数对象）、`small`（~16 字节）、`medium`（~144 字节）、`large`（~4104 字节）
-- **校验**：通过 checksum 验证数据完整性（无丢失、无损坏）
+- **负载模式**：`int`（Python 整数对象）、`small`（`f"item-{i}"`）、`medium`（`f"{i}-"` + 128 个 `x`）、`large`（`f"{i}-"` + 4096 个 `x`）
+- **校验**：消费者把 `(consumed, checksum)` 回传到结果队列；`consumed` 必须等于 `COUNT`，`checksum` 必须等于 `expected_checksum()`（`int` 模式为等差数列求和，其余模式为各 payload 长度之和），否则抛 `RuntimeError`
+- **启动方式**：`__main__` 中尝试 `set_start_method("spawn")`，已设置过则忽略 `RuntimeError`
 
 ## 关键实现
 
 - `producer_queue` / `consumer_queue`：使用哨兵对象 `_SENTINEL = None` 标识流结束
-- `producer_pipe` / `consumer_pipe`：显式 `conn.close()` 防止句柄泄漏
+- `producer_pipe` / `consumer_pipe`：`try/finally` 中显式 `conn.close()` 防止句柄泄漏；父进程在启动两个子进程后立即关闭自己的两端句柄
 - `expected_checksum`：根据负载模式解析计算预期校验和
+- `run_queue_case` / `run_pipe_case` / `run_manager_queue_case`：每种机制跑 `REPEAT` 轮，逐轮校验后交给 `summarize()` 输出均值 / 标准差 / 吞吐
 
 ## 可能出现的问题
 
@@ -51,7 +53,7 @@
 
 **关键结论**：
 - **Pipe 最快**：比 MPQueue 快 32%，且无需队列抽象层
-- **SimpleQueue 次之**：无锁实现，比 MPQueue 快 21%，但仅支持单生产者单消费者
+- **SimpleQueue 次之**：无 feeder 线程的简化实现，比 MPQueue 快 21%，但仅支持单生产者单消费者
 - **Manager().Queue 最慢**：仅为 MPQueue 的 17% 吞吐量，Manager 服务器进程成为绝对瓶颈
 - 在 CelestialFlow 的多进程队列选型中，Pipe 和 SimpleQueue 是高吞吐场景的最优解（若拓扑允许）
 
@@ -113,4 +115,5 @@ python bench/bench_ipc_queue.py
 
 ## 依赖
 
-- `bench_utils.summarize`
+- `bench_utils.summarize`（同目录模块，直接 `python bench/bench_ipc_queue.py` 即可导入）
+- Python 标准库：`multiprocessing`（`Queue`、`SimpleQueue`、`Pipe`、`Manager`、`Process`、`set_start_method`）

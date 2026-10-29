@@ -1,6 +1,6 @@
 # bench/bench_lock_overhead.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -37,7 +37,16 @@
 - `MPQUEUE_ITEMS = 20_000`
 - `PARALLEL_WORKERS = 4`
 - `REPEAT = 2`
-- 启动方式固定使用 `spawn`，与 Windows 默认行为保持一致
+- 启动方式固定使用 `mp.get_context("spawn")`，与 Windows 默认行为保持一致
+
+## 关键实现
+
+- 共享整数统一用 `ctx.Value(c_longlong, 0, lock=use_lock)`；`lock=True` 时 worker 内通过 `counter.get_lock()` 持锁自增
+- 并行场景按 `split_evenly()` 把 `INT_OPS` / `MPQUEUE_ITEMS` 均分给 `PARALLEL_WORKERS` 个进程
+- 并行队列的消费者用 `q.get(timeout=0.05)` 轮询，捕获 `queue.Empty` 后继续；主进程在全部生产者 `join` 之后向队列写入 `PARALLEL_WORKERS` 个 `None` 作为终止哨兵
+- 串行队列分别计时 `put` 阶段与 `get` 阶段；并行队列的 `get` 阶段为 `max(total_elapsed - put_elapsed, 0.0)`，其中 `put_elapsed` 从生产者启动算到全部生产者 `join` 完成
+- 正确性判定：共享整数比对最终值与 `INT_OPS`；队列比对 `checksum` 与 `MPQUEUE_ITEMS * (MPQUEUE_ITEMS - 1) // 2`，并行场景还比对 `consumed` 与 `MPQUEUE_ITEMS`
+- 统计口径：耗时取 `REPEAT` 轮均值，标准差为 `pstdev`（总体标准差），单轮时记为 `0.0`
 
 ## 可能出现的问题
 

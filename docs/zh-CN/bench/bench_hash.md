@@ -1,10 +1,10 @@
 # bench/bench_hash.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
-系统性对比 9 种对象→哈希字符串的序列化+哈希策略，为 `TaskEnvelope` 的去重和追踪 ID 生成选择最优方案。评估维度包括：速度、稳定性、碰撞率、对不同数据类型的支持度。
+系统性对比 9 种对象→哈希字符串的序列化+哈希策略，为 `TaskEnvelope` 的去重和追踪 ID 生成选择最优方案。脚本实际度量的维度是**速度**（`mean` / `std` / `vs_best`）与**可运行性**（`verify_methods()` 校验每种方法对每个 case 都返回 `str`）；稳定性与跨语言兼容性属于定性判断，脚本本身不做碰撞率统计。
 
 ## 测试策略
 
@@ -26,13 +26,16 @@
 
 ## 关键实现
 
-- `normalize_for_hash`：将 `set`、`dict`、`tuple`、`list`、`bytes` 转为稳定结构（排序键、标记类型）
-- `benchmark_one`：使用 `timeit.repeat`（7 次重复，每次 10,000 次调用），禁用 GC，输出均值和标准差
+- `normalize_for_hash`：将 `set`、`dict`、`tuple`、`list`、`bytes` 转为带 `__type__` 标记的稳定结构（`dict` 按 `repr(key)` 排序、`set` 排序），其余类型原样返回
+- `stable_repr_bytes` / `stable_json_bytes`：在归一化结果上分别产出 `repr(...).encode("utf-8")` 与 `json.dumps(..., sort_keys=True, separators=(",", ":"), ensure_ascii=False)` 字节
+- `verify_methods`：用 `TEST_CASES × METHODS` 全组合试跑一次，任何方法抛错或返回非 `str` 都会包装成 `RuntimeError` 中止
+- `benchmark_one`：使用 `timeit.repeat`（7 次重复，每次 10,000 次调用），期间**临时禁用 GC**（结束后按原状态恢复），返回每次调用的均值与标准差（微秒）
+- 输出：每个 case 打印一张 `format_table` 表格，列为 `mean` / `std` / `vs_best`，`vs_best` 为该行平均耗时相对本 case 最快方法的倍数
 
 ## 可能出现的问题
 
 1. **pickle 的不稳定性**：同一对象在不同 Python 版本或不同运行中，`pickle.dumps` 的字节可能不同（尤其是集合顺序），导致 hash 不一致。**不适合跨会话去重**。
-2. **`fast_mixed` 的类型分支盲区**：若传入自定义类且未实现 `__repr__`，会回退到 `pickle.dumps`，此时又面临 pickle 的不稳定性问题。
+2. **`fast_mixed` 的类型分支盲区**：只有 `bytes`、`str`、`int`、`float`、`bool`、`None` 走捷径，其余对象（包括任何自定义类，无论是否实现 `__repr__`）都会回退到 `pickle.dumps`，因此同样面临 pickle 的不稳定性问题。
 3. **UUID 格式碰撞**：`repr+sha1+uuid` 截断 SHA1 为 16 字节后转 UUID，虽概率极低，但严格来说损失了密码学安全性。
 4. **大对象内存压力**：`long_str_4k`、`bytes_4k` 在 10,000 次重复测试中可能短暂占用大量内存。
 

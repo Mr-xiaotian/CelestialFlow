@@ -1,6 +1,6 @@
 # src/celestialflow/node/util_callable.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 `util_callable.py` 提供对执行器函数签名的轻量级校验。当前仅暴露一个工具函数 `validate_executor_func_signature`，供 `BaseTaskNode._set_func` 在注册回调时调用。
 
@@ -21,7 +21,7 @@ def validate_executor_func_signature(func: Callable[..., Any]) -> int:
 2. 遍历每个 `Parameter`，要求其 `kind` 只能是：
    - `inspect.Parameter.POSITIONAL_ONLY`
    - `inspect.Parameter.POSITIONAL_OR_KEYWORD`
-3. 若发现 `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD` / `POSITIONAL_OR_KEYWORD` 之外的类型，抛 `CallableParameterKindError`（位于 `celestialflow.runtime.util_errors`）；
+3. 若发现 `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD` 等不在允许列表中的参数种类，抛 `CallableParameterKindError`（位于 `celestialflow.runtime.util_errors`）；
 4. 返回参数总数 `len(parameters)`。
 
 > 调用方（`BaseTaskNode._set_func`）会再检查 `parameter_count != 1` 并抛 `ConfigurationError`，从而保证回调只接受一个位置任务参数。

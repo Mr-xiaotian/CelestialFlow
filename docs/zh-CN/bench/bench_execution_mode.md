@@ -1,6 +1,6 @@
 # bench/bench_execution_mode.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -53,7 +53,7 @@ async def fibonacci_async(n):
 
 1. **CPU 密集任务受 GIL 限制**：Python 的 GIL 限制了同一时刻只有一个线程执行 Python 字节码。`thread` 模式下即便开了 6 个 worker，纯计算的大部分时间仍被 GIL 串行化。
 2. **`asyncio` 事件循环冲突**：`main()` 使用 `asyncio.run()`，在 Jupyter 或已有事件循环的环境中运行会报错。
-3. **`benchmark_executor` 输出格式**：该工具会改变 `TaskExecutor` 的 `execution_mode` 多次并重复运行，总耗时 = 模式数 × 任务数 × 单任务耗时。
+3. **`benchmark_executor` 输出格式**：该工具调用 `clone_executor()` 复制模板执行器，对副本依次 `set_execution_mode(mode)` 后重复运行同一批任务，最后打印 `Use time:<表格>`；总耗时 ≈ 模式数 × 任务数 × 单任务耗时。`async` 模式使用传入的 `executor_async` 模板，其余模式使用同步模板。
 
 ## 运行方式
 
@@ -204,4 +204,5 @@ bench_task_1: list[Any] = list(range(20, 35))
 
 ## 依赖
 
-- `celestialflow`（`TaskExecutor`、`benchmark_executor`，以及可选的观察者 `PrintObserver`，本脚本未启用）
+- `celestialflow`（`TaskExecutor`、`benchmark_executor`）
+- 脚本中 `# executor.add_observer(TaskProgress())` 等行均为注释状态，当前不启用任何观察者

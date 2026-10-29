@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer_print.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_observer_print.py` 提供了开箱即用的控制台观察者 `PrintObserver`。它继承 `Observer`，把任务执行进度（启动、输入、成功、失败、跳过、结束）以 `print` 输出到标准输出，便于本地调试与示例演示。
 
@@ -39,7 +39,7 @@ class PrintObserver(Observer):
 | 回调 | 行为 |
 |------|------|
 | `on_node_start(event)` | 打印 `[{name}] start total={total}` |
-| `on_node_end(event)` | `total += ...`，打印 `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+| `on_node_end(event)` | 打印 `[{name}] finish total=..., skipped=..., succeeded=..., failed=...`（不修改任何计数器） |
 | `on_task_input(event)` | `total += 1`，打印 `[{name}] total=...(+1)` |
 | `on_task_success(event)` | `succeeded += 1`，打印 `[{name}] succeeded=...(+1), total=...` |
 | `on_task_fail(event)` | `failed += 1`，打印 `[{name}] failed=...(+1), total=...` |

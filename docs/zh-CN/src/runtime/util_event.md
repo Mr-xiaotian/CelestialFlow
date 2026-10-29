@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_event.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 `runtime/util_event.py` 提供事件客户端抽象接口和本地实现，用于任务图中的事件 ID 生成和追踪。
 
@@ -92,7 +92,7 @@ flowchart LR
 
 - `TaskGraph.__init__()` 默认创建 `LocalEventClient()` 作为共享事件客户端。
 - 通过 `TaskGraph.set_ctree()` 可以替换为用户自定义的 `EventClient`（如 CelestialTree 客户端）。
-- `TaskDispatch._process_termination_signal()` 调用 `self.task_executor.ctree_client.emit()` 来发射终止合并事件。
+- `TaskDispatch._process_termination_signal()` 调用 `self.task_node.ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=parent_ids)` 来发射终止合并事件。
 
 ## 使用示例
 
@@ -116,5 +116,6 @@ print(
 ## 注意事项
 
 - `EventClient` 是 `Protocol`，任何实现了 `emit()` 方法的对象都满足该接口。无需显式继承。
-- `LocalEventClient` 的 `emit()` 方法忽略所有参数（仅用 `_ = type_, parents, message, payload` 接收），只返回递增 ID。适合在不需要完整事件追踪时作为默认实现。
+- `LocalEventClient` 的 `emit()` 方法接受但忽略所有参数（`type_` / `parents` / `message` / `payload` 均未使用），只返回递增 ID。适合在不需要完整事件追踪时作为默认实现。
+- `BaseTaskNode.__init__()` 与 `TaskGraph.__init__()` 都会默认创建 `LocalEventClient`（图通过 `set_ctree()` 下发给各节点），因此事件链在不接外部系统时仍能保证 ID 唯一递增。
 - 如果需要将事件上报到 CelestialTree，需额外安装 `celestialtree` 包并构造对应客户端实例，通过 `TaskGraph.set_ctree()` 注入。

@@ -1,32 +1,52 @@
 # src/celestialflow/persist/util_sqlite.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
-`persist/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录 CRUD 操作工具，是 `LifecycleSpout` 的底层存储引擎。
+`persist/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录读写工具，是 `LifecycleSpout` 的底层存储引擎。
+
+函数按**连接生命周期的归属**分为两类：
+
+- **复用调用方连接的写操作**：显式接收 `sqlite3.Connection`，由调用方（`LifecycleSpout`）负责打开 / `commit()` / 关闭；
+- **自持连接的读取操作**：内部自行 `connect_db()` 并在 `finally` 中 `close()`。
+
+两条转换工具（`normalize_record` / `row_to_record_dict`）不接触连接。
 
 ## 核心函数概览
 
-| 函数 | 说明 |
-|------|------|
-| `connect_db(db_path)` | 创建 SQLite 连接，配置 WAL 模式，确保表结构与索引 |
-| `normalize_record(record)` | 将记录归一化为 sqlite 可写格式（缺少 `event_id` 时返回 `None`） |
-| `row_to_record_dict(row)` | 将 sqlite 行转换为对外记录字典 |
-| `insert_record(conn, record)` | 插入一条记录 |
-| `promote_record_to_success_by_event_id(...)` | 将记录晋升为 success 并写入结果 |
-| `promote_record_to_skipped_by_event_id(...)` | 将记录晋升为 skipped 并切换到新事件 ID |
-| `promote_record_to_failed_by_event_id(...)` | 将记录晋升为 failed 并切换到新事件 ID |
-| `update_retry_by_event_id(conn, event_id, *, ts, retry_times, ...)` | 更新 pending 记录的重试次数与最近一次错误信息 |
-| `delete_record_by_event_id(conn, event_id)` | 按 event_id 删除记录 |
-| `clear_records(db_path)` | 清空数据库中的全部记录 |
-| `append_records(db_path, records)` | 批量追加写入，event_id 冲突时跳过（幂等） |
-| `get_max_event_id_in_fail(db_path)` | 读取失败记录中的最大 event_id |
-| `load_records(db_path, status)` | 按状态加载记录 |
-| `load_tasks_grouped_by_node(db_path, statuses)` | 按 node 分组加载 |
-| `load_records_after_event_id_in_fail(db_path, min_event_id)` | 增量加载失败记录 |
-| `query_records(db_path, page, page_size, ...)` | 分页条件查询 |
-| `query_error_type_counts(db_path, node, status)` | 按错误类型聚合统计 |
-| `load_task_error_records(db_path, node)` | 按 node 加载 (task, error) 对 |
-| `load_task_result_records(db_path, node)` | 按 node 加载 (task, result) 对 |
+| 函数 | 签名要点 | 说明 |
+|------|---------|------|
+| `connect_db` | `(db_path) -> Connection` | 创建连接、配置 PRAGMA、确保表结构与索引 |
+| `normalize_record` | `(record) -> dict \| None` | 归一化为 sqlite 可写参数字典；缺少 `event_id` 时返回 `None` |
+| `row_to_record_dict` | `(row) -> dict` | 将 `sqlite3.Row` 还原为对外记录字典 |
+| `insert_record` | `(conn, record) -> bool` | 插入一条 pending 记录 |
+| `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | 晋升为 `success` 并写入结果 |
+| `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | 晋升为 `failed` 并切换到错误事件 ID |
+| `promote_record_to_skipped_by_event_id` | `(conn, event_id, new_event_id, *, ts) -> bool` | 晋升为 `skipped` 并切换到跳过事件 ID |
+| `update_retry_by_event_id` | `(conn, event_id, *, ts, retry_times, error_type="", error_message="") -> bool` | 保持 pending，更新重试次数与最近一次错误 |
+| `delete_record_by_event_id` | `(conn, event_id) -> bool` | 按 `event_id` 删除记录 |
+| `load_tasks_grouped_by_node` | `(db_path, statuses=("failed", "pending")) -> dict[str, list[dict]]` | 按 node 分组读取指定状态 |
+| `load_task_error_records` | `(db_path, node) -> list[tuple[task, (error_type, error_message)]]` | 读取某 node 的失败任务与错误配对 |
+| `load_task_result_records` | `(db_path, node) -> list[tuple[task, result]]` | 读取某 node 的成功任务与结果配对 |
+
+> 私有辅助 `_ensure_table(conn)` 只被 `connect_db` 调用，不对外暴露。
+
+```mermaid
+flowchart LR
+    subgraph Write["写路径（复用 conn）"]
+        W1[insert_record]
+        W2[promote_record_to_*_by_event_id]
+        W3[update_retry_by_event_id]
+        W4[delete_record_by_event_id]
+    end
+    subgraph Read["读路径（自持 conn）"]
+        R1[load_tasks_grouped_by_node]
+        R2[load_task_error_records]
+        R3[load_task_result_records]
+    end
+    Spout[LifecycleSpout] -->|持有 conn| Write
+    Write --> DB[(records 表)]
+    Read -->|connect_db + close| DB
+```
 
 ## 数据库表结构
 
@@ -48,8 +68,9 @@ CREATE TABLE IF NOT EXISTS records (
 > 兼容旧库：`_ensure_table` 会检查 `retry_times` 列，缺失时自动 `ALTER TABLE` 补齐。
 
 **索引：**
-- `idx_records_event_id` (UNIQUE)：按 event_id 快速定位
-- `idx_records_status_id`：按 (status, id) 组合查询
+
+- `idx_records_event_id`（UNIQUE）：按 `event_id` 快速定位，同时保证一个事件 ID 只有一条记录
+- `idx_records_status_id`：按 `(status, id)` 组合查询
 
 > 表中的 `node` 字段标识任务所属节点（业务字段，须由调用方显式写入）。
 
@@ -61,13 +82,16 @@ CREATE TABLE IF NOT EXISTS records (
 def connect_db(db_path: str | Path) -> sqlite3.Connection:
 ```
 
-自动配置：
-- `check_same_thread=False` — 多线程安全
-- `journal_mode=WAL` — 写操作不阻塞读
-- `synchronous=NORMAL` — 平衡性能与安全
-- `foreign_keys=ON` — 启用外键约束
+- 先 `mkdir(parents=True, exist_ok=True)` 创建父目录；
+- 自动配置 PRAGMA：
+  - `journal_mode=WAL` — 写操作不阻塞读
+  - `synchronous=NORMAL` — 平衡性能与安全
+  - `foreign_keys=ON` — 启用外键约束
+- `check_same_thread=False` — 允许跨线程使用（使用端 spout 仅有单个消费线程）；
+- `row_factory = sqlite3.Row`，因此查询结果可按列名取值；
+- 最后调用 `_ensure_table(conn)` 建表、补列、建索引并 `commit()`。
 
-同时确保表结构与索引存在。
+> 本函数**只负责创建**连接，关闭与提交由调用方负责。
 
 ## 记录序列化
 
@@ -78,71 +102,101 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
 ```
 
 - 缺少 `event_id` 时返回 `None`（非业务记录被忽略）。
-- 业务记录必须显式提供 `node` 与 `status`。
-- 输出为标准参数字典：`event_id` / `node` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json` / `retry_times`，其中 `task_json` / `result_json` 为 `json.dumps(..., ensure_ascii=False)` 结果。
+- 业务记录必须显式提供 `node`、`status` 与 `task_json`。
+- 输出为标准参数字典：`event_id` / `node` / `status` / `error_type` / `error_message` / `ts` / `task_json` / `result_json` / `retry_times`；其中 `task_json` / `result_json` 为 `json.dumps(..., ensure_ascii=False)` 结果。
+- 缺省值：`error_type` / `error_message` 为空字符串，`ts` 为 `0.0`，`retry_times` 为 `0`。
 
 ### row_to_record_dict
 
-将 sqlite 行（`sqlite3.Row`）转换为对外记录字典，其中 `task_json` / `result_json` 经 `json.loads` 还原。
+```python
+def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
+```
 
-## 记录操作
+将 sqlite 行转换为对外记录字典（`id` / `event_id` / `ts` / `node` / `status` / `error_type` / `error_message` / `task_json` / `result_json` / `retry_times`），其中 `task_json` / `result_json` 经 `json.loads` 还原。
 
-### 写入操作（需传入 conn）
+## 写操作（复用调用方连接）
 
-以下函数需要调用方自行管理 `conn` 的生命周期（通常由 `LifecycleSpout` 持有），改动记录后手动 `commit()`：
+以下函数接收 `conn`，**不提交也不关闭**，由调用方在改动后自行 `commit()`。返回值均为 `bool`，表示是否实际影响到记录（`cursor.rowcount > 0`；`insert_record` 在成功执行 INSERT 后返回 `True`，元信息记录被忽略时返回 `False`）。
 
-| 函数 | 签名要点 | 说明 |
-|------|---------|------|
-| `insert_record` | `(conn, record: dict) -> bool` | 归一化后 INSERT |
-| `update_retry_by_event_id` | `(conn, event_id, *, ts, retry_times, error_type="", error_message="") -> bool` | 保持 pending 状态，更新重试次数与最近一次错误信息 |
-| `promote_record_to_success_by_event_id` | `(conn, event_id, result, *, ts) -> bool` | 更新 status='success' + result_json |
-| `promote_record_to_skipped_by_event_id` | `(conn, event_id, new_event_id, *, ts) -> bool` | 更新 event_id、status='skipped' |
-| `promote_record_to_failed_by_event_id` | `(conn, event_id, new_event_id, *, ts, error_type="", error_message="") -> bool` | 更新 event_id、status='failed' 和错误信息 |
-| `delete_record_by_event_id` | `(conn, event_id) -> bool` | 删除记录 |
+| 函数 | 行为 |
+|------|------|
+| `insert_record(conn, record)` | 归一化后 INSERT；依赖 `event_id` 唯一索引，重复写入会抛 `sqlite3.IntegrityError` |
+| `promote_record_to_success_by_event_id(conn, event_id, result, *, ts)` | `status='success'`，写入 `ts` 与 `result_json`，同时清空 `error_type` / `error_message` |
+| `promote_record_to_failed_by_event_id(conn, event_id, new_event_id, *, ts, error_type="", error_message="")` | `status='failed'`，写入 `ts`、错误信息，并把 `event_id` 切换为 `new_event_id` |
+| `promote_record_to_skipped_by_event_id(conn, event_id, new_event_id, *, ts)` | `status='skipped'`，写入 `ts`，切换 `event_id`，清空错误字段 |
+| `update_retry_by_event_id(conn, event_id, *, ts, retry_times, error_type="", error_message="")` | 只更新 `retry_times` / `ts` / 错误信息，**不改变** `status`（保持 pending） |
+| `delete_record_by_event_id(conn, event_id)` | `DELETE FROM records WHERE event_id = ?` |
 
-### 自持连接的操作
+> `promote_*` / `update_retry` 全部以 `event_id` 为定位条件。由于成功 / 跳过 / 失败会切换 `event_id`，同一条 pending 记录在不同阶段可用不同的 ID 定位。
 
-以下函数内部自行 `connect_db` 并 `close`：
+## 读操作（自持连接）
 
-| 函数 | 签名要点 | 返回类型 |
-|------|---------|---------|
-| `clear_records` | `(db_path)` | `None` |
-| `append_records` | `(db_path, records)` | `int`（实增数量） |
-| `get_max_event_id_in_fail` | `(db_path)` | `int | None` |
-| `load_records` | `(db_path, status="failed")` | `list[dict]` |
-| `load_tasks_grouped_by_node` | `(db_path, statuses=("failed", "pending"))` | `dict[str, list[dict]]` |
-| `load_records_after_event_id_in_fail` | `(db_path, min_event_id)` | `list[dict]` |
-| `query_records` | `(db_path, page, page_size, node, keyword, sort_order, status="failed")` | `(total, total_pages, items)` |
-| `query_error_type_counts` | `(db_path, node="", status="failed")` | `list[dict]` |
-| `load_task_error_records` | `(db_path, node)` | `list[(task, (error_type, error_message))]` |
-| `load_task_result_records` | `(db_path, node)` | `list[(task, result)]` |
+以下函数内部调用 `connect_db(db_path)`，在 `finally` 中 `close()`，调用方无需管理连接。
+
+### load_tasks_grouped_by_node
+
+```python
+def load_tasks_grouped_by_node(
+    db_path: str | Path,
+    statuses: Iterable[str] = ("failed", "pending"),
+) -> dict[str, list[dict[str, Any]]]:
+```
+
+- `statuses` 为空时直接返回 `{}`；
+- 以 `ORDER BY node ASC, id ASC` 读取；
+- 返回 `{node_name: [{"task_json": task, "error_type": str, "status": str}, ...]}`，其中 `task_json` 已 `json.loads` 还原为 Python 对象。
+
+### load_task_error_records
+
+```python
+def load_task_error_records(
+    db_path: str | Path, node: str
+) -> list[tuple[Any, tuple[str, str]]]:
+```
+
+读取指定 node 中 `status='failed'` 的记录，按 `id ASC` 返回 `[(task, (error_type, error_message)), ...]`。
+
+### load_task_result_records
+
+```python
+def load_task_result_records(db_path: str | Path, node: str) -> list[tuple[Any, Any]]:
+```
+
+读取指定 node 中 `status='success'` 的记录，按 `id ASC` 返回 `[(task, result), ...]`。
 
 ## 使用示例
 
-### 基本读写操作
+### 基本写入与读取
 
 ```python
-import sqlite3
-from celestialflow.persist.util_sqlite import connect_db, insert_record, load_records
+from celestialflow.persist.util_sqlite import (
+    connect_db,
+    insert_record,
+    load_task_result_records,
+    promote_record_to_success_by_event_id,
+)
 
 # 1. 创建连接（自动配置 + 建表）
 conn = connect_db("test_data.sqlite3")
 
-# 2. 写入记录（需传 conn）
+# 2. 写入 pending 记录（需传 conn）
 record = {
     "event_id": 1,
+    "ts": 0.0,
     "node": "StageA",
     "status": "pending",
-    "task_json": "hello world",
+    "task_json": {"x": 1},
 }
 insert_record(conn, record)
+
+# 3. 任务成功后晋升为 success
+promote_record_to_success_by_event_id(conn, 1, {"y": 2}, ts=0.0)
 conn.commit()
 conn.close()
 
-# 3. 读取记录（自动管理连接）
-records = load_records("test_data.sqlite3", status="pending")
-for r in records:
-    print(f"event_id={r['event_id']}, node={r['node']}, task={r['task_json']}")
+# 4. 读取时由函数自行管理连接
+for task, result in load_task_result_records("test_data.sqlite3", node="StageA"):
+    print(task, "->", result)
 ```
 
 ### 按 node 分组加载
@@ -151,28 +205,11 @@ for r in records:
 from celestialflow.persist.util_sqlite import load_tasks_grouped_by_node
 
 grouped = load_tasks_grouped_by_node(
-    "lifecycles/2026-10-09/flow_lifecycle(10-00-00-123).sqlite3",
+    "lifecycles/2026-10-30/flow_lifecycle(10-00-00-123).sqlite3",
     ("failed", "pending"),
 )
-```
-
-返回 `{node_name: [{"task_json": task, "error_type": str, "status": str}, ...]}`。
-
-### 分页查询错误记录
-
-```python
-from celestialflow.persist.util_sqlite import query_records
-
-total, total_pages, items = query_records(
-    db_path="lifecycles/2026-10-09/flow_lifecycle(10-00-00-123).sqlite3",
-    page=1,
-    page_size=20,
-    node="",
-    keyword="ValueError",
-    sort_order="newest",
-    status="failed",
-)
-print(f"共 {total} 条，第 1/{total_pages} 页")
+for node_name, items in grouped.items():
+    print(node_name, len(items))
 ```
 
 ### 读取任务错误 / 结果配对
@@ -183,17 +220,16 @@ from celestialflow.persist.util_sqlite import (
     load_task_result_records,
 )
 
-errors = load_task_error_records(
-    db_path, node="StageA"
-)  # [(task, (error_type, error_message))]
+db_path = "lifecycles/2026-10-30/flow_lifecycle(10-00-00-123).sqlite3"
+errors = load_task_error_records(db_path, node="StageA")  # [(task, (error_type, error_message))]
 results = load_task_result_records(db_path, node="StageA")  # [(task, result)]
 ```
 
 ## 注意事项
 
-- **写入函数**（insert/promote/delete）需要调用方传入 `conn` 并在操作后手动 `commit()`；`clear_records` / `append_records` 与所有读取函数在内部自行管理连接。
-- `insert_record` 使用 `INSERT`，基于 `event_id` 唯一索引保证唯一性；外部批量写入时通常配合 `append_records` 捕获 `IntegrityError` 实现幂等。
-- 归一化函数 `normalize_record` 会过滤掉缺少 `event_id` 的记录（返回 `None`）。
-- `task_json` 和 `result_json` 存储的是 `json.dumps` 后的字符串，读取时通过 `json.loads` 还原。
-- `retry_times` 由 `update_retry_by_event_id` 维护，用于记录任务在晋升前的重试次数。
-- **业务字段显式写入**：`node` 和 `status` 为业务字段，须由调用方（如 `LifecycleInlet`）在写入记录时显式提供，`normalize_record` 不做默认推断。
+1. **连接归属**：写操作（`insert` / `promote_*` / `update_retry` / `delete`）需要调用方传入 `conn` 并手动 `commit()`；三个 `load_*` 读取函数在内部自行建立并关闭连接。
+2. **唯一性**：`insert_record` 使用普通 `INSERT`，`event_id` 的唯一索引保证一条事件 ID 只对应一条记录；重复插入会抛 `sqlite3.IntegrityError`，调用方需自行处理。
+3. **过滤规则**：`normalize_record` 会过滤掉缺少 `event_id` 的记录（返回 `None`），`insert_record` 随即返回 `False`。
+4. **JSON 字段**：`task_json` 与 `result_json` 在库中是 `json.dumps` 后的字符串；`row_to_record_dict` 与各 `load_*` 函数读取时会 `json.loads` 还原。
+5. **`retry_times`**：由 `update_retry_by_event_id` 维护，用于记录任务在晋升前的重试次数。
+6. **业务字段显式写入**：`node` 与 `status` 为业务字段，须由调用方（如 `LifecycleInlet`）在写入记录时显式提供，`normalize_record` 不做默认推断。

@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -227,7 +227,7 @@ flowchart TD
 
 ## 可能出现的问题
 
-1. **`__main__` 调用了未定义的 `demo_forest`**：`__main__` 在 `demo_chain()` 之后立即调用 `demo_forest()`，但本文件中已不再定义该函数（森林示例已迁移到 `demo_web.py`），因此运行到此处会抛出 `NameError`，后续的 `demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()` 不会被执行。
+1. **执行时间较长**：`demo_chain`（20 个任务 × 5 个节点，`execution_mode="serial"`）与 `demo_grid`（4×4 网格，`add_one_sleep` 含 1 秒 sleep）都会累积大量 sleep；`__main__` 依次运行六个演示，整体耗时可达数分钟。
 2. **有环图可能不会自动停止**：四个有环图示例均显式传入 `if_put_signal=False`（不注入自动终止信号）。其中 `demo_wheel` 的 `Core` 使用 `square`（不抛异常），任务会持续回环轮转；其余示例的任务递增到 `add_one_sleep` 的异常阈值（n>30）后不再产生新任务，同样不会自动退出。运行前建议准备 **Ctrl+C** 手动终止。
 3. **sleep 延迟累积**：`square` 与 `add_one_sleep` 均含 1 秒 sleep，任务数较多时总耗时会明显增长。
 4. **无断言**：仅验证框架能启动和运行，不检查结果数值。
@@ -242,7 +242,7 @@ python demo/demo_structure.py
 
 ## 预期行为
 
-以下输出均为预期输出 (mock)，具体日志格式取决于框架输出。
+以下输出均为预期输出 (mock)：源码没有为这些结构注册 `PrintObserver`，实际运行时终端不会打印下面的逐任务日志或 `Summary`。
 
 ### DAG 结构
 
@@ -287,6 +287,7 @@ Grid33: success=180  fail=0
 > **重要**：有环图示例（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）均显式传入 `if_put_signal=False`，不会自动注入终止信号，默认运行时可能持续循环，建议按 **Ctrl+C** 手动终止进程。
 
 > 如果依次运行多个结构，`Summary` 部分展示各节点成功/失败计数。
+> 上述各级 `Input -> Output` 与 `Summary` 均为示意输出；源码未为这些结构注册 `PrintObserver`，实际终端输出以框架日志为准。
 > `demo_grid` 的计数为 mock 推算：`Grid00` 输入 `range(10)`，其中 `0` 触发 `add_one_sleep` 的 `ValueError` 而失败，剩余任务沿 4×4 网格向下传播，`Grid33` 共汇聚 180 条任务。
 
 ## 依赖
@@ -294,4 +295,4 @@ Grid33: success=180  fail=0
 - `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`）
 - `demo_utils`
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）
+- `celestialtree`（模块级 `import`，缺失时脚本无法启动；各 `set_ctree` 调用默认被注释，服务端并非必需）

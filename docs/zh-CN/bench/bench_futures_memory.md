@@ -1,6 +1,6 @@
 # bench/bench_futures_memory.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -27,6 +27,18 @@
 | `task_count` | 10K / 100K / 500K | 任务数量 |
 | `max_workers` | 20 | 线程池大小 |
 | 任务函数 | `noop(x)` | 直接返回，无计算开销 |
+
+## 输出指标
+
+`measure()` 在 `tracemalloc.start()` 之后计时调用被测函数，返回三个值：
+
+| 指标 | 含义 |
+|------|------|
+| `elapsed` | `time.perf_counter()` 包裹的调度耗时（秒） |
+| `peak_mb` | `tracemalloc.get_traced_memory()` 的峰值（MB），`peak / 1024 / 1024` |
+| `current_mb` | 同一时刻的当前追踪内存（MB） |
+
+两种模式都以 `pool.shutdown(wait=False)` 收尾，因此输出中 `current_mb` 只反映调度结束瞬间的 Python 分配量，不代表进程驻留内存。
 
 ## 运行方式
 

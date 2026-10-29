@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `benchmark/util_clone.py` 提供了克隆执行器与任务图的功能，用于性能测试和配置复用。
 
@@ -28,14 +28,19 @@ def clone_executor[T, R](
     """
 ```
 
-复制的属性：
+复制的属性（由内部 `_get_clone_init_kwargs()` 收集后交给 `TaskExecutor(**kwargs)`）：
 - `name`: 执行器名称
-- `func`: 任务函数
+- `func`: 任务函数（仅复制引用，不深拷贝）
 - `execution_mode`: 执行模式
 - `max_workers`: 并发限制
 - `max_retries`: 最大重试次数
 - `max_info`: 日志信息最大长度
-- `retry_exceptions`: 可重试异常列表（通过 `set_retry_exceptions()` 设置）
+- `retry_exceptions`: 可重试异常列表（构造后通过 `set_retry_exceptions(*executor.retry_exceptions)` 复制）
+
+**未被复制的配置**（克隆体回到构造默认值）：
+- `max_queue_size`（默认 `0`，无限制）
+- `skip_func`（默认 `None`，不跳过任何任务）
+- 已注册的观察者（`add_observer()` 注册的 `Observer` / `ObserverHub`）
 
 ### clone_graph
 
@@ -49,6 +54,9 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     该工具仅用于 benchmark 场景，因此只支持由 ``TaskExecutor`` 组成的任务图，
     并直接复用 :func:`clone_executor` 克隆所有节点。
 
+    克隆体不携带原图 / 原节点的观察者：``clone_executor`` 会创建全新实例，
+    共享带计数器的观察者会导致重复计数。
+
     :param graph: 要克隆的任务图
     :return: 克隆任务图
     :raises ConfigurationError: 图中包含非 ``TaskExecutor`` 节点时抛出
@@ -56,12 +64,14 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 ```
 
 克隆流程：
-1. 从源节点出发按 BFS（广度优先）遍历原图（`graph.order_graph.out_edges` 的出边顺序）收集全部节点
-2. 断言每个节点都是 `TaskExecutor`；若遇到 `TaskSplitter` / `TaskRouter` 等特化节点，立即抛出 `ConfigurationError`
+1. 从源节点（`graph.get_source_nodes()`）出发按 BFS（广度优先）遍历原图（`graph.order_graph.out_edges` 的出边顺序）收集全部节点
+2. 对每个节点做 `isinstance(node, TaskExecutor)` 检查；若遇到 `TaskSplitter` / `TaskRouter` 等特化节点，立即抛出 `ConfigurationError`
 3. 克隆每个节点并建立原节点名 → 克隆节点的映射
 4. 通过 `set_nodes()` 注册全部克隆节点，并用 `connect()` 重建节点间的连接关系
 5. 复制图配置（`name`, `graph_mode`）
-6. 复制 CelestialTree 事件客户端（通过 `clone_event_client` 克隆）
+6. 复制 CelestialTree 事件客户端（通过 `clone_event_client(graph.ctree_client)` 克隆）
+
+> ⚠️ 克隆后 `node_dict` 的键顺序变为 BFS 顺序（源节点在前），不再是原图的节点注册顺序。
 
 > ⚠️ **`clone_graph` 不保证保留所有节点类型**：仅 `TaskExecutor` 节点会被克隆为相同类型；`TaskSplitter` / `TaskRouter` 等特化节点既不会被克隆为相同子类，其拆分 / 路由行为也不会被保留。该工具是 benchmark 内部工具，仅适用于"全由 `TaskExecutor` 构成、用于基准测试"的任务图。
 
@@ -214,8 +224,9 @@ asyncio.run(main())
 ## 注意事项
 
 1. **状态独立**: 克隆后的对象与原对象完全独立（通过构造新实例实现），修改不会互相影响
-2. **连接重建**: 克隆图时会重建节点间的连接关系
+2. **连接重建**: 克隆图时会重建节点间的连接关系，但 `node_dict` 的键顺序变为 BFS 顺序
 3. **函数引用**: 克隆只复制函数引用，不复制函数本身
-4. **性能开销**: 克隆大型图有一定开销，但比重新构建更快
-5. **内部工具**: `clone_executor` / `clone_graph` 是 benchmark 内部工具，不在顶层包入口的 `__all__` 中，签名/语义可能随 benchmark 内部实现调整而变化
-6. **节点类型限制**: `clone_graph` 仅支持 `TaskExecutor` 节点；遇到 `TaskSplitter` / `TaskRouter` 等特化节点会抛出 `ConfigurationError`，**不**保留这些子类的类型与行为
+4. **配置丢失**: `clone_executor` 不复制 `max_queue_size`、`skip_func` 与已注册的观察者；`clone_graph` 复用 `clone_executor`，因此克隆图中的节点同样丢失这些配置（观察者丢失同时也避免了计数器被重复累加）
+5. **性能开销**: 克隆大型图有一定开销，但比重新构建更快
+6. **内部工具**: `clone_executor` / `clone_graph` 是 benchmark 内部工具，不在顶层包入口的 `__all__` 中，签名/语义可能随 benchmark 内部实现调整而变化
+7. **节点类型限制**: `clone_graph` 仅支持 `TaskExecutor` 节点；遇到 `TaskSplitter` / `TaskRouter` 等特化节点会抛出 `ConfigurationError`，**不**保留这些子类的类型与行为

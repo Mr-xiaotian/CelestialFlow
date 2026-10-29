@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -37,8 +37,20 @@ preload queue -> start spout -> drain all queued records
 - `--lifecycle-count`：默认 `20_000`
 - `LogSpout` 输出到临时目录下的 `bench_task_logger.log`
 - `LifecycleSpout` 输出到临时目录下的 `bench_lifecycle.sqlite3`
-- 两个 spout 分别由 `BenchLogSpout` / `BenchLifecycleSpout` 子类继承源码中的 `LogSpout` / `LifecycleSpout`，并在 `_before_start()` 中把输出路径指向临时目录（`LogSpout` 用 `connect_db` 建立 SQLite 连接）
+- 两个 spout 分别由 `BenchLogSpout` / `BenchLifecycleSpout` 子类继承源码中的 `LogSpout` / `LifecycleSpout`，并覆写 `_before_start()` 把输出路径指向临时目录：`BenchLogSpout` 打开文本文件句柄，`BenchLifecycleSpout` 通过 `connect_db()` 建立 SQLite 连接
+- 临时目录由 `tempfile.TemporaryDirectory()` 创建（前缀 `cf_bench_log_` / `cf_bench_lifecycle_`），退出 `with` 块即自动清理
 - `LifecycleSpout` 使用当前项目实现，即“每条有效变更后直接 `commit()`”
+
+## 输出指标
+
+`run_spout_bench()` 返回并打印四个指标：
+
+| 指标 | 含义 |
+|------|------|
+| `records` | 本次写入的记录数 |
+| `elapsed` | `spout.start()` → `spout.stop()` 的总耗时（秒） |
+| `throughput` | `len(records) / elapsed`，单位 records/s |
+| `avg per record` | `elapsed / len(records) × 1e6`，单位微秒/条；空记录集时为 `0.0` |
 
 ## 可能出现的问题
 
@@ -87,7 +99,7 @@ preload queue -> start spout -> drain all queued records
 python bench/bench_persist_spout.py
 ```
 
-若项目未安装为可导入包，也可以直接使用本地虚拟环境解释器：
+脚本开头会把 `<项目根>/src` 插入 `sys.path`，因此无需把项目安装为可导入包；也可以直接用本地虚拟环境解释器运行：
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_persist_spout.py

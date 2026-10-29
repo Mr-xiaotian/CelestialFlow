@@ -1,6 +1,6 @@
 # tests/observer/test_metrics.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 
@@ -31,7 +31,7 @@
 | `test_external_input_counted` | 外部输入只增加接收方计数：`external_input == 1`、`input_total == 1` |
 | `test_upstream_input_updates_both_sides` | 上游投递同时写接收方上游计数 `upstream_counts` 与来源方下游计数 `downstream_counts` |
 | `test_success_fail_skip_counts` | 成功 / 失败 / 跳过事件分别写入 `succeeded` / `failed` / `skipped`，`processed` 为三者之和 |
-| `test_node_status_transitions` | `on_node_start` 置状态为 `RUNNING` 且 `start_time > 0`；`on_node_end` 置状态为 `STOPPED` |
+| `test_node_status_transitions` | `on_node_start(NodeStartEvent("a", "serial", 1, 10.0))` 后状态为 `RUNNING`，`start_time == 10.0`（直接来自事件的 `start_time`，不再在回调内采样 `time.time()`）、`end_time == 0.0`；`on_node_end(NodeEndEvent("a", "serial", 1, 0.5, 20.0))` 后状态为 `STOPPED` 且 `end_time == 20.0` |
 
 ### `TestMetricsObserverGraphView` — 图级视图
 
@@ -75,5 +75,6 @@ pytest tests/observer/test_metrics.py -k "GraphView" -v
 ## 注意事项
 
 - `MetricsObserver` 以纯事件驱动方式更新指标，测试直接调用 `on_*` 事件方法模拟生命周期，无需运行实际任务图。
+- 节点时间戳完全由事件驱动：`on_node_start` 取 `event.start_time` 写入 `NodeMetrics.start_time` 并把 `end_time` 重置为 `0.0`；`on_node_end` 取 `event.end_time` 写入 `NodeMetrics.end_time`。因此用例可以直接用 `10.0` / `20.0` 这类固定值断言，无需容忍时钟抖动。
 - 上游投递一方面写接收方（`upstream_counts` / `upstream_input`），另一方面写来源方（`downstream_counts`），两者在同一事件内完成。
 - 相关实现位于 `src/celestialflow/observer/core_metrics.py`。

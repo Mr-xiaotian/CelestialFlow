@@ -1,6 +1,6 @@
 # 快速开始（Quick Start）
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 本节将引导你快速安装并运行 **TaskGraph**，通过示例体验其任务图调度机制。
 
@@ -51,19 +51,27 @@ uv sync --group dev
 
 ## （可选）配置状态上报
 
-当前主仓已不再内置 Web 服务。如果示例代码中启用了 `TaskReporter`，你可以把它指向自建 HTTP 服务或独立的 `celestialflow-web` 项目；如果你只想体验 CelestialFlow 的核心调度能力，这一节可以直接跳过。
+当前主仓已不再内置 Web 服务。如果示例代码中启用了上报，你可以把它指向自建 HTTP 服务或独立的 `celestialflow-web` 项目；如果你只想体验 CelestialFlow 的核心调度能力，这一节可以直接跳过。
 
-配置状态上报可以通过 `set_reporter` 传入一个 `TaskReporter` 实例来实现：
+配置状态上报通过运行入口的 `report` 参数显式传入 `ReportConfig` 实例来实现：
 
 ```python
-from celestialflow import TaskReporter
+from celestialflow import ReportConfig, TaskExecutor, TaskGraph
 
-graph.set_reporter(TaskReporter("127.0.0.1", 5005, graph))
+node = TaskExecutor("处理", func=lambda x: x * 2)
+graph = TaskGraph(name="demo", graph_mode="thread")
+graph.set_nodes([node])
+
+# 不传 report（或传 report=None）表示关闭上报
+graph.run(
+    {"处理": [1, 2, 3]},
+    report=ReportConfig("http://127.0.0.1:5005"),
+)
 ```
 
-如果你启用了 `TaskReporter`，但目标服务没有启动，
-[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
-中会看到一些 `WARNING`。这表示 Reporter 无法连接远程服务，但并不影响任务图本身运行。
+`ReportConfig` 只接受 `http` / `https` 地址，构造时即完成校验，末尾的 `/` 会被去掉。启用上报后，如果目标服务没有启动，
+[日志](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
+中会看到一些 `WARNING`。这表示上报通道无法连接远程服务，但并不影响任务图本身运行。
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -87,6 +95,6 @@ pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` 包含图结构相关测试：DAG 构建、分层调度、线程模式、循环/网格/完全图结构等。
-- `tests/node/test_node.py` 包含节点相关测试：类型、计数器、快照等。
+- `tests/node/test_node.py` 包含节点相关测试：类型、元信息、调度与生命周期等。
 
-在代码运行过程中，你可以通过日志、`BaseObserver`（如 `PrintObserver` 控制台观察者）或节点 `get_snapshot()` 快照查看运行情况。
+在代码运行过程中，你可以通过日志、`PrintObserver`（控制台观察者）、`MetricsObserver`（指标观察者）或 `ReportConfig` 远程上报查看运行情况。`MetricsObserver` 需要在运行前通过 `graph.add_observer(...)` 注册并保留实例，运行后调用 `get_node_metrics()` / `get_graph_metrics()` 读取统计。

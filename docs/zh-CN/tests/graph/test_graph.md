@@ -1,6 +1,6 @@
 # tests/graph/test_graph.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步/线程执行、错误传播、SQLite 回放、运行时快照计数、拓扑分析、执行模式矩阵、源节点推导（含 SCC）与含环图行为。
@@ -24,7 +24,7 @@
 | `TestNodeExecutionMatrix` | 7 | serial/thread/async graph_mode × serial/thread/async execution_mode |
 | `TestTaskGraphThread` | 6 | thread 模式两节点、扇出、扇入、错误传播、lambda、线性链调度 |
 | `TestSourceNodes` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
-| `TestCyclicGraph` | 3 | serial 模式含环图抛错、含环图 is_dag 检测、环内同层 + 尾巴层级 |
+| `TestCyclicGraph` | 3 | serial 模式含环图抛错、含环图 `is_dag()` 检测、环内同层 + 尾巴层级 |
 | `TestTaskGraphReporterCapabilities` | 3 | `inject_tasks` / `inject_terminations` 注入并处理未知节点 |
 | **合计** | **51** | |
 
@@ -48,7 +48,7 @@ graph LR
 - **DB 回放** (`test_graph_restore_db`): `restore_db` 默认读取 `failed` 与 `pending` 记录并按节点名分组回放。
 - **DB 错误类型过滤** (`test_graph_restore_db_filters_error_type_when_enabled`): `restore_db(..., statuses=["failed"], filter_by_error_type=True)` 按各节点的 `retry_exceptions` 过滤 `error_type`。
 - **DB 保留 pending 记录** (`test_graph_restore_db_filter_keeps_pending_records`): 过滤开启时 `pending` 记录仍继续回放。
-- **未知节点名称异常** (`test_graph_node_lookup_unknown_node_raises`): 显式按节点注入任务时，不存在的节点名称应抛出 `NodeNotFoundError`。
+- **未知节点名称异常** (`test_graph_node_lookup_unknown_node_raises`): 按节点名从 `node_dict` 查找找不到时抛出 `NodeNotFoundError`（`pytest.raises` 捕获用例中显式抛出的该异常）。
 - **set_ctree 更新已有节点** (`test_set_ctree_updates_existing_nodes`): 先 `set_nodes` 再 `set_ctree` 时，已有节点也应共享同一事件客户端。
 - **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 `_finish_start` 后统一抛出收集到的 `ExceptionGroup`。
 
@@ -79,10 +79,10 @@ graph LR
 
 #### 图结构分析 (`TestTaskGraphAnalysis`)
 - **节点元信息** (`test_get_node_meta_covers_all_nodes`): `get_node_meta()` 为每个节点给出 `class_name`、`execution_mode` 等构建期元信息。
-- **按需构建** (`test_getters_build_analysis_on_demand`): 分析与结构 getter（`is_dag`、`layers_dict`、`get_nodes`、`get_edges`、`get_source_nodes`）在未显式 build 时也应可直接使用。
-- **自动重建缓存** (`test_getters_refresh_analysis_after_connect`): `connect` 后 getter 应自动重建分析缓存，源节点与层级随之更新。
-- **DAG 检测** (`test_dag_detection`): `is_dag` 属性应正确反映图是否有环。
-- **层级计算** (`test_layer_computation`): 线性链 A→B→C 的拓扑层级为 {A:0, B:1, C:2}。
+- **按需构建** (`test_getters_build_analysis_on_demand`): 未显式 build 时，`get_nodes()`、`get_edges()`、`get_source_nodes()`、`is_dag()`、`get_layers()` 均可直接调用，各自按需构建分析缓存。
+- **自动重建缓存** (`test_getters_refresh_analysis_after_connect`): `connect` 后 getter 应自动重建分析缓存，源节点与层级随之更新（`s1` 位于第 0 层、`s2` 位于第 1 层）。
+- **DAG 检测** (`test_dag_detection`): `is_dag()` 方法应正确反映图是否有环。
+- **层级计算** (`test_layer_computation`): 线性链 A→B→C 经 `get_layers()` 得到的分层为 {A:0, B:1, C:2}。
 
 #### 复杂结构 (`TestTaskGraphStructure`)
 | 结构 | 节点数 | 覆盖场景 |
@@ -109,8 +109,8 @@ graph LR
 | 用例 | 验证点 |
 |------|--------|
 | `test_cyclic_serial_graph_raises` | serial graph_mode 下调用 `get_source_nodes()` 时含环图应抛出 `ConfigurationError`（匹配 `"TaskGraph contains a cycle while graph_mode='serial'"`） |
-| `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `is_dag` 应为 `False` |
-| `test_cyclic_layers` | 环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
+| `test_cyclic_is_dag_false` | s1→s2→s3→s1 的 `is_dag()` 应返回 `False` |
+| `test_cyclic_layers` | `get_layers()` 中环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
 #### 注入能力 (`TestTaskGraphReporterCapabilities`)
 - `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: 先为已存在节点注入任务，再对未知节点抛出 `UnknownNodeError`；注入任务在 `run({})` 路径下被消费。
@@ -124,6 +124,7 @@ graph LR
 - serial graph_mode 下含环图调用 `get_source_nodes()` 时会触发 `ConfigurationError`（见 `test_cyclic_serial_graph_raises`）。
 
 ### 数据库回放
+- 回放用例模块级辅助函数 `_insert_records(sqlite_path, records)` 通过 `connect_db` 建连与建表，再逐条调用 `insert_record(conn, record)` 写入，遇到重复 `event_id` 的 `sqlite3.IntegrityError` 时跳过，最后统一 `commit` 并关闭连接。
 - `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` 默认 `["failed", "pending"]`；`filter_by_error_type` 为关键字参数，开启后按各节点 `get_retry_error_type_names()` 过滤 `error_type`，但 `pending` 记录始终保留。
 
 ### Lambda 支持
@@ -135,11 +136,11 @@ graph LR
 |------|------|
 | `pytest` | 测试框架 |
 | `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
-| `celestialflow.persist.util_sqlite` | `append_records`（DB 回放用例写入测试记录） |
+| `celestialflow.persist.util_sqlite` | `connect_db`, `insert_record`（DB 回放用例写入测试记录） |
 | `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient`（`set_ctree` 用例） |
 | `celestialflow.observer` | `Observer`, `TerminationInputEvent`（Reporter 注入用例） |
-| `conftest` | `metrics_of`（从节点 hub 快照取回指标观察者供断言） |
+| `conftest` | `metrics_of`（从节点 hub 的观察者快照中取回 `MetricsObserver` 供断言） |
 
 ## 运行方式
 
@@ -161,15 +162,18 @@ pytest tests/graph/test_graph.py::TestTaskGraphSnapshotCounts -v
 
 | 测试 | 耗时 |
 |------|------|
-| `TestTaskGraphBasic` | ~2s |
-| `TestTaskGraphSnapshotCounts` | < 0.5s |
-| `TestTaskGraphAsync` | ~3s |
-| `TestTaskGraphStructure` | ~5s |
-| `TestTaskGraphAnalysis` | ~1s |
-| `TestNodeExecutionMatrix` | ~5s |
-| `TestTaskGraphThread` | ~4s |
-| `TestSourceNodes` | ~2s |
-| `TestCyclicGraph` | ~2s |
+| `TestTaskGraphBasic` | < 0.2s（DB 回放用例约 0.06s，其余 < 0.02s） |
+| `TestTaskGraphSnapshotCounts` | < 0.1s |
+| `TestTaskGraphAsync` | < 0.1s |
+| `TestTaskGraphStructure` | < 0.1s |
+| `TestTaskGraphAnalysis` | < 0.1s |
+| `TestNodeExecutionMatrix` | < 0.1s |
+| `TestTaskGraphThread` | < 0.1s |
+| `TestSourceNodes` | < 0.1s |
+| `TestCyclicGraph` | < 0.1s |
+| `TestTaskGraphReporterCapabilities` | < 0.1s |
+
+> 整个文件（51 个用例）在当前开发机上约 1s 内完成。
 
 ## 相关文件
 

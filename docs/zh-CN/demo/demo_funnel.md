@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -22,8 +22,8 @@ flowchart LR
 
 - `JsonlSpout`
   - 继承 `BaseSpout`
-  - 在 `_before_start()` 中创建目录并打开输出文件
-  - 在 `_handle_record()` 中把记录写成 JSONL
+  - 在 `_before_start()` 中创建目录、以行缓冲（`buffering=1`）打开输出文件，并把 `handled_count` 归零
+  - 在 `_handle_record()` 中把记录写成 JSONL，并累加 `handled_count`
   - 在 `_after_stop()` 中关闭文件
 - `EventInlet`
   - 继承 `BaseInlet`
@@ -37,7 +37,7 @@ flowchart LR
 
 ## 为什么这个 demo 有价值
 
-- 它说明 `funnel` 不只是 persistence 的底层实现，也可以直接拿来搭建独立的生产者-消费者通道。
+- 它说明 `funnel` 不只是 `persist` 的底层实现，也可以直接拿来搭建独立的生产者-消费者通道。
 - 它覆盖了 `BaseSpout` 的完整生命周期：`start()`、`_before_start()`、`_handle_record()`、`stop()`、`_after_stop()`。
 - 它也展示了 `BaseInlet` 的典型用法：业务侧不直接操作队列，而是通过自定义方法把记录送进 `_funnel()`。
 
@@ -103,10 +103,10 @@ Handled records: 3
   - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
   - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - 如果你想看它在框架内的典型落地，可参考：
-  - `persistence` 里的 `LogSpout` / `LogInlet`（写入 `logs/` 目录）
-  - `persistence` 里的 `LifecycleSpout` / `LifecycleInlet`（写入 SQLite 生命周期库）
+  - `persist` 里的 `LogSpout` / `LogInlet`（写入 `logs/` 目录）
+  - `persist` 里的 `LifecycleSpout` / `LifecycleInlet`（写入 SQLite 生命周期库）
 
-> **历史变更说明**：早期版本曾存在 `FailSpout` / `FailInlet` 与 `SuccessSpout` 等独立管道，自 3.2.4 起 `fail_funnel` 与 `success_funnel` 已合并为基于 SQLite 的 `fallback` 机制，相关类不再保留。
+> **历史变更说明**：早期版本曾存在 `FailSpout` / `FailInlet` 与 `SuccessSpout` 等独立管道，当前源码中已不再保留这些类；成功/失败任务记录改由 `persist` 下基于 SQLite lifecycle 库的 spout 承担。
 
 ## 依赖
 

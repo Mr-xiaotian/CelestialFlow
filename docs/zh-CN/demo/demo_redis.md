@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -138,7 +138,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
     """等待任务完成"""
     key, task_id = task
     redis_client: redis.Redis = get_redis()
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
 
     while True:
         result = cast(str | None, redis_client.hget(f"{key}:output", str(task_id)))
@@ -152,14 +152,25 @@ def redis_wait(task: tuple[str, int]) -> Any:
                 raise RemoteWorkerError(str(result_obj.get("error")))
             raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
-        if (time.perf_counter() - start_time) > redis_timeout:
+        if (time.perf_counter() - start_perf) > redis_timeout:
             raise CelestialFlowTimeoutError(
                 f"Redis ack timeout: task_id={task_id} not acknowledged"
             )
         time.sleep(0.1)
 ```
 
-**行为**：轮询 Redis Hash `{key}:output` 等待对应的 `task_id` 结果。支持处理成功结果或抛出 `RemoteWorkerError`。
+**行为**：轮询 Redis Hash `{key}:output` 等待对应的 `task_id` 结果。支持处理成功结果或抛出 `RemoteWorkerError`。模块级 `redis_timeout = 5`（秒）同时用于 `blpop` 的阻塞超时与这里的轮询超时。
+
+### 其余辅助函数
+
+| 函数 | 作用 |
+|------|------|
+| `get_redis()` | 按 `REDIS_HOST` / `REDIS_PASSWORD` 环境变量构造并返回 `redis.Redis(port=6379, db=0, decode_responses=True)`；不做客户端缓存 |
+| `_normalize_result(result)` | 归一化远端写回的 `result`：字符串/字节原样返回；单元素列表取出唯一元素；多元素列表转为元组；其他类型原样返回 |
+| `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | 各场景的 `Start` 节点任务：sleep 1 秒后返回 `(key, payload)` 元组，`key` 分别为 `testFibonacci` / `testSum` / `testDownload` / `testReport` |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | 本地直算分支：从 `(key, payload)` 元组中取出 `payload` 后分别调用 `fibonacci` / `sum_int` / `download_to_file` |
+
+> `redis_push` 源码签名标注返回 `int`，但实际返回 `(key, task_id)` 元组，下游 `redis_wait` 依赖该元组。
 
 ## Redis 数据格式
 

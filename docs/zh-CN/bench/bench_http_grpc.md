@@ -1,26 +1,38 @@
 # bench/bench_http_grpc.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
-量化对比 CelestialTree 事件追踪系统在不同传输协议（禁用 / HTTP / gRPC）下的性能开销，帮助用户在高精度追踪和最低延迟之间做出权衡。
+量化对比 CelestialTree 事件追踪系统在不同传输协议（不接入 / HTTP / gRPC）下的性能开销，帮助用户在高精度追踪和最低延迟之间做出权衡。
 
 ## 测试内容
 
 | 场景 | 说明 |
 |------|------|
-| `bench_no_ctree` | 完全禁用 CelestialTree，作为基线 |
-| `bench_http_ctree` | 通过 HTTP 协议向 CelestialTree 上报事件 |
-| `bench_grpc_ctree` | 通过 gRPC 协议向 CelestialTree 上报事件 |
+| `bench_no_ctree` | 不调用 `chain.set_ctree()`，沿用节点默认的 `LocalEventClient`（不联网、本地生成事件 ID），作为基线 |
+| `bench_http_ctree` | 通过 `CelestialTreeClient(transport="http")` 向 CelestialTree 上报事件 |
+| `bench_grpc_ctree` | 通过 `CelestialTreeClient(transport="grpc")` 向 CelestialTree 上报事件 |
+
+三个场景共用同一套图结构：
+
+```python
+task_splitter = TaskSplitter("splitter")
+process_node = TaskExecutor(
+    "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
+)
+chain = TaskChain("bench_xxx", [task_splitter, process_node])
+```
 
 - **图结构**：`TaskSplitter → TaskExecutor` 的简单链
-- **任务**：`no_op` 恒等函数（处理 `range(1e4)`）
-- **配置**：`execution_mode="thread"`，`max_workers=50`（`TaskSplitter` 默认串行，`TaskExecutor` 自身亦不显式设置 `execution_mode`，因已在构造时直接传参）
+- **任务**：`no_op` 恒等函数，输入为 `{"splitter": [range(int(1e4))]}`
+- **配置**：`TaskSplitter` 使用默认 `execution_mode="serial"`（串行展开）；`TaskExecutor` 显式设置 `execution_mode="thread"`、`max_workers=50`
+- **计时**：`start_perf = time.perf_counter()` 在 `chain.run()` 之前，`end_time = time.perf_counter()` 在其之后，直接 `print(f"{场景名}: {end_time - start_perf}")`，不做多轮统计
 
 ## 关键配置
 
-- `ctree_host`、`ctree_http_port`、`ctree_grpc_port` 从 `.env` 读取
+- `ctree_host`、`ctree_http_port`、`ctree_grpc_port` 通过 `load_dotenv()` 从 `.env` 读取，默认值分别为 `127.0.0.1`、`7777`、`7778`
+- `bench_no_ctree` 中保留了一行被注释的 `# chain.set_ctree(False)`，当前未启用
 
 ## 可能出现的问题
 

@@ -1,6 +1,6 @@
 # tests/runtime/test_format.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 作用
 验证 `celestialflow.runtime.util_format` 中的 `format_repr` 和 `format_table` 两个格式化函数，确保字符串截断表示和表格渲染输出的正确性。
@@ -51,7 +51,7 @@ pytest tests/runtime/test_format.py -k "table" -v
 
 ## 重要细节
 - `format_repr` 的截断算法为保留前 2/3 字符加 `...` 再加后 1/3 字符。
-- `format_table` 首列固定为 `#` 行号列，与 `row_names` 互斥。
+- `format_table` 首列固定为行号列（表头由 `index_header` 指定，默认 `#`），默认填入行索引，可用 `row_names` 覆盖该列的标签。
 - 列对齐通过控制表头和数据中内边距的方向实现。
 
 ## 注意事项

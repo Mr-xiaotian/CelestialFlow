@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_metrics.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 `core_metrics.py` 定义了**图级指标观察者** `MetricsObserver`。它同时承担"写模型"与"只读视图"两种角色：作为观察者从事件中写入每个节点的计数、状态与运行起始时间，并通过只读视图暴露不可变的 `NodeMetrics` 快照。
 
@@ -29,14 +29,16 @@ MetricsObserver 只关心以下事件以维护指标：
 
 | 事件 | 写入行为 |
 |------|---------|
-| `on_node_start` | 将该节点状态置为 `RUNNING`，并记录墙钟起始时间 |
-| `on_node_end` | 将该节点状态置为 `STOPPED` |
+| `on_node_start` | 将该节点状态置为 `RUNNING`，把事件携带的 `start_time` 写入 `_start_time`，并将 `_end_time` 重置为 `0.0` |
+| `on_node_end` | 将该节点状态置为 `STOPPED`，把事件携带的 `end_time` 写入 `_end_time` |
 | `on_task_input` | 区分来源：`from_node is None` 时累加外部注入计数；否则同时累加接收方的上游计数与来源方的下游计数 |
 | `on_task_success` | 累加该节点成功计数 |
 | `on_task_fail` | 累加该节点失败计数 |
 | `on_task_skip` | 累加该节点跳过计数 |
 
 存储格随首个事件**按需建立**（`_ensure`，幂等），边计数亦由实际任务流向增量写入，因此不依赖建图期的结构事件；上游投递会同时写入接收方的上游计数与来源方的下游计数，无需在节点间共享计数器对象，也无需按节点类型特化统计逻辑。
+
+> 时间戳**完全来自事件本身**：`MetricsObserver` 不 `import time`、也不调用 `time.time()`，启动 / 结束时间分别是 `NodeStartEvent.start_time` 与 `NodeEndEvent.end_time` 的原样拷贝。
 
 ## 只读视图
 
@@ -51,7 +53,8 @@ MetricsObserver 只关心以下事件以维护指标：
 |------|------|
 | `node` | 节点名称 |
 | `status` | 节点生命周期状态（`NodeStatus`） |
-| `start_time` | 节点进入运行状态的墙钟时间（秒），未启动为 `0.0` |
+| `start_time` | 节点进入运行状态的墙钟时间（秒），来自 `NodeStartEvent.start_time`，未启动为 `0.0` |
+| `end_time` | 节点退出运行状态的墙钟时间（秒），来自 `NodeEndEvent.end_time`，未结束为 `0.0` |
 | `external_input` | 外部注入任务数 |
 | `upstream_input` | 上游提供任务数 |
 | `input_total` | 输入总数（外部注入 + 上游提供） |

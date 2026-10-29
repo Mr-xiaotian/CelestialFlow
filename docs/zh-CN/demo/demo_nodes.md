@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
@@ -45,7 +45,7 @@ flowchart LR
 
 ## 关键配置
 
-- `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_node_execution_mode("thread")` 两条独立调用统一将各 `TaskExecutor` 节点设为 `"thread"` 模式（`max_workers=4`）；`TaskSplitter` 不显式设置执行模式，仅作为拆分节点透传任务
+- `demo_splitter_0` 通过 `graph.set_graph_mode("thread")` 与 `graph.set_node_execution_mode("thread")` 两条独立调用统一将各 `TaskExecutor` 节点设为 `"thread"` 模式（`max_workers=4`）；`TaskSplitter("Splitter")` 未传 `func`
 - `demo_splitter_1` 通过 `TaskChain` 间接走 `execution_mode="thread"`、`max_workers=50`（`Process` 阶段）
 - `demo_router_0` 中 `Origin` / `StageA` / `StageB` 均使用 `execution_mode="thread"`（`max_workers=4` / `2` / `2`），`Router` 为 `TaskRouter` 节点，本身不消耗 `execution_mode`
 - 各场景的 `<graph>.set_ctree(ctree_client)` 均被注释（`demo_splitter_0` 与 `demo_router_0`），`demo_splitter_1` 通过 `chain.set_ctree(ctree_client)` 启用 CelestialTree；如需接入请先额外安装 `celestialtree` 并确认对应调用未被注释
@@ -53,10 +53,11 @@ flowchart LR
 
 ## 可能出现的问题
 
-1. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
-2. **含回环，可能不自动结束**：`demo_splitter_0` 存在 `Parser → GenURLs` 回环，且 `graph.run(..., if_put_signal=False)` 不注入自动终止信号；部分 URL（如解析成功的 `url_1_1`）会不断产生新 URL 继续循环，若长时间没有新输出，建议按 **Ctrl+C** 手动终止。
-3. **无断言**：演示脚本，不验证结果正确性。
-4. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md)。
+1. **`demo_splitter_0` 当前会构造失败**：源码中 `TaskSplitter("Splitter")` 没有传入 `func`，而 `BaseTaskNode.__init__` 要求位置参数 `func`，因此 `python demo/demo_nodes.py` 会在建图阶段抛出 `TypeError: ... missing 1 required positional argument: 'func'`，后续的 `graph.set_nodes(...)` 与 `graph.run(...)` 都不会执行。为 `TaskSplitter` 补一个拆分函数（如 `lambda urls: urls`）后才能跑通。
+2. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
+3. **含回环，可能不自动结束**：`demo_splitter_0` 存在 `Parser → GenURLs` 回环，且 `graph.run(..., if_put_signal=False)` 不注入自动终止信号；部分 URL（如解析成功的 `url_1_1`）会不断产生新 URL 继续循环，若长时间没有新输出，建议按 **Ctrl+C** 手动终止。
+4. **无断言**：演示脚本，不验证结果正确性。
+5. **Redis 示例迁移**：原先的 `demo_redis_ack_*` 与 `demo_redis_source_0` 已迁移到 [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/demo/demo_redis.md)。
 
 ## 运行方式
 
@@ -68,11 +69,11 @@ python demo/demo_nodes.py
 # 如将 demo_splitter_0() 替换为 demo_router_0()
 ```
 
-> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用（`demo_router_0()` 在源码中被注释），需要手动在 `__main__` 中执行或取消注释才能运行。
+> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用（`demo_router_0()` 在源码中被注释），需要手动在 `__main__` 中执行或取消注释才能运行。另外 `demo_splitter_0()` 目前会因 `TaskSplitter` 缺少 `func` 而抛 `TypeError`（见「可能出现的问题」第 1 条）。
 
 ## 预期行为
 
-以下输出均为预期输出 (mock)，具体日志格式取决于框架输出。
+以下输出均为预期输出 (mock)：源码没有为这些节点注册 `PrintObserver`，因此实际只会看到框架日志，不会出现下面的逐任务打印。
 
 ### `demo_splitter_0`（爬虫工作流）
 
@@ -113,4 +114,4 @@ Origin 只产生原始整数，Router 在内部根据奇偶性把任务分发到
 - `celestialflow`（`TaskGraph`、`TaskExecutor`、`TaskChain`、`TaskSplitter`、`TaskRouter`）
 - `demo_utils`
 - `python-dotenv`
-- 外部服务：CelestialTree（可选）
+- `celestialtree`（模块级 `import`，缺失时脚本无法启动；`demo_splitter_1` 会真正调用 `chain.set_ctree(ctree_client)`）

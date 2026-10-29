@@ -1,10 +1,12 @@
 # bench/bench_hash_container.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 ## 目标
 
-在确定使用 `bytes` 作为哈希类型后，对比不同容器结构存储 20 字节 SHA1 hash 的内存开销与查询性能，为 `processed_set` 的容器选型（纯 set vs. 支持淘汰的 LRU）提供数据支撑。
+在确定使用 `bytes` 作为哈希类型后，对比不同容器结构存储 20 字节哈希键的内存开销与查询性能，为 `processed_set` 的容器选型（纯 set vs. 支持淘汰的 LRU）提供数据支撑。
+
+> 键由 `random.seed(42)` + `random.randbytes(20)` 生成，即 20 字节的**可复现随机字节**；打印头沿用了 `SHA1 20-byte keys` 的措辞，但脚本并不真的计算 SHA1。
 
 ## 测试容器
 
@@ -12,17 +14,18 @@
 |------|------|---------|
 | `set[bytes]` | 基准，最紧凑 | 无淘汰需求，任务量可控 |
 | `dict[bytes, None]` | dict 最小开销 | 需要 dict 接口但不存值 |
-| `dict[bytes, float]` | 存储时间戳 | 按时间淘汰过期条目 |
+| `dict[bytes, float]` | 存 `float(i)` | 演示带值 dict 的额外开销 |
 | `OrderedDict[bytes, None]` | 保序 dict | LRU 基础结构 |
 | LRU(unlimited) | OrderedDict + `move_to_end` | LRU 语义，无容量限制 |
 | LRU(50k) | 同上，容量上限 50,000 | 内存受限场景，淘汰最久未用 |
 
 ## 测量维度
 
-- **容器总内存增量**：`tracemalloc` 快照差值
-- **每条目平均开销**：总增量 / 条目数
-- **构建耗时**：N 次插入（含 LRU 的 `move_to_end` / `popitem` 开销）
-- **查询延迟**：命中 / 未命中各 0.3s 稳态测量
+- **容器总内存增量**：`tracemalloc` 前后快照 `compare_to(..., "lineno")` 后，只累加 `size_diff > 0` 的行
+- **每条目平均开销**：总增量 / 容器实际条目数（`len(container)`，LRU(50k) 因此按 50,000 计）
+- **构建耗时**：N 次插入的毫秒数（LRU 含 `move_to_end` / `popitem` 开销）
+- **查询延迟**：命中样本取 `next(iter(container))`，未命中样本为 `b"\x00" * 20`，两者各做 0.3s 稳态循环后折算为 ns/次
+- **相对内存**：脚本末尾以 `set[bytes]` 的总内存为基准，打印其余容器的百分比
 
 ## 基准结果（实测）
 
