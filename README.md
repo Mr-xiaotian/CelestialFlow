@@ -1,6 +1,6 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/10/30
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -23,7 +23,7 @@
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** 是一个轻量级但功能完全的任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行** 与 **可观测执行链路** 的中/大型 Python 任务系统。
+**CelestialFlow** 是一个轻量级但功能完整、基于图结构的 Python 任务流框架，适合需要 **复杂依赖关系**、**灵活执行模型**、**跨设备运行** 与 **可观测执行链路** 的中/大型 Python 任务系统。
 
 - 相比 Airflow/Dagster 更轻、更快开始
 - 相比 multiprocessing/threading 更结构化，可直接表达 loop / complete graph 等复杂依赖模式
@@ -40,7 +40,7 @@
 * **多线程（thread）**
 * **协程（async）**
 
-`TaskExecutor` 实现了对任务的结果缓存、任务去重、进度条显示、多执行模式比较等功能，单独使用也很好用。
+`TaskExecutor` 支持自定义跳过函数（可用作任务去重）、失败重试、队列上限与多执行模式切换，单独使用也很好用。
 
 节点之间通过 **TaskGraph** 互相连接，形成具有上游与下游依赖关系的任务图。下游节点会自动接收上游执行完成的结果作为输入，从而形成明确的数据流。TaskGraph 同时提供 `TaskChain` / `TaskCross` / `TaskGrid` / `TaskLoop` / `TaskWheel` / `TaskComplete` 等预置拓扑结构，方便快速搭建常见依赖模式。
 
@@ -124,7 +124,8 @@ uv sync --group dev
 from celestialflow import TaskExecutor, TaskGraph
 
 
-def add(x, y):
+def add(task):
+    x, y = task
     return x + y
 
 
@@ -167,11 +168,11 @@ if __name__ == "__main__":
 - [BaseTaskNode.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md)
 - [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_nodes.md)
 - [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
-- [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [MetricsObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_metrics.md)
 - [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
-- [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [ReportConfig.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_config.md)
 - [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [BaseObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_observer.md)
+- [Observer.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_observer.md)
 - [Go Worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推荐阅读顺序:
@@ -184,11 +185,11 @@ flowchart TD
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
 
     BTN[BaseTaskNode.md] --> TE[TaskExecutor.md] --> TG[TaskGraph.md]
-    TE --> OB[BaseObserver.md]
-    TE --> TME[TaskMetrics.md]
+    TE --> OB[Observer.md]
+    TE --> TME[MetricsObserver.md]
 
     TG --> TQ[TaskQueue.md]
-    TG --> TR[TaskReport.md]
+    TG --> TRC[ReportConfig.md]
     TG --> TSR[TaskStructure.md]
 
     TG --> GW[Go Worker.md]
@@ -197,16 +198,16 @@ flowchart TD
     class TME runtime;
     class TSR structure;
     class TQ,GW execution;
-    class TR execution;
+    class TRC execution;
 ```
 
 以下五篇可以作为补充阅读:
 
-- [UtilHash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
-- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_lifecycle.md)
-- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
+- [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
+- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
+- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇利用 TaskGraph 从零开始构建项目的教程：
 
@@ -246,7 +247,7 @@ flowchart TD
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(539MB 107KB 283B)
+📁 CelestialFlow	(560MB 757KB 428B)
     📁 bench           	(316KB 409B)
         📁 [1项排除的目录]                  	(193KB 163B)
         🐍 bench_datastructures.py          	(6KB 690B)
@@ -268,8 +269,8 @@ flowchart TD
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(604KB 612B)
-        📁 [3项排除的目录]   	(548KB 510B)
+    📁 demo            	(811KB 650B)
+        📁 [4项排除的目录]   	(755KB 996B)
         🐍 demo_executor.py  	(1KB 557B)
         🐍 demo_funnel.py    	(2KB 289B)
         🐍 demo_graph.py     	(2KB 975B)
@@ -280,11 +281,11 @@ flowchart TD
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
-        🐍 demo_web.py       	(9KB 158B)
-    📁 docs            	(2MB 40KB 774B)
-        📁 en[已折叠]   	(689KB 413B)
-        📁 ja[已折叠]   	(788KB 343B)
-        📁 zh-CN[已折叠]	(611KB 18B)
+        🐍 demo_web.py       	(8KB 734B)
+    📁 docs            	(2MB 88KB 855B)
+        📁 en[已折叠]   	(678KB 928B)
+        📁 ja[已折叠]   	(778KB 854B)
+        📁 zh-CN[已折叠]	(679KB 97B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -293,55 +294,50 @@ flowchart TD
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 670KB 974B)
-        📁 celestialflow[已折叠]	(1MB 651KB 430B)
-        📁 [1项排除的目录]      	(19KB 544B)
-    📁 tests           	(3MB 34KB 484B)
-        📁 assembly[已折叠]   	(38KB 341B)
+    📁 src             	(1MB 661KB 60B)
+        📁 celestialflow[已折叠]	(1MB 641KB 309B)
+        📁 [1项排除的目录]      	(19KB 775B)
+    📁 tests           	(3MB 65KB 73B)
+        📁 assembly[已折叠]   	(42KB 929B)
         📁 benchmark[已折叠]  	(41KB 377B)
         📁 funnel[已折叠]     	(96KB 339B)
-        📁 graph[已折叠]      	(801KB 83B)
-        📁 node[已折叠]       	(512KB 601B)
-        📁 observer[已折叠]   	(121KB 111B)
-        📁 persist[已折叠]    	(207KB 907B)
+        📁 graph[已折叠]      	(803KB 239B)
+        📁 node[已折叠]       	(510KB 93B)
+        📁 observer[已折叠]   	(122KB 937B)
+        📁 persist[已折叠]    	(186KB 828B)
         📁 persistence[已折叠]	(381KB 89B)
-        📁 reporter[已折叠]   	(171KB 861B)
-        📁 runtime[已折叠]    	(189KB 873B)
+        📁 reporter[已折叠]   	(173KB 986B)
+        📁 runtime[已折叠]    	(189KB 800B)
         📁 ticker[已折叠]     	(54KB 761B)
-        📁 [1项排除的目录]    	(488KB 592B)
+        📁 [3项排除的目录]    	(532KB 170B)
         🐍 conftest.py        	(1KB 693B)
-    📁 [13项排除的目录]	(525MB 488KB 753B)
-    ❓ .env            	(468B)
+    📁 [13项排除的目录]	(546MB 860KB 667B)
+    ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
-    📝 AGENTS.md       	(1KB 1003B)
+    📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
-    ⚙️ pyproject.toml  	(2KB 858B)
-    📝 README.md       	(16KB 619B)
-    🔒 uv.lock         	(124KB 729B)
+    ⚙️ pyproject.toml  	(2KB 624B)
+    📝 README.md       	(16KB 321B)
+    🔒 uv.lock         	(126KB 837B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.2</em>
+  <em>celestial-flow 3.3.3</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.3.2
+- 3.3.3
   - feat:
-    - [IMPORTANT] 大幅扩充 `observer` 机制, 添加更多钩子
-      - 添加 `ObserverHub` 进行管理, 其本身也是 `observer`
-    - [IMPORTANT] 添加 `ticker` 机制, 以周期性的时间为驱动
-      - 作为纯事件驱动的 `observer` 的补充
-    - 由于 `reprter` 机制的完全重构, 其开启与使用方法也有所变化
-      - 改为在 `.pyproject` 中进行设置
+    - 在 `GraphEndEvent` / `NodeEndEvent` 中添加 `end_time`
+    - 在 `GraphStartEvent` 中删除 `class_name`
   - refactor:
-    - [IMPORTANT] 将 `log` / `lifecycle` 归并入新的 `observer` 体系
-      - 结构更加简洁高效
-    - [IMPORTANT] 将 `reporter` 拆为 完全分离的 `push` 与 `pull`
-      - 前者由 `PushInlet` 进行事件化收集 `error` `meta` 数据, 并由 `PushSnapshotHandler` 周期化收集状态信息
-      - 后者由 `InjectionHandler` 周期化从服务端收集注入任务与注入终止符
-    - 将 `metric` 机制归入 `observer` 体系
+    - 移除部分无用的observer事件, 如 `on_worker_crash`
+    - 将log与reporter设置从 `.toml` 中移到运行时配置中
+    - 删除部分无用的sqlite函数
+  - fix:
+    - 修复图分析缓存的问题
 
 更多过往日志可看:
 

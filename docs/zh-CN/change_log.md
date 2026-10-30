@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/10/26
+> 📅 最后更新日期: 2026/10/30
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在 GPT-4 帮助下添加多进程与协程运行模式
@@ -521,3 +521,13 @@
       - 前者由 `PushInlet` 进行事件化收集 `error` `meta` 数据, 并由 `PushSnapshotHandler` 周期化收集状态信息
       - 后者由 `InjectionHandler` 周期化从服务端收集注入任务与注入终止符
     - 将 `metric` 机制归入 `observer` 体系
+- 3.3.3
+  - feat:
+    - 在 `GraphEndEvent` / `NodeEndEvent` 中添加 `end_time`
+    - 在 `GraphStartEvent` 中删除 `class_name`
+  - refactor:
+    - 移除部分无用的observer事件, 如 `on_worker_crash`
+    - 将log与reporter设置从 `.toml` 中移到运行时配置中
+    - 删除部分无用的sqlite函数
+  - fix:
+    - 修复图分析缓存的问题
