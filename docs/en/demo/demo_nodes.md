@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -45,7 +45,7 @@ Routing logic: The `Origin` stage only outputs the original input integer as-is;
 
 ## Key Configuration
 
-- `demo_splitter_0` uses two independent calls `graph.set_graph_mode("thread")` and `graph.set_node_execution_mode("thread")` to uniformly set each `TaskExecutor` node to `"thread"` mode (`max_workers=4`); `TaskSplitter` does not explicitly set an execution mode and only acts as a splitting node passing tasks through.
+- `demo_splitter_0` uses two independent calls `graph.set_graph_mode("thread")` and `graph.set_node_execution_mode("thread")` to uniformly set each `TaskExecutor` node to `"thread"` mode (`max_workers=4`); `TaskSplitter("Splitter")` is not passed a `func`
 - `demo_splitter_1` indirectly uses `execution_mode="thread"`, `max_workers=50` (the `Process` stage) via `TaskChain`.
 - In `demo_router_0`, `Origin` / `StageA` / `StageB` all use `execution_mode="thread"` (`max_workers=4` / `2` / `2`); `Router` is a `TaskRouter` node and does not consume `execution_mode` itself.
 - `<graph>.set_ctree(ctree_client)` is commented out in each scenario (`demo_splitter_0` and `demo_router_0`), while `demo_splitter_1` enables CelestialTree via `chain.set_ctree(ctree_client)`; to wire it in, first install `celestialtree` separately and confirm the corresponding call is not commented out.
@@ -53,10 +53,11 @@ Routing logic: The `Origin` stage only outputs the original input integer as-is;
 
 ## Potential Issues
 
-1. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
-2. **Contains a loopback, may not auto-terminate**: `demo_splitter_0` has a `Parser → GenURLs` loopback, and `graph.run(..., if_put_signal=False)` does not inject an automatic termination signal; some URLs (e.g., successfully parsed `url_1_1`) will keep producing new URLs and continue looping. If there is no new output for a long time, it is recommended to manually terminate with **Ctrl+C**.
-3. **No assertions**: Demo script; does not verify result correctness.
-4. **Redis examples migrated**: The former `demo_redis_ack_*` and `demo_redis_source_0` have been migrated to [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/demo/demo_redis.md).
+1. **`demo_splitter_0` currently fails to construct**: In the source, `TaskSplitter("Splitter")` does not pass a `func`, while `BaseTaskNode.__init__` requires the positional argument `func`. Therefore `python demo/demo_nodes.py` raises `TypeError: ... missing 1 required positional argument: 'func'` during graph construction, and the subsequent `graph.set_nodes(...)` and `graph.run(...)` are never executed. You must supply a splitting function for `TaskSplitter` (e.g., `lambda urls: urls`) before it can run.
+2. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
+3. **Contains a loopback, may not auto-terminate**: `demo_splitter_0` has a `Parser → GenURLs` loopback, and `graph.run(..., if_put_signal=False)` does not inject an automatic termination signal; some URLs (e.g., successfully parsed `url_1_1`) will keep producing new URLs and continue looping. If there is no new output for a long time, it is recommended to manually terminate with **Ctrl+C**.
+4. **No assertions**: Demo script; does not verify result correctness.
+5. **Redis examples migrated**: The former `demo_redis_ack_*` and `demo_redis_source_0` have been migrated to [demo_redis.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/demo/demo_redis.md).
 
 ## How to Run
 
@@ -64,15 +65,15 @@ Routing logic: The `Origin` stage only outputs the original input integer as-is;
 # Run default demo (demo_splitter_0)
 python demo/demo_nodes.py
 
-# Modify main() to run other scenarios
+# Modify __main__ to run other scenarios
 # e.g., replace demo_splitter_0() with demo_router_0()
 ```
 
-> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called (`demo_router_0()` is commented out in the source). You need to execute them manually inside `__main__` or uncomment them to run.
+> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called (`demo_router_0()` is commented out in the source). You need to execute them manually inside `__main__` or uncomment them to run. In addition, `demo_splitter_0()` currently raises `TypeError` because `TaskSplitter` is missing `func` (see item 1 of "Potential Issues").
 
 ## Expected Behavior
 
-The following outputs are all expected outputs (mock); the specific log format depends on the framework output.
+The following outputs are all expected outputs (mock): the source does not register `PrintObserver` for these nodes, so in practice you will only see framework logs, not the per-task prints below.
 
 ### `demo_splitter_0` (Crawler workflow)
 
@@ -113,4 +114,4 @@ Wraps `range(100000)` as a list fed into Splitter, outputting individually to do
 - `celestialflow` (`TaskGraph`, `TaskExecutor`, `TaskChain`, `TaskSplitter`, `TaskRouter`)
 - `demo_utils`
 - `python-dotenv`
-- External services: CelestialTree (optional)
+- `celestialtree` (module-level `import`; the script cannot start if it is missing; `demo_splitter_1` actually calls `chain.set_ctree(ctree_client)`)

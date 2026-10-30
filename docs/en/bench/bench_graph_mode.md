@@ -1,6 +1,6 @@
 # bench/bench_graph_mode.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -13,13 +13,13 @@ Compare the task graph execution performance of complex DAGs under different com
 - **Task Mix**: CPU-intensive (Fibonacci), I/O-intensive (sleep), pure computation (divide by two, square)
 - **Input**: `range(25, 32)` (7 purely successful tasks; earlier versions included error inputs, which have been removed)
 - **Retry Settings**: `NodeA`, `NodeB1` enable `max_retries=1` for `ValueError` (not triggered under the current input)
-- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and it does not go through the reporting-assembly entry point)
+- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and `benchmark_graph` does not accept `report`, so nothing is reported)
 
 ### `bench_graph_1`
 - **Structure**: 6-node multi-layer DAG (A → [B, C]; B → [D, E]; C → E; D → F)
 - **Tasks**: Random 0-2 second sleep (simulating uneven load)
 - **Input**: `range(10)`
-- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and it does not go through the reporting-assembly entry point)
+- **Observer/Reporting**: Not enabled (there is no `add_observer(...)` call anywhere in the script, and `benchmark_graph` does not accept `report`, so nothing is reported)
 
 ### `bench_graph_2`
 - **Structure**: 3-node DAG (NodeA → [NodeB, NodeC]); nodes use `TaskExecutor` directly and no longer wrap `TaskSplitter` (earlier versions included Splitter, which has been removed)
@@ -34,7 +34,7 @@ Compare the task graph execution performance of complex DAGs under different com
 
 ## Potential Issues
 
-1. **Reporting/observers not enabled**: There is no `add_observer(...)` call anywhere in the current script, and it does not pass through the entry point that wires up reporting resources, so the graph does not assemble any custom observers other than the default metrics, and nothing is reported. Reporting on/off is now driven by the `[tool.celestialflow]` section of the project-level `pyproject.toml` (`if_report`, `report_url`), no longer depending on `REPORT_HOST`/`REPORT_PORT` in `.env` (that configuration item has been removed); this script does not enable reporting.
+1. **Reporting/observers not enabled**: There is no `add_observer(...)` call anywhere in the current script, and `benchmark_graph` does not accept a `report` parameter either, so it neither assembles custom observers nor reports to a remote endpoint. Reporting is now controlled entirely by explicit parameters of the run entry point — passing a `ReportConfig` to `graph.run(..., report=ReportConfig(url=...))` enables it, omitting `report` disables it, and there is no implicit switch. This script does not pass it, so reporting stays off.
 2. **Long total runtime**: `benchmark_graph` runs `len(graph_modes) × len(execution_modes)` full graph executions; total time can reach several minutes when I/O delays are included.
 
 ## How to Run
@@ -284,7 +284,7 @@ Note: `process` mode has been deprecated; bench data retained only.
 ### 2026/09/19 — Re-run after node refactor + removing Splitter from bench_graph_2 (Windows)
 
 > Environment: Windows, Python 3.14.3, Reporter **not enabled**
-> Source changes: `stage` → `node` rename; busy time changed from estimation to measurement (`metrics.begin_task/end_task`); `node.snapshot` → `node.get_snapshot`; reporter merged structure+analysis into `graph_meta`
+> Source changes (the state at the time of this run; some APIs were adjusted again afterwards): `stage` → `node` rename; busy time changed from estimation to measurement (`metrics.begin_task/end_task`); `node.snapshot` → `node.get_snapshot` (the snapshot capability later moved to `PushSnapshotHandler` in `reporter`, and nodes/graphs no longer provide that method); reporter merged structure+analysis into `graph_meta`
 > Script changes: `bench_graph_2` removed `TaskSplitter`, changed to a 3-node DAG that injects `range(10_000)` directly into `NodeA`
 
 #### `bench_graph_0` — 4-node DAG, CPU+I/O mixed, 7 tasks
@@ -337,5 +337,4 @@ Note: `process` mode has been deprecated; bench data retained only.
 ## Dependencies
 
 - `celestialflow` (`TaskGraph`, `TaskExecutor`, `benchmark_graph`)
-- `python-dotenv`
-- External Service: Reporter service (optional)
+- External Service: no mandatory dependency; a reporting service is only needed when `ReportConfig` is passed explicitly

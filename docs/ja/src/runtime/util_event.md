@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_event.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 `runtime/util_event.py` は、タスクグラフ内でのイベント ID 生成と追跡のためのイベントクライアント抽象インターフェースとローカル実装を提供します。
 
@@ -92,7 +92,7 @@ flowchart LR
 
 - `TaskGraph.__init__()` はデフォルトで `LocalEventClient()` を共有イベントクライアントとして作成します。
 - `TaskGraph.set_ctree()` を通じて、ユーザー定義の `EventClient`（CelestialTree クライアントなど）に置き換えることができます。
-- `TaskDispatch._process_termination_signal()` は `self.task_executor.ctree_client.emit()` を呼び出して終了マージイベントを発行します。
+- `TaskDispatch._process_termination_signal()` は `self.task_node.ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=parent_ids)` を呼び出して終了マージイベントを発行します。
 
 ## 使用例
 
@@ -116,5 +116,6 @@ print(
 ## 注意事項
 
 - `EventClient` は `Protocol` であり、`emit()` メソッドを実装する任意のオブジェクトがこのインターフェースを満たします。明示的な継承は不要です。
-- `LocalEventClient` の `emit()` メソッドはすべてのパラメータを無視し（`_ = type_, parents, message, payload` で受け取るのみ）、インクリメンタル ID のみを返します。完全なイベント追跡が不要な場合のデフォルト実装として適しています。
+- `LocalEventClient` の `emit()` メソッドはすべてのパラメータを受け取りますが無視します（`type_` / `parents` / `message` / `payload` はいずれも未使用）。インクリメンタル ID のみを返します。完全なイベント追跡が不要な場合のデフォルト実装として適しています。
+- `BaseTaskNode.__init__()` と `TaskGraph.__init__()` はどちらもデフォルトで `LocalEventClient` を作成します（グラフは `set_ctree()` を通じて各ノードへ配布します）。そのため、外部システムに接続しない場合でもイベント連鎖の ID が一意に増加することが保証されます。
 - イベントを CelestialTree に報告する必要がある場合は、追加で `celestialtree` パッケージをインストールし、対応するクライアントインスタンスを構築して `TaskGraph.set_ctree()` を通じて注入してください。

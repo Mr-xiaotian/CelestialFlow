@@ -1,6 +1,6 @@
 # CelestialFlow —— 軽量で並列処理可能なグラフ構造ベースの Python タスクスケジューリングフレームワーク
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -23,7 +23,7 @@
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** は、**複雑な依存関係**、**柔軟な実行モデル**、**クロスデバイス実行**、**観測可能な実行チェーン** を必要とする中〜大規模 Python タスクシステムに適した、軽量でありながら完全な機能を備えたタスクフローフレームワークです。
+**CelestialFlow** は、**複雑な依存関係**、**柔軟な実行モデル**、**クロスデバイス実行**、**観測可能な実行チェーン** を必要とする中〜大規模 Python タスクシステムに適した、軽量でありながら完全な機能を備えたグラフ構造ベースの Python タスクフローフレームワークです。
 
 - Airflow/Dagster と比較して、より軽量でより迅速に開始できます
 - multiprocessing/threading と比較して、より構造化されており、loop / complete graph などの複雑な依存パターンを直接表現できます
@@ -40,7 +40,7 @@
 * **マルチスレッド（thread）**
 * **コルーチン（async）**
 
-`TaskExecutor` は、タスク結果のキャッシュ、タスク重複排除、プログレスバー表示、複数実行モードの比較などの機能を実装しており、単独使用でも十分に実用的です。
+`TaskExecutor` はカスタムスキップ関数（タスクの重複排除に利用可能）、失敗リトライ、キュー上限、複数実行モードの切り替えをサポートし、単独で使用しても十分に便利です。
 
 ノード間は **TaskGraph** を介して相互に接続され、上流と下流の依存関係を持つタスクグラフを形成します。下流ノードは上流の実行完了結果を自動的に入力として受け取り、明示的なデータフローを形成します。TaskGraph は `TaskChain` / `TaskCross` / `TaskGrid` / `TaskLoop` / `TaskWheel` / `TaskComplete` などの事前定義トポロジー構造も提供し、一般的な依存パターンを迅速に構築できます。
 
@@ -124,7 +124,8 @@ uv sync --group dev
 from celestialflow import TaskExecutor, TaskGraph
 
 
-def add(x, y):
+def add(task):
+    x, y = task
     return x + y
 
 
@@ -167,11 +168,11 @@ if __name__ == "__main__":
 - [BaseTaskNode.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md)
 - [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_nodes.md)
 - [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
-- [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [MetricsObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_metrics.md)
 - [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
-- [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [ReportConfig.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_config.md)
 - [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [BaseObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_observer.md)
+- [Observer.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_observer.md)
 - [Go Worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 推奨読書順序：
@@ -184,11 +185,11 @@ flowchart TD
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
 
     BTN[BaseTaskNode.md] --> TE[TaskExecutor.md] --> TG[TaskGraph.md]
-    TE --> OB[BaseObserver.md]
-    TE --> TME[TaskMetrics.md]
+    TE --> OB[Observer.md]
+    TE --> TME[MetricsObserver.md]
 
     TG --> TQ[TaskQueue.md]
-    TG --> TR[TaskReport.md]
+    TG --> TRC[ReportConfig.md]
     TG --> TSR[TaskStructure.md]
 
     TG --> GW[Go Worker.md]
@@ -197,16 +198,16 @@ flowchart TD
     class TME runtime;
     class TSR structure;
     class TQ,GW execution;
-    class TR execution;
+    class TRC execution;
 ```
 
 以下5篇は補足資料として参照できます：
 
-- [UtilHash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
-- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_lifecycle.md)
-- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
+- [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
+- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
+- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
 
 完全なケースを通じてフレームワークの動作を理解したい場合は、TaskGraph を使ってゼロからプロジェクトを構築するこのチュートリアルを参照してください：
 
@@ -246,7 +247,7 @@ flowchart TD
 ## ファイル構造（File Structure）
 
 ```
-📁 CelestialFlow	(539MB 107KB 283B)
+📁 CelestialFlow	(560MB 757KB 428B)
     📁 bench           	(316KB 409B)
         📁 [1項除外のディレクトリ]                  	(193KB 163B)
         🐍 bench_datastructures.py          	(6KB 690B)
@@ -268,8 +269,8 @@ flowchart TD
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(604KB 612B)
-        📁 [3項除外のディレクトリ]   	(548KB 510B)
+    📁 demo            	(811KB 650B)
+        📁 [4項除外のディレクトリ]   	(755KB 996B)
         🐍 demo_executor.py  	(1KB 557B)
         🐍 demo_funnel.py    	(2KB 289B)
         🐍 demo_graph.py     	(2KB 975B)
@@ -280,11 +281,11 @@ flowchart TD
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
-        🐍 demo_web.py       	(9KB 158B)
-    📁 docs            	(2MB 40KB 774B)
-        📁 en[折り畳み]   	(689KB 413B)
-        📁 ja[折り畳み]   	(788KB 343B)
-        📁 zh-CN[折り畳み]	(611KB 18B)
+        🐍 demo_web.py       	(8KB 734B)
+    📁 docs            	(2MB 88KB 855B)
+        📁 en[折り畳み]   	(678KB 928B)
+        📁 ja[折り畳み]   	(778KB 854B)
+        📁 zh-CN[折り畳み]	(679KB 97B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -293,55 +294,50 @@ flowchart TD
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 670KB 974B)
-        📁 celestialflow[折り畳み]	(1MB 651KB 430B)
-        📁 [1項除外のディレクトリ]      	(19KB 544B)
-    📁 tests           	(3MB 34KB 484B)
-        📁 assembly[折り畳み]   	(38KB 341B)
+    📁 src             	(1MB 661KB 60B)
+        📁 celestialflow[折り畳み]	(1MB 641KB 309B)
+        📁 [1項除外のディレクトリ]      	(19KB 775B)
+    📁 tests           	(3MB 65KB 73B)
+        📁 assembly[折り畳み]   	(42KB 929B)
         📁 benchmark[折り畳み]  	(41KB 377B)
         📁 funnel[折り畳み]     	(96KB 339B)
-        📁 graph[折り畳み]      	(801KB 83B)
-        📁 node[折り畳み]       	(512KB 601B)
-        📁 observer[折り畳み]   	(121KB 111B)
-        📁 persist[折り畳み]    	(207KB 907B)
+        📁 graph[折り畳み]      	(803KB 239B)
+        📁 node[折り畳み]       	(510KB 93B)
+        📁 observer[折り畳み]   	(122KB 937B)
+        📁 persist[折り畳み]    	(186KB 828B)
         📁 persistence[折り畳み]	(381KB 89B)
-        📁 reporter[折り畳み]   	(171KB 861B)
-        📁 runtime[折り畳み]    	(189KB 873B)
+        📁 reporter[折り畳み]   	(173KB 986B)
+        📁 runtime[折り畳み]    	(189KB 800B)
         📁 ticker[折り畳み]     	(54KB 761B)
-        📁 [1項除外のディレクトリ]    	(488KB 592B)
+        📁 [3項除外のディレクトリ]    	(532KB 170B)
         🐍 conftest.py        	(1KB 693B)
-    📁 [13項除外のディレクトリ]	(525MB 488KB 753B)
-    ❓ .env            	(468B)
+    📁 [13項除外のディレクトリ]	(546MB 860KB 667B)
+    ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
-    📝 AGENTS.md       	(1KB 1003B)
+    📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
-    ⚙️ pyproject.toml  	(2KB 858B)
-    📝 README.md       	(16KB 619B)
-    🔒 uv.lock         	(124KB 729B)
+    ⚙️ pyproject.toml  	(2KB 624B)
+    📝 README.md       	(16KB 321B)
+    🔒 uv.lock         	(126KB 837B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.2</em>
+  <em>celestial-flow 3.3.3</em>
 </p>
 
 （このビューは、私の別プロジェクト [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) の inst_file.FileTree.print_tree() によって生成されました。画像への変換は [Carbon](https://carbon.now.sh) を使用しています。）
 
 ## バージョン履歴（Version Log）
-- 3.3.2
+- 3.3.3
   - feat:
-    - [IMPORTANT] `observer` メカニズムを大幅に拡充し、より多くのフックを追加
-      - `ObserverHub` を追加して管理。これ自体も `observer`
-    - [IMPORTANT] `ticker` メカニズムを追加し、周期的な時間を駆動とする
-      - 純イベント駆動の `observer` の補完として
-    - `reporter` メカニズムの完全なリファクタリングにより、その有効化・使用方法も変更
-      - `.pyproject` での設定に変更
+    - `GraphEndEvent` / `NodeEndEvent` に `end_time` を追加
+    - `GraphStartEvent` から `class_name` を削除
   - refactor:
-    - [IMPORTANT] `log` / `lifecycle` を新しい `observer` 体系に統合
-      - 構造がよりシンプルで効率的に
-    - [IMPORTANT] `reporter` を完全に分離された `push` と `pull` に分割
-      - 前者は `PushInlet` がイベント化して `error` `meta` データを収集し、`PushSnapshotHandler` が周期的に状態情報を収集
-      - 後者は `InjectionHandler` が周期的にサーバー側から注入タスクと注入終了符を収集
-    - `metric` メカニズムを `observer` 体系に統合
+    - `on_worker_crash` など一部の不要な observer イベントを削除
+    - log と reporter の設定を `.toml` からランタイム設定に移動
+    - 一部の不要な sqlite 関数を削除
+  - fix:
+    - グラフ分析キャッシュの問題を修正
 
 過去のログの詳細は以下をご覧ください：
 

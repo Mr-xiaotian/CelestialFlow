@@ -1,6 +1,6 @@
 # CelestialFlow — A Lightweight, Parallel, Graph-Based Python Task Scheduling Framework
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -23,7 +23,7 @@
   <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/README.md">中文</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/README.md">English</a> | <a href="https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/ja/README.md">日本語</a>
 </p>
 
-**CelestialFlow** is a lightweight yet fully-featured task flow framework, suitable for medium-to-large Python task systems that require **complex dependencies**, **flexible execution models**, **cross-device execution**, and **observable execution traces**.
+**CelestialFlow** is a lightweight yet fully-featured, graph-based Python task flow framework, suitable for medium-to-large Python task systems that require **complex dependencies**, **flexible execution models**, **cross-device execution**, and **observable execution traces**.
 
 - Lighter and quicker to start than Airflow/Dagster
 - More structured than multiprocessing/threading, capable of directly expressing complex dependency patterns such as loops and complete graphs
@@ -40,7 +40,7 @@ All three node types support the following execution modes:
 * **Multi-threaded (thread)**
 * **Coroutine (async)**
 
-`TaskExecutor` implements result caching, task deduplication, progress bar display, multi-mode execution comparison, and more — it works well even when used standalone.
+`TaskExecutor` supports custom skip functions (usable for task deduplication), failure retry, queue limits, and switching between multiple execution modes — it works well even when used standalone.
 
 Nodes are connected to each other through **TaskGraph**, forming a task graph with upstream and downstream dependencies. A downstream node automatically receives the completed results from its upstream as input, creating a clear data flow. TaskGraph also provides preset topology structures such as `TaskChain` / `TaskCross` / `TaskGrid` / `TaskLoop` / `TaskWheel` / `TaskComplete` to quickly build common dependency patterns.
 
@@ -124,7 +124,8 @@ A simple runnable example:
 from celestialflow import TaskExecutor, TaskGraph
 
 
-def add(x, y):
+def add(task):
+    x, y = task
     return x + y
 
 
@@ -167,11 +168,11 @@ If you want to understand the overall architecture and core components of the fr
 - [BaseTaskNode.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_node.md)
 - [TaskExecutor.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/node/core_nodes.md)
 - [TaskGraph.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_graph.md)
-- [TaskMetrics.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_metrics.md)
+- [MetricsObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_metrics.md)
 - [TaskQueue.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_queue.md)
-- [TaskReport.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_report.md)
+- [ReportConfig.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/core_config.md)
 - [TaskStructure.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/graph/core_structure.md)
-- [BaseObserver.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observability/core_observer.md)
+- [Observer.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/observer/core_observer.md)
 - [Go Worker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/other/go_worker.md)
 
 Recommended reading order:
@@ -184,11 +185,11 @@ flowchart TD
     classDef execution fill:#f3e8ff,stroke:#a855f7,color:#581c87;
 
     BTN[BaseTaskNode.md] --> TE[TaskExecutor.md] --> TG[TaskGraph.md]
-    TE --> OB[BaseObserver.md]
-    TE --> TME[TaskMetrics.md]
+    TE --> OB[Observer.md]
+    TE --> TME[MetricsObserver.md]
 
     TG --> TQ[TaskQueue.md]
-    TG --> TR[TaskReport.md]
+    TG --> TRC[ReportConfig.md]
     TG --> TSR[TaskStructure.md]
 
     TG --> GW[Go Worker.md]
@@ -197,16 +198,16 @@ flowchart TD
     class TME runtime;
     class TSR structure;
     class TQ,GW execution;
-    class TR execution;
+    class TRC execution;
 ```
 
 The following five can serve as supplementary reading:
 
-- [UtilHash.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_hash.md)
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
-- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_lifecycle.md)
-- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persistence/core_log.md)
+- [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
+- [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
+- [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
 
 If you prefer to understand the framework's operation through a complete case study, refer to this tutorial on building a project from scratch with TaskGraph:
 
@@ -246,7 +247,7 @@ If you want to view bench content, this data also serves as the basis for some o
 ## File Structure
 
 ```
-📁 CelestialFlow	(539MB 107KB 283B)
+📁 CelestialFlow	(560MB 757KB 428B)
     📁 bench           	(316KB 409B)
         📁 [1 excluded directory]                  	(193KB 163B)
         🐍 bench_datastructures.py          	(6KB 690B)
@@ -268,8 +269,8 @@ If you want to view bench content, this data also serves as the basis for some o
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(604KB 612B)
-        📁 [3 excluded directories]   	(548KB 510B)
+    📁 demo            	(811KB 650B)
+        📁 [4 excluded directories]   	(755KB 996B)
         🐍 demo_executor.py  	(1KB 557B)
         🐍 demo_funnel.py    	(2KB 289B)
         🐍 demo_graph.py     	(2KB 975B)
@@ -280,11 +281,11 @@ If you want to view bench content, this data also serves as the basis for some o
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
-        🐍 demo_web.py       	(9KB 158B)
-    📁 docs            	(2MB 40KB 774B)
-        📁 en[collapsed]   	(689KB 413B)
-        📁 ja[collapsed]   	(788KB 343B)
-        📁 zh-CN[collapsed]	(611KB 18B)
+        🐍 demo_web.py       	(8KB 734B)
+    📁 docs            	(2MB 88KB 855B)
+        📁 en[collapsed]   	(678KB 928B)
+        📁 ja[collapsed]   	(778KB 854B)
+        📁 zh-CN[collapsed]	(679KB 97B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -293,56 +294,51 @@ If you want to view bench content, this data also serves as the basis for some o
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 670KB 974B)
-        📁 celestialflow[collapsed]	(1MB 651KB 430B)
-        📁 [1 excluded directory]      	(19KB 544B)
-    📁 tests           	(3MB 34KB 484B)
-        📁 assembly[collapsed]   	(38KB 341B)
+    📁 src             	(1MB 661KB 60B)
+        📁 celestialflow[collapsed]	(1MB 641KB 309B)
+        📁 [1 excluded directory]      	(19KB 775B)
+    📁 tests           	(3MB 65KB 73B)
+        📁 assembly[collapsed]   	(42KB 929B)
         📁 benchmark[collapsed]  	(41KB 377B)
         📁 funnel[collapsed]     	(96KB 339B)
-        📁 graph[collapsed]      	(801KB 83B)
-        📁 node[collapsed]       	(512KB 601B)
-        📁 observer[collapsed]   	(121KB 111B)
-        📁 persist[collapsed]    	(207KB 907B)
+        📁 graph[collapsed]      	(803KB 239B)
+        📁 node[collapsed]       	(510KB 93B)
+        📁 observer[collapsed]   	(122KB 937B)
+        📁 persist[collapsed]    	(186KB 828B)
         📁 persistence[collapsed]	(381KB 89B)
-        📁 reporter[collapsed]   	(171KB 861B)
-        📁 runtime[collapsed]    	(189KB 873B)
+        📁 reporter[collapsed]   	(173KB 986B)
+        📁 runtime[collapsed]    	(189KB 800B)
         📁 ticker[collapsed]     	(54KB 761B)
-        📁 [1 excluded directory]    	(488KB 592B)
+        📁 [3 excluded directories]    	(532KB 170B)
         🐍 conftest.py        	(1KB 693B)
-    📁 [13 excluded directories]	(525MB 488KB 753B)
-    ❓ .env            	(468B)
+    📁 [13 excluded directories]	(546MB 860KB 667B)
+    ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
-    📝 AGENTS.md       	(1KB 1003B)
+    📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
-    ⚙️ pyproject.toml  	(2KB 858B)
-    📝 README.md       	(16KB 619B)
-    🔒 uv.lock         	(124KB 729B)
+    ⚙️ pyproject.toml  	(2KB 624B)
+    📝 README.md       	(16KB 321B)
+    🔒 uv.lock         	(126KB 837B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.2</em>
+  <em>celestial-flow 3.3.3</em>
 </p>
 
 (This view was generated by `inst_file.FileTree.print_tree()` from my other project [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault). Conversion to an image was done with [Carbon](https://carbon.now.sh).)
 
 ## Version Log
 
-- 3.3.2
+- 3.3.3
   - feat:
-    - [IMPORTANT] Greatly expanded the `observer` mechanism, adding more hooks
-      - Added `ObserverHub` for management; it is itself an `observer`
-    - [IMPORTANT] Added the `ticker` mechanism, driven by periodic time
-      - As a complement to the purely event-driven `observer`
-    - Due to the complete refactor of the `reporter` mechanism, how it is enabled and used has also changed
-      - It is now configured in `.pyproject`
+    - Added `end_time` to `GraphEndEvent` / `NodeEndEvent`
+    - Removed `class_name` from `GraphStartEvent`
   - refactor:
-    - [IMPORTANT] Folded `log` / `lifecycle` into the new `observer` system
-      - The structure is cleaner and more efficient
-    - [IMPORTANT] Split `reporter` into fully separated `push` and `pull`
-      - The former uses `PushInlet` to event-collect `error` `meta` data, and `PushSnapshotHandler` periodically collects status information
-      - The latter uses `InjectionHandler` to periodically collect injected tasks and injected termination signals from the server
-    - Folded the `metric` mechanism into the `observer` system
+    - Removed some useless observer events, such as `on_worker_crash`
+    - Moved log and reporter settings from `.toml` to runtime configuration
+    - Removed some useless sqlite functions
+  - fix:
+    - Fixed the issue with graph analysis caching
 
 For more past logs, see:
 

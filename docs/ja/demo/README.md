@@ -1,6 +1,6 @@
 # demo/ デモ概要
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 説明
 
@@ -13,7 +13,7 @@
 プロジェクトに初めて触れる方は、以下の順序で読むことを推奨します：
 
 1. `demo_executor.md`：まず `TaskExecutor` の基本的な実行方法を理解
-2. `demo_graph.md`：次に `TaskGraph` が stage をどのようにつなげて DAG を形成するかを確認
+2. `demo_graph.md`：次に `TaskGraph` がノードをどのようにつなげて DAG を形成するかを確認
 3. `demo_structure.md`：さらにチェーン、グリッド、ループ、完全グラフなどの構造化ラッパーを確認
 4. `demo_observer.md`：最後に実行中の観測と進捗表示を確認
 
@@ -25,7 +25,7 @@
 | `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に組み込み `PrintObserver` とカスタムオブザーバーを登録 | 不要 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | タスクグラフから独立して、`BaseInlet` / `BaseSpout` でイベント収集パイプラインを構築 | 不要 |
 | `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ型パイプライン | CelestialTree（オプション） |
-| `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジ、およびローカル指標出力デモ | 不要 |
+| `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジ；`ReportConfig` で `celestialflow-web` に報告 | `celestialflow-web`（オプション） |
 | `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | CelestialTree（オプション） |
 | `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | CelestialTree（オプション） |
 | `demo_redis.md` | `demo/demo_redis.py` | 通常の `TaskExecutor` で Redis タスク投入、結果確認、外部タスクソースを実現 | Redis（オプション） |
@@ -52,7 +52,7 @@
 |------|------|
 | `demo_observer.md` | オブザーバー、進捗報告、ライフサイクルコールバックデモ |
 | `demo_funnel.md` | Inlet / Spout パイプライン動作とデータフローデモ |
-| `demo_web.md` | 複雑トポロジとローカル `MetricsObserver` を組み合わせて各ノードの指標を出力するデモ |
+| `demo_web.md` | 複雑トポロジから `ReportConfig` で状態を `celestialflow-web` に報告するデモ |
 | `demo_redis.md` | Redis 関連統合サンプル |
 
 ### ヘルパー関数

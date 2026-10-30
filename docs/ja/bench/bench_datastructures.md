@@ -1,6 +1,6 @@
 # bench/bench_datastructures.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -17,7 +17,7 @@
 | `test_value_number` | `multiprocessing.Value` アトミックインクリメント | N=10,000 |
 | `test_redis_plain` | Redis 逐次 set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline バッチ set/get | N=10,000 |
-| `test_redis_multithread_plain` | Redis マルチスレッド並行書き込み | N=10,000 / 10 スレッド |
+| `test_redis_multithread_plain` | Redis 10 スレッドの並行書き込み / 読み取り（pipeline なし） | N=10,000、各スレッド 1,000 件 |
 | `test_redis_hash` | Redis Hash 逐次 hset/hget | N=10,000 |
 | `test_redis_list` | Redis List 逐次 rpush/lindex | N=10,000 |
 | `test_redis_set` | Redis Set 逐次 sadd/sismember | N=10,000 |
@@ -26,14 +26,15 @@
 ## 主要設定
 
 - `N = 10000`：各テストの反復回数
-- Redis 接続パラメータは `.env` から読み込み（`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`）
+- Redis 接続パラメータは `load_dotenv()` により `.env` から読み込む（`REDIS_HOST` のデフォルトは `127.0.0.1`、`REDIS_PORT` のデフォルトは `6379`、`REDIS_PASSWORD` は任意）。`db=0`、`decode_responses=True` を固定で使用する
+- `get_redis_connection()` はまず `ping()` を実行し、失敗時には `⚠️ Redis not available, skipping Redis tests` を出力して `None` を返す。この場合、以降の Redis テストはすべてスキップされる
 
 ## 発生し得る問題
 
 1. **Redis 接続失敗**：`.env` に Redis 設定がないかサービスが未起動の場合、Redis 関連テストはスキップされ、警告のみ出力される。
 2. **MPQueue のバッファ制限**：`mpqueue_worker` では全 N 要素を put してから get するため、N が大きい場合に OS パイプバッファの上限に達する可能性がある（特に Linux 上）。
 
-> **注意**：現在のスクリプトは依然として `test_mpqueue` と `test_value_number` をデフォルトで実行し、純粋なインメモリ方式とのクロスプロセス性能ベースライン比較に使用している。`stage_mode="process"` はフレームワークから削除済みであるため、これらのテストは現在のフレームワーク内部動作を反映せず、歴史的な性能参考としてのみ使用される。
+> **注意**：現在のスクリプトは依然として `test_mpqueue` と `test_value_number` をデフォルトで実行し、純粋なインメモリ方式とのクロスプロセス性能ベースライン比較に使用している。`process` グラフモードはフレームワークから削除済みであるため、これらのテストは現在のフレームワーク内部動作を反映せず、歴史的な性能参考としてのみ使用される。
 
 ## 実行方法
 

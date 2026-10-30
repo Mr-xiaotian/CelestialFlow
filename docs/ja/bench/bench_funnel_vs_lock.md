@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -25,7 +25,7 @@
 
 | シナリオ | 同期方式 | 説明 |
 |------|---------|------|
-| `lock` | `ValueWrapper` + 共有 `Lock` | プロデューサーがロックを保持して更新し、書き込みは同期的に可視化される。`TaskMetrics` でカウンターが同一のロックを共有する用法に対応 |
+| `lock` | `ValueWrapper` + 共有 `Lock` | プロデューサーがロックを保持して更新し、書き込みは同期的に可視化される。`MetricsObserver` で `threading.Lock` により共有カウンターを保護する用法に対応 |
 | `nolock` | `ValueWrapper`、ロックなし | 意図的にロックしないベースライン。正しさのデモではなく、ロック自体のオーバーヘッドを定量化するために使用（下記「発生し得る問題」を参照） |
 | `sharded` | プロデューサーごとにロックなしの `ValueWrapper` | 最後に集計する。スレッド間の競合は一切ないが、集約可能な負荷にのみ適用でき、共有レコードストリームを表現できない |
 | `funnel` | `BaseInlet` + `BaseSpout` | プロデューサーは `emit` を呼び出してエンキューする。`CountingSpout` が単一スレッドで直列に消費して状態を更新 |
@@ -88,6 +88,9 @@ flowchart LR
 引数の妥当性は `validate_args()` で検証される（`--items >= 0`、`--producers >= 1`、`--readers >= 0`、`--work-iters >= 0`、`--repeats >= 1`）。不正な値は設定ヘッダーを表示する前にエラーで終了する。
 
 スクリプトはプロジェクトの `src/` ディレクトリを `sys.path` に挿入するため、パッケージをインストールせずに直接実行できる。
+
+起動時には設定ヘッダーが出力される：`python` のバージョン行、`GIL` の状態（`sys._is_gil_enabled()` で検出し、その属性がない場合は `unknown` と表示）、`items`、`producers`、`readers`、`work_iters`、`repeats`、および実際に実行に参加する `scenarios`。
+さらに `--producers < 2` の場合は「観察可能な競合がない」という警告が出され、`--readers > 0` かつプロデューサーが 2 つ以上の場合には、読み取りスレッドと書き込みスレッドが同一のロックを競合する旨が提示される。
 
 ## 発生し得る問題
 
@@ -178,7 +181,7 @@ python bench/bench_funnel_vs_lock.py
 uv run python bench/bench_funnel_vs_lock.py
 ```
 
-プロジェクトがインポート可能なパッケージとしてインストールされていない場合、ローカル仮想環境のインタープリターを直接使用することもできる：
+ローカル仮想環境のインタープリターで実行することもできる：
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_funnel_vs_lock.py

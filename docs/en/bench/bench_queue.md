@@ -1,6 +1,6 @@
 # bench/bench_queue.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -17,7 +17,10 @@ In a single-process environment, compare the put/get/qsize/empty operation perfo
 | `Redis Stream` | Redis `xadd`/`xread` | xadd, xread, xlen, empty-check |
 
 - **Scale**: `COUNT = 100_000`
-- **Redis config**: Read from `.env` (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`)
+- **Redis config**: Read from `.env` via `load_dotenv()` (`REDIS_HOST` defaults to `127.0.0.1`, `REDIS_PORT` defaults to `6379`, `REDIS_PASSWORD` is optional), always with `db=0` and `decode_responses=True`
+- **Redis keys**: List uses `redis_queue` (`lpush` to write, `rpop` to take), Stream uses `redis_stream` (`xadd` to write, `xread` to read)
+- **Redis phases**: `ping()` must succeed first, then `flushdb()` clears the database, after which List and Stream run in order; any exception in these steps prints `⚠️ Redis tests skipped` and skips the remaining Redis tests
+- **Stream reading**: `xread({key: last_id}, count=1000, block=0)` loops until `COUNT` records have been read cumulatively
 
 ## Potential Issues
 
@@ -103,10 +106,10 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     COUNT = 10_000
 
-    # test_threadqueue_perf(COUNT)           # 注释掉线程队列
-    test_mpqueue_perf(COUNT)                 # 仅测试 MPQueue
-    # test_manager_queue_perf(COUNT)         # 跳过 Manager 队列
-    # test_redis_list_perf(redis_client, COUNT)   # 跳过 Redis（注意需传入已连接的 redis_client）
+    # test_threadqueue_perf(COUNT)           # Comment out thread queue
+    test_mpqueue_perf(COUNT)                 # Test MPQueue only
+    # test_manager_queue_perf(COUNT)         # Skip Manager queue
+    # test_redis_list_perf(redis_client, COUNT)   # Skip Redis (note: requires a connected redis_client)
     # test_redis_stream_perf(redis_client, COUNT)
 ```
 

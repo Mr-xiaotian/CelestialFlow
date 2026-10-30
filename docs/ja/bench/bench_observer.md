@@ -1,6 +1,6 @@
 # bench/bench_observer.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -15,8 +15,8 @@
 | シナリオ | オブザーバー | 説明 |
 |----------|--------------|------|
 | **オブザーバーなし** | `None` | 生のエグゼキューター。コールバック出力なしで、ベースラインとなる |
-| **print ログ** | `PrintObserver` | 各ライフサイクルイベントで `name` プレフィックス付きの `print()` を 1 回実行し、シンプルなログ出力をシミュレートする |
-| **tqdm プログレスバー** | `TqdmObserver` | 各ライフサイクルイベントで `tqdm` プログレスバーを更新し、視覚的なフィードバックを提供する |
+| **print ログ** | `PrintObserver` | node の開始/終了、およびタスクの入力 / 成功 / 失敗 / スキップのコールバックで `name` プレフィックス付きの統計行を出力し、シンプルなログ出力をシミュレートする |
+| **tqdm プログレスバー** | `TqdmObserver` | node の開始/終了、およびタスクの入力 / 成功 / 失敗 / スキップのコールバックで `tqdm` プログレスバーを更新し、視覚的なフィードバックを提供する |
 
 ### タスク負荷
 
@@ -37,6 +37,40 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 | `execution_mode` | `serial` | すべてのシナリオで直列モードを使用し、変数を制御してオブザーバーの影響のみを観察する |
 | `max_workers` | 1 | 単一ワーカーで、並列スケジューリングの干渉を避ける |
 | `max_retries` | 0 | 再試行せず、再試行ロジックによる追加のオーバーヘッドを除外する |
+
+## 主要関数
+
+### `run_benchmark`
+
+```python
+def run_benchmark(
+    name: str,
+    task_data: list[Any],
+    func: Any,
+    *,
+    observer: Observer | None = None,
+) -> float
+```
+
+`TaskExecutor(name, func, execution_mode="serial", max_workers=1, max_retries=0)` を構築し、
+`observer` が渡された場合は `executor.add_observer(observer)` を呼び出したうえで、`time.perf_counter()`
+で `executor.run(task_data)` を囲んで所要時間（秒）を返す。呼び出しごとに新しいエグゼキューターを作成し、状態の残留を避ける。
+
+### `TqdmObserver`
+
+`TqdmObserver` はフレームワークの `Observer` 基底クラスを継承し、進捗に関連するコールバックのみをオーバーライドする：
+
+| コールバック | 動作 |
+|------|------|
+| `on_node_start` | その時点で累積された `_total` を用いて `tqdm(total=...)` を生成する |
+| `on_task_input` | `_total += 1`。プログレスバーが生成済みの場合は `total` を同期的に拡張して `refresh()` する |
+| `on_task_success` / `on_task_fail` / `on_task_skip` | 共通の `_advance(1)` で進捗を進める |
+| `on_node_end` | プログレスバーを閉じる |
+
+### ワーカー関数
+
+- `fibonacci(n)`：**反復**実装（`O(n)`）で、再帰ではない。`n <= 0` は `ValueError`、`int` 以外は `TypeError` を送出
+- `cpu_intensive(x)`：純粋な CPU ループで、オブザーバーのオーバーヘッドを増幅するために使用。**現在のスクリプトではどのシナリオでも呼び出されていない**
 
 ## 発生しうる問題
 
@@ -129,5 +163,5 @@ runs = 10  # 5 から 10 に変更し、より安定した平均値を取得す�
 
 ## 依存関係
 
-- `celestialflow`（`TaskExecutor`、`BaseObserver`、`PrintObserver`）
+- `celestialflow`（`Observer`、`PrintObserver`、`TaskExecutor`、および `celestialflow.observer` 配下の各種イベント型）
 - `tqdm`（`TqdmObserver` で使用）

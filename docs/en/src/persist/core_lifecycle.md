@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_lifecycle.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `persist/core_lifecycle.py` is responsible for task Lifecycle persistence: it records the state transitions of a task throughout its lifecycle (pending → success / failed / skipped, as well as retry count updates), and writes the data into SQLite database files under the `lifecycles/` directory. The core components are `LifecycleSpout` and `LifecycleInlet`.
 
@@ -136,7 +136,7 @@ hub.on_task_input(
 lifecycle_spout.stop()
 ```
 
-In actual usage, `LifecycleInlet` is usually assembled by `assembly/core_run.py` and persists task lifecycles during task graph execution. To read persisted records, use the `load_records` / `load_task_error_records` / `load_task_result_records` functions of `util_sqlite`.
+In actual usage, `LifecycleInlet` is usually assembled by `assembly/core_run.py` and persists task lifecycles during task graph execution. To read persisted records, use the read functions of `util_sqlite`: `load_tasks_grouped_by_node` (read records of a given status grouped by node), `load_task_error_records` (read the `(task, error)` pairs of a node), and `load_task_result_records` (read the `(task, result)` pairs of a node).
 
 ## Notes
 
@@ -144,3 +144,4 @@ In actual usage, `LifecycleInlet` is usually assembled by `assembly/core_run.py`
 2. **Immediate commit**: each write operation commits immediately after the record is actually modified, ensuring no data is lost.
 3. **Inlet only writes the queue**: it does not directly operate on the database; all I/O is performed in the background thread of `LifecycleSpout`.
 4. **Observer-callback driven**: this class no longer provides manual invocation methods such as `task_input` / `task_success`; instead it consumes lifecycle events through the `on_*` event callbacks.
+5. **Cross-package imports**: `Observer` and the various `*Event` classes are imported uniformly through the package-level `from ..observer import (...)` statement, following the cross-package import rule for `core_*`.

@@ -1,8 +1,26 @@
 # src/celestialflow/graph/core_structure.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
-The TaskStructure module provides multiple predefined task graph structures to help users quickly build complex task flows. All structures inherit from `TaskGraph`.
+`core_structure.py` provides 6 predefined task graph structures to help users quickly build common task flow shapes. All structures inherit from `TaskGraph`, so they also have `run()` / `run_async()` / `start()` / `start_async()` / `get_*()` capabilities.
+
+## Structure Overview
+
+| Structure | Shape | DAG | Constructor Arguments | Construction-time Validation |
+|-----------|-------|:---:|-----------------------|------------------------------|
+| `TaskChain` | Linear chain | Yes | `nodes: list[AnyTaskNode]` | `nodes` empty → `InvalidStructureError` |
+| `TaskCross` | Multi-layer fully connected | Yes | `layers: list[list[AnyTaskNode]]` | `layers` empty or contains an empty layer → `InvalidStructureError` |
+| `TaskGrid` | 2D grid | Yes | `grid: list[list[AnyTaskNode]]` | `grid` empty / first row empty / rows of unequal length → `InvalidStructureError` |
+| `TaskLoop` | Single closed cycle | No | `nodes: list[AnyTaskNode]` | `nodes` empty → `InvalidStructureError` |
+| `TaskWheel` | Center + ring | No | `center: AnyTaskNode, ring: list[AnyTaskNode]` | `ring` empty → `InvalidStructureError` |
+| `TaskComplete` | Complete graph | No | `nodes: list[AnyTaskNode]` | Node count `< 2` → `InvalidStructureError` |
+
+Common construction conventions:
+
+- The `graph_mode` parameter defaults to `"thread"` for all structures (note: the default for `TaskGraph` itself is `"serial"`), and accepts `"serial"` / `"thread"` / `"async"`.
+- An invalid `graph_mode` causes `set_graph_mode()` to raise `InvalidOptionError` inside `super().__init__()`.
+- Structure classes call `set_nodes()` and one or more `connect()` calls after `super().__init__()`, so the graph is already built when instantiation completes, `_analysis_dirty` is `True`, and the analysis results are recomputed on demand at the first read.
+- Apart from the nodes passed in, structure classes do not create additional node objects; all validation only checks container shape and counts.
 
 ## Chain (Linear Chain)
 
@@ -20,25 +38,22 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskChain` is the simplest task structure, connecting multiple `TaskExecutor` instances in sequence to form a linear data flow.
+`TaskChain` is the simplest task structure, connecting multiple nodes in sequence to form a linear data flow; the chain has exactly one source node.
 
 ```python
 from celestialflow import TaskChain, TaskExecutor
 
-# Define nodes
-stage1 = TaskExecutor("S1", func=func1)
-stage2 = TaskExecutor("S2", func=func2)
-stage3 = TaskExecutor("S3", func=func3)
+stage1 = TaskExecutor("S1", func=lambda x: x + 1)
+stage2 = TaskExecutor("S2", func=lambda x: x * 2)
+stage3 = TaskExecutor("S3", func=lambda x: x - 3)
 
-# Create chain
 chain = TaskChain(
     name="DataPipeline",
     nodes=[stage1, stage2, stage3],
     graph_mode="thread",  # thread: nodes run in parallel; serial: nodes run sequentially
 )
 
-# Start
-chain.run({stage1.get_name(): [data]})
+chain.run({stage1.get_name(): [1, 2, 3]})
 ```
 
 ## Cross (Cross Layers)
@@ -47,10 +62,10 @@ chain.run({stage1.get_name(): [data]})
 flowchart LR
     subgraph TC[TaskCross]
         direction LR
-        
+
         S11[Stage 1-1]
         S12[Stage 1-2]
-        
+
         S21[Stage 2-1]
         S22[Stage 2-2]
 
@@ -64,17 +79,27 @@ flowchart LR
     class S11,S12,S21,S22 blueNode;
 ```
 
-`TaskCross` organizes tasks into "layers". Each layer contains multiple nodes executing in parallel. Adjacent layers establish fully-connected dependencies (every node in the upper layer connects to all nodes in the lower layer).
+`TaskCross` organizes tasks by "layer". Each layer contains multiple nodes executing in parallel, and nodes in adjacent layers establish fully-connected dependencies (every node in the previous layer connects to all nodes in the next layer). Edges are created **only between adjacent layers**; non-adjacent layers (e.g. layer 1 to layer 3) are not directly connected.
 
 ```python
-from celestialflow import TaskCross
+from celestialflow import TaskCross, TaskExecutor
 
-# Define layers
-layer1 = [stage_1_1, stage_1_2]
-layer2 = [stage_2_1, stage_2_2]
+stage_1_1 = TaskExecutor("S11", func=lambda x: x + 1)
+stage_1_2 = TaskExecutor("S12", func=lambda x: x * 2)
+stage_2_1 = TaskExecutor("S21", func=lambda x: x - 1)
+stage_2_2 = TaskExecutor("S22", func=lambda x: x // 2)
 
-# Create cross structure
-cross = TaskCross(name="CrossPipeline", layers=[layer1, layer2], graph_mode="thread")
+cross = TaskCross(
+    name="CrossPipeline",
+    layers=[[stage_1_1, stage_1_2], [stage_2_1, stage_2_2]],
+    graph_mode="thread",
+)
+cross.run(
+    {
+        stage_1_1.get_name(): [1, 2],
+        stage_1_2.get_name(): [10, 20],
+    }
+)
 ```
 
 ## Grid
@@ -98,16 +123,22 @@ flowchart TD
     class S00,S01,S10,S11 blueNode;
 ```
 
-`TaskGrid` organizes task nodes into a 2D grid. Each node connects to its **right** and **below** neighbors.
+`TaskGrid` organizes task nodes into a 2D grid. Each node connects to the node on its **right** (same row, `j+1`) and **below** (same column, `i+1`); the grid must be rectangular, i.e. all rows must have the same length.
 
 ```python
-from celestialflow import TaskGrid
+from celestialflow import TaskExecutor, TaskGrid
 
-# Define grid
-grid_layout = [[stage_00, stage_01], [stage_10, stage_11]]
+stage_00 = TaskExecutor("S00", func=lambda x: x)
+stage_01 = TaskExecutor("S01", func=lambda x: x + 1)
+stage_10 = TaskExecutor("S10", func=lambda x: x * 2)
+stage_11 = TaskExecutor("S11", func=lambda x: x * x)
 
-# Create grid structure
-grid = TaskGrid(name="GridPipeline", grid=grid_layout, graph_mode="thread")
+grid = TaskGrid(
+    name="GridPipeline",
+    grid=[[stage_00, stage_01], [stage_10, stage_11]],
+    graph_mode="thread",
+)
+grid.run({stage_00.get_name(): [1, 2]})
 ```
 
 ## Loop (Cyclic)
@@ -119,7 +150,7 @@ flowchart LR
         S1[Stage 1]
         S2[Stage 2]
         S3[Stage 3]
-        
+
         S1 --> S2 --> S3 --> S1
     end
     style TL fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
@@ -127,17 +158,25 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskLoop` connects nodes head-to-tail to form a closed loop. Defaults to the `thread` graph execution mode.
-Note: Loop structures typically require external intervention to stop, or specific exit conditions must be set.
+`TaskLoop` connects nodes head-to-tail to form a closed loop (the last node connects back to the first). It uses the `thread` graph execution mode by default.
+
+> A loop structure is not a DAG: `graph_mode="serial"` raises `ConfigurationError` during the `_build_analysis()` phase; even with `thread` / `async`, `if_put_signal=False` plus externally injected termination signals are usually needed to control when to stop.
 
 ```python
-from celestialflow import TaskLoop
+from celestialflow import TaskExecutor, TaskLoop
 
-# Create loop
+stage1 = TaskExecutor("L1", func=lambda x: x + 1)
+stage2 = TaskExecutor("L2", func=lambda x: x * 2)
+stage3 = TaskExecutor("L3", func=lambda x: x - 1)  # L3 -> L1 forms the closed loop
+
 loop = TaskLoop(
     name="FeedbackLoop",
-    nodes=[stage1, stage2, stage3],  # stage3 -> stage1
+    nodes=[stage1, stage2, stage3],
 )
+
+# The cyclic graph is not run directly here: run would block forever until an external termination signal is injected
+print(loop.get_source_nodes())
+print(loop.is_dag())  # False
 ```
 
 ## Wheel
@@ -150,11 +189,11 @@ flowchart TD
         R1[Ring 1]
         R2[Ring 2]
         R3[Ring 3]
-        
+
         C --> R1
         C --> R2
         C --> R3
-        
+
         R1 --> R2 --> R3 --> R1
     end
     style TW fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
@@ -162,17 +201,25 @@ flowchart TD
     class C,R1,R2,R3 blueNode;
 ```
 
-`TaskWheel` contains a center node and a ring structure. The center node connects to every node on the ring, and ring nodes are connected head-to-tail.
+`TaskWheel` contains a center node and a ring structure. The center node connects to every node on the ring, and ring nodes are connected head-to-tail. The node registration order is `[center, *ring]`.
 
 ```python
-from celestialflow import TaskWheel
+from celestialflow import TaskExecutor, TaskWheel
 
-# Create wheel structure
+center_stage = TaskExecutor("Hub", func=lambda x: {"input": x})
+ring_stage1 = TaskExecutor("R1", func=lambda x: x["input"] + 1)
+ring_stage2 = TaskExecutor("R2", func=lambda x: x["input"] + 2)
+ring_stage3 = TaskExecutor("R3", func=lambda x: x["input"] + 3)
+
 wheel = TaskWheel(
     name="HubAndSpoke",
     center=center_stage,
     ring=[ring_stage1, ring_stage2, ring_stage3],
 )
+
+# Running a cyclic graph likewise requires external termination injection; here we only verify the structure
+print(wheel.get_nodes())  # ['Hub', 'R1', 'R2', 'R3']
+print(wheel.is_dag())  # False
 ```
 
 ## Complete (Complete Graph)
@@ -184,7 +231,7 @@ flowchart LR
         S1[Stage 1]
         S2[Stage 2]
         S3[Stage 3]
-        
+
         S1 <--> S2
         S2 <--> S3
         S3 <--> S1
@@ -194,13 +241,24 @@ flowchart LR
     class S1,S2,S3 blueNode;
 ```
 
-`TaskComplete` is a special structure where each node connects to every other node except itself.
+`TaskComplete` is a special structure in which each node connects to every other node except itself. Because connections are bidirectional, it necessarily contains cycles; therefore it requires at least 2 nodes and cannot be used in `serial` mode.
 
 ```python
-from celestialflow import TaskComplete
+from celestialflow import TaskComplete, TaskExecutor
 
-# Create complete graph
-complete = TaskComplete(name="FullMesh", nodes=[stage1, stage2, stage3, stage4])
+stage1 = TaskExecutor("N1", func=lambda x: x**2)
+stage2 = TaskExecutor("N2", func=lambda x: x + 1)
+stage3 = TaskExecutor("N3", func=lambda x: x // 2)
+stage4 = TaskExecutor("N4", func=lambda x: x - 1)
+
+complete = TaskComplete(
+    name="FullMesh",
+    nodes=[stage1, stage2, stage3, stage4],
+)
+
+# The complete graph contains cycles; running it directly blocks, so external termination injection is needed
+print(complete.get_nodes())
+print(complete.is_dag())  # False
 ```
 
 ## Usage Examples
@@ -213,7 +271,7 @@ The following examples demonstrate concrete construction and execution of each p
 from celestialflow import TaskChain, TaskExecutor
 
 
-# Define three nodes: data cleaning → transform → aggregate
+# Define three stages: data cleaning -> transform -> aggregate
 def clean(data: str) -> str:
     return data.strip()
 
@@ -270,12 +328,13 @@ layer2 = [TaskExecutor("AnaA", func=analyze_a), TaskExecutor("AnaB", func=analyz
 cross = TaskCross(name="DataAnalysis", layers=[layer1, layer2])
 cross.run({layer1[0].get_name(): [1, 2], layer1[1].get_name(): [3, 4]})
 print(cross.get_nodes())
+print(cross.get_layers())
 ```
 
 ### TaskGrid Full Example
 
 ```python
-from celestialflow import TaskGrid, TaskExecutor
+from celestialflow import TaskExecutor, TaskGrid
 
 # 2x2 grid
 n00 = TaskExecutor("Init", func=lambda x: x)
@@ -286,31 +345,35 @@ n11 = TaskExecutor("Square", func=lambda x: x * x)
 grid = TaskGrid(name="CalcGrid", grid=[[n00, n01], [n10, n11]])
 grid.run({n00.get_name(): [1, 2, 3]})
 print(grid.get_nodes())
+print(grid.is_dag())  # True
 ```
 
 ### TaskLoop Full Example
 
 ```python
-from celestialflow import TaskLoop, TaskExecutor
+from celestialflow import TaskExecutor, TaskLoop
 
-# Three-node ring: each node processes and passes to the next
+# Three-node ring: each node processes and passes the result to the next
 loop_nodes = [
     TaskExecutor("Ring1", func=lambda x: x + 1),
     TaskExecutor("Ring2", func=lambda x: x * 2),
-    TaskExecutor("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 forms closed loop
+    TaskExecutor("Ring3", func=lambda x: x - 3),  # Ring3 -> Ring1 forms the closed loop
 ]
 
 loop = TaskLoop(name="RingLoop", nodes=loop_nodes)
-loop.run(
-    {loop_nodes[0].get_name(): [5]},
-    if_put_signal=False,  # Loop structures require manual termination injection
-)
+
+# A cyclic graph cannot be run directly (it would block forever); the correct approach is
+# to inject termination when the external condition is met:
+# loop.inject_terminations([n.get_name() for n in loop_nodes])
+# loop.run({loop_nodes[0].get_name(): [5]}, if_put_signal=False)
+print(loop.get_nodes())
+print(loop.is_dag())  # False
 ```
 
 ### TaskWheel Full Example
 
 ```python
-from celestialflow import TaskWheel, TaskExecutor
+from celestialflow import TaskExecutor, TaskWheel
 
 center = TaskExecutor("Hub", func=lambda x: {"input": x, "processed": x * 10})
 ring_nodes = [
@@ -320,8 +383,11 @@ ring_nodes = [
 ]
 
 wheel = TaskWheel(name="HubWheel", center=center, ring=ring_nodes)
-wheel.run({center.get_name(): [42]})
+
+# Same as TaskLoop: cyclic graphs need external termination injection before run
 print(wheel.get_nodes())
+print(wheel.is_dag())  # False
+print(wheel.get_layers())  # nodes within the same closed loop share a layer
 ```
 
 ### TaskComplete Full Example
@@ -336,9 +402,14 @@ nodes = [
 ]
 
 complete = TaskComplete(name="FullConnected", nodes=nodes)
-complete.run(
-    {nodes[0].get_name(): [10]},
-    if_put_signal=False,
-)
+
+# The complete graph contains cycles; run only after external termination injection
 print(complete.get_nodes())
+print(complete.is_dag())  # False
 ```
+
+## Notes
+
+- Structure classes are only responsible for "building the graph", not for the execution strategy; `graph_mode` and `if_put_signal` still need to be chosen according to the graph shape.
+- `TaskLoop` / `TaskWheel` / `TaskComplete` all contain cycles; `serial` mode fails directly during graph analysis, and `thread` / `async` modes should be combined with `if_put_signal=False` and external termination injection.
+- The fully-connected layers in `TaskCross` amplify the edge count: with `m` and `n` nodes in two layers, `m * n` edges are produced; `TaskComplete` with `n` nodes produces `n * (n - 1)` edges. Evaluate queue and memory overhead before using them at scale.

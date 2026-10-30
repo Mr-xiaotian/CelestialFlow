@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_inlet.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 `BaseInlet` is the base class for all inlet classes, responsible for sending records to the corresponding `BaseSpout` through a queue.
 
@@ -49,7 +49,7 @@ def bind_spout(self, spout: BaseSpout) -> Self:
 
 - Binds the current inlet to the specified `BaseSpout` instance.
 - Internally reuses the spout's input queue (`_queue`) and pending counter (`_counter`).
-- Returns itself to support chaining: `LogInlet(log_level).bind_spout(spout)`.
+- Returns itself to support chaining: `LogInlet(metrics_view, log_level).bind_spout(spout)`.
 - Calling `_funnel()` before binding raises `InitializationError`.
 
 ### _funnel (protected)
@@ -96,8 +96,8 @@ classDiagram
 
 | Subclass | Source File | Responsibility |
 |----------|-------------|----------------|
-| `LogInlet` | `persistence/core_log.py` | Log recording, tracking the entire lifecycle of task enqueue/dequeue/termination |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | Lifecycle recording, persisting task entry/success/failure/retry to SQLite |
+| `LogInlet` | `persist/core_log.py` | Log recording, tracking the entire lifecycle of task enqueue/dequeue/termination |
+| `LifecycleInlet` | `persist/core_lifecycle.py` | Lifecycle recording, persisting task entry/success/failure/retry to SQLite |
 
 ## Usage Example
 

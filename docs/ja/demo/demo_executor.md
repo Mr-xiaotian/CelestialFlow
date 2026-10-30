@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | 非同期フィボナッチ | コルーチン並行 |
 
 - **入力**：`range(25, 32) + [0, 27, None, 0, ""]`
-- **例外設計**：2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、`set_retry_exceptions(ValueError)` により自動的に 1 回リトライされた後でも失敗する。`""` は型エラー（`<=` は `str` と `int` の比較をサポートしない）をトリガーし、リトライリストにないため直接失敗する
+- **例外設計**：2 つの `0` は `fibonacci` 内の `n <= 0` 判定にヒットして `ValueError` を送出し、`set_retry_exceptions(ValueError)` により自動的に 1 回リトライされた後でも失敗する。`None` と `""` は `n <= 0` の箇所で `TypeError` を引き起こし（Python 3 は `NoneType` / `str` と `int` の比較をサポートしない）、リトライリストにないため直接失敗する
 
 ## 主要設定
 
@@ -94,7 +94,7 @@ python demo/demo_executor.py
 [FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> **説明**：12 タスクのうち、4 つの不正入力（2 つの `0`、`None`、`""`）は失敗する。残りの 8 つは正常なフィボナッチタスクである。このうち 2 つの `0` と `None` は `ValueError` をトリガーし（Python 3 では `None <= 0` が `True`）、1 回リトライされた後でも失敗する。`""` は型エラーをトリガーする（リトライ対象外）。
+> **説明**：12 個のタスクのうち、4 個の不正入力（2 つの `0`、`None`、`""`）が失敗する。残りの 8 個は正規のフィボナッチタスクである。うち 2 つの `0` が `ValueError` をトリガーし、1 回のリトライ後も失敗する。`None` と `""` は `n <= 0` の箇所で `TypeError` をトリガーする（リトライリストにないため直接失敗）。
 > 3 つのモードはいずれも `demo_utils` の反復版フィボナッチ（O(n)）を使用し、単一タスクの計算自体は非常に高速である。
 
 ## 依存関係

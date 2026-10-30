@@ -1,5 +1,7 @@
 # **Tarjan's Algorithm**
 
+> 📅 Last Updated: 2026/10/30
+
 Finds all **strongly connected components (SCCs)** of a directed graph in $O(V+E)$ time. It is one of the most elegant algorithms in graph theory; its core consists of only three things: **DFS discovery timestamp**, **lowlink value**, and **maintaining a stack**.
 
 ---

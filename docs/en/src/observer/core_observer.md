@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_observer.py` defines the **base class** `Observer` for executor lifecycle observers. It declares the event callback interfaces of the task / node / task graph full lifecycle; all callbacks provide default no-op implementations, and an implementer only needs to inherit this base class and override the methods of interest.
 
@@ -16,7 +16,6 @@ class Observer:
     def on_task_retry(self, event: TaskRetryEvent) -> None: ...
     def on_termination_input(self, event: TerminationInputEvent) -> None: ...
     def on_termination_merge(self, event: TerminationMergeEvent) -> None: ...
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     def on_graph_start(self, event: GraphStartEvent) -> None: ...
     def on_graph_end(self, event: GraphEndEvent) -> None: ...
@@ -39,7 +38,6 @@ All event callbacks default to no-op implementations (not an ABC); subclasses ov
 | `on_task_retry` | `TaskRetryEvent` | A task fails but triggers a retry |
 | `on_termination_input` | `TerminationInputEvent` | A termination signal enters the input queue |
 | `on_termination_merge` | `TerminationMergeEvent` | Multiple termination signals are merged |
-| `on_worker_crash` | `WorkerCrashEvent` | A worker thread/coroutine catches an unhandled exception in the fallback layer |
 | `on_graph_start` | `GraphStartEvent` | Task graph starts |
 | `on_graph_end` | `GraphEndEvent` | Task graph ends |
 

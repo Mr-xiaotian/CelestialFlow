@@ -1,6 +1,6 @@
 # bench/bench_execution_mode.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -16,7 +16,7 @@
 2 つのフィボナッチ実装は**同じ反復 O(n) アルゴリズム**を使用し、公平な比較を保証する：
 
 ```python
-# 同步版 — 迭代，O(n)
+# 同期版 — 反復、O(n)
 def fibonacci(n):
     ...
     prev, curr = 1, 1
@@ -24,14 +24,14 @@ def fibonacci(n):
         prev, curr = curr, prev + curr
     return curr
 
-# 异步版 — 迭代 + 每 8 轮协程出让，O(n)
+# 非同期版 — 反復 + 8 回ごとにコルーチンを譲渡、O(n)
 async def fibonacci_async(n):
     ...
     prev, curr = 1, 1
     for i in range(3, n + 1):
         prev, curr = curr, prev + curr
         if i % 8 == 0:
-            await asyncio.sleep(0)  # 让出事件循环
+            await asyncio.sleep(0)  # イベントループに譲渡
     return curr
 ```
 
@@ -53,7 +53,7 @@ async def fibonacci_async(n):
 
 1. **CPU 集約型タスクは GIL に制限される**：Python の GIL は同時に 1 つのスレッドのみが Python バイトコードを実行するよう制限する。`thread` モードでは 6 ワーカーを使用しても、純粋な計算の大部分は GIL により直列化される。
 2. **`asyncio` イベントループの競合**：`main()` は `asyncio.run()` を使用するため、Jupyter や既存のイベントループがある環境ではエラーが発生する。
-3. **`benchmark_executor` の出力形式**：このツールは `TaskExecutor` の `execution_mode` を複数回変更して再実行するため、合計時間 = モード数 × タスク数 × 単一タスク時間となる。
+3. **`benchmark_executor` の出力形式**：このツールは `clone_executor()` を呼び出してテンプレートエグゼキュータを複製し、そのコピーに対して順に `set_execution_mode(mode)` を実行したうえで同一バッチのタスクを繰り返し実行し、最後に `Use time:<テーブル>` を出力する。合計時間 ≈ モード数 × タスク数 × 単一タスク時間。`async` モードは渡された `executor_async` テンプレートを使用し、それ以外のモードは同期テンプレートを使用する。
 
 ## 実行方法
 
@@ -83,10 +83,10 @@ python bench/bench_execution_mode.py
 フィボナッチテストの入力は関数内部の `bench_task_1` リストで定義されており、タスクリストを変更できる：
 
 ```python
-# 仅测试小数值（快速验证）
+# 小さい値のみテスト（高速検証）
 bench_task_1: list[Any] = [10, 15, 20]
 
-# 扩大范围
+# 範囲を拡大
 bench_task_1: list[Any] = list(range(20, 35))
 ```
 
@@ -202,4 +202,5 @@ bench_task_1: list[Any] = list(range(20, 35))
 
 ## 依存関係
 
-- `celestialflow`（`TaskExecutor`、`benchmark_executor`、およびオプションのオブザーバー `PrintObserver`、本スクリプトでは未有効化）
+- `celestialflow`（`TaskExecutor`、`benchmark_executor`）
+- スクリプト中の `# executor.add_observer(TaskProgress())` などの行はすべてコメント状態であり、現在はいかなるオブザーバーも有効化していない

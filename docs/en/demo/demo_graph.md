@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -75,38 +75,19 @@ python demo/demo_graph.py
 
 ## Expected Behavior
 
+The script registers no observer and has no `print` statements, so during execution it **will not output task-level logs or summary statistics to the terminal**; execution can only be confirmed through external observation (for example, reporting to celestialflow-web, which this demo does not enable) or by adding your own logging to the task functions in `demo_utils`.
+
 ### ETL Pipeline (`demo_etl_fan_out_fan_in`)
 
-Executes Extract → Normalize/Enrich → Load sequentially, each Stage internally outputs execution logs through `print` or sleep. The script itself does not actively print the final Graph Summary or per-Stage counts; manual confirmation is required (the mock output is for illustration only).
-
-```
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
-[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
-[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
-[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
-...
-```
-
-> Each Extract produces 1 record, which is processed separately by Normalize and Enrich and then aggregated by Load. When the input is `range(1, 16)`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream).
+Executes Extract → Normalize/Enrich → Load in sequence; each task function only performs `sleep` and data transformation internally. When the input is `list(range(1, 16))`, Extract processes 15 records, Normalize and Enrich each receive 15, and the Load node receives a total of 30 tasks (15 × 2 downstream). For example, Extract produces `{'id': 1, 'value': 10, 'label': 'item_1'}`, Normalize appends `normalized: 0.1`, and Enrich appends `category: 'odd'`.
 
 ### Async Pipeline (`demo_async_pipeline`)
 
-Two-stage sequential execution: `AsyncDouble` first completes all 20 tasks, then `AsyncToStr` receives them one by one and formats the output.
-
-```
-[AsyncDouble] Input: 1 -> Output: 2
-[AsyncDouble] Input: 2 -> Output: 4
-...
-[AsyncToStr] Input: 2 -> Output: 'result=2'
-[AsyncToStr] Input: 4 -> Output: 'result=4'
-...
-```
-
-> Total execution time is about 1-3 seconds (requires manual confirmation), primarily affected by the built-in `sleep` (`async_double` 0.3s + `async_to_str` 0.2s) and 8 concurrent coroutine scheduling.
+Two-stage sequential execution: the 20 tasks from `list(range(1, 21))` are first handed to `AsyncDouble`, whose results then flow into `AsyncToStr`. Based on the 0.3s sleep in `async_double` and the 0.2s sleep in `async_to_str`, the total time is estimated at about 1–2 seconds (`AsyncDouble` with 8 concurrent, `AsyncToStr` with 8 concurrent).
 
 ## Dependencies
 
 - `celestialflow` (`TaskGraph`, `TaskExecutor`)
 - `demo_utils` (`extract_record`, `transform_normalize`, `transform_enrich`, `load_record`, `async_double`, `async_to_str`)
 - `python-dotenv`
-- External services: CelestialTree (optional)
+- `celestialtree` (module-level `import`; the script cannot start if it is missing; `graph.set_ctree(...)` is commented out by default, so the server is not required)

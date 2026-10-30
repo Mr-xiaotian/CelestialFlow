@@ -1,6 +1,6 @@
 # src/celestialflow/persist/__init__.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 The `persist` module is CelestialFlow's **persistence module**, providing the recording, writing, and querying of task Lifecycle and runtime Logs. Among them, `LifecycleInlet` / `LogInlet` consume task events as observers and write them to queues, while `LifecycleSpout` / `LogSpout` take records from the queues in background threads and persist them to disk.
 
@@ -35,7 +35,7 @@ __all__ = [
 
 2. **core_log.py** (`LogSpout`, `LogInlet`)
    - **Purpose**: Runtime log collection and persistence.
-   - **Write method**: `LogInlet` inherits `BaseInlet, Observer`, overrides all event callbacks (graph / node / task / termination signal / worker crash) to record logs, and writes node summaries based on `metrics_view`; `LogSpout` inherits `BaseSpout`, writing logs to text files under the `logs/` directory.
+   - **Write method**: `LogInlet` inherits `BaseInlet, Observer`, overrides all event callbacks (graph / node / task / termination signal) to record logs, and writes node summaries based on `metrics_view`; `LogSpout` inherits `BaseSpout`, writing logs to text files under the `logs/` directory.
    - **Log format**: Each line contains `timestamp level message`.
 
 3. **util_payload.py**
@@ -44,7 +44,7 @@ __all__ = [
 
 4. **util_sqlite.py**
    - **Purpose**: SQLite database connection management and record CRUD operation utilities.
-   - **Key functions**: `connect_db`, `insert_record`, `promote_record_to_{success,skipped,failed}_by_event_id`, `update_retry_by_event_id`, `load_records`, `query_records`, `load_task_{error,result}_records`, etc.
+   - **Key functions**: `connect_db`, `normalize_record`, `row_to_record_dict`, `insert_record`, `promote_record_to_{success,skipped,failed}_by_event_id`, `update_retry_by_event_id`, `delete_record_by_event_id`, `load_tasks_grouped_by_node`, `load_task_{error,result}_records`. Write-side functions reuse the `conn` passed in by the caller; read-side functions establish and close their own connections.
 
 5. **util_render.py**
    - **Purpose**: Graph structure rendering utility, rendering nodes / edges / source nodes into framed, tree-shaped text.
@@ -122,5 +122,5 @@ lifecycle_spout.stop()
 ## Notes
 
 1. **Observers consume events**: `LifecycleInlet` / `LogInlet` no longer provide manual invocation methods such as `task_input` / `task_success`; instead they record in the corresponding observer callbacks (`on_task_*` / `on_graph_*`, etc.).
-2. **Constructor parameters**: `LogInlet` requires `metrics_view` (`MetricsView`) and an optional `log_level` (default `"INFO"`) at construction time.
+2. **Constructor parameters**: `LogInlet` requires `metrics_view` (`MetricsView`) and an optional `log_level` (default `runtime.util_log_level.DEFAULT_LOG_LEVEL`, currently `"INFO"`) at construction time.
 3. **`__all__` only contains core classes**: utility functions are located in `util_*` files and must be imported from `celestialflow.persist.util_xxx` as needed.

@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `util_types.py` はフレームワークで使用される基本データ型、列挙型、補助クラスを定義します。
 
@@ -99,7 +99,8 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 |------|------|------|
 | `node` | `str` | ノード名 |
 | `status` | `NodeStatus` | ノードのライフサイクル状態 |
-| `start_time` | `float` | 実行状態に入った壁時計時刻（秒）；未起動なら `0.0` |
+| `start_time` | `float` | ノードが実行状態に**入った**壁時計時刻（秒）；未起動なら `0.0` |
+| `end_time` | `float` | ノードが実行状態から**抜けた**壁時計時刻（秒）；未終了なら `0.0` |
 | `external_input` | `int` | 外部注入タスク数 |
 | `upstream_input` | `int` | 上流から提供されたタスク数 |
 | `input_total` | `int` | 入力タスク総数（外部注入と上流提供の合計） |
@@ -110,6 +111,8 @@ CelestialTree イベント名定数。タスクトレーシングと可視化に
 | `pending` | `int` | 未処理タスク数 |
 | `upstream_counts` | `dict[str, int]` | 各上流ノードが提供したタスク数のマッピング |
 | `downstream_counts` | `dict[str, int]` | 各下流ノードへ送信したタスク数のマッピング |
+
+> `start_time` / `end_time` は**壁時計時刻**（`time.time()` の戻り値、単位は秒）であり、それぞれノードが実行状態に入った時刻と抜けた時刻に対応します。ノードがまだ起動していない場合 `start_time` は `0.0`、ノードがまだ終了していない場合 `end_time` は `0.0` です。したがって「実行中」のノードでは `end_time - start_time` に意味がないため、まず `end_time != 0.0` を判定する必要があります。
 
 ## MetricsView
 
@@ -175,6 +178,7 @@ snapshot = NodeMetrics(
     node="processor",
     status=NodeStatus.RUNNING,
     start_time=1234.5,
+    end_time=0.0,  # まだ実行状態から抜けていない
     external_input=3,
     upstream_input=2,
     input_total=5,
@@ -187,6 +191,26 @@ snapshot = NodeMetrics(
     downstream_counts={"store": 5},
 )
 print(snapshot.processed)  # 5
+print(snapshot.end_time)  # 0.0（ノードはまだ実行中）
+
+# ノード終了後は end_time から実際の実行時間を計算できる
+finished = NodeMetrics(
+    node="processor",
+    status=NodeStatus.STOPPED,
+    start_time=1234.5,
+    end_time=1240.0,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=4,
+    failed=1,
+    skipped=0,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(f"実行時間: {finished.end_time - finished.start_time:.1f}s")  # 5.5s
 ```
 
 ### ValueWrapper

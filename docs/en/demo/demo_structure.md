@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -227,7 +227,7 @@ flowchart TD
 
 ## Potential Issues
 
-1. **`__main__` calls the undefined `demo_forest`**: `__main__` calls `demo_forest()` immediately after `demo_chain()`, but this file no longer defines that function (the forest example has been migrated to `demo_web.py`), so execution will raise `NameError` at that point, and the subsequent `demo_cross()`, `demo_grid()`, `demo_loop()`, `demo_complete()`, and `demo_multi_cycle()` will not be executed.
+1. **Long execution time**: `demo_chain` (20 tasks × 5 nodes, `execution_mode="serial"`) and `demo_grid` (4×4 grid, `add_one_sleep` includes a 1-second sleep) both accumulate a lot of sleep; `__main__` runs the six demos in sequence, so the overall duration can reach several minutes.
 2. **Cyclic graphs may not stop automatically**: All four cyclic graph examples explicitly pass `if_put_signal=False` (no automatic termination signal injected). Among them, `demo_wheel`'s `Core` uses `square` (does not throw), so tasks keep looping and rotating; the other examples' tasks grow to `add_one_sleep`'s exception threshold (n>30) before stopping producing new tasks, and likewise will not auto-exit. Prepare **Ctrl+C** for manual termination before running.
 3. **Sleep latency accumulation**: Both `square` and `add_one_sleep` include a 1-second sleep; when there are many tasks, the total duration grows noticeably.
 4. **No assertions**: Only verifies that the framework can start and run; does not check result values.
@@ -242,11 +242,11 @@ python demo/demo_structure.py
 
 ## Expected Behavior
 
-The following outputs are all expected outputs (mock); the specific log format depends on the framework output.
+The following outputs are all expected outputs (mock): the source does not register `PrintObserver` for these structures, so the per-task logs or `Summary` below will not actually be printed to the terminal when run.
 
 ### DAG Structures
 
-```
+```text
 === demo_chain (5-node linear chain) ===
 [NodeA] Input: 2 -> Output: 4
 [NodeB] Input: 4 -> Output: 16
@@ -255,7 +255,7 @@ The following outputs are all expected outputs (mock); the specific log format d
 [NodeE] Input: 65536 -> Output: 4294967296
 ```
 
-```
+```text
 === demo_grid (4x4 grid) ===
 [Grid00] -> [Grid01] [Grid10]
 [Grid01] -> [Grid02] [Grid11]
@@ -267,7 +267,7 @@ Grid33: success=180  fail=0
 
 ### Cyclic Graphs
 
-```
+```text
 === demo_loop (3-node closed loop) ===
 [NodeA] Input: 1 -> Output: 2
 [NodeB] Input: 2 -> Output: 3
@@ -276,7 +276,7 @@ Grid33: success=180  fail=0
 ... (loops continuously, will not stop automatically)
 ```
 
-```
+```text
 === demo_complete (3-node complete graph) ===
 [Node1] Input: 5 -> Output: 10
 [Node2] Input: 10 -> Output: 20
@@ -287,11 +287,12 @@ Grid33: success=180  fail=0
 > **Important**: The cyclic graph examples (`demo_loop`, `demo_wheel`, `demo_complete`, `demo_multi_cycle`) all explicitly pass `if_put_signal=False`, so no automatic termination signal is injected. When run with the defaults, they may continue looping, so press **Ctrl+C** to manually terminate the process.
 
 > When running multiple structures in sequence, the `Summary` section shows success/failure counts for each node.
-> The counts in `demo_grid` are mock estimates: `Grid00` inputs `range(10)`, where `0` triggers `add_one_sleep`'s `ValueError` and fails, the remaining tasks propagate down the 4×4 grid, and `Grid33` aggregates 180 tasks.
+> The `Input -> Output` and `Summary` outputs above are all illustrative; the source does not register `PrintObserver` for these structures, so actual terminal output is subject to the framework logs.
+> The counts for `demo_grid` are mock estimates: `Grid00` inputs `range(10)`, where `0` triggers `add_one_sleep`'s `ValueError` and fails, the remaining tasks propagate down the 4×4 grid, and `Grid33` aggregates 180 tasks.
 
 ## Dependencies
 
 - `celestialflow` (`TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`, `TaskExecutor`)
 - `demo_utils`
 - `python-dotenv`
-- External services: CelestialTree (optional)
+- `celestialtree` (module-level `import`; the script cannot start if it is missing; each `set_ctree` call is commented out by default, so the server is not required)

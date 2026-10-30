@@ -1,31 +1,33 @@
 # bench/bench_ipc_queue.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
 Compare the performance of various Python IPC (Inter-Process Communication) mechanisms in real cross-process scenarios: MPQueue, SimpleQueue, Pipe, Manager().Queue. Provide data to support queue selection for CelestialFlow's multiprocessing mode.
 
-> **Note**: The framework has removed `stage_mode="process"` and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
+> **Note**: The framework has removed `process` graph mode and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 
 ## Test Content
 
 | Mechanism | Description | Topology Support |
 |------|------|----------|
-| `MPQueue` | Standard multiprocessing queue | SPSC |
-| `SimpleQueue` | Lock-free simplified queue | SPSC |
-| `Pipe` | Bidirectional/unidirectional pipe | SPSC |
-| `Manager().Queue` | Manager-server-based queue | SPSC |
+| `MPQueue` | `multiprocessing.Queue`, with a feeder thread and locks | SPSC |
+| `SimpleQueue` | `multiprocessing.SimpleQueue`, a simplified queue that writes directly to a pipe (no feeder thread, does not support `qsize`) | SPSC |
+| `Pipe` | `Pipe(duplex=False)` unidirectional pipe | SPSC |
+| `Manager().Queue` | Queue based on a Manager server process | SPSC |
 
 - **Scale**: `COUNT = 100_000`, `REPEAT = 3`
-- **Payload modes**: `int` (Python integer objects), `small` (~16 bytes), `medium` (~144 bytes), `large` (~4104 bytes)
-- **Verification**: Data integrity verified via checksum (no loss, no corruption)
+- **Payload modes**: `int` (Python integer objects), `small` (`f"item-{i}"`), `medium` (`f"{i}-"` + 128 `x`s), `large` (`f"{i}-"` + 4096 `x`s)
+- **Verification**: The consumer sends `(consumed, checksum)` back through a result queue; `consumed` must equal `COUNT` and `checksum` must equal `expected_checksum()` (an arithmetic series sum for `int` mode, the sum of payload lengths for the other modes), otherwise a `RuntimeError` is raised
+- **Start method**: `__main__` attempts `set_start_method("spawn")` and ignores `RuntimeError` if it has already been set
 
 ## Key Implementation
 
 - `producer_queue` / `consumer_queue`: Use sentinel object `_SENTINEL = None` to signal end of stream
-- `producer_pipe` / `consumer_pipe`: Explicit `conn.close()` to prevent handle leaks
+- `producer_pipe` / `consumer_pipe`: Explicit `conn.close()` inside `try/finally` to prevent handle leaks; the parent process immediately closes its own handles at both ends after starting the two child processes
 - `expected_checksum`: Parse payload mode to compute expected checksum
+- `run_queue_case` / `run_pipe_case` / `run_manager_queue_case`: Run `REPEAT` rounds per mechanism, verify each round, then hand off to `summarize()` to output mean / standard deviation / throughput
 
 ## Potential Issues
 
@@ -51,7 +53,7 @@ Compare the performance of various Python IPC (Inter-Process Communication) mech
 
 **Key Takeaways**:
 - **Pipe is fastest**: 32% faster than MPQueue, and requires no queue abstraction layer
-- **SimpleQueue is second**: Lock-free implementation, 21% faster than MPQueue, but only supports single producer single consumer
+- **SimpleQueue is second**: Simplified implementation without a feeder thread, 21% faster than MPQueue, but only supports single producer single consumer
 - **Manager().Queue is slowest**: Only 17% of MPQueue throughput; the Manager server process is the absolute bottleneck
 - In CelestialFlow's multiprocessing queue selection, Pipe and SimpleQueue are the optimal solutions for high-throughput scenarios (if topology allows)
 
@@ -113,4 +115,5 @@ python bench/bench_ipc_queue.py
 
 ## Dependencies
 
-- `bench_utils.summarize`
+- `bench_utils.summarize` (same-directory module; importing works when running `python bench/bench_ipc_queue.py` directly)
+- Python standard library: `multiprocessing` (`Queue`, `SimpleQueue`, `Pipe`, `Manager`, `Process`, `set_start_method`)

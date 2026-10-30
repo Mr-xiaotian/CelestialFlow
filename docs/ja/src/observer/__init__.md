@@ -1,6 +1,6 @@
 # src/celestialflow/observer/__init__.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `observer` モジュールは CelestialFlow の**可観測性モジュール**であり、観測者プロトコル、タスク / ノード / タスクグラフのイベント型、イベントディスパッチセンター、および内蔵の指標・進捗出力観測者を担当します。
 
@@ -25,7 +25,6 @@ __all__ = [
     "TaskSuccessEvent",
     "TerminationInputEvent",
     "TerminationMergeEvent",
-    "WorkerCrashEvent",
 ]
 ```
 
@@ -40,16 +39,15 @@ __all__ = [
 | `NodeStartEvent` / `NodeEndEvent` | `core_event` | ノード起動 / 終了イベント |
 | `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` | `core_event` | タスク入力 / 成功 / 失敗 / スキップ / リトライイベント |
 | `TerminationInputEvent` / `TerminationMergeEvent` | `core_event` | 終了シグナル入力 / マージイベント |
-| `WorkerCrashEvent` | `core_event` | ワーカークラッシュイベント |
 | `GraphStartEvent` / `GraphEndEvent` | `core_event` | タスクグラフ起動 / 終了イベント |
 
 ## ファイル説明
 
 1. **core_observer.py**（`Observer`）
-   - **役割**: 実行器ライフサイクル観測者の基底クラス。12 個のイベントコールバックと `handle_exception` を宣言。
+   - **役割**: 実行器ライフサイクル観測者の基底クラス。11 個のイベントコールバックと `handle_exception` を宣言。
    - **特徴**: すべてのコールバックはデフォルトの空実装を提供。ABC ではなく、サブクラスが必要に応じてオーバーライド。
 
-2. **core_event.py**（12 個のイベント `dataclass`）
+2. **core_event.py**（11 個のイベント `dataclass`）
    - **役割**: タスク / ノード / タスクグラフのライフサイクルにあるすべてのイベント型を定義。
    - **特徴**: いずれも `frozen=True, slots=True` の読み取り専用データクラスであり、観測者コールバックの引数として使用。
 
@@ -80,6 +78,7 @@ __all__ = [
 
 ### イベント駆動とディスパッチ
 - **イベントオブジェクトがコールバック引数**: すべてのコールバックは `core_event.py` で定義された読み取り専用 `dataclass` を受け取り、豊富なフィールドを持ちます。
+- **明示的なライフサイクルタイムスタンプ**: ノード / タスクグラフの開始・終了時刻はイベントフィールド（`start_time` / `end_time`）が持ち、観測者が自ら `time.time()` でサンプリングする必要はありません。
 - **マルチキャスト配信**: `ObserverHub` は一度に登録済みの全観測者へ同一イベントをブロードキャスト。
 - **例外分離**: 単一の観測者コールバックが送出した例外は hub が捕捉し、その観測者自身の `handle_exception` に委譲します。**他の観測者への配信は中断されず**、フレームワークの実行パスにも逃げません。
 

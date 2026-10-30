@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_hub.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_hub.py` defines the observer **dispatch hub** `ObserverHub`. It is itself an `Observer`, forwarding each received event to registered observers in registration order. It is the broadcast hub between a node and its various downstream observers.
 
@@ -12,7 +12,7 @@ class ObserverHub(Observer):
 
     def add_observer(self, observer: Observer) -> None: ...
 
-    # Inherits Observer's 12 event callbacks + handle_exception
+    # Inherits Observer's 11 event callbacks + handle_exception
     def on_node_start(self, event: NodeStartEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     # ... forwards each event to all observers in turn ...

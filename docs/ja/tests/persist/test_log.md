@@ -1,6 +1,6 @@
 # tests/persist/test_log.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 
@@ -49,4 +49,5 @@ pytest tests/persist/test_log.py -k "skip" -v
 - テストは `monkeypatch.chdir(tmp_path)` で作業ディレクトリを切り替え、ログファイルが一時パス下の `logs/` ディレクトリに書き込まれることを保証します。
 - ログファイルの具体パスは `spout.log_path` 属性で取得します。
 - `LogInlet` は `bind_spout` で `LogSpout` にバインドされ、イベントはキュー経由で非同期にファイルへ書き込まれます。
+- 両方のケースとも `log_level` を明示的に渡しています；ソース中の `LogInlet(..., log_level=DEFAULT_LOG_LEVEL)` のデフォルト値は `celestialflow.runtime.util_log_level.DEFAULT_LOG_LEVEL`（現在は `"INFO"`）に由来し、テストはデフォルト値の分岐をカバーしていません。
 - 関連実装は `src/celestialflow/persist/core_log.py` にあります。

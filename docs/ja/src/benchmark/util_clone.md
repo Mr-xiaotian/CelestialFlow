@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `benchmark/util_clone.py` は実行器とタスクグラフのクローン機能を提供し、パフォーマンステストと設定再利用に使用します。
 
@@ -28,14 +28,19 @@ def clone_executor[T, R](
     """
 ```
 
-コピーされる属性:
+コピーされる属性（内部の `_get_clone_init_kwargs()` が収集し、`TaskExecutor(**kwargs)` に渡す）:
 - `name`: 実行器名
-- `func`: タスク関数
+- `func`: タスク関数（参照のみをコピーし、ディープコピーしない）
 - `execution_mode`: 実行モード
 - `max_workers`: 並行数の上限
 - `max_retries`: 最大リトライ回数
 - `max_info`: ログ情報の最大長
-- `retry_exceptions`: リトライ可能例外のリスト（`set_retry_exceptions()` で設定）
+- `retry_exceptions`: リトライ可能例外のリスト（構築後に `set_retry_exceptions(*executor.retry_exceptions)` でコピー）
+
+**コピーされない設定**（クローン体は構築時のデフォルトに戻る）:
+- `max_queue_size`（デフォルト `0`、無制限）
+- `skip_func`（デフォルト `None`、タスクを一切スキップしない）
+- 登録済みのオブザーバー（`add_observer()` で登録した `Observer` / `ObserverHub`）
 
 ### clone_graph
 
@@ -49,6 +54,9 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     本ツールはベンチマークシナリオ専用であるため、``TaskExecutor`` のみで構成された
     タスクグラフのみをサポートし、すべてのノードを :func:`clone_executor` で直接クローンします。
 
+    クローン体は元のグラフ / 元のノードのオブザーバーを引き継ぎません：``clone_executor`` は
+    新しいインスタンスを作成するため、カウンタを持つオブザーバーを共有すると二重にカウントされます。
+
     :param graph: クローン対象のタスクグラフ
     :return: クローンされたタスクグラフ
     :raises ConfigurationError: ``TaskExecutor`` 以外のノードが含まれる場合に送出
@@ -56,12 +64,14 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 ```
 
 クローンフロー:
-1. ソースノードから BFS（幅優先）で元のグラフを走査し（`graph.order_graph.out_edges` の出辺順序に従う）、全ノードを収集
-2. 各ノードが `TaskExecutor` であることをアサート；`TaskSplitter` / `TaskRouter` などの特化ノードに遭遇した場合は即座に `ConfigurationError` を送出します
-3. 各ノードをクローンし、元のノード名 → クローンノードのマッピングを確立
-4. `set_nodes()` ですべてのクローンノードを登録し、`connect()` でノード間の接続関係を再構築
+1. ソースノード（`graph.get_source_nodes()`）から BFS（幅優先）で元のグラフを走査し（`graph.order_graph.out_edges` の出辺順序に従う）、全ノードを収集する
+2. 各ノードについて `isinstance(node, TaskExecutor)` を検査する；`TaskSplitter` / `TaskRouter` などの特化ノードに遭遇した場合は即座に `ConfigurationError` を送出する
+3. 各ノードをクローンし、元のノード名 → クローンノードのマッピングを確立する
+4. `set_nodes()` ですべてのクローンノードを登録し、`connect()` でノード間の接続関係を再構築する
 5. グラフ設定をコピー（`name`, `graph_mode`）
-6. CelestialTree イベントクライアントをコピー（`clone_event_client` でクローン）
+6. CelestialTree イベントクライアントをコピー（`clone_event_client(graph.ctree_client)` でクローン）
+
+> ⚠️ クローン後、`node_dict` のキー順序は BFS 順（ソースノードが先頭）になり、元のグラフのノード登録順ではなくなる。
 
 > ⚠️ **`clone_graph` は全ノード型の保持を保証しません**：`TaskExecutor` ノードのみが同じ型としてクローンされます；`TaskSplitter` / `TaskRouter` などの特化ノードは同じサブクラスとしてクローンされず、その分割 / ルーティング動作も保持されません。本ツールはベンチマーク内部ツールであり、「`TaskExecutor` のみで構成され、ベンチマークテストに使用される」タスクグラフにのみ適用されます。
 
@@ -214,8 +224,9 @@ asyncio.run(main())
 ## 注意事項
 
 1. **状態の独立性**: クローン後のオブジェクトは元のオブジェクトと完全に独立しています（新しいインスタンスを構築することで実現）。変更は相互に影響しません
-2. **接続の再構築**: グラフのクローン時にはノード間の接続関係が再構築されます
+2. **接続の再構築**: グラフのクローン時にはノード間の接続関係が再構築されますが、`node_dict` のキー順序は BFS 順になります
 3. **関数参照**: クローンは関数参照のみをコピーし、関数自体はコピーしません
-4. **パフォーマンスオーバーヘッド**: 大規模グラフのクローンにはある程度のオーバーヘッドがありますが、再構築より高速です
-5. **内部ツール**: `clone_executor` / `clone_graph` はベンチマークの内部ツールであり、トップレベルパッケージエントリの `__all__` に含まれません。シグネチャ/セマンティクスはベンチマーク内部実装の調整に伴い変更される可能性があります
-6. **ノード型制限**: `clone_graph` は `TaskExecutor` ノードのみサポート；`TaskSplitter` / `TaskRouter` などの特化ノードに遭遇した場合は `ConfigurationError` を送出し、これらのサブクラスの型と動作は保持されません
+4. **設定の欠落**: `clone_executor` は `max_queue_size`、`skip_func`、登録済みのオブザーバーをコピーしません；`clone_graph` は `clone_executor` を再利用するため、クローングラフ内のノードも同様にこれらの設定を失います（オブザーバーを失うことでカウンタの二重加算も同時に避けられます）
+5. **パフォーマンスオーバーヘッド**: 大規模グラフのクローンにはある程度のオーバーヘッドがありますが、再構築より高速です
+6. **内部ツール**: `clone_executor` / `clone_graph` はベンチマークの内部ツールであり、トップレベルパッケージエントリの `__all__` に含まれません。シグネチャ/セマンティクスはベンチマーク内部実装の調整に伴い変更される可能性があります
+7. **ノード型制限**: `clone_graph` は `TaskExecutor` ノードのみサポート；`TaskSplitter` / `TaskRouter` などの特化ノードに遭遇した場合は `ConfigurationError` を送出し、これらのサブクラスの型と動作は**保持しません**

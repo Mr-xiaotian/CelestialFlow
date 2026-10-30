@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -22,9 +22,9 @@ This demo consists of two custom classes and one entry point:
 
 - `JsonlSpout`
   - Inherits `BaseSpout`
-  - Creates directory and opens output file in `_before_start()`
-  - Writes records as JSONL in `_handle_record()`
-  - Closes file in `_after_stop()`
+  - Creates the directory in `_before_start()`, opens the output file with line buffering (`buffering=1`), and resets `handled_count` to zero
+  - Writes records as JSONL and increments `handled_count` in `_handle_record()`
+  - Closes the file in `_after_stop()`
 - `EventInlet`
   - Inherits `BaseInlet`
   - Provides a lightweight wrapper over `_funnel()`, offering three business methods: `emit()` / `info()` / `metric()`
@@ -37,7 +37,7 @@ This demo consists of two custom classes and one entry point:
 
 ## Why This Demo Is Valuable
 
-- It demonstrates that `funnel` is not just a low-level implementation for persistence, but can also be directly used to build independent producer-consumer channels.
+- It demonstrates that `funnel` is not just the low-level implementation of `persist`, but can also be directly used to build independent producer-consumer channels.
 - It covers the full lifecycle of `BaseSpout`: `start()`, `_before_start()`, `_handle_record()`, `stop()`, `_after_stop()`.
 - It also shows typical usage of `BaseInlet`: the business side does not directly operate the queue, but instead sends records into `_funnel()` through custom methods.
 
@@ -103,10 +103,10 @@ Handled records: 3
   - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
   - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - If you want to see its typical use within the framework, refer to:
-  - `LogSpout` / `LogInlet` in `persistence` (writes to the `logs/` directory)
-  - `LifecycleSpout` / `LifecycleInlet` in `persistence` (writes to the SQLite lifecycle database)
+  - `LogSpout` / `LogInlet` in `persist` (writes to the `logs/` directory)
+  - `LifecycleSpout` / `LifecycleInlet` in `persist` (writes to the SQLite lifecycle database)
 
-> **Historical change note**: Earlier versions had separate `FailSpout` / `FailInlet` and `SuccessSpout` pipelines. Since 3.2.4, `fail_funnel` and `success_funnel` have been merged into a SQLite-based `fallback` mechanism, and the related classes are no longer retained.
+> **Historical change note**: Earlier versions had separate `FailSpout` / `FailInlet` and `SuccessSpout` pipelines, but these classes are no longer retained in the current source code; success/failure task records are now handled by the spouts in `persist` that are built on the SQLite lifecycle database.
 
 ## Dependencies
 

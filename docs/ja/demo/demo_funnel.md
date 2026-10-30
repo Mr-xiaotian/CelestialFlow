@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -22,8 +22,8 @@ flowchart LR
 
 - `JsonlSpout`
   - `BaseSpout` を継承
-  - `_before_start()` でディレクトリを作成し出力ファイルを開く
-  - `_handle_record()` でレコードを JSONL として書き込む
+  - `_before_start()` でディレクトリを作成し、行バッファリング（`buffering=1`）で出力ファイルを開き、`handled_count` を 0 にリセットする
+  - `_handle_record()` でレコードを JSONL として書き込み、`handled_count` を加算する
   - `_after_stop()` でファイルを閉じる
 - `EventInlet`
   - `BaseInlet` を継承
@@ -37,7 +37,7 @@ flowchart LR
 
 ## このデモが価値を持つ理由
 
-- `funnel` が persistence の低層実装であるだけでなく、独立した生産者-消費者チャネルの構築にも直接使用できることを示している
+- `funnel` が `persist` の低層実装であるだけでなく、独立した生産者-消費者チャネルの構築にも直接使用できることを示している
 - `BaseSpout` の完全なライフサイクルをカバーしている：`start()`、`_before_start()`、`_handle_record()`、`stop()`、`_after_stop()`
 - `BaseInlet` の典型的な使い方も示している：ビジネス側はキューを直接操作せず、カスタムメソッドを通じてレコードを `_funnel()` に送信する
 
@@ -103,10 +103,10 @@ Handled records: 3
   - [core_inlet.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_inlet.md)
   - [core_spout.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/funnel/core_spout.md)
 - フレームワーク内での典型的な着地例を知りたい場合は、以下を参照：
-  - `persistence` 内の `LogSpout` / `LogInlet`（`logs/` ディレクトリに書き込み）
-  - `persistence` 内の `LifecycleSpout` / `LifecycleInlet`（SQLite ライフサイクルライブラリに書き込み）
+  - `persist` 内の `LogSpout` / `LogInlet`（`logs/` ディレクトリに書き込み）
+  - `persist` 内の `LifecycleSpout` / `LifecycleInlet`（SQLite ライフサイクルライブラリに書き込み）
 
-> **歴史的変更の説明**：旧バージョンには `FailSpout` / `FailInlet` や `SuccessSpout` などの独立したチャネルが存在していたが、バージョン 3.2.4 以降、`fail_funnel` と `success_funnel` は SQLite ベースの `fallback` メカニズムに統合され、関連するクラスは保持されなくなった。
+> **歴史的変更の説明**：旧バージョンには `FailSpout` / `FailInlet` や `SuccessSpout` などの独立したパイプラインが存在していたが、現在のソースコードにはこれらのクラスは残っていない。成功/失敗タスクのレコードは、`persist` 配下の SQLite lifecycle ライブラリに基づく spout が担うようになった。
 
 ## 依存関係
 

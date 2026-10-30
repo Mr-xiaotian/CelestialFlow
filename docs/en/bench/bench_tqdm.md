@@ -1,6 +1,6 @@
 # bench/bench_tqdm.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -22,7 +22,7 @@ Quantify the performance overhead of the `tqdm` progress bar in loops, helping d
 
 1. **TTY detection overhead**: If output is redirected to a file or pipe, `tqdm` may auto-disable display but still execute some refresh logic, leading to inconsistent results versus direct terminal execution.
 2. **`dynamic_ncols` terminal query**: Each refresh queries terminal width, which may trigger slow system calls in certain CI environments or Windows PowerShell.
-3. **Memory growth in large loops**: The test code fully expands `range(data_size)` into a `list` stored in `data`; when `data_size` is increased to 10 million, the list alone occupies approximately 80MB of memory.
+3. **Memory growth in large loops**: The test code fully expands `range(data_size)` into a `list` stored in `data`; when `data_size` is raised to 10 million, the list pointers alone take about 80 MB, plus 10 million separate `int` objects (28 B each) at about 280 MB, bringing total usage to the ~350 MB level.
 
 ## Benchmark Results (Measured)
 

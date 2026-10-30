@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_types.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `util_types.py` defines the basic data types, enums, and helper classes used throughout the framework.
 
@@ -99,7 +99,8 @@ A single-node metric snapshot (read-only DTO, `@dataclass(frozen=True, slots=Tru
 |------|------|------|
 | `node` | `str` | Node name |
 | `status` | `NodeStatus` | Node lifecycle status |
-| `start_time` | `float` | Wall-clock time (seconds) when entering the running state; `0.0` if not started |
+| `start_time` | `float` | Wall-clock time (seconds) when the node **enters** the running state; `0.0` if not started |
+| `end_time` | `float` | Wall-clock time (seconds) when the node **exits** the running state; `0.0` if not exited |
 | `external_input` | `int` | Number of externally injected tasks |
 | `upstream_input` | `int` | Number of tasks provided by upstream |
 | `input_total` | `int` | Total number of input tasks (sum of external injection and upstream-provided) |
@@ -110,6 +111,8 @@ A single-node metric snapshot (read-only DTO, `@dataclass(frozen=True, slots=Tru
 | `pending` | `int` | Number of pending tasks |
 | `upstream_counts` | `dict[str, int]` | Mapping of task counts provided by each upstream node |
 | `downstream_counts` | `dict[str, int]` | Mapping of task counts sent to each downstream node |
+
+> `start_time` / `end_time` are **wall-clock times** (the return value of `time.time()`, in seconds), corresponding to the moment the node enters and exits the running state. When the node has not started, `start_time` is `0.0`; when the node has not exited, `end_time` is `0.0`, so `end_time - start_time` is meaningless for a node that is "running" — check `end_time != 0.0` first.
 
 ## MetricsView
 
@@ -175,6 +178,7 @@ snapshot = NodeMetrics(
     node="processor",
     status=NodeStatus.RUNNING,
     start_time=1234.5,
+    end_time=0.0,  # Has not yet exited the running state
     external_input=3,
     upstream_input=2,
     input_total=5,
@@ -187,6 +191,26 @@ snapshot = NodeMetrics(
     downstream_counts={"store": 5},
 )
 print(snapshot.processed)  # 5
+print(snapshot.end_time)  # 0.0 (the node is still running)
+
+# After the node exits, the actual running duration can be computed from end_time
+finished = NodeMetrics(
+    node="processor",
+    status=NodeStatus.STOPPED,
+    start_time=1234.5,
+    end_time=1240.0,
+    external_input=3,
+    upstream_input=2,
+    input_total=5,
+    succeeded=4,
+    failed=1,
+    skipped=0,
+    processed=5,
+    pending=0,
+    upstream_counts={"producer": 2},
+    downstream_counts={"store": 5},
+)
+print(f"Running duration: {finished.end_time - finished.start_time:.1f}s")  # 5.5s
 ```
 
 ### ValueWrapper

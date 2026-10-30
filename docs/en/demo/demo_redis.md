@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -138,7 +138,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
     """Wait for task completion"""
     key, task_id = task
     redis_client: redis.Redis = get_redis()
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
 
     while True:
         result = cast(str | None, redis_client.hget(f"{key}:output", str(task_id)))
@@ -152,14 +152,25 @@ def redis_wait(task: tuple[str, int]) -> Any:
                 raise RemoteWorkerError(str(result_obj.get("error")))
             raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
-        if (time.perf_counter() - start_time) > redis_timeout:
+        if (time.perf_counter() - start_perf) > redis_timeout:
             raise CelestialFlowTimeoutError(
                 f"Redis ack timeout: task_id={task_id} not acknowledged"
             )
         time.sleep(0.1)
 ```
 
-**Behavior**: Polls Redis Hash `{key}:output` waiting for the result corresponding to `task_id`. Supports handling success results or raising `RemoteWorkerError`.
+**Behavior**: Polls Redis Hash `{key}:output` waiting for the result corresponding to `task_id`. Supports handling success results or raising `RemoteWorkerError`. The module-level `redis_timeout = 5` (seconds) is used both for the `blpop` blocking timeout and for the polling timeout here.
+
+### Other Helper Functions
+
+| Function | Purpose |
+|------|------|
+| `get_redis()` | Constructs and returns `redis.Redis(port=6379, db=0, decode_responses=True)` from the `REDIS_HOST` / `REDIS_PASSWORD` environment variables; the client is not cached |
+| `_normalize_result(result)` | Normalizes the `result` written back by the remote end: strings/bytes are returned as-is; a single-element list yields its only element; a multi-element list becomes a tuple; other types are returned as-is |
+| `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | The `Start` node task for each scenario: sleeps 1 second and returns a `(key, payload)` tuple, where `key` is `testFibonacci` / `testSum` / `testDownload` / `testReport` respectively |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | Local direct-computation branches: extract `payload` from the `(key, payload)` tuple and then call `fibonacci` / `sum_int` / `download_to_file` respectively |
+
+> The `redis_push` source signature declares an `int` return type, but it actually returns a `(key, task_id)` tuple, which the downstream `redis_wait` depends on.
 
 ## Redis Data Format
 

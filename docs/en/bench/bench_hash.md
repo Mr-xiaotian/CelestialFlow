@@ -1,10 +1,10 @@
 # bench/bench_hash.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
-Systematically compare 9 object→hash string serialization + hashing strategies to select the optimal approach for `TaskEnvelope` deduplication and tracking ID generation. Evaluation dimensions include: speed, stability, collision rate, and support for different data types.
+Systematically compare 9 object→hash string serialization + hashing strategies to select the optimal approach for `TaskEnvelope` deduplication and tracking ID generation. The dimensions this script actually measures are **speed** (`mean` / `std` / `vs_best`) and **runnability** (`verify_methods()` checks that every method returns `str` for every case); stability and cross-language compatibility are qualitative judgments, and the script itself does not collect collision statistics.
 
 ## Test Strategies
 
@@ -26,13 +26,16 @@ Covers 11 typical data forms: `int`, `short_str`, `long_str_4k`, `bytes_4k`, `sm
 
 ## Key Implementation
 
-- `normalize_for_hash`: converts `set`, `dict`, `tuple`, `list`, `bytes` into stable structures (sorted keys, tagged types)
-- `benchmark_one`: uses `timeit.repeat` (7 repetitions, 10,000 calls each), disables GC, outputs mean and standard deviation
+- `normalize_for_hash`: converts `set`, `dict`, `tuple`, `list`, `bytes` into stable structures tagged with `__type__` (`dict` sorted by `repr(key)`, `set` sorted); all other types are returned as-is
+- `stable_repr_bytes` / `stable_json_bytes`: produce `repr(...).encode("utf-8")` and `json.dumps(..., sort_keys=True, separators=(",", ":"), ensure_ascii=False)` bytes respectively on top of the normalized result
+- `verify_methods`: trial-runs the full `TEST_CASES × METHODS` combination once; any method that raises or returns a non-`str` is wrapped in a `RuntimeError` and aborts
+- `benchmark_one`: uses `timeit.repeat` (7 repetitions, 10,000 calls each) with **GC temporarily disabled** during the run (restored to its original state afterwards), returning the mean and standard deviation per call (microseconds)
+- Output: prints one `format_table` table per case, with columns `mean` / `std` / `vs_best`, where `vs_best` is the ratio of that row's mean time to the fastest method for the same case
 
 ## Potential Issues
 
 1. **pickle instability**: The same object may produce different `pickle.dumps` bytes across different Python versions or runs (especially for sets due to ordering), leading to inconsistent hashes. **Not suitable for cross-session deduplication**.
-2. **`fast_mixed` type dispatch blind spots**: If a custom class is passed and does not implement `__repr__`, it falls back to `pickle.dumps`, again facing pickle's instability.
+2. **`fast_mixed` type dispatch blind spots**: Only `bytes`, `str`, `int`, `float`, `bool`, `None` take the shortcut; all other objects (including any custom class, whether or not it implements `__repr__`) fall back to `pickle.dumps`, and therefore face the same pickle instability problem.
 3. **UUID format collision**: `repr+sha1+uuid` truncates SHA1 to 16 bytes before converting to UUID; while the probability is extremely low, strictly speaking it loses cryptographic security.
 4. **Large object memory pressure**: `long_str_4k`, `bytes_4k` may briefly consume significant memory during 10,000 repeated tests.
 

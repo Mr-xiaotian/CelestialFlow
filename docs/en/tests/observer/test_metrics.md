@@ -1,6 +1,6 @@
 # tests/observer/test_metrics.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 
@@ -31,7 +31,7 @@ Validates the event-driven metric aggregation logic of `celestialflow.observer.M
 | `test_external_input_counted` | External input only increases the receiver's count: `external_input == 1`, `input_total == 1` |
 | `test_upstream_input_updates_both_sides` | Upstream delivery writes the receiver's upstream count `upstream_counts` and the source's downstream count `downstream_counts` at the same time |
 | `test_success_fail_skip_counts` | Success / failure / skip events write `succeeded` / `failed` / `skipped` respectively, and `processed` is their sum |
-| `test_node_status_transitions` | `on_node_start` sets the status to `RUNNING` with `start_time > 0`; `on_node_end` sets the status to `STOPPED` |
+| `test_node_status_transitions` | After `on_node_start(NodeStartEvent("a", "serial", 1, 10.0))` the status is `RUNNING`, `start_time == 10.0` (taken directly from the event's `start_time`, no longer sampling `time.time()` inside the callback), and `end_time == 0.0`; after `on_node_end(NodeEndEvent("a", "serial", 1, 0.5, 20.0))` the status is `STOPPED` and `end_time == 20.0` |
 
 ### `TestMetricsObserverGraphView` — Graph-Level View
 
@@ -75,5 +75,6 @@ pytest tests/observer/test_metrics.py -k "GraphView" -v
 ## Notes
 
 - `MetricsObserver` updates metrics in a purely event-driven way; tests directly call the `on_*` event methods to simulate the lifecycle, without running an actual task graph.
+- Node timestamps are entirely event-driven: `on_node_start` takes `event.start_time` and writes it to `NodeMetrics.start_time`, resetting `end_time` to `0.0`; `on_node_end` takes `event.end_time` and writes it to `NodeMetrics.end_time`. Cases can therefore assert with fixed values such as `10.0` / `20.0` without tolerating clock jitter.
 - One upstream delivery both writes the receiver (`upstream_counts` / `upstream_input`) and the source (`downstream_counts`), both within the same event.
 - The related implementation is located in `src/celestialflow/observer/core_metrics.py`.

@@ -1,6 +1,6 @@
 # bench/bench_queue.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -17,7 +17,10 @@
 | `Redis Stream` | Redis `xadd`/`xread` | xadd, xread, xlen, empty-check |
 
 - **規模**：`COUNT = 100_000`
-- **Redis 設定**：`.env` から読み込み（`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`）
+- **Redis 設定**：`load_dotenv()` により `.env` から読み込む（`REDIS_HOST` のデフォルトは `127.0.0.1`、`REDIS_PORT` のデフォルトは `6379`、`REDIS_PASSWORD` は任意）。`db=0`、`decode_responses=True` を固定で使用
+- **Redis key**：List は `redis_queue`（`lpush` で書き込み、`rpop` で取り出し）、Stream は `redis_stream`（`xadd` で書き込み、`xread` で読み取り）
+- **Redis フェーズ**：まず `ping()` が成功したら `flushdb()` で DB を空にし、その後 List と Stream を順に実行する。いずれかのステップで例外が発生すると `⚠️ Redis tests skipped` を出力して残りの Redis テストをスキップする
+- **Stream 読み取り**：`xread({key: last_id}, count=1000, block=0)` を、累計で `COUNT` 件読み取るまでループする
 
 ## 発生し得る問題
 
@@ -103,10 +106,10 @@ if __name__ == "__main__":
 if __name__ == "__main__":
     COUNT = 10_000
 
-    # test_threadqueue_perf(COUNT)           # 注释掉线程队列
-    test_mpqueue_perf(COUNT)                 # 仅测试 MPQueue
-    # test_manager_queue_perf(COUNT)         # 跳过 Manager 队列
-    # test_redis_list_perf(redis_client, COUNT)   # 跳过 Redis（注意需传入已连接的 redis_client）
+    # test_threadqueue_perf(COUNT)           # スレッドキューをコメントアウト
+    test_mpqueue_perf(COUNT)                 # MPQueue のみテスト
+    # test_manager_queue_perf(COUNT)         # Manager キューをスキップ
+    # test_redis_list_perf(redis_client, COUNT)   # Redis をスキップ（接続済みの redis_client を渡す必要がある点に注意）
     # test_redis_stream_perf(redis_client, COUNT)
 ```
 

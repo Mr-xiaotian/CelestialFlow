@@ -1,6 +1,6 @@
 # bench/ Benchmark Overview
 
-> 📅 Last Updated: 2026/09/14
+> 📅 Last Updated: 2026/10/30
 
 ## Description
 
@@ -41,7 +41,7 @@ To quickly build a general impression of the project's performance characteristi
 
 | Document | Description |
 |------|------|
-| `bench_persistence_spout.md` | Log / lifecycle write performance for persistence spouts |
+| `bench_persist_spout.md` | Log / lifecycle write performance for persistence spouts |
 | `bench_queue.md` | Queue implementation benchmarks |
 | `bench_ipc_queue.md` | Inter-process queue communication overhead tests |
 | `bench_mpqueue_vs_shared_memory.md` | Comparison of `multiprocessing.Queue` vs. shared memory approaches |

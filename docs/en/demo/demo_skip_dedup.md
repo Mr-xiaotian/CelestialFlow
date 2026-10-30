@@ -1,6 +1,6 @@
 # demo/demo_skip_dedup.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -42,7 +42,12 @@ flowchart LR
 
 - Skipped tasks neither execute `no_op` nor consume retry count.
 - Therefore `succeeded` equals the number after dedup, and `skipped` equals the number of duplicate tasks.
-- After running, node logs are printed via `PrintObserver`, and a summary is printed by reading `input_total` / `succeeded` / `skipped` from `MetricsObserver`.
+- After running, node logs are printed via `PrintObserver`, and a summary is printed by reading `input_total` / `succeeded` / `skipped` from `MetricsObserver`:
+
+```text
+[executor] input=6, succeeded=3, skipped=3
+[executor] tasks retained after dedup: [1, 2, 3]
+```
 
 ### Scenario 2: Graph Intermediate-Node Dedup (`demo_skip_dedup_graph`)
 
@@ -60,7 +65,7 @@ flowchart LR
 After running, it prints the per-node counts:
 
 ```text
-[demo] per-node counts:
+[graph] per-node counts:
   Generator  input=3    ok=3    fail=0  skip=0    pending=0
   Dedup      input=9    ok=4    fail=0  skip=5    pending=0
   Sink       input=4    ok=4    fail=0  skip=0    pending=0

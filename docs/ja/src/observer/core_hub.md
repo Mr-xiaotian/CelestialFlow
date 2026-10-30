@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_hub.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `core_hub.py` は観測者の**配信センター** `ObserverHub` を定義します。これ自体も `Observer` であり、受け取った各イベントを登録順に登録済みの観測者へ転送します。ノードと各下流観測者の間のブロードキャストハブです。
 
@@ -12,7 +12,7 @@ class ObserverHub(Observer):
 
     def add_observer(self, observer: Observer) -> None: ...
 
-    # Observer から継承した 12 のイベントコールバック + handle_exception
+    # Observer から継承した 11 のイベントコールバック + handle_exception
     def on_node_start(self, event: NodeStartEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     # ... 各イベントを順にすべての観測者へ転送 ...

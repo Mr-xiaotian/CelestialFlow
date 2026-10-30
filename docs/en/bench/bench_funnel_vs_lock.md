@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -25,7 +25,7 @@ The script runs both mechanisms under the **same workload** (same number of prod
 
 | Scenario | Synchronization Method | Description |
 |------|---------|------|
-| `lock` | `ValueWrapper` + shared `Lock` | Producers hold the lock to update; writes are synchronously visible. Corresponds to the usage in `TaskMetrics` where counters share the same lock |
+| `lock` | `ValueWrapper` + shared `Lock` | Producers hold the lock to update; writes are synchronously visible. Corresponds to the usage in `MetricsObserver` where a `threading.Lock` protects a shared counter |
 | `nolock` | `ValueWrapper`, no lock | A baseline deliberately without locking, used to quantify the cost of the lock itself rather than to demonstrate correctness (see "Potential Issues" below) |
 | `sharded` | One lock-free `ValueWrapper` per producer | Aggregated at the end. No cross-thread contention at all, but only applicable to aggregatable workloads and cannot express a shared record stream |
 | `funnel` | `BaseInlet` + `BaseSpout` | Producers call `emit` to enqueue; `CountingSpout` consumes serially on a single thread and updates state |
@@ -88,6 +88,9 @@ Constants in the script:
 Argument validation is performed by `validate_args()` (`--items >= 0`, `--producers >= 1`, `--readers >= 0`, `--work-iters >= 0`, `--repeats >= 1`); invalid values cause an error and exit before the configuration header is printed.
 
 The script inserts the project's `src/` directory into `sys.path`, so it can be run directly without installing the package.
+
+On startup it prints a configuration header: the `python` version line, the `GIL` status (probed via `sys._is_gil_enabled()`, shown as `unknown` when the attribute is absent), `items`, `producers`, `readers`, `work_iters`, `repeats`, and the `scenarios` that actually participate in the run.
+In addition, `--producers < 2` warns that "there is no observable contention", and `--readers > 0` with more than one producer hints that reader threads contend with writer threads for the same lock.
 
 ## Potential Issues
 
@@ -178,7 +181,7 @@ Run with `uv`:
 uv run python bench/bench_funnel_vs_lock.py
 ```
 
-If the project is not installed as an importable package, you can also use the local virtual environment interpreter directly:
+You can also run it with the local virtual environment interpreter:
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_funnel_vs_lock.py

@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_event.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_event.py` defines **all event types** in the observer system. They serve as the input parameters of observer callbacks, describing the various changes of the task / node / task graph lifecycle. All events are read-only `dataclass`es with `frozen=True, slots=True`.
 
@@ -8,8 +8,8 @@
 
 | Event | Fields | Trigger Timing |
 |------|------|----------|
-| `NodeStartEvent` | `node`, `execution_mode`, `max_workers` | Node starts |
-| `NodeEndEvent` | `node`, `execution_mode`, `max_workers`, `elapsed` | Node ends |
+| `NodeStartEvent` | `node`, `execution_mode`, `max_workers`, `start_time` | Node starts |
+| `NodeEndEvent` | `node`, `execution_mode`, `max_workers`, `elapsed`, `end_time` | Node ends |
 | `TaskInputEvent` | `node`, `task`, `task_repr`, `input_id`, `from_node` | A task enters the node's input queue |
 | `TaskSuccessEvent` | `node`, `task`, `task_repr`, `result`, `result_repr`, `elapsed`, `task_id`, `success_id` | A task is processed successfully |
 | `TaskFailEvent` | `node`, `task`, `task_repr`, `exception`, `task_id`, `error_id` | A task finally fails |
@@ -17,9 +17,8 @@
 | `TaskRetryEvent` | `node`, `task`, `task_repr`, `exception`, `task_id`, `retry_times` | A task fails but triggers a retry |
 | `TerminationInputEvent` | `node`, `termination_id` | A termination signal enters the input queue |
 | `TerminationMergeEvent` | `node`, `parent_ids`, `termination_id` | Multiple termination signals are merged |
-| `WorkerCrashEvent` | `node`, `exception` | A worker thread / coroutine catches an unhandled exception in the fallback layer |
-| `GraphStartEvent` | `graph`, `graph_mode`, `start_time`, `class_name`, `is_dag`, `nodes`, `edges`, `source_nodes`, `node_meta` | Task graph starts |
-| `GraphEndEvent` | `graph`, `elapsed` | Task graph ends |
+| `GraphStartEvent` | `graph`, `graph_mode`, `start_time`, `is_dag`, `nodes`, `edges`, `source_nodes`, `node_meta` | Task graph starts |
+| `GraphEndEvent` | `graph`, `end_time`, `elapsed` | Task graph ends |
 
 ## Field Descriptions
 
@@ -40,12 +39,19 @@
 
 - `from_node`: the upstream source node name; `None` indicates external direct injection. This field is the basis on which `MetricsObserver` distinguishes external injection from upstream delivery.
 
+### Lifecycle Timestamps
+
+- `start_time`: the wall-clock time (seconds) when the node / task graph starts, carried by `NodeStartEvent` / `GraphStartEvent`.
+- `end_time`: the wall-clock time (seconds) when the node / task graph ends, carried by `NodeEndEvent` / `GraphEndEvent`.
+- `elapsed`: the running duration (seconds) of the node / task graph.
+
+Timestamps are written once when the event is constructed; downstream observers (such as `MetricsObserver`) read the event fields directly instead of sampling `time.time()` themselves.
+
 ### Graph Metadata (`GraphStartEvent`)
 
 - `graph`: the task graph name.
 - `graph_mode`: the task graph run mode.
 - `start_time`: the task graph start time.
-- `class_name`: the task graph class name.
 - `is_dag`: whether it is a DAG task graph.
 - `nodes`: the task graph node name list.
 - `edges`: the task graph edge adjacency list (`{from_name: [to_name, ...]}`).
@@ -81,7 +87,6 @@ from celestialflow.observer import (
     ObserverHub,
     TaskFailEvent,
     TaskSuccessEvent,
-    WorkerCrashEvent,
 )
 
 
@@ -91,9 +96,6 @@ class MyObserver(Observer):
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         print(f"{event.node} failed: {event.exception}")
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        print(f"{event.node} worker crash: {event.exception}")
 
 
 hub = ObserverHub()

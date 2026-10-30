@@ -1,6 +1,6 @@
 # CelestialFlow 技術共有
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ---
 
@@ -258,7 +258,7 @@ graph TD
   - `processed`：`succeeded + failed + skipped`
   - `pending`：`input_total - processed`
 
-- **状態と時刻**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）と `start_time` は `on_node_start`/`on_node_end` が維持
+- **状態と時刻**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）は `on_node_start`/`on_node_end` が維持；`start_time` / `end_time` は対応するイベントが運ぶタイムスタンプをそのまま採用し、指標オブザーバーはもはや独自にシステム時刻をサンプリングしない
 - **終了判定**：`is_tasks_finished()` が入力と処理済みカウントを比較
 
 ---
@@ -340,7 +340,7 @@ graph LR
 
 - **エラー永続化**：SQLite 形式、`node`、`error_type`、`error_message`、`task_json`、`result_json`、`retry_times` などのフィールドを含む
 
-- **エラー分析ツール**：`load_records()`、`load_tasks_grouped_by_node()` で次元ごとに失敗タスクを集約
+- **エラー分析ツール**：`load_task_error_records()`、`load_task_result_records()`、`load_tasks_grouped_by_node()` で次元ごとに失敗/成功タスクを読み取り集約
 
 ---
 

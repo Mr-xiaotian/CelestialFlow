@@ -1,6 +1,6 @@
 # tests/graph/test_graph.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 `TaskGraph` およびその各種トポロジサブクラス（`TaskChain`、`TaskCross`、`TaskGrid`）のコア機能を全面的に検証し、同期/非同期/スレッド実行、エラー伝播、SQLite リプレイ、ランタイムスナップショットカウント、トポロジ解析、実行モードマトリクス、ソースノード導出（SCC 含む）、循環グラフの動作をカバーします。
@@ -48,7 +48,7 @@ graph LR
 - **DB リプレイ** (`test_graph_restore_db`): `restore_db` はデフォルトで `failed` と `pending` のレコードを読み取り、ノード名ごとにグループ化してリプレイします。
 - **DB エラータイプフィルタ** (`test_graph_restore_db_filters_error_type_when_enabled`): `restore_db(..., statuses=["failed"], filter_by_error_type=True)` は各ノードの `retry_exceptions` に基づいて `error_type` をフィルタリングします。
 - **DB での pending 保持** (`test_graph_restore_db_filter_keeps_pending_records`): フィルタ有効時も `pending` レコードは引き続きリプレイされます。
-- **未知ノード名例外** (`test_graph_node_lookup_unknown_node_raises`): ノードを明示指定してタスクを注入する際、存在しないノード名は `NodeNotFoundError` をスローすべきです。
+- **未知ノード名例外** (`test_graph_node_lookup_unknown_node_raises`): `node_dict` からノード名で検索して見つからない場合に `NodeNotFoundError` をスローします（`pytest.raises` でケース内で明示的にスローされた当該例外を捕捉）。
 - **set_ctree による既存ノードの更新** (`test_set_ctree_updates_existing_nodes`): 先に `set_nodes` を呼んだ後で `set_ctree` を呼ぶ場合、既存ノードも同じイベントクライアントを共有すべきです。
 - **finish 後の例外グループ一括送出** (`test_start_raises_exception_group_after_finish`): 同期 `start` は `_finish_start` 後に収集された `ExceptionGroup` を一括送出します。
 
@@ -79,10 +79,10 @@ graph LR
 
 #### グラフ構造解析 (`TestTaskGraphAnalysis`)
 - **ノードメタ情報** (`test_get_node_meta_covers_all_nodes`): `get_node_meta()` は各ノードに対して `class_name`、`execution_mode` などの構築期メタ情報を返します。
-- **オンデマンド構築** (`test_getters_build_analysis_on_demand`): 解析と構造のゲッター（`is_dag`、`layers_dict`、`get_nodes`、`get_edges`、`get_source_nodes`）が明示的な build なしでも直接利用可能なこと。
-- **キャッシュ自動再構築** (`test_getters_refresh_analysis_after_connect`): `connect` 後、ゲッターは解析キャッシュを自動的に再構築し、ソースノードと階層もそれに伴って更新されること。
-- **DAG 検出** (`test_dag_detection`): `is_dag` 属性がグラフに循環があるかどうかを正しく反映すること。
-- **階層計算** (`test_layer_computation`): 線形チェーン A→B→C のトポロジ階層が {A:0, B:1, C:2} であることを検証。
+- **オンデマンド構築** (`test_getters_build_analysis_on_demand`): 明示的に build していなくても、`get_nodes()`、`get_edges()`、`get_source_nodes()`、`is_dag()`、`get_layers()` を直接呼び出せ、それぞれが必要に応じて解析キャッシュを構築します。
+- **キャッシュ自動再構築** (`test_getters_refresh_analysis_after_connect`): `connect` 後、ゲッターは解析キャッシュを自動的に再構築し、ソースノードと階層もそれに伴って更新されるべきです（`s1` は第 0 層、`s2` は第 1 層）。
+- **DAG 検出** (`test_dag_detection`): `is_dag()` メソッドがグラフに循環があるかどうかを正しく反映すべきです。
+- **階層計算** (`test_layer_computation`): 線形チェーン A→B→C を `get_layers()` で得られる階層は {A:0, B:1, C:2}。
 
 #### 複雑な構造 (`TestTaskGraphStructure`)
 | 構造 | ノード数 | カバーシナリオ |
@@ -109,7 +109,7 @@ graph LR
 | ケース | 検証ポイント |
 |--------|------------|
 | `test_cyclic_serial_graph_raises` | serial graph_mode 時に `get_source_nodes()` を呼ぶと循環グラフは `ConfigurationError` をスローすべき（`"TaskGraph contains a cycle while graph_mode='serial'"` にマッチ） |
-| `test_cyclic_is_dag_false` | s1→s2→s3→s1 の `is_dag` が `False` であること |
+| `test_cyclic_is_dag_false` | s1→s2→s3→s1 の `is_dag()` が `False` を返すべき |
 | `test_cyclic_layers` | 循環内ノード (s1,s2,s3) が同層、尾の s4 が循環階層 + 1 |
 
 #### 注入能力 (`TestTaskGraphReporterCapabilities`)
@@ -124,6 +124,7 @@ graph LR
 - serial graph_mode 時に循環グラフで `get_source_nodes()` を呼ぶと `ConfigurationError` がトリガーされます（`test_cyclic_serial_graph_raises` 参照）。
 
 ### データベースリプレイ
+- リプレイケースのモジュールレベル補助関数 `_insert_records(sqlite_path, records)` は `connect_db` で接続とテーブル作成を行い、次に `insert_record(conn, record)` を 1 件ずつ呼び出して書き込み、`event_id` の重複による `sqlite3.IntegrityError` が発生した場合はスキップし、最後にまとめて `commit` して接続を閉じます。
 - `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` のデフォルトは `["failed", "pending"]`；`filter_by_error_type` はキーワード引数で、有効にすると各ノードの `get_retry_error_type_names()` に基づいて `error_type` をフィルタリングしますが、`pending` レコードは常に保持されます。
 
 ### Lambda サポート
@@ -135,7 +136,7 @@ graph LR
 |------|------|
 | `pytest` | テストフレームワーク |
 | `celestialflow` | `TaskGraph`, `TaskChain`, `TaskCross`, `TaskGrid`, `TaskExecutor` |
-| `celestialflow.persist.util_sqlite` | `append_records`（DB リプレイケースでテストレコードを書き込む） |
+| `celestialflow.persist.util_sqlite` | `connect_db`, `insert_record`（DB リプレイケースでテストレコードを書き込む） |
 | `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient`（`set_ctree` ケース） |
 | `celestialflow.observer` | `Observer`, `TerminationInputEvent`（Reporter 注入ケース） |
@@ -161,15 +162,18 @@ pytest tests/graph/test_graph.py::TestTaskGraphSnapshotCounts -v
 
 | テスト | 所要時間 |
 |--------|------|
-| `TestTaskGraphBasic` | ~2s |
-| `TestTaskGraphSnapshotCounts` | < 0.5s |
-| `TestTaskGraphAsync` | ~3s |
-| `TestTaskGraphStructure` | ~5s |
-| `TestTaskGraphAnalysis` | ~1s |
-| `TestNodeExecutionMatrix` | ~5s |
-| `TestTaskGraphThread` | ~4s |
-| `TestSourceNodes` | ~2s |
-| `TestCyclicGraph` | ~2s |
+| `TestTaskGraphBasic` | < 0.2s（DB リプレイケースは約 0.06s、それ以外は < 0.02s） |
+| `TestTaskGraphSnapshotCounts` | < 0.1s |
+| `TestTaskGraphAsync` | < 0.1s |
+| `TestTaskGraphStructure` | < 0.1s |
+| `TestTaskGraphAnalysis` | < 0.1s |
+| `TestNodeExecutionMatrix` | < 0.1s |
+| `TestTaskGraphThread` | < 0.1s |
+| `TestSourceNodes` | < 0.1s |
+| `TestCyclicGraph` | < 0.1s |
+| `TestTaskGraphReporterCapabilities` | < 0.1s |
+
+> ファイル全体（51 ケース）は現在の開発機で約 1s 以内に完了します。
 
 ## 関連ファイル
 

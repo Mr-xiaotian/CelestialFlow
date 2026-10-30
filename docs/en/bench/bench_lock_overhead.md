@@ -1,6 +1,6 @@
 # bench/bench_lock_overhead.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -37,7 +37,16 @@ Used to quickly assess the cost of "adding an extra explicit lock layer" on the 
 - `MPQUEUE_ITEMS = 20_000`
 - `PARALLEL_WORKERS = 4`
 - `REPEAT = 2`
-- Start method fixed to `spawn`, consistent with Windows default behavior
+- Start method fixed to `mp.get_context("spawn")`, consistent with Windows default behavior
+
+## Key Implementation
+
+- Shared integers uniformly use `ctx.Value(c_longlong, 0, lock=use_lock)`; with `lock=True` workers increment while holding the lock obtained via `counter.get_lock()`
+- Parallel scenarios use `split_evenly()` to divide `INT_OPS` / `MPQUEUE_ITEMS` evenly among `PARALLEL_WORKERS` processes
+- Consumers in the parallel queue scenario poll with `q.get(timeout=0.05)` and continue after catching `queue.Empty`; after all producers `join`, the main process writes `PARALLEL_WORKERS` `None`s into the queue as termination sentinels
+- The serial queue times the `put` and `get` phases separately; the `get` phase of the parallel queue is `max(total_elapsed - put_elapsed, 0.0)`, where `put_elapsed` runs from producer start until all producers have `join`ed
+- Correctness checks: shared integers compare the final value against `INT_OPS`; the queue compares `checksum` against `MPQUEUE_ITEMS * (MPQUEUE_ITEMS - 1) // 2`, and the parallel scenario additionally compares `consumed` against `MPQUEUE_ITEMS`
+- Statistics: timings are the mean over `REPEAT` rounds, the standard deviation is `pstdev` (population standard deviation), and is recorded as `0.0` for a single round
 
 ## Potential Issues
 

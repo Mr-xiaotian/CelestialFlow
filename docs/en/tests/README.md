@@ -1,6 +1,6 @@
 # tests/ Test Overview
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Description
 
@@ -15,7 +15,7 @@ If this is your first time examining the test suite, we recommend reading in the
 1. `conftest.md`: Start with test helpers and shared initialization description
 2. `runtime/`: Understand coverage of base types, queues, exceptions, and scheduling primitives
 3. `graph/`: Understand core tests for graph structures and task topologies
-4. `observability/`: Finally, review integration tests for Reporter and reporting pipelines
+4. `observability/`: Finally, review the integration tests for observers and metrics collection
 
 ## Document Index
 
@@ -31,9 +31,9 @@ If this is your first time examining the test suite, we recommend reading in the
 |------|------|
 | `funnel/test_inlet.md` / `test_spout.md` | Inlet / Spout pipeline tests |
 | `graph/test_graph.md` etc. | `TaskGraph`, topological analysis, and structure export tests |
-| `observability/test_observer.md` / `test_reporter.md` | Observer, Reporter, injection, and reporting tests |
-| `persistence/test_lifecycle.md` etc. | Lifecycle / log / sqlite utility persistence tests |
-| `runtime/test_envelope.md` etc. | Base runtime tests such as queues, envelopes, exceptions, and counters |
+| `observability/test_observer.md` / `test_metrics.md` | Observer callback and metrics observer tests |
+| `persistence/test_lifecycle.md` etc. | Persistence tests for lifecycle / log / sqlite utilities (source code lives in `tests/persist/`) |
+| `runtime/test_envelope.md` etc. | Base runtime tests such as queues, envelopes, exceptions, log levels, and counters |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` benchmark tests and clone utility tests |
 
 ## How to Use
@@ -44,7 +44,8 @@ You can run tests by module from the project root directory:
 pytest tests -v
 pytest tests/runtime -v
 pytest tests/graph -v
-pytest tests/observability -v
+pytest tests/observer -v
+pytest tests/persist -v
 ```
 
 You can also filter by keyword:

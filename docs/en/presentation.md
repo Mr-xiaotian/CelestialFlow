@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ---
 
@@ -127,7 +127,7 @@ TaskGraph(
 - **Schedule Modes**:
   - `serial`: Nodes launch serially, dependencies naturally guaranteed by queues
   - `thread` / `async`: Nodes launch concurrently, executed in parallel via threads or coroutines
-- **State Management**: `node_dict` (node object collection), `node.get_snapshot()` (node runtime state snapshot), `get_node_meta()` (node meta information)
+- **State Management**: `node_dict` (node object collection), `metrics_of(graph).get_node_metrics(...)` (node metrics snapshot), `get_node_meta()` (node meta information)
 - **Graph Analysis**: Builds directed graph based on NetworkX, detects DAG properties, computes topological layers
 
 ---
@@ -146,7 +146,7 @@ classDiagram
         +execution_mode: str
         +max_workers: int
         +max_retries: int
-        +metrics: TaskMetrics
+        +metrics: NodeMetrics
         +run(init_tasks_dict)
         +run_async(init_tasks_dict)
     }
@@ -258,7 +258,7 @@ Each node holds its own `TaskDispatch`, so node-level `async` is also available 
   - `processed`: `succeeded + failed + skipped`
   - `pending`: `input_total - processed`
 
-- **Status & Time**: `NodeStatus` (`NOT_STARTED`/`RUNNING`/`STOPPED`) and `start_time` are maintained by `on_node_start`/`on_node_end`
+- **Status & Time**: `NodeStatus` (`NOT_STARTED`/`RUNNING`/`STOPPED`) is maintained by `on_node_start`/`on_node_end`; `start_time` / `end_time` are taken directly from the timestamps carried by the corresponding events, so the metrics observer no longer samples the system time itself
 - **Termination Judgment**: `is_tasks_finished()` compares input and processed counts
 
 ---
@@ -338,9 +338,9 @@ graph LR
 
 - **Log Levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
-- **Error Persistence**: SQLite format, includes `stage`, `error_type`, `error_message`, `task_json`, `result_json`, `retry_times` and other fields
+- **Error Persistence**: SQLite format, includes `node`, `error_type`, `error_message`, `task_json`, `result_json`, `retry_times` and other fields
 
-- **Error Analysis Tools**: `load_records()`, `load_tasks_grouped_by_stage()` aggregates failed tasks by dimension
+- **Error Analysis Tools**: `load_task_error_records()`, `load_task_result_records()`, `load_tasks_grouped_by_node()` read and aggregate failed/succeeded tasks by dimension
 
 ---
 

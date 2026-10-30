@@ -1,6 +1,6 @@
 # bench/bench_lock_overhead.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -37,7 +37,16 @@
 - `MPQUEUE_ITEMS = 20_000`
 - `PARALLEL_WORKERS = 4`
 - `REPEAT = 2`
-- 起動方式は固定で `spawn` を使用し、Windows のデフォルト動作と一致させています
+- 起動方式は固定で `mp.get_context("spawn")` を使用し、Windows のデフォルト動作と一致させています
+
+## 主要実装
+
+- 共有整数は一律 `ctx.Value(c_longlong, 0, lock=use_lock)` を使用します。`lock=True` の場合、ワーカー内で `counter.get_lock()` を取得してインクリメントします
+- 並列シナリオでは `split_evenly()` により `INT_OPS` / `MPQUEUE_ITEMS` を `PARALLEL_WORKERS` 個のプロセスに均等配分します
+- 並列キューの消費者は `q.get(timeout=0.05)` でポーリングし、`queue.Empty` を捕捉したら継続します。メインプロセスは全 producer の `join` 後に、終了センチネルとして `None` を `PARALLEL_WORKERS` 個キューへ書き込みます
+- 直列キューでは `put` フェーズと `get` フェーズを別々に計時します。並列キューの `get` フェーズは `max(total_elapsed - put_elapsed, 0.0)` で、`put_elapsed` は producer 起動から全 producer の `join` 完了までを指します
+- 正しさの判定：共有整数は最終値と `INT_OPS` を比較し、キューは `checksum` と `MPQUEUE_ITEMS * (MPQUEUE_ITEMS - 1) // 2` を比較します。並列シナリオではさらに `consumed` と `MPQUEUE_ITEMS` を比較します
+- 統計の扱い：所要時間は `REPEAT` ラウンドの平均、標準偏差は `pstdev`（母標準偏差）を使用し、1 ラウンドのみの場合は `0.0` とします
 
 ## 発生しうる問題
 

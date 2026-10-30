@@ -1,6 +1,6 @@
 # src/celestialflow/node/util_types.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `util_types.py` provides type aliases specific to the `node` module. It currently defines a single `AnyTaskNode` type alias, which is used by upper-layer structures such as `TaskGraph` to reference node objects in an "any node" form.
 
@@ -37,6 +37,6 @@ def collect_names(nodes: list[AnyTaskNode]) -> list[str]:
 
 ## Notes
 
-1. **Type alias, not part of the import list**: this file has no `__all__`, so you do not need to explicitly `import` from `celestialflow.node.util_types`; it can be accessed indirectly through `celestialflow.node`.
+1. **Type alias, not part of the import list**: this file has no `__all__`, and `AnyTaskNode` is not in `celestialflow.node`'s `__all__` either; when needed, import it directly from `celestialflow.node.util_types` (`util_*` symbols are not re-exported through the package entry).
 2. **Limited scope**: `AnyTaskNode` should not be used in "concrete node" positions; for example, the input parameter of `TaskExecutor[T, R]` should still use the generic version to avoid breaking static inference.
-3. **Type cooperation with the `runtime` module**: `BaseTaskNode` internally uses the `runtime` module's `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` / `ValueWrapper` / `CTreeEvent` / `TerminationSignal` directly; see the corresponding documentation for details on these types.
+3. **Type cooperation with the `runtime` module**: `BaseTaskNode` internally uses the `runtime` module's `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `CTreeEvent` / `TerminationSignal` directly; observer-related types are provided by `celestialflow.observer`; see the corresponding documentation for details on these types.

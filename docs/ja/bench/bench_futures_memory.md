@@ -1,6 +1,6 @@
 # bench/bench_futures_memory.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -27,6 +27,18 @@
 | `task_count` | 10K / 100K / 500K | タスク数 |
 | `max_workers` | 20 | スレッドプールサイズ |
 | タスク関数 | `noop(x)` | 即時リターン、計算オーバーヘッドなし |
+
+## 出力指標
+
+`measure()` は `tracemalloc.start()` の後に被測定関数を計時しながら呼び出し、3 つの値を返す：
+
+| 指標 | 意味 |
+|------|------|
+| `elapsed` | `time.perf_counter()` で計測したスケジューリング所要時間（秒） |
+| `peak_mb` | `tracemalloc.get_traced_memory()` のピーク（MB）、`peak / 1024 / 1024` |
+| `current_mb` | 同一時点での現在の追跡メモリ（MB） |
+
+どちらのモードも `pool.shutdown(wait=False)` で終了するため、出力の `current_mb` はスケジューリング終了直後の Python 割り当て量のみを反映し、プロセスの常駐メモリを表すものではない。
 
 ## 実行方法
 

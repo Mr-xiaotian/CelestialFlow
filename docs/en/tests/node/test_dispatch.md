@@ -1,6 +1,6 @@
 # tests/node/test_dispatch.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 
@@ -10,13 +10,12 @@ Verifies the core behavior of `celestialflow.node.core_dispatch.TaskDispatch` ac
 
 | Class / Function | Role | Description |
 |-----------|------|------|
-| `TaskDispatch` | Class under test | Task dispatcher, pulls `TaskEnvelope` / `TerminationSignal` from `task_queue`, executes them by mode, and writes the termination signal back to `yield_queue` |
+| `TaskDispatch` | Class under test | Task dispatcher; pulls `TaskEnvelope` / termination pools (`TerminationIdPool`, injected in tests as `TerminationSignal` and converted by the queue) from `task_queue`, executes them by mode, and writes the merged termination signal back to `yield_queue` |
 | `TaskExecutor` | Host | Constructs the minimal runnable executor used as the dispatch host |
 | `_CtreeStub` / `_SequentialCtreeStub` | Mock | Replaces `ctree_client.emit` with an incrementing integer to avoid conflicts with the sqlite unique constraint |
 | `MetricsObserver` | Metric observer | Registered by `_make_executor` via `e.observers.add_observer(...)`, metrics update with events; tests read them via `metrics_of(executor)` |
 | `_CrashOnFailObserver` | Mock Observer | Raises inside `on_task_fail` to verify the observer hub's exception isolation |
 | `_CrashOnRetryObserver` | Mock Observer | Raises inside `on_task_retry` to verify the retry-handling-chain crash fallback |
-| `_RecordingCrashObserver` | Mock Observer | Records `on_worker_crash` events, used to assert that the crash does not surface to the worker layer |
 | `_make_executor` / `_put` / `_put_termination` / `_collect_results` / `_run_dispatch` | Utility functions | Construct the executor, inject tasks / termination signals, collect results, and run the dispatcher by mode |
 
 Key composition of `_make_executor`:
@@ -49,15 +48,15 @@ Key composition of `_make_executor`:
 
 | Case | Coverage Goal |
 |------|---------|
-| `test_basic_async` | 10 tasks, 4 coroutines concurrently, result count = 10 |
+| `test_basic_async` | 10 tasks, coroutine concurrency with `max_workers=4`, result count = 10 |
 | `test_async_retry_then_succeed` | Async retry: the first 2 calls raise, the 3rd succeeds, `func.calls == 3` |
 
-### `TestWorkerCrashKeepsTerminationSignal` — Worker Crash Fallback (parameterized over three modes)
+### `TestHandlerCrashKeepsTerminationSignal` — Handling-Chain Crash Fallback (parameterized over three modes)
 
 | Case | Coverage Goal |
 |------|---------|
-| `test_fail_handler_crash_keeps_termination` | Raises `RuntimeError` inside the `on_task_fail` observer callback; isolated by the observer hub, it does **not** trigger `on_worker_crash`, the termination signal is emitted as usual, and the fail count `== 1` |
-| `test_retry_handler_crash_keeps_termination` | When an exception is raised inside the `on_task_retry` observer callback, scheduling is not interrupted, the termination signal is emitted as usual, `on_worker_crash` is not triggered, and it is ultimately counted as one failure |
+| `test_fail_handler_crash_keeps_termination` | `_CrashOnFailObserver`'s `on_task_fail` raises `RuntimeError`; the exception is isolated by the observer hub (and does not escape into the dispatch path); `observer.calls == 1`, `handle_task_fail` still completes failure accounting as usual (`failed == 1`), and only the termination signal remains in the result queue |
+| `test_retry_handler_crash_keeps_termination` | When `_CrashOnRetryObserver`'s `on_task_retry` raises, it is likewise isolated by the hub; scheduling continues until retries are exhausted, `observer.calls == 1`, and finally it is counted as one failure with the termination signal emitted as usual |
 
 ### `TestDispatchCoreBehavior` — Cross-Mode Parameterized
 
@@ -70,13 +69,20 @@ Key composition of `_make_executor`:
 
 ```mermaid
 flowchart LR
-    In[task_queue.get] --> Sig{is TerminationSignal?}
-    Sig -- yes --> Merge[_merge_termination merges termination IDs]
+    In[task_queue.get] --> Sig{is TerminationIdPool?}
+    Sig -- yes --> Merge[_process_termination_signal merges termination IDs]
     Merge --> Break[break loop]
-    Sig -- no --> Worker[_worker / _async_worker]
-    Worker --> Out[yield_queue]
-    Break --> Put[yield_queue.put signal]
+    Sig -- no --> Cap{pending >= max_workers?}
+    Cap -- yes --> Wait[wait / await FIRST_COMPLETED]
+    Wait --> Cap
+    Cap -- no --> Worker[_worker / _async_worker]
+    Worker --> Pending[pending set]
+    Pending --> Cap
+    Break --> Drain[wait for all pending to finish]
+    Drain --> Put[yield_queue.put signal]
 ```
+
+> `serial` executes `_worker` one by one directly; `thread` / `async` track in-flight tasks with the `pending` set and wait for at least one to finish when `len(pending) >= max_workers`, so the concurrency limit is strictly bounded by `max_workers` while still supporting tasks arriving in a streaming fashion.
 
 ## Test Coverage Matrix
 
@@ -84,8 +90,8 @@ flowchart LR
 |--------|--------|---------|
 | `TestDispatchSerial` | 7 | Single/multi task, retry success, retry exhaustion, single/multi ID termination signal, success fanout with independent downstream IDs |
 | `TestDispatchThread` | 1 | 10-task concurrency |
-| `TestDispatchAsync` | 2 | 10-task concurrency, async retry success |
-| `TestWorkerCrashKeepsTerminationSignal` | 2 | Failure handling chain crash, retry handling chain crash (parameterized over 3 modes → 6 cases) |
+| `TestDispatchAsync` | 2 | 10-task concurrency within the `pending` limit, async retry success |
+| `TestHandlerCrashKeepsTerminationSignal` | 2 | Failure handling chain crash, retry handling chain crash (parameterized over 3 modes → 6 cases) |
 | `TestDispatchCoreBehavior` | 2 | Empty queue exit, 5-task result count (parameterized over 3 modes → 6 cases) |
 | **Total** | **14** (22 after parameter expansion) | |
 
@@ -104,7 +110,7 @@ pytest tests/node/test_dispatch.py -k "Thread" -v
 # Async dispatch tests only
 pytest tests/node/test_dispatch.py -k "Async" -v
 
-# Worker crash fallback tests only
+# Handler crash fallback tests only
 pytest tests/node/test_dispatch.py -k "Crash" -v
 
 # Cross-mode parameterized tests only
@@ -118,14 +124,15 @@ pytest tests/node/test_dispatch.py -k "CoreBehavior" -v
 | `TestDispatchSerial` | < 0.5s |
 | `TestDispatchThread` | < 0.5s |
 | `TestDispatchAsync` | < 0.5s |
-| `TestWorkerCrashKeepsTerminationSignal` | < 1.0s (6 cases = 2 scenarios × 3 modes) |
+| `TestHandlerCrashKeepsTerminationSignal` | < 1.0s (6 cases = 2 scenarios × 3 modes) |
 | `TestDispatchCoreBehavior` | < 1.0s (6 cases = 2 scenarios × 3 modes) |
 
 ## Notes
 
-- The termination signal is injected via the public API `executor.task_queue.put(TerminationSignal(_id=..., source="input"))`, and is naturally merged by the dispatcher's `_merge_termination()` before exiting the loop, without directly manipulating the internal termination ID pool.
+- The termination signal is injected via the public API `executor.task_queue.put(TerminationSignal(_id=..., source="input"))`, merged by the dispatcher's `_process_termination_signal()` before exiting the loop, without directly manipulating the internal termination ID pool.
 - `_CtreeStub` starts with a default ID of 42, avoiding conflicts with the sqlite unique constraint; `test_success_fanout_creates_distinct_downstream_ids` additionally uses `_SequentialCtreeStub` (starting at 100) to distinguish each downstream's ID.
 - `test_success_fanout_creates_distinct_downstream_ids` drives dispatch directly (bypassing `node.run`), so it manually assembles `LifecycleSpout` / `LifecycleInlet` and registers them on the executor to simulate the persistence regression.
 - Test fixtures are injected through the public API (`task_queue.put` / `yield_queue.add_queue`), avoiding modification of `executor` internal state; result collection queues are traced back via a weak-reference dictionary.
-- Exceptions raised by the fail / retry observers are isolated at the observer hub layer, verifying that `_RecordingCrashObserver`'s `on_worker_crash` is not triggered, i.e., errors do not leak into the worker thread.
+- Exceptions raised by the fail / retry observers are isolated at the observer hub layer (and forwarded to that observer's own `handle_exception`), so `handle_task_fail` can still complete failure accounting and return, and the dispatch loop continues to consume until the termination signal.
+- Both cases in `TestHandlerCrashKeepsTerminationSignal` assert `observer.calls == 1` and `results == [TerminationSignal]`; the failure scenario additionally asserts `metrics_of(executor).get_node_metrics(name).failed == 1`.
 - The related implementation is at `src/celestialflow/node/core_dispatch.py` and `src/celestialflow/node/core_node.py`.

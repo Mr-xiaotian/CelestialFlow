@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last Updated: 2026/09/10
+> 📅 Last Updated: 2026/10/30
 
 - 2021: Built a class supporting both multi-threaded and single-threaded processing functions
 - 2023: Added multi-process and coroutine execution modes with GPT-4's help
@@ -475,3 +475,59 @@
     - Fixed the ambiguous meaning of `retry_times` in task retry logs; now uses `fail_times`
     - Fixed the issue where return values were not handled in reporter's `_push_*` methods
     - Fixed the issue in `TaskReporter._pull_injection` where the wrong `put_task` was performed on the pulled task list
+- 3.3.1
+  - feat:
+    - [IMPORTANT] Added `upstream_counter` / `downstream_counter` to `TaskMetrics` for detailed recording of upstream/downstream transfer volumes
+      - Transmit the node's `upstream_counter` / `downstream_counter` in the `reporter`
+      - The web end was updated in sync; the web structure graph can now display the exact number of tasks transferred between upstream and downstream
+    - [IMPORTANT] Removed the `duplocate` mechanism
+      - This was a very, very difficult choice; the `duplocate` mechanism is extremely old, but after careful evaluation I believe there were three problems:
+        - 1. Incoming tasks are not necessarily hashable, and the existing hash function is highly non-deterministic
+        - 2. If tasks must be hashable, it would be best to pass a separate func for processing tasks, but that would increase the parameter complexity of nodes
+        - 3. Meanwhile, `duplocate` can be fully replaced by filtering before task input for a single node, while the benefit in a graph is not obvious at all
+      - After repeated consideration, I decided to follow the simplicity-first principle
+    - Simplified the `log.task_success` output; `execution_mode` is no longer displayed
+    - Added a `retry_time` field to `lifecycle`
+    - Added an out-of-the-box `observer`, `ObserverPrint`
+      - The `total` displayed in a graph environment will be incorrect; to be fixed in the next version
+  - refactor:
+    - [IMPORTANT] Greatly simplified the data in `reporter`; only raw status data is transmitted now, and the actual analysis is left to the frontend
+    - Removed `log.split_trace` / `log.split_success` / `log.route_success`, uniformly using `log.task_in` to express downstream task success
+    - Removed `node.get_binding_counter` and `node.prev_binding`, and added `node.connect_to` to uniformly handle binding upstream and downstream nodes
+    - Added a new generic `Y` in `TaskNode`, representing the task type transmitted downstream
+      - This is to optimize `splitter` and `router`
+    - A node's `elapsed_time` is now computed by `dispatch` itself, guaranteeing accuracy
+      - By the way, why did I come up with such a troublesome and inaccurate algorithm before?
+    - Added gating for `status` in `reporter`; if the current status is the same as the last sent status, it is not sent
+      - At this point all `push_*` in `reporter` have gating, avoiding invalid data transmission
+  - chore:
+    - Added `bench_funnel_vs_lock` to test the performance difference between using funnel and using lock to record data in a concurrent environment
+      - The former has lower sending latency but higher memory usage
+      - ![bench/bench_funnel_vs_lock.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/bench_funnel_vs_lock.md)
+    - Added `demo_web` for web demonstrations of complex structures
+- 3.3.2
+  - feat:
+    - [IMPORTANT] Greatly expanded the `observer` mechanism, adding more hooks
+      - Added `ObserverHub` for management; it is itself an `observer`
+    - [IMPORTANT] Added the `ticker` mechanism, driven by periodic time
+      - As a complement to the purely event-driven `observer`
+    - [IMPORTANT] Introduced the `skip` mechanism to replace the removed `duplocate` mechanism
+    - Due to the complete refactor of the `reporter` mechanism, how it is enabled and used has also changed
+      - It is now configured in `.pyproject`
+  - refactor:
+    - [IMPORTANT] Folded `log` / `lifecycle` into the new `observer` system
+      - The structure is cleaner and more efficient
+    - [IMPORTANT] Split `reporter` into fully separated `push` and `pull`
+      - The former uses `PushInlet` to event-collect `error` `meta` data, and `PushSnapshotHandler` to periodically collect status information
+      - The latter uses `InjectionHandler` to periodically collect injected tasks and injected termination signals from the server
+    - Folded the `metric` mechanism into the `observer` system
+- 3.3.3
+  - feat:
+    - Added `end_time` to `GraphEndEvent` / `NodeEndEvent`
+    - Removed `class_name` from `GraphStartEvent`
+  - refactor:
+    - Removed some useless observer events, such as `on_worker_crash`
+    - Moved log and reporter settings from `.toml` to runtime configuration
+    - Removed some useless sqlite functions
+  - fix:
+    - Fixed the issue with graph analysis caching

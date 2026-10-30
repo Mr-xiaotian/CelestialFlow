@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -75,38 +75,19 @@ python demo/demo_graph.py
 
 ## 想定される動作
 
+スクリプトはオブザーバーを登録しておらず、`print` 文もないため、実行中に**タスクレベルのログや統計サマリーがターミナルに出力されることはない**。実行過程を確認するには、外部からの観測（例えば celestialflow-web への報告。本デモでは無効）や、`demo_utils` のタスク関数に自分でログを追加する必要がある。
+
 ### ETL パイプライン（`demo_etl_fan_out_fan_in`）
 
-Extract → Normalize/Enrich → Load の順に実行され、各 Stage は内部で `print` または sleep 休止により実行ログを出力する。スクリプト自身は最終的な Graph Summary や各 Stage のカウントを能動的には出力しないため、手動で確認が必要（mock 出力は参考のみ）。
-
-```
-[Extract] Input: 1 -> Output: {'id': 1, 'value': 10, 'label': 'item_1'}
-[Extract] Input: 2 -> Output: {'id': 2, 'value': 20, 'label': 'item_2'}
-[Normalize] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'normalized': 0.1}
-[Enrich] Input: {'id': 1, 'value': 10} -> Output: {'id': 1, 'value': 10, 'category': 'odd'}
-...
-```
-
-> 各 Extract は 1 件のレコードを生成し、Normalize と Enrich でそれぞれ処理された後、Load で集約される。入力が `range(1, 16)` の場合、Extract は 15 件のレコードを処理し、Normalize と Enrich はそれぞれ 15 件を受け取り、Load ノードは合計 30 件のタスク（15 × 2 下流）を受け取る。
+Extract → Normalize/Enrich → Load の順に実行され、各タスク関数の内部では `sleep` とデータ変換のみを行う。入力が `list(range(1, 16))` の場合、Extract は 15 件のレコードを処理し、Normalize と Enrich はそれぞれ 15 件を受け取り、Load ノードは合計 30 件のタスク（15 × 2 下流）を受け取る。例えば Extract は `{'id': 1, 'value': 10, 'label': 'item_1'}` を生成し、Normalize が `normalized: 0.1` を、Enrich が `category: 'odd'` を追加する。
 
 ### 非同期パイプライン（`demo_async_pipeline`）
 
-2 段階が順次実行される。まず `AsyncDouble` が 20 タスクすべてを完了し、その後 `AsyncToStr` が個別に受信してフォーマット出力する。
-
-```
-[AsyncDouble] Input: 1 -> Output: 2
-[AsyncDouble] Input: 2 -> Output: 4
-...
-[AsyncToStr] Input: 2 -> Output: 'result=2'
-[AsyncToStr] Input: 4 -> Output: 'result=4'
-...
-```
-
-> 総実行時間は約 1〜3 秒（手動確認が必要）で、主に組み込みの `sleep`（`async_double` 0.3s + `async_to_str` 0.2s）と 8 コルーチン並行スケジューリングの影響を受ける。
+2 段階が順次実行される。まず `list(range(1, 21))` の 20 タスクが `AsyncDouble` に渡され、その結果が `AsyncToStr` に流れ込む。`async_double` の 0.3s と `async_to_str` の 0.2s の sleep から見積もると、総所要時間は約 1〜2 秒（`AsyncDouble` は 8 並行、`AsyncToStr` も 8 並行）。
 
 ## 依存関係
 
 - `celestialflow`（`TaskGraph`、`TaskExecutor`）
 - `demo_utils`（`extract_record`、`transform_normalize`、`transform_enrich`、`load_record`、`async_double`、`async_to_str`）
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）
+- `celestialtree`（モジュールレベルの `import`。存在しない場合スクリプトは起動できない。`graph.set_ctree(...)` はデフォルトでコメントアウトされており、サーバー側は必須ではない）

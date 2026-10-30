@@ -1,6 +1,6 @@
 # チュートリアル（Tutorial）：画像クローラーの構築
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 本チュートリアルでは、完全な実践プロジェクト——**Baidu 画像クローラー**を通じて、CelestialFlow の使用方法をゼロから学びます。
 
@@ -263,12 +263,15 @@ graph.connect([stage_download], [stage_save])
 
 ### 3.3 状態レポートの有効化（オプション）
 
+レポートは実行エントリの `report` パラメータで明示的に有効化します。`ReportConfig` を構築した時点で有効化され、`report` を渡さない（または `None` を渡す）場合はレポートが完全に無効になります：
+
 ```python
-# 実行状態を celestialflow-web サービスにレポート
-graph.set_reporter(TaskReporter(report_host, report_port, graph))
+from celestialflow import ReportConfig
+
+report = ReportConfig("http://127.0.0.1:5005")
 ```
 
-現在の主リポジトリには Web サービスは内蔵されていません。独立した `celestialflow-web` プロジェクトをデプロイしている場合、またはカスタム HTTP サービスがある場合は、ここでレポートを有効にできます。それ以外の場合はこのセクションをスキップできます。
+現在のメインリポジトリには Web サービスは内蔵されていません。独立してデプロイした `celestialflow-web` プロジェクトまたはカスタム HTTP サービスがある場合は、タスクグラフの実行時にこの設定を `graph.run(..., report=report)` に渡せます。それ以外の場合はこの段落をスキップできます。`ReportConfig` は `http` / `https` アドレスのみを受け付け、末尾の `/` は自動的に取り除かれます。
 
 ### 3.4 タスクグラフの実行
 
@@ -276,7 +279,7 @@ graph.set_reporter(TaskReporter(report_host, report_port, graph))
 # 初期タスクを準備
 init_tasks = {stage_search.get_name(): ["猫咪", "小狗", "风景"]}
 
-# 起動
+# 起動（レポートが必要な場合は report=report を渡す。レポートしない場合はこの引数を省略）
 print("画像のクロールを開始...")
 graph.run(init_tasks)
 ```
@@ -296,11 +299,12 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
+    ReportConfig,
     TaskExecutor,
     TaskSplitter,
     TaskGraph,
-    TaskReporter,
 )
+from celestialflow.observer import MetricsObserver
 
 # ========== 処理関数 ==========
 
@@ -411,14 +415,22 @@ if __name__ == "__main__":
     # グラフを構築
     graph = build_crawler_graph(KEYWORDS[0])
 
+    # メトリクスオブザーバーを登録し、実行終了後にここから統計を読み取る
+    metrics = MetricsObserver()
+    graph.add_observer(metrics)
+
     # 実行
+    # レポートが必要な場合は次のように変更：
+    # graph.run({"ページを検索": KEYWORDS}, report=ReportConfig("http://127.0.0.1:5005"))
     print("画像のクロールを開始...")
     graph.run({"ページを検索": KEYWORDS})
 
     # 統計
     print(f"\nクロール完了!")
-    print(f"成功: {stage_search.get_counts()['tasks_succeeded']}")
-    print(f"失敗: {stage_search.get_counts()['tasks_failed']}")
+    result = metrics.get_node_metrics("ファイルを保存")
+    assert result is not None
+    print(f"成功: {result.succeeded}")
+    print(f"失敗: {result.failed}")
 ```
 
 ---
@@ -434,12 +446,12 @@ python crawler.py
 
 ### 5.2 実行状態の確認
 
-実行中は、ログ、オブザーバー、またはノードの `get_snapshot()` スナップショットで確認できます：
+実行中は、ログ、オブザーバー、またはグラフ参照 API で確認できます：
 
-1. **ノード処理進捗**：各段階の成功、失敗、待処理統計（`get_counts()` または `get_snapshot()` で取得）
-2. **グラフ構造情報**：`graph.get_structure_list()` または `graph.get_order_graph()` で確認
+1. **ノード処理進捗**：実行前に `graph.add_observer(MetricsObserver())` を呼び出してインスタンスを保持し、実行後に `get_node_metrics(ノード名)` または `get_graph_metrics()` を呼び出して成功・失敗・スキップ・待処理の統計を読み取ります
+2. **グラフ構造情報**：`graph.get_nodes()`、`graph.get_edges()`、`graph.get_node_meta()`、`graph.get_layers()` で確認
 3. **エラー情報**：ダウンロードに失敗した画像 URL と例外ログ
-4. **タスク注入**：`node.put_task()` で新しいキーワードを注入、`node.put_signal()` で終了信号を注入
+4. **タスク注入**：`node.put_task()` で新しいキーワードを注入し続ける、または `node.put_signal()` で終了信号を注入
 
 ### 5.3 結果の確認
 
@@ -478,7 +490,7 @@ stage_search.put_signal()
 2. **関数作成**: 各階層の処理関数を作成し個別にテスト
 3. **ノード作成**: 関数を `TaskExecutor` にラップ
 4. **グラフ組み立て**: `TaskGraph` でノード関係を整理
-5. **監視実行**: ログ、進捗バー、状態スナップショットで実行状態を観察
+5. **監視実行**: ログ、オブザーバー、状態スナップショットで実行状態を観察
 
 ### 主要概念の復習
 

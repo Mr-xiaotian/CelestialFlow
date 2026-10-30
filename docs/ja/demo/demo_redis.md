@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -29,16 +29,16 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph の外枠を装飾
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% 統一装飾フォーマット
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 特殊Stage
+    %% 特殊 Stage を装飾
     class RSS,RPS blueNode;
 
-    %% 美化 外部结构
+    %% 外部構造を装飾
     class RE blueNode;
 
 ```
@@ -53,7 +53,7 @@ flowchart LR
 
 ```python
 def redis_push(task: Any) -> int:
-    """将任务推送到 Redis 中"""
+    """タスクを Redis にプッシュする"""
     key, task_payload = task
     redis_client: redis.Redis = get_redis()
     task_id = next(_task_ids)
@@ -76,7 +76,7 @@ Redis List からタスクを取得して入力ソースとする。
 
 ```python
 def redis_pop(key: str) -> Any:
-    """从 Redis 中弹出任务"""
+    """Redis からタスクをポップする"""
     redis_client: redis.Redis = get_redis()
     res = cast(list[Any] | None, redis_client.blpop(key, timeout=redis_timeout))
     if res is None:
@@ -115,16 +115,16 @@ flowchart LR
 
     end
 
-    %% 美化 TaskGraph 外框
+    %% TaskGraph の外枠を装飾
     style TG fill:#e8f2ff,stroke:#6b93d6,stroke-width:2px,color:#0b1e3f,rx:10px,ry:10px
 
-    %% 统一美化格式
+    %% 統一装飾フォーマット
     classDef blueNode fill:#ffffff,stroke:#6b93d6,rx:6px,ry:6px;
 
-    %% 美化 特殊Stage
+    %% 特殊 Stage を装飾
     class RPS,RWS blueNode;
 
-    %% 美化 外部结构
+    %% 外部構造を装飾
     class RE,G1,G2 blueNode;
 
 ```
@@ -135,10 +135,10 @@ flowchart LR
 
 ```python
 def redis_wait(task: tuple[str, int]) -> Any:
-    """等待任务完成"""
+    """タスクの完了を待つ"""
     key, task_id = task
     redis_client: redis.Redis = get_redis()
-    start_time = time.perf_counter()
+    start_perf = time.perf_counter()
 
     while True:
         result = cast(str | None, redis_client.hget(f"{key}:output", str(task_id)))
@@ -152,14 +152,25 @@ def redis_wait(task: tuple[str, int]) -> Any:
                 raise RemoteWorkerError(str(result_obj.get("error")))
             raise RemoteWorkerError(f"Unknown ack status: {result_obj}")
 
-        if (time.perf_counter() - start_time) > redis_timeout:
+        if (time.perf_counter() - start_perf) > redis_timeout:
             raise CelestialFlowTimeoutError(
                 f"Redis ack timeout: task_id={task_id} not acknowledged"
             )
         time.sleep(0.1)
 ```
 
-**動作**：Redis Hash `{key}:output` をポーリングして、対応する `task_id` の結果を待つ。成功結果の処理、または `RemoteWorkerError` の送出をサポートする。
+**動作**：Redis Hash `{key}:output` をポーリングして、対応する `task_id` の結果を待つ。成功結果の処理、または `RemoteWorkerError` の送出をサポートする。モジュールレベルの `redis_timeout = 5`（秒）は、`blpop` のブロッキングタイムアウトとここのポーリングタイムアウトの両方で使用される。
+
+### その他の補助関数
+
+| 関数 | 役割 |
+|------|------|
+| `get_redis()` | `REDIS_HOST` / `REDIS_PASSWORD` 環境変数に基づいて `redis.Redis(port=6379, db=0, decode_responses=True)` を構築して返す。クライアントのキャッシュは行わない |
+| `_normalize_result(result)` | リモートが書き戻した `result` を正規化する：文字列/バイトはそのまま返す。単一要素リストは唯一の要素を取り出す。複数要素リストはタプルに変換する。その他の型はそのまま返す |
+| `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | 各シナリオの `Start` ノードタスク：1 秒 sleep した後に `(key, payload)` タプルを返す。`key` はそれぞれ `testFibonacci` / `testSum` / `testDownload` / `testReport` |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | ローカル直算ブランチ：`(key, payload)` タプルから `payload` を取り出し、それぞれ `fibonacci` / `sum_int` / `download_to_file` を呼び出す |
+
+> `redis_push` のソース上のシグネチャは `int` を返すと注記しているが、実際には `(key, task_id)` タプルを返し、下流の `redis_wait` はこのタプルに依存している。
 
 ## Redis データ形式
 
@@ -291,10 +302,10 @@ REDIS_PASSWORD=
 ## 実行方法
 
 ```bash
-# 运行默认示例（demo_redis_source_0）
+# デフォルトサンプル（demo_redis_source_0）を実行
 python demo/demo_redis.py
 
-# 如需 Ack 场景，修改文件底部 main 中的入口函数
+# Ack シナリオが必要な場合は、ファイル末尾の main 内のエントリ関数を変更する
 ```
 
 また、[demo_redis.py](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/demo/demo_redis.py) を直接開き、末尾の `if __name__ == "__main__":` エントリを切り替えることもできる。

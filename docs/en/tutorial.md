@@ -1,6 +1,6 @@
 # Tutorial: Building an Image Crawler
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 This tutorial will guide you through a complete hands-on project — **Baidu Image Crawler** — to learn CelestialFlow from scratch.
 
@@ -263,12 +263,15 @@ graph.connect([stage_download], [stage_save])
 
 ### 3.3 Enable Status Reporting (Optional)
 
+Reporting is explicitly enabled through the `report` parameter of the run entry point. Constructing a `ReportConfig` enables it; omitting `report` (or passing `None`) disables reporting entirely:
+
 ```python
-# Report running status to the celestialflow-web service
-graph.set_reporter(TaskReporter(report_host, report_port, graph))
+from celestialflow import ReportConfig
+
+report = ReportConfig("http://127.0.0.1:5005")
 ```
 
-The main repo no longer includes a built-in Web service. If you have an independently deployed `celestialflow-web` project or a custom HTTP service, you can enable reporting here; otherwise you can skip this section.
+The main repo no longer includes a built-in Web service. If you have an independently deployed `celestialflow-web` project or a custom HTTP service, you can pass this configuration to `graph.run(..., report=report)` when running the task graph; otherwise you can skip this section. `ReportConfig` only accepts `http` / `https` addresses, and a trailing `/` is stripped automatically.
 
 ### 3.4 Run the Task Graph
 
@@ -276,7 +279,7 @@ The main repo no longer includes a built-in Web service. If you have an independ
 # Prepare initial tasks
 init_tasks = {stage_search.get_name(): ["cat", "dog", "scenery"]}
 
-# Start
+# Start (pass report=report when reporting is needed; omit the parameter otherwise)
 print("Starting image crawl...")
 graph.run(init_tasks)
 ```
@@ -296,11 +299,12 @@ import requests
 from urllib.parse import quote
 
 from celestialflow import (
+    ReportConfig,
     TaskExecutor,
     TaskSplitter,
     TaskGraph,
-    TaskReporter,
 )
+from celestialflow.observer import MetricsObserver
 
 # ========== Processing Functions ==========
 
@@ -411,14 +415,22 @@ if __name__ == "__main__":
     # Build graph
     graph = build_crawler_graph(KEYWORDS[0])
 
+    # Register the metrics observer; read the statistics from it after the run finishes
+    metrics = MetricsObserver()
+    graph.add_observer(metrics)
+
     # Run
+    # To enable reporting, change to:
+    # graph.run({"Search Page": KEYWORDS}, report=ReportConfig("http://127.0.0.1:5005"))
     print("Starting image crawl...")
     graph.run({"Search Page": KEYWORDS})
 
     # Statistics
     print(f"\nCrawl complete!")
-    print(f"Success: {stage_search.get_counts()['tasks_succeeded']}")
-    print(f"Failed: {stage_search.get_counts()['tasks_failed']}")
+    result = metrics.get_node_metrics("Store Files")
+    assert result is not None
+    print(f"Success: {result.succeeded}")
+    print(f"Failed: {result.failed}")
 ```
 
 ---
@@ -434,10 +446,10 @@ python crawler.py
 
 ### 5.2 View Running Status
 
-During execution, you can monitor through logs, observers, or node `get_snapshot()` snapshots:
+During execution, you can monitor through logs, observers, or graph query interfaces:
 
-1. **Node Processing Progress**: Success, failure, and pending statistics for each stage (obtained via `get_counts()` or `get_snapshot()`)
-2. **Graph Structure Information**: View via `graph.get_structure_list()` or `graph.get_order_graph()`
+1. **Node Processing Progress**: Call `graph.add_observer(MetricsObserver())` before running and keep the instance; after running, call `get_node_metrics(node_name)` or `get_graph_metrics()` to read success, failure, skip, and pending statistics
+2. **Graph Structure Information**: View via `graph.get_nodes()`, `graph.get_edges()`, `graph.get_node_meta()`, `graph.get_layers()`
 3. **Error Information**: Failed image URLs and exception logs
 4. **Task Injection**: Continue injecting new keywords via `node.put_task()`, or inject a termination signal via `node.put_signal()`
 

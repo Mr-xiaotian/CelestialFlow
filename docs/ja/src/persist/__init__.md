@@ -1,6 +1,6 @@
 # src/celestialflow/persist/__init__.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `persist` モジュールは CelestialFlow の**永続化モジュール**であり、タスクライフサイクル（Lifecycle）と実行ログ（Log）の記録・書き込み・検索機能を提供します。`LifecycleInlet` / `LogInlet` はオブザーバーとしてタスクイベントを消費してキューへ書き込み、`LifecycleSpout` / `LogSpout` はバックグラウンドスレッドでキューからレコードを取り出してディスクへ書き込みます。
 
@@ -35,7 +35,7 @@ __all__ = [
 
 2. **core_log.py**（`LogSpout`, `LogInlet`）
    - **役割**: 実行ログの収集と永続化。
-   - **書き込み方式**: `LogInlet` は `BaseInlet, Observer` を継承し、すべてのイベントコールバック（グラフ / ノード / タスク / 終了シグナル / ワーカークラッシュ）をオーバーライドしてログを記録し、`metrics_view` に基づいてノード集計を書き込みます；`LogSpout` は `BaseSpout` を継承し、ログを `logs/` ディレクトリ下のテキストファイルへ書き込みます。
+   - **書き込み方式**: `LogInlet` は `BaseInlet, Observer` を継承し、すべてのイベントコールバック（グラフ / ノード / タスク / 終了シグナル）をオーバーライドしてログを記録し、`metrics_view` に基づいてノード集計を書き込みます；`LogSpout` は `BaseSpout` を継承し、ログを `logs/` ディレクトリ下のテキストファイルへ書き込みます。
    - **ログ形式**: 各行に `timestamp level message` を含みます。
 
 3. **util_payload.py**
@@ -44,7 +44,7 @@ __all__ = [
 
 4. **util_sqlite.py**
    - **役割**: SQLite データベースの接続管理とレコード CRUD 操作ツール。
-   - **主要関数**: `connect_db`、`insert_record`、`promote_record_to_{success,skipped,failed}_by_event_id`、`update_retry_by_event_id`、`load_records`、`query_records`、`load_task_{error,result}_records` など。
+   - **主要関数**: `connect_db`、`normalize_record`、`row_to_record_dict`、`insert_record`、`promote_record_to_{success,skipped,failed}_by_event_id`、`update_retry_by_event_id`、`delete_record_by_event_id`、`load_tasks_grouped_by_node`、`load_task_{error,result}_records`。書き込み系の関数は呼び出し側が渡した `conn` を再利用し、読み取り系の関数は自ら接続を確立して閉じます。
 
 5. **util_render.py**
    - **役割**: グラフ構造のレンダリングツール。ノード / 辺 / ソースノードを枠付きのツリー型テキストへレンダリング。
@@ -110,7 +110,7 @@ hub.add_observer(metrics_view)
 lifecycle_spout = LifecycleSpout()
 log_spout = LogSpout()
 hub.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-hub.add_observer(LogInlet(metrics_view, "INFO").bind_spout(log_spout))
+hub.add_observer(LogInlet(metrics_view).bind_spout(log_spout))
 
 lifecycle_spout.start()
 log_spout.start()
@@ -122,5 +122,5 @@ lifecycle_spout.stop()
 ## 注意事項
 
 1. **オブザーバーがイベントを消費**：`LifecycleInlet` / `LogInlet` は `task_input` / `task_success` などの手動呼び出しメソッドを提供せず、対応するオブザーバーコールバック（`on_task_*` / `on_graph_*` など）で記録します。
-2. **コンストラクタ引数**：`LogInlet` は構築時に `metrics_view`（`MetricsView`）と省略可能な `log_level`（デフォルト `"INFO"`）を渡す必要があります。
+2. **コンストラクタ引数**：`LogInlet` は構築時に `metrics_view`（`MetricsView`）と省略可能な `log_level`（デフォルト `runtime.util_log_level.DEFAULT_LOG_LEVEL`、現在は `"INFO"`）を渡す必要があります。
 3. **`__all__` はコアクラスのみ**：ツール関数は `util_*` ファイルにあり、必要に応じて `celestialflow.persist.util_xxx` からインポートします。

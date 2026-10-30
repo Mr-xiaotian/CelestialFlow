@@ -1,6 +1,6 @@
 # bench/bench_datastructures.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -17,7 +17,7 @@ Compare the read/write performance of various Python data structures and externa
 | `test_value_number` | `multiprocessing.Value` atomic increment | N=10,000 |
 | `test_redis_plain` | Redis individual set/get | N=10,000 |
 | `test_redis_pipeline` | Redis Pipeline batch set/get | N=10,000 |
-| `test_redis_multithread_plain` | Redis multi-thread concurrent writes | N=10,000 / 10 threads |
+| `test_redis_multithread_plain` | Redis 10-thread concurrent write / read (no pipeline) | N=10,000, 1,000 per thread |
 | `test_redis_hash` | Redis Hash individual hset/hget | N=10,000 |
 | `test_redis_list` | Redis List individual rpush/lindex | N=10,000 |
 | `test_redis_set` | Redis Set individual sadd/sismember | N=10,000 |
@@ -26,14 +26,15 @@ Compare the read/write performance of various Python data structures and externa
 ## Key Configuration
 
 - `N = 10000`: iteration count per test
-- Redis connection parameters loaded from `.env` (`REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`)
+- Redis connection parameters are loaded from `.env` via `load_dotenv()` (`REDIS_HOST` defaults to `127.0.0.1`, `REDIS_PORT` defaults to `6379`, `REDIS_PASSWORD` is optional); `db=0` and `decode_responses=True` are always used
+- `get_redis_connection()` calls `ping()` first; on failure it prints `⚠️ Redis not available, skipping Redis tests` and returns `None`, in which case all subsequent Redis tests are skipped
 
 ## Potential Issues
 
 1. **Redis connection failure**: If Redis config is missing in `.env` or the service is not running, Redis-related tests will be skipped with a warning only.
 2. **MPQueue buffer limit**: The `mpqueue_worker` puts all N elements first before getting, which may hit the OS pipe buffer limit when N is large (especially on Linux).
 
-> **Note**: The script still runs `test_mpqueue` and `test_value_number` by default, for cross-process performance baseline comparison against pure in-memory solutions. `stage_mode="process"` has been removed from the framework, so these tests do not reflect the framework's current internal behavior and are retained only as historical performance references.
+> **Note**: The script still runs `test_mpqueue` and `test_value_number` by default, for cross-process performance baseline comparison against pure in-memory solutions. `process` graph mode has been removed from the framework, so these tests do not reflect the framework's current internal behavior and are retained only as historical performance references.
 
 ## How to Run
 

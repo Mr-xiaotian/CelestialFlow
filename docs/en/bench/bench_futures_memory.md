@@ -1,6 +1,6 @@
 # bench/bench_futures_memory.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -27,6 +27,18 @@ Purely compare the memory usage difference between "no cleanup" and "periodic cl
 | `task_count` | 10K / 100K / 500K | Task count |
 | `max_workers` | 20 | Thread pool size |
 | Task function | `noop(x)` | Returns immediately, no computation overhead |
+
+## Output Metrics
+
+`measure()` starts timing after `tracemalloc.start()` and calls the measured function, returning three values:
+
+| Metric | Meaning |
+|------|------|
+| `elapsed` | Scheduling time measured with `time.perf_counter()` (seconds) |
+| `peak_mb` | Peak value of `tracemalloc.get_traced_memory()` (MB), computed as `peak / 1024 / 1024` |
+| `current_mb` | Current traced memory at the same moment (MB) |
+
+Both modes finish with `pool.shutdown(wait=False)`, so `current_mb` in the output only reflects the Python allocations at the instant scheduling ends, not the process's resident memory.
 
 ## How to Run
 

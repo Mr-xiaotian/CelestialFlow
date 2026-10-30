@@ -1,6 +1,6 @@
 # tests/observer/test_metrics.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 
@@ -31,7 +31,7 @@
 | `test_external_input_counted` | 外部入力は受信側のカウントのみ増加：`external_input == 1`、`input_total == 1` |
 | `test_upstream_input_updates_both_sides` | 上流配信は同時に受信側の上流カウント `upstream_counts` とソース側の下流カウント `downstream_counts` に書き込む |
 | `test_success_fail_skip_counts` | 成功 / 失敗 / スキップイベントがそれぞれ `succeeded` / `failed` / `skipped` に書き込まれ、`processed` はこの三者合計 |
-| `test_node_status_transitions` | `on_node_start` で状態が `RUNNING` かつ `start_time > 0` に、`on_node_end` で状態が `STOPPED` に設定される |
+| `test_node_status_transitions` | `on_node_start(NodeStartEvent("a", "serial", 1, 10.0))` 後、状態は `RUNNING`、`start_time == 10.0`（イベントの `start_time` を直接使用し、コールバック内で `time.time()` をサンプリングしない）、`end_time == 0.0`；`on_node_end(NodeEndEvent("a", "serial", 1, 0.5, 20.0))` 後、状態は `STOPPED` かつ `end_time == 20.0` |
 
 ### `TestMetricsObserverGraphView` — グラフレベルビュー
 
@@ -75,5 +75,6 @@ pytest tests/observer/test_metrics.py -k "GraphView" -v
 ## 注意事項
 
 - `MetricsObserver` は純粋なイベント駆動で指標を更新します。テストは `on_*` イベントメソッドを直接呼び出してライフサイクルをシミュレートするため、実際のタスクグラフを実行する必要はありません。
+- ノードのタイムスタンプは完全にイベント駆動です。`on_node_start` は `event.start_time` を取得して `NodeMetrics.start_time` に書き込み、`end_time` を `0.0` にリセットします；`on_node_end` は `event.end_time` を取得して `NodeMetrics.end_time` に書き込みます。そのためケースは `10.0` / `20.0` のような固定値で直接アサートでき、クロックのジッターを許容する必要がありません。
 - 上流配信は一方で受信側（`upstream_counts` / `upstream_input`）、もう一方でソース側（`downstream_counts`）に書き込み、両者は同一イベント内で完了します。
 - 関連実装は `src/celestialflow/observer/core_metrics.py` にあります。

@@ -1,12 +1,12 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
 Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the performance of `multiprocessing.Queue` against a custom ring buffer based on `shared_memory`. Provide in-depth data for CelestialFlow's IPC optimization in high-throughput scenarios.
 
-> **Note**: The framework has removed `stage_mode="process"` and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
+> **Note**: The framework has removed `process` graph mode and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 
 ## Test Content
 
@@ -17,15 +17,19 @@ Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the 
 | SPMC | 1 | 4 | Single producer multi-consumer |
 
 - **Scale**: `COUNT = 100_000`, `REPEAT = 3`
-- **SharedMemory config**: `SLOT_COUNT = 1024`, each slot size = 4B length prefix + payload
+- **Payload**: both mechanisms transfer **bytes payloads** (`struct.pack("<Q", i)` in `int` mode, UTF-8 string bytes in the other modes), to avoid mixing pickle overhead into the comparison
+- **SharedMemory config**: `SLOT_COUNT = 1024`, each slot size = 4B length prefix + `payload_max_bytes(mode)` (`int` 8 / `small` 32 / `medium` 160 / `large` 4200)
 - **Synchronization primitives**: `Lock` (protects read/write indices), `Semaphore` (empty/full slot counting)
+- **Verification**: `COUNT` is divided evenly among producers and consumers according to the topology, and the aggregated `consumed` and `checksum` (an arithmetic series sum for `int`, the sum of payload lengths otherwise) are compared; a mismatch raises `RuntimeError`
+- **Start method**: `__main__` attempts `set_start_method("spawn")` and ignores `RuntimeError` if it has already been set
 
 ## Key Implementation
 
 ### SharedMemory Ring Protocol
-1. **Producer**: `empty_slots.acquire()` → write payload under `write_lock` → `full_slots.release()`
-2. **Consumer**: `full_slots.acquire()` → read payload under `read_lock` → `empty_slots.release()`
-3. **Key design**: `full_slots.release()` is executed outside the lock to maximize concurrency
+1. **Producer**: `empty_slots.acquire()` → claim a slot and write the length prefix and payload under `write_lock` → `full_slots.release()`
+2. **Consumer**: `full_slots.acquire()` → claim a slot and read the payload under `read_lock` → `empty_slots.release()`
+3. **Key design**: `full_slots.release()` is executed outside the lock to maximize concurrency; under MPSC, `write_lock` must cover the entire payload write, otherwise consumers may read a half-written slot
+4. Each process calls `shm.close()` in `finally`, and the main process calls `shm.close()` + `shm.unlink()` after all child processes finish
 
 ## Potential Issues
 
@@ -126,4 +130,5 @@ python bench/bench_mpqueue_vs_shared_memory.py
 
 ## Dependencies
 
-- `bench_utils.summarize`
+- `bench_utils.summarize` (same-directory module)
+- Python standard library: `multiprocessing` (`Queue`, `Lock`, `Semaphore`, `Value`, `Process`, `shared_memory`, `set_start_method`), `struct`

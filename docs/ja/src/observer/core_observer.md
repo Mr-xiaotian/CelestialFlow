@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `core_observer.py` は実行器ライフサイクル観測者の**基底クラス** `Observer` を定義します。これはタスク / ノード / タスクグラフの全ライフサイクルのイベントコールバックインターフェースを宣言し、すべてのコールバックにはデフォルトの空実装が用意されています。実装側はこの基底クラスを継承し、関心のあるメソッドだけをオーバーライドできます。
 
@@ -16,7 +16,6 @@ class Observer:
     def on_task_retry(self, event: TaskRetryEvent) -> None: ...
     def on_termination_input(self, event: TerminationInputEvent) -> None: ...
     def on_termination_merge(self, event: TerminationMergeEvent) -> None: ...
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None: ...
     def on_node_end(self, event: NodeEndEvent) -> None: ...
     def on_graph_start(self, event: GraphStartEvent) -> None: ...
     def on_graph_end(self, event: GraphEndEvent) -> None: ...
@@ -39,7 +38,6 @@ class Observer:
 | `on_task_retry` | `TaskRetryEvent` | タスク失敗だがリトライをトリガー |
 | `on_termination_input` | `TerminationInputEvent` | 終了シグナルが入力キューに入る |
 | `on_termination_merge` | `TerminationMergeEvent` | 複数ソースの終了シグナルがマージされる |
-| `on_worker_crash` | `WorkerCrashEvent` | ワーカースレッド / コルーチンがフォールバック層で未処理例外を捕捉 |
 | `on_graph_start` | `GraphStartEvent` | タスクグラフ起動 |
 | `on_graph_end` | `GraphEndEvent` | タスクグラフ終了 |
 

@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -107,11 +107,10 @@ python demo/demo_observer.py
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-これにより以下がトリガーされやすくなる：
+これにより `on_task_fail` / `on_task_skip` が発火しやすくなる。ただし注意点がある：
 
-- `on_task_fail`
-- `on_task_skip`
-- `on_task_retry`
+- `TaskProgress` は `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end` のみを実装しており、リトライ用コールバックはない。
+- `PrintObserver` も `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` のみを実装しており、同様に **`on_task_retry` は実装していない**。`Observer` 基底クラスは `on_task_retry` コールバックを提供しているが、本デモの 2 つの observer はいずれもそれに対して出力を生成しない。
 
 ## 依存関係
 

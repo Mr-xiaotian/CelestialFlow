@@ -1,6 +1,6 @@
 # src/celestialflow/graph/util_order_graph.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `graph/util_order_graph.py` は、最小限のグラフ構造 `OrderGraph` と、それを中心とする一連の基礎的なグラフアルゴリズムを提供します。
 
@@ -14,38 +14,46 @@
 
 ### グラフ構造
 
-- `OrderGraph`
-  - 最小の順序付き有向グラフ。
-  - ノード順序を登録順に安定的に保持します。
-  - 出辺と入辺の隣接リストを同時に保持します。
+`OrderGraph` は最小の順序付き有向グラフです：
+
+- ノード順序を登録順に安定的に保持します。
+- 出辺と入辺の隣接テーブルを同時に保持します。
+- 「ノード追加 / 辺追加」のみをサポートし、削除操作は提供しないため、`_in` と `_out` のキー集合は常に一致します。
+- `__repr__` は `OrderGraph(nodes=4, edges=4)` のような要約を出力します。
 
 ### 基本操作
 
-- `add_node(name)`：ノードを追加します。冪等です。
-- `add_edge(u, v)`：有向辺を追加します。端点ノードを自動的に補完し、重複を除去します。
-- `nodes`：登録順にすべてのノードを返します。
-- `out_edges`：出辺隣接リストの参照ビューを返します（**内部ストレージと共有されるため、呼び出し側は変更しないでください**）。
-- `in_edges`：入辺隣接リストの参照ビューを返します（**内部ストレージと共有されるため、呼び出し側は変更しないでください**）。
-- `successors(name)`：後続ノードを返します。
-- `predecessors(name)`：前駆ノードを返します。
+| メンバー | シグネチャ | 説明 |
+|------|------|------|
+| `add_node` | `(name: str) -> None` | ノードを追加。冪等。既に存在する場合は何もしない |
+| `add_edge` | `(u: str, v: str) -> None` | 有向辺を追加。端点ノードを自動的に補完し、重複辺は無視 |
+| `nodes` | `-> list[str]` | 登録順にすべてのノードを返す（コピー） |
+| `out_edges` | `-> dict[str, list[str]]` | 出辺隣接テーブルの**参照ビュー**（内部ストレージと共有されるため、呼び出し側は変更しないこと） |
+| `in_edges` | `-> dict[str, list[str]]` | 入辺隣接テーブルの**参照ビュー**（内部ストレージと共有されるため、呼び出し側は変更しないこと） |
+| `successors` | `(name: str) -> tuple[str, ...]` | 挿入順に後続ノードを返す。未知のノードは空タプルを返す |
+| `predecessors` | `(name: str) -> tuple[str, ...]` | 挿入順に前駆ノードを返す。未知のノードは空タプルを返す |
 
 ### グラフアルゴリズム
 
-- `in_degree(graph)`：各ノードの人次数を計算します。
-- `is_dag(graph)`：Kahn アルゴリズムを使用して DAG かどうかを判定します。
-- `topo_sort(graph)`：トポロジカル順序を返します。環が存在する場合は `None` を返します。
-- `tarjan_scc(graph)`：Tarjan アルゴリズムを使用して強連結成分を計算します。
-- `node_to_scc_index(sccs)`：ノードから SCC インデックスへのマッピングを構築します。
-- `get_condensation(graph)`：SCC 縮約グラフを構築します。
-- `source_sccs(graph)`：縮約グラフで入次数が 0 の強連結成分を返します。
-- `source_nodes(graph)`：各ソース SCC から代表ノードを抽出します。
-- `compute_node_levels(graph)`：ノード階層を計算します。DAG と環を含むグラフの両方をサポートします。
+| 関数 | 戻り値 | 説明 |
+|------|------|------|
+| `in_degree(graph)` | `dict[str, int]` | 各ノードの入次数 |
+| `is_dag(graph)` | `bool` | Kahn アルゴリズムを使用して DAG かどうかを判定 |
+| `topo_sort(graph)` | `list[str] \| None` | Kahn 剥離順のトポロジカル順序を返す。環を含む場合は `None` |
+| `tarjan_scc(graph)` | `list[list[str]]` | 明示的スタックフレームで再帰を模擬する Tarjan アルゴリズムで強連結成分を計算 |
+| `node_to_scc_index(sccs)` | `dict[str, int]` | ノード → SCC インデックスのマッピング |
+| `get_condensation(graph)` | `tuple[OrderGraph, list[list[str]]]` | SCC 縮約グラフを構築。SCC ノード名は `scc_0`、`scc_1` … |
+| `source_sccs(graph)` | `list[list[str]]` | 縮約グラフで入次数が 0 の SCC |
+| `source_nodes(graph)` | `list[str]` | 各ソース SCC から代表ノードを 1 つ抽出（`scc[0]`） |
+| `compute_node_levels(graph)` | `dict[str, int]` | ノード階層を計算。DAG と環を含むグラフの両方をサポート |
 
 ## 設計上の特徴
 
 ### 内部ストレージ
 
-`OrderGraph` は内部で 2 つの隣接リスト（`_in: dict[str, list[str]]` と `_out: dict[str, list[str]]`）を併用してノード集合と辺集合を表現します。`add_node` / `add_edge` はノードを削除せず、ノード走査順序は Python `dict` の挿入順に保証されるため、ノード集合と辺集合は常に安定して保たれます。
+`OrderGraph` は内部で 2 つの隣接テーブル（`_in: dict[str, list[str]]` と `_out: dict[str, list[str]]`）を併用してノード集合と辺集合を表現します。`add_node` / `add_edge` はノードを削除せず、ノード走査順序は Python `dict` の挿入順に保証されるため、ノード集合と辺集合は常に安定して保たれます。
+
+`add_edge(u, v)` はまず両端に対して `add_node` を呼び出すため、「先に辺を張り、後にノードを補う」という使い方が可能です。同じ辺を重複して追加すると無視されます（判定条件は `v not in self._out[u]`）。これにより隣接テーブルが安定して保たれます。
 
 ### なぜ順序を保持するのか
 
@@ -55,29 +63,36 @@
 - テスト結果をより安定させる。
 - 階層解析とトポロジー結果が構築時の登録順序により近くなる。
 
+### Tarjan の非再帰実装
+
+`tarjan_scc()` は明示的スタックフレーム `frames: list[tuple[node, successors, next_pos]]` で再帰 DFS を模擬し、深いチェーン状のグラフが Python の再帰上限（デフォルト約 1000 層）に達するのを避けます。出力は再帰版と完全に等価で、SCC リストの順序は縮約グラフの逆トポロジカル順です。
+
 ## 階層計算の説明
 
 `compute_node_levels(graph)` の処理方針は次のとおりです：
 
 1. まず元のグラフを強連結成分分解します。
-2. 各 SCC を縮約グラフのノードに圧縮します。
-3. 縮約グラフ（DAG）上でトポロジカル伝播を行います。
-4. SCC 階層を元のノードにマッピングします。
+2. 各 SCC を縮約グラフの 1 ノードに圧縮します。
+3. 縮約グラフという DAG 上でトポロジカル伝播を行います（`level[succ] = max(level[succ], level[node] + 1)`）。
+4. SCC の階層を元のノードにマッピングします。
 
 したがって：
 
-- DAG の通常のノードは、最長前駆パスによって階層が決められます。
+- DAG 内の通常のノードは、最長前駆パスによって階層が決まり、ソースノードの階層は `0` になります。
 - 環を含むグラフでは、同じ環内のノードは同じ階層を共有します。
+- 縮約グラフは構築上必ず DAG です。`topo_sort(cond) is None` の場合、関数は `ValueError("condensation graph must be a DAG")` を送出します（防御的分岐）。
 
-この階層アルゴリズムは現在の `TaskGraph` のグラフ解析プロセスに直接使用され、外部のグラフオブジェクトには依存しなくなりました。
+この階層アルゴリズムは現在の `TaskGraph` のグラフ解析プロセスに直接使用され、もはや外部のグラフオブジェクトには依存しません。
 
 ## `TaskGraph` との関係
 
-`TaskGraph` は現在 `_build_analysis()` フェーズで `OrderGraph` に基づいて直接以下を完了します：
+`TaskGraph` は `_build_analysis()` フェーズで `OrderGraph` に基づいて直接以下を完了します：
 
-- ソースノードの識別
-- DAG 判定
-- ノード階層計算
+- ソースノードの識別（`source_nodes()`）
+- DAG 判定（`is_dag()`）
+- ノード階層計算（`compute_node_levels()`、さらに `runtime.util_format.cluster_by_value_sorted` で `{階層: [ノード名]}` に集約）
+
+ただし意味の違いに注意が必要です：本モジュールの `is_dag(graph)` は**モジュールレベル関数**で引数は `OrderGraph` です。`TaskGraph` 上の同名メンバーは**引数なしメソッド** `graph.is_dag()` です。両者を混同しないでください。`TaskGraph` の解析結果は「遅延 + `_analysis_dirty` ダーティフラグ」キャッシュを採用しているため、ここに渡されるのは常に完全な `self.order_graph` です。
 
 ## 使用例
 
@@ -97,6 +112,7 @@ print(graph.successors("A"))  # ('B', 'C')
 print(graph.predecessors("D"))  # ('B', 'C')
 print(is_dag(graph))  # True
 print(topo_sort(graph))  # ['A', 'B', 'C', 'D']
+print(graph)  # OrderGraph(nodes=4, edges=4)
 ```
 
 ### 強連結成分と縮約グラフ
@@ -117,9 +133,9 @@ graph.add_edge("C", "D")
 sccs = tarjan_scc(graph)
 cond, _ = get_condensation(graph)
 
-print(sccs)
-print(cond.nodes)
-print(cond.out_edges)
+print(sccs)  # 環を含む A/B/C は同一 SCC にまとめられ、D は単独のグループになる
+print(cond.nodes)  # ['scc_0', 'scc_1']
+print(cond.out_edges)  # SCC をまたぐ辺は重複除去済み
 ```
 
 ### ノード階層
@@ -133,11 +149,30 @@ graph.add_edge("Clean", "Parse")
 graph.add_edge("Parse", "Store")
 
 levels = compute_node_levels(graph)
-print(levels)
+print(levels)  # Input=0, Clean=1, Parse=2, Store=3（辞書のキー順は登録順と一致する保証はない）
+```
+
+### ソースノードと環
+
+```python
+from celestialflow.graph.util_order_graph import (
+    OrderGraph,
+    compute_node_levels,
+    source_nodes,
+)
+
+graph = OrderGraph()
+graph.add_edge("A", "B")
+graph.add_edge("B", "C")
+graph.add_edge("C", "B")  # B <-> C で環を構成
+
+print(source_nodes(graph))  # ['A']
+print(compute_node_levels(graph))  # A=0、B と C は同じ環に属し、階層はいずれも 1
 ```
 
 ## 使用上の推奨事項
 
 - 軽量なグラフ構造と基礎的なグラフアルゴリズムのみが必要な場合は、優先的に `OrderGraph` を使用してください。
 - `TaskGraph` の現在の解析ロジックとの一貫性を保つ必要がある場合は、ここにあるアルゴリズム関数を優先して使用してください。
+- `out_edges` / `in_edges` が返すのは内部辞書そのものです。変更が必要な場合はまず `dict(...)` でコピーしてください。
 - 印刷可能なグラフ構造テキストをエクスポートする必要がある場合は、`persist.util_render` 内の `render_structure_list` を併用してください。

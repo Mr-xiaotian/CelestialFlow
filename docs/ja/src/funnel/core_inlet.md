@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_inlet.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 `BaseInlet` はすべての入口クラス（Inlet）の基底クラスであり、レコードをキューを通じて対応する `BaseSpout` に送信する役割を担います。
 
@@ -49,7 +49,7 @@ def bind_spout(self, spout: BaseSpout) -> Self:
 
 - 現在の inlet を指定された `BaseSpout` インスタンスに関連付けます。
 - 内部で spout の入力キュー（`_queue`）と待処理カウンター（`_counter`）を再利用します。
-- 自身を返すため、メソッドチェーンをサポート：`LogInlet(log_level).bind_spout(spout)`。
+- 自身を返すため、メソッドチェーンをサポート：`LogInlet(metrics_view, log_level).bind_spout(spout)`。
 - 関連付け前に `_funnel()` を呼び出すと `InitializationError` が発生します。
 
 ### _funnel（protected）
@@ -96,8 +96,8 @@ classDiagram
 
 | サブクラス | 所在ファイル | 責務 |
 |------|---------|------|
-| `LogInlet` | `persistence/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
-| `LifecycleInlet` | `persistence/core_lifecycle.py` | ライフサイクル記録。タスクの進入/成功/失敗/リトライを SQLite に永続化 |
+| `LogInlet` | `persist/core_log.py` | ログ記録。タスクのエンキュー/デキュー/終了の全過程を追跡 |
+| `LifecycleInlet` | `persist/core_lifecycle.py` | ライフサイクル記録。タスクの進入/成功/失敗/リトライを SQLite に永続化 |
 
 ## 使用例
 

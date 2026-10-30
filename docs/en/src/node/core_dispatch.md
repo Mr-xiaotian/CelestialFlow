@@ -1,8 +1,8 @@
 # src/celestialflow/node/core_dispatch.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
-`core_dispatch.py` defines `TaskDispatch[T, R, Y]`, the "task scheduler" component held by `BaseTaskNode`. It pulls `TaskEnvelope` / termination signals from the node's input queue, invokes the node callback serially / in threads / asynchronously according to `execution_mode`, and is responsible for merging termination signals, initializing / releasing thread pools, and recording worker exceptions.
+`core_dispatch.py` defines `TaskDispatch[T, R, Y]`, the "task scheduler" component held by `BaseTaskNode`. It pulls `TaskEnvelope` / termination signals from the node object's input queue, invokes the node callback serially / in threads / asynchronously according to `execution_mode`, and is responsible for merging termination signals, initializing / releasing thread pools, and handing exceptions caught at the worker's outermost layer back to the host's `handle_task_fail` for unified handling.
 
 > `TaskDispatch` is an **internal component** of `BaseTaskNode`, automatically created by `BaseTaskNode.__init__` at construction; it is not a public API and does not appear in `__all__` of `node/__init__.py`.
 
@@ -34,8 +34,8 @@ class TaskDispatch[T, R, Y]:
 | Method | Purpose |
 |------|------|
 | `dispatch_serial()` | Consume the task queue synchronously in the current thread; merge and exit when encountering `TerminationIdPool` |
-| `dispatch_thread()` | Concurrent consumption using `ThreadPoolExecutor`; block and wait when the number of tasks ≥ `max_workers` |
-| `async dispatch_async()` | Async consumption throttled via `asyncio.Semaphore`; stream-arriving, run-as-it-comes |
+| `dispatch_thread()` | Concurrent consumption using `ThreadPoolExecutor`; block and wait for a free slot when the number of tasks ≥ `max_workers` |
+| `async dispatch_async()` | Async consumption throttled by a `pending` task set; stream-arriving, run-as-it-comes |
 
 ### `dispatch_serial`
 
@@ -62,7 +62,7 @@ try:
         if isinstance(envelope, TerminationIdPool):
             termination_signal = _process_termination_signal(envelope)
             break
-        # Throttle: block when pending count ≥ max_workers
+        # Throttle: block until completed futures when pending count ≥ max_workers
         while len(pending) >= max_workers:
             _, pending = wait(pending, return_when=FIRST_COMPLETED)
         pending.add(_pool.submit(_worker, envelope))
@@ -75,25 +75,30 @@ finally:
 ### `dispatch_async`
 
 ```text
-semaphore = asyncio.Semaphore(max_workers)
 pending = set[asyncio.Task[None]]()
 
-async def sem_worker(envelope):
-    async with semaphore:
-        await _async_worker(envelope)
+async def worker(envelope):
+    await _async_worker(envelope)
 
 while True:
     envelope = await asyncio.to_thread(task_queue.get)  # Do not block the event loop
     if isinstance(envelope, TerminationIdPool):
         termination_signal = _process_termination_signal(envelope)
         break
-    task = asyncio.create_task(sem_worker(envelope))
-    pending.add(task)
-    task.add_done_callback(pending.discard)
 
-await asyncio.gather(*pending, return_exceptions=True)
+    # Throttle: wait for the earliest completed task when pending count ≥ max_workers
+    while len(pending) >= max_workers:
+        _, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+
+    task = asyncio.create_task(worker(envelope))
+    pending.add(task)
+
+if pending:
+    await asyncio.gather(*pending)  # Wait for the batch still executing after the queue is drained
 yield_queue.put(termination_signal)
 ```
+
+> The async path **does not use `asyncio.Semaphore`**: the concurrency limit is controlled entirely by the `len` of the `pending` set. Each iteration checks `len(pending) >= self.max_workers` before creating a new task, and waits for a free slot via `asyncio.wait(..., return_when=asyncio.FIRST_COMPLETED)`; after receiving the termination signal no new tasks are accepted, but `asyncio.gather` waits for all in-flight tasks to finish before delivering the merged termination signal downstream.
 
 ## Internal Helper Methods
 
@@ -101,8 +106,8 @@ yield_queue.put(termination_signal)
 |------|------|
 | `_call_sync(task) -> R` | Call sync callback; raise `ConfigurationError` if it returns awaitable |
 | `_call_async(task) -> R` | Call async callback; raise `ConfigurationError` if the return value is not awaitable |
-| `_worker(envelope) -> None` | Execute a single task synchronously: first check `skip_func`, then loop over `for fail_times in range(1, max_retries + 2)`; call `task_node.log_task_retry` when hitting `retry_exceptions`, call `handle_task_fail` when the retry limit is reached or for a non-retryable exception, and call `process_task_success` on success. The outermost `try` catches unhandled exceptions and reports them via `task_node.observers.on_worker_crash(WorkerCrashEvent(...))` |
-| `_async_worker(envelope) -> None` | Async version of `_worker`, using `await self._call_async(task)` |
+| `_worker(envelope) -> None` | Execute a single task synchronously: first check `skip_func`, then loop over `for fail_times in range(1, max_retries + 2)`; call `task_node.log_task_retry` when hitting `retry_exceptions`, call `handle_task_fail` when the retry limit is reached or for a non-retryable exception, and call `process_task_success` on success. The outermost `try` likewise calls `task_node.handle_task_fail(task_envelope, exception)` as a fallback for unhandled exceptions |
+| `_async_worker(envelope) -> None` | Async version of `_worker`, using `await self._call_async(task)`; outermost exceptions are likewise handed to `handle_task_fail` as a fallback |
 | `_process_termination_signal(pool) -> TerminationSignal` | Merge all ids in `TerminationIdPool.ids` into a single `TerminationSignal(source=task_node.get_name())` via `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)`, and broadcast `TerminationMergeEvent` |
 | `_init_pool(execution_mode)` | Only when `execution_mode == "thread"` and `_pool is None`, construct `ThreadPoolExecutor(max_workers=self.max_workers)` |
 | `_release_pool()` | Close and clear `_pool` (called when thread mode ends) |
@@ -131,10 +136,8 @@ def _worker(self, task_envelope: TaskEnvelope[T]) -> None:
                     self.task_node.handle_task_fail(task_envelope, exception)
                     return
                 self.task_node.log_task_retry(task_envelope, exception, fail_times)
-    except Exception as e:
-        self.task_node.observers.on_worker_crash(
-            WorkerCrashEvent(node=self.task_node.get_name(), exception=e)
-        )
+    except Exception as exception:
+        self.task_node.handle_task_fail(task_envelope, exception)
 ```
 
 ## Key Data Flow
@@ -167,7 +170,8 @@ sequenceDiagram
 |------|---------|
 | `ConfigurationError` | Sync call returns awaitable / async call returns non-awaitable |
 | `InitializationError` | `_pool is None` in `dispatch_thread` (theoretically guaranteed by `_init_pool`, but code retains a fallback) |
-| `WorkerCrashEvent` | `_worker` / `_async_worker` catches, in the outermost `try`, an exception raised outside `process_task_success` / `handle_task_fail` / `log_task_retry`, reported via `observers.on_worker_crash` (not raised into the framework path) |
+
+> Other exceptions caught at the worker's outermost layer are not re-raised into the framework scheduling path; instead they are counted in the task's failure record via `task_node.handle_task_fail(task_envelope, exception)` (which triggers `TaskFailEvent` and persists `error_type` / `error_message`).
 
 ## Relationship with Host `BaseTaskNode`
 
@@ -200,6 +204,6 @@ classDiagram
 1. **Host type is `BaseTaskNode` rather than `TaskExecutor`**: Even if the actual instance passed in is `TaskSplitter` / `TaskRouter`, the scheduler only accesses the host through the `BaseTaskNode` interface.
 2. **Termination signal path**: A single `TerminationSignal` in `TaskInQueue` will be merged with other sources into `TerminationIdPool`; when receiving the pool, the scheduler uniformly emits `TERMINATION_MERGE` and broadcasts `TerminationMergeEvent`.
 3. **Thread pool lifecycle**: `_pool` only temporarily exists in `dispatch_thread`, with `_init_pool` at entry and `_release_pool` at exit, so the same scheduler does not support cross-`start` reuse.
-4. **Async path does not block the event loop**: `dispatch_async` uses `asyncio.to_thread(task_queue.get)` to pull input, combined with `asyncio.Semaphore` to achieve "stream-while-running" without blocking the event loop.
-5. **Observer reports crashes**: the worker fallback exception is no longer written to `get_log_inlet().worker_crash`, but is broadcast as a `WorkerCrashEvent` via `task_node.observers.on_worker_crash`, letting registered observers (such as `LogInlet`) decide how to record it.
+4. **Async path does not block the event loop**: `dispatch_async` pulls input with `asyncio.to_thread(task_queue.get)` and controls concurrency through the `len` of the `pending` set plus `asyncio.wait(FIRST_COMPLETED)`, achieving "stream-while-running" without stalling the event loop; `asyncio.Semaphore` is not used.
+5. **Worker fallback exceptions go back to the host**: the outermost `except Exception` in `_worker` / `_async_worker` calls `task_node.handle_task_fail(task_envelope, exception)`; it no longer broadcasts a crash event to observers, nor writes `worker_crash` to the log inlet.
 6. **Skip detection is supported**: `_worker` / `_async_worker` check `skip_func` before execution; if it is hit, they call `handle_task_skip` and return directly.

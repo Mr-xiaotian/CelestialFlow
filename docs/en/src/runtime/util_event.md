@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_event.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 `runtime/util_event.py` provides the event client abstraction interface and local implementation for event ID generation and tracking within task graphs.
 
@@ -92,7 +92,7 @@ flowchart LR
 
 - `TaskGraph.__init__()` creates `LocalEventClient()` by default as the shared event client.
 - Through `TaskGraph.set_ctree()`, it can be replaced with a user-defined `EventClient` (such as a CelestialTree client).
-- `TaskDispatch._process_termination_signal()` calls `self.task_executor.ctree_client.emit()` to emit termination merge events.
+- `TaskDispatch._process_termination_signal()` calls `self.task_node.ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=parent_ids)` to emit termination merge events.
 
 ## Usage Example
 
@@ -116,5 +116,6 @@ print(
 ## Notes
 
 - `EventClient` is a `Protocol`; any object implementing the `emit()` method satisfies this interface. Explicit inheritance is not required.
-- `LocalEventClient`'s `emit()` method ignores all parameters (receiving them as `_ = type_, parents, message, payload`) and only returns an incrementing ID. Suitable as a default implementation when full event tracking is not needed.
+- `LocalEventClient`'s `emit()` method accepts but ignores all parameters (`type_` / `parents` / `message` / `payload` are all unused) and only returns an incrementing ID. Suitable as a default implementation when full event tracking is not needed.
+- Both `BaseTaskNode.__init__()` and `TaskGraph.__init__()` create a `LocalEventClient` by default (the graph distributes it to each node via `set_ctree()`), so the event chain still guarantees uniquely incrementing IDs when no external system is connected.
 - To report events to CelestialTree, you need to additionally install the `celestialtree` package, construct the corresponding client instance, and inject it via `TaskGraph.set_ctree()`.

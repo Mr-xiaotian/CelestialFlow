@@ -1,6 +1,6 @@
 # tests/persist/test_log.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 Validates `LogInlet` and `LogSpout` in `celestialflow.persist.core_log`, ensuring that graph lifecycle events (start / end), node start events, task retry events, and skip events can be asynchronously batch-flushed to a log file while preserving the correct log level markers.
@@ -48,4 +48,5 @@ pytest tests/persist/test_log.py -k "skip" -v
 - Tests use `monkeypatch.chdir(tmp_path)` to switch the working directory, ensuring log files are written to the `logs/` directory under the temporary path.
 - The specific log file path is obtained via the `spout.log_path` property.
 - `LogInlet` binds to `LogSpout` via `bind_spout`; events are written asynchronously to the file through the queue.
+- Both cases pass `log_level` explicitly; the default value of `LogInlet(..., log_level=DEFAULT_LOG_LEVEL)` in the source code comes from `celestialflow.runtime.util_log_level.DEFAULT_LOG_LEVEL` (currently `"INFO"`), and the tests do not cover the default-value branch.
 - The related implementation is in `src/celestialflow/persist/core_log.py`.

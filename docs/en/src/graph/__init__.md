@@ -1,6 +1,6 @@
 # src/celestialflow/graph/__init__.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 The Graph module is CelestialFlow's core scheduling system, responsible for managing dependency relationships between task nodes, execution flow, and lifecycle. It provides flexible task graph construction and analysis capabilities.
 
@@ -35,8 +35,8 @@ from celestialflow.graph import (
      - Execute task graphs (`start` / `start_async`, runs in serial/thread/async according to `graph_mode`)
      - Batch-set node execution modes (`set_node_execution_mode`) and shared event client (`set_ctree`)
      - Graph-level observer registration (`add_observer`) and query (`get_observers`)
-     - Graph analysis (`_build_analysis`: source node identification, DAG detection, level computation)
-     - Initial task and persisted task injection (`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`)
+     - Graph analysis (`_build_analysis` lazy rebuild: source node identification, DAG detection, level computation; public entry points are `get_source_nodes()` / `is_dag()` / `get_layers()`)
+     - Initial task and persisted task injection (`run` / `run_async` / `restore_db` / `inject_tasks` / `inject_terminations`); the run entry points accept `log_level` and `report` (`ReportConfig`) parameters
 
 2. **core_structure.py** (Predefined graph structures)
    - **Purpose**: Provides six predefined task graph structures, simplifying common patterns
@@ -67,7 +67,7 @@ from celestialflow.graph import (
 - `TaskGraph` is the base class; all other structures inherit from it
 - `TaskChain`, `TaskLoop`, etc. are specialized implementations of `TaskGraph` (encapsulating `set_nodes` / `connect` logic)
 - `util_order_graph.py` provides the shared internal lightweight graph structure and foundational graph algorithms
-- `TaskGraph` currently performs source node identification, DAG detection, and level analysis on top of `OrderGraph`
+- `TaskGraph` currently performs source node identification, DAG detection, and level analysis on top of `OrderGraph`; the analysis results are rebuilt lazily, driven by the `_analysis_dirty` flag, and the public read entry points are `get_source_nodes()` / `is_dag()` / `get_layers()`
 
 ### External Relationships
 - **With Node Module**: Task graph nodes (`TaskExecutor` / `TaskSplitter` / `TaskRouter`) are provided by `celestialflow.node`; `TaskGraph` is only responsible for assembly, connection, and scheduling
@@ -80,7 +80,7 @@ from celestialflow.graph import (
 1. **Build Task Graph**: Create `TaskExecutor` nodes (use `TaskSplitter` / `TaskRouter` as needed) → `set_nodes()` register → `connect()` establish dependencies
 2. **Choose Structure**: For common patterns, directly use predefined structures like `TaskChain`/`TaskCross`
 3. **Configure**: Inject an event client via `set_ctree()`, register graph-level observers via `add_observer()`
-4. **Execute**: Call `run()` or `run_async()`
+4. **Execute**: Call `run()` or `run_async()`; you can set the log level via `log_level` (default `"INFO"`), and enable remote reporting via `report=ReportConfig(...)` (default `None` means no reporting)
 
 ## Usage Examples
 
@@ -119,11 +119,32 @@ graph.connect([s2], [s3])
 # Execute
 graph.run({s1.get_name(): [1, 2, 3]})
 
-# Graph analysis
+# Graph analysis (computed on demand at first read)
 print(f"Source nodes: {graph.get_source_nodes()}")
+print(f"Is DAG: {graph.is_dag()}")  # note that is_dag is a method
+print(f"Layers: {graph.get_layers()}")
 print(f"Node list: {graph.get_nodes()}")
 print(f"Edge adjacency list: {graph.get_edges()}")
 ```
+
+### Enable Log Level and Remote Reporting
+
+```python
+from celestialflow import TaskExecutor, TaskGraph
+from celestialflow.runtime import ReportConfig
+
+node = TaskExecutor("Only", func=lambda x: x + 1)
+graph = TaskGraph(name="Reported", graph_mode="thread")
+graph.set_nodes([node])
+
+graph.run(
+    {node.get_name(): [1, 2, 3]},
+    log_level="DEBUG",
+    report=ReportConfig(url="http://127.0.0.1:5005"),
+)
+```
+
+> Before using `report`, make sure a receiving service is running at that address; passing `report=None` (the default) disables reporting entirely.
 
 ### TaskChain Linear Chain
 
@@ -188,8 +209,13 @@ nodes = [
 ]
 
 loop = TaskLoop(name="FeedbackLoop", nodes=nodes)
-# For cyclic structures, recommend if_put_signal=False to avoid premature termination
-loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
+# A cyclic graph cannot be run directly (it would block forever); termination signals
+# must be injected after an external condition is met:
+# loop.inject_terminations([n.get_name() for n in nodes])
+# loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
+
+print(loop.is_dag())  # False
+print(loop.get_layers())  # nodes in the same cycle share a level
 ```
 
 ### TaskWheel Wheel Graph
@@ -198,16 +224,30 @@ loop.run({nodes[0].get_name(): [10]}, if_put_signal=False)
 from celestialflow import TaskWheel, TaskExecutor
 
 center = TaskExecutor("Center", func=lambda x: f"processed: {x}")
-ring = [TaskExecutor(f"R{i}", func=lambda x: f"ring-{i}: {x}") for i in range(3)]
 
+
+def make_ring_node(index: int) -> TaskExecutor:
+    # Node callbacks must accept exactly one positional argument,
+    # so a closure is used to capture the index
+    def handle(x: str) -> str:
+        return f"ring-{index}: {x}"
+
+    return TaskExecutor(f"R{index}", func=handle)
+
+
+ring = [make_ring_node(i) for i in range(3)]
 wheel = TaskWheel(name="HubAndSpoke", center=center, ring=ring)
-wheel.run({center.get_name(): ["data"]})
+
+# This is also a cyclic graph: prepare external termination injection before running
+print(wheel.get_nodes())  # ['Center', 'R0', 'R1', 'R2']
+print(wheel.is_dag())  # False
 ```
 
 ## Best Practices
 
 - Use `TaskChain` for linear flows; no need to manually `connect`
 - Use `TaskCross` or manual composition for multi-path parallel pipelines
-- For cyclic graphs (`TaskLoop`/`TaskWheel`), recommend `if_put_signal=False` and stop via external injection
+- Cyclic graphs (`TaskLoop` / `TaskWheel` / `TaskComplete`) cannot be used in `serial` mode, and `run()` blocks forever; call `inject_terminations()` to inject termination signals after an external condition is met
 - When you need to monitor/receive events in the graph, register graph-level observers via `add_observer()`
 - For async execution, use `TaskGraph` with `graph_mode="async"`, started via `start_async()` / `run_async()`
+- Read graph analysis results via `get_source_nodes()` / `is_dag()` / `get_layers()` (all are method calls); do not access the now-privatized `_source_names` / `_is_dag` / `_layers_dict`

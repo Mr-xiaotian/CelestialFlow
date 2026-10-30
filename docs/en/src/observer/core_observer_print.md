@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer_print.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_observer_print.py` provides an out-of-the-box console observer, `PrintObserver`. It inherits from `Observer` and outputs task execution progress (start, input, success, fail, skip, end) to standard output via `print`, making it convenient for local debugging and example demonstrations.
 
@@ -39,7 +39,7 @@ The constructor internally creates a `Lock` and initializes four thread-safe `Va
 | Callback | Behavior |
 |------|------|
 | `on_node_start(event)` | Prints `[{name}] start total={total}` |
-| `on_node_end(event)` | `total += ...`, prints `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+| `on_node_end(event)` | Prints `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` (does not modify any counter) |
 | `on_task_input(event)` | `total += 1`, prints `[{name}] total=...(+1)` |
 | `on_task_success(event)` | `succeeded += 1`, prints `[{name}] succeeded=...(+1), total=...` |
 | `on_task_fail(event)` | `failed += 1`, prints `[{name}] failed=...(+1), total=...` |

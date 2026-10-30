@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_node.py` defines the core base class `BaseTaskNode[T, R, Y]` of the CelestialFlow node layer. It centralizes runtime concerns such as "queue communication / task scheduling / event tracing / observer callbacks" into a single object, and exposes entry methods like `run` / `start` for reuse by upper-layer `TaskExecutor` / `TaskSplitter` / `TaskRouter`.
 
@@ -22,7 +22,7 @@ The three generic parameters respectively represent: the input task type `T`, th
 | `func` | `Callable[[T], R]` or `Callable[[T], Awaitable[R]]` | Callback that actually executes the task |
 | `execution_mode` | `str` | `'serial'` / `'thread'` / `'async'`, default `'serial'` |
 | `max_workers` | `int` | Maximum concurrent workers (default `min(32, cpu_count+4)`) |
-| `max_retries` | `int` | Maximum retries per task (`1` means "original + 1 retry") |
+| `max_retries` | `int` | Maximum retries per task (`1` means "original attempt + one retry"); clamped to `max(max_retries, 0)` at construction, so negative values are treated as `0` |
 | `retry_exceptions` | `tuple[type[Exception], ...]` | Retryable exception types, registered via `set_retry_exceptions` |
 | `max_queue_size` | `int` | Input queue capacity upper limit (`0` means unbounded) |
 | `max_info` | `int` | Maximum string length of each task in logs (default `50`) |
@@ -54,9 +54,9 @@ classDiagram
         +put_task(task)
         +put_signal()
         +drain_task_queue()
-        +run(task_source)
-        +run_async(task_source)
-        +restore_db(db_path)
+        +run(task_source, log_level)
+        +run_async(task_source, log_level)
+        +restore_db(db_path, log_level)
         +start()
         +start_async()
         +get_meta()
@@ -90,7 +90,7 @@ Key behaviors of `__init__`:
 1. Write the name via `set_name`; `_set_func` validates the callback signature (must accept only 1 positional argument), otherwise throw `ConfigurationError`;
 2. `set_skip_func` registers the task-skip decision function (also requiring a single positional argument); `None` means never skip;
 3. `set_execution_mode` validates the legality of the mode; if `execution_mode == "async"` but `func` is not `iscoroutinefunction`, throw `ConfigurationError`;
-4. Initialize `max_workers / max_retries / max_queue_size / max_info`, and preset `retry_exceptions` to an empty tuple;
+4. Initialize `max_workers / max_retries / max_queue_size / max_info`: `max_workers` defaults to `min(32, (os.cpu_count() or 1) + 4)`; `max_retries` is clamped via `max(max_retries, 0)`, so negative values are treated as `0`; then `retry_exceptions` is preset to an empty tuple;
 5. Install `LocalEventClient()` by default, replaceable via `set_ctree(...)` later;
 6. Instantiate `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)`, and create new `TaskInQueue` (with `out_name` as the node name) / `TaskOutQueue` (with `in_name` as the node name) / `ObserverHub`;
 7. `_lifecycle_db_path` is initialized to `None`, to be written by the assembly entry when running independently.
@@ -150,13 +150,21 @@ Binding only establishes the data path between nodes and queues. Upstream/downst
 
 ## Entry Methods
 
-### `run(task_source, *, if_put_signal=True)`
+### `run(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
 ```python
-def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
+def run(
+    self,
+    task_source: Iterable[T],
+    *,
+    if_put_signal: bool = True,
+    log_level: str = DEFAULT_LOG_LEVEL,
+) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(self.observers) as lifecycle_db_path:
+        with run_node_resources(
+            self.observers, log_level=log_level
+        ) as lifecycle_db_path:
             self._lifecycle_db_path = lifecycle_db_path
             for task in task_source:
                 self.put_task(task)
@@ -169,32 +177,40 @@ def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
         raise ExceptionGroup("Errors occurred during run", error_list)
 ```
 
-`run_node_resources` (in `celestialflow.assembly`) is responsible for assembling the runtime resources of a single node: creating `MetricsObserver`, injecting the `LifecycleInlet` / `LogInlet` observers and corresponding spouts, and coordinating their start/stop. It produces the lifecycle database path.
+Parameters:
 
-### `async run_async(task_source, *, if_put_signal=True)`
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `task_source` | `Iterable[T]` | required | Task source to inject |
+| `if_put_signal` | `bool` | `True` | Whether to automatically call `put_signal()` after injecting tasks |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL` (`"INFO"`) | Log filter level for `LogInlet`, passed through unchanged to `run_node_resources` |
 
-Async version, calls `await self.start_async()`, also executed within the `run_node_resources` context.
+`run_node_resources` (located in `celestialflow.assembly`) is responsible for assembling the runtime resources of a single node: creating `MetricsObserver`, injecting the `LifecycleInlet` / `LogInlet` observers and corresponding spouts, and coordinating their start/stop. It produces the lifecycle database path. `log_level` is normalized by `normalize_log_level` (ignoring case and leading/trailing whitespace); an invalid level raises `InvalidOptionError`, and a non-string raises `ConfigurationError`.
 
-### `restore_db(db_path, statuses=None, *, filter_by_error_type=False)`
+### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
+
+Async version; the parameter meanings are exactly the same as `run` (including `log_level` pass-through), except that it finally calls `await self.start_async()`, likewise executing within the `run_node_resources(self.observers, log_level=log_level)` context.
+
+### `restore_db(db_path, statuses=None, *, filter_by_error_type=False, log_level=DEFAULT_LOG_LEVEL)`
 
 Load and replay unfinished tasks from the sqlite database:
 
 1. `statuses` defaults to `["failed", "pending"]`;
 2. Load records by node name via `load_tasks_grouped_by_node(db_path, statuses)`;
 3. When `filter_by_error_type=True`, use `get_retry_error_type_names()` to filter `error_type` (`pending` records are always retained);
-4. Take the `record["task_json"]` field and call `self.run(tasks)`.
+4. Take the `record["task_json"]` field and call `self.run(tasks, log_level=log_level)`, i.e. `log_level` is further passed through to the independent-run entry.
 
 ### `start()`
 
-- The preparation phase `_prepare_start` broadcasts `NodeStartEvent` (including `execution_mode` / `max_workers`);
+- The preparation phase `_prepare_start` broadcasts `NodeStartEvent` (including `execution_mode` / `max_workers` / `start_time=time.time()`);
 - Selects `dispatch.dispatch_serial()` / `dispatch.dispatch_thread()` based on `execution_mode`; `async` goes through `start_async`, otherwise throws `InvalidOptionError`;
-- The cleanup phase `_finish_start` broadcasts `NodeEndEvent` (including `elapsed`);
+- The cleanup phase `_finish_start` broadcasts `NodeEndEvent` (including `elapsed` and `end_time=time.time()`);
 - Any exceptions in any phase are finally aggregated as `ExceptionGroup("Errors occurred during execution", ...)` thrown.
 
 ### `async start_async()`
 
 - Only valid when `execution_mode == "async"`, otherwise throws `InvalidOptionError`;
-- Internally `await self.dispatch.dispatch_async()`; the cleanup phase broadcasts `NodeEndEvent`.
+- Internally `await self.dispatch.dispatch_async()`; the cleanup phase broadcasts `NodeEndEvent` (likewise carrying `end_time`).
 
 ## Results / Events / Error Handling
 
@@ -296,8 +312,8 @@ node.run([1, 2, 3, 4])
 
 | Exception | Trigger scenario |
 |------|---------|
-| `ConfigurationError` | Parameter count ≠ 1 in `_set_func` / `set_skip_func`; `set_execution_mode("async")` but `func` is not a coroutine |
-| `InvalidOptionError` | `execution_mode` not in `("serial", "thread", "async")`; `start()` when the mode is neither serial nor thread |
+| `ConfigurationError` | Parameter count ≠ 1 in `_set_func` / `set_skip_func`; `set_execution_mode("async")` but `func` is not a coroutine; `log_level` is not a string |
+| `InvalidOptionError` | `execution_mode` not in `("serial", "thread", "async")`; `start()` when the mode is neither serial nor thread; `log_level` not in the allowed level set for `run` / `run_async` / `restore_db` |
 | `CallableParameterKindError` | Callback has non-`POSITIONAL_ONLY` / `POSITIONAL_OR_KEYWORD` parameters |
 | `NotImplementedError` | Subclass does not override `process_task_success` |
 | `ExceptionGroup` | Any exception during `run` / `run_async` / `start` / `start_async` is finally aggregated and thrown |

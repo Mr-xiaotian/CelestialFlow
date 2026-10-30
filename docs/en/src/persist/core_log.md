@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_log.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 The `persist/core_log.py` module provides a thread-safe logging system that, via a producer-consumer pattern, uniformly collects, formats, and persists logs to text files under the `logs/` directory. The core components are `LogSpout` and `LogInlet`.
 
@@ -29,7 +29,7 @@ The `LogInlet._log()` method performs level filtering before writing to the queu
 `LogInlet` inherits `BaseInlet, Observer`, wiring the logging system into the event bus:
 
 1. **LogInlet (producer + observer)**:
-   - Overrides all event callbacks (graph / node / task / termination signal / worker crash), calling `_log()` in the callbacks to record the corresponding logs.
+   - Overrides all event callbacks (graph / node / task / termination signal), calling `_log()` in the callbacks to record the corresponding logs.
    - When recording node start/stop, reads node summaries through `metrics_view` (such as input totals, success / failure / skip counts).
    - Supports log-level-based filtering to reduce unnecessary communication.
 
@@ -49,7 +49,7 @@ The system supports the following standard log levels (higher value = higher pri
 | INFO | 30 | General information, such as node / graph start-stop, graph structure printing |
 | WARNING | 40 | Warnings, such as task retry |
 | ERROR | 50 | Error information, such as task failure |
-| CRITICAL | 60 | Critical errors, such as node / worker crash |
+| CRITICAL | 60 | Critical errors (currently unused by the built-in callbacks) |
 
 ## LogSpout
 
@@ -78,11 +78,11 @@ logs/
 ### Initialization
 
 ```python
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 ```
 
 - `metrics_view`: metric read-only view (`MetricsView`), used to record node summaries at node start/stop.
-- `log_level`: the minimum log level; logs below this level are not recorded; an invalid level throws `InvalidOptionError`.
+- `log_level`: the minimum log level; logs below this level are not recorded. It defaults to `runtime.util_log_level.DEFAULT_LOG_LEVEL` (currently `"INFO"`); the passed value is first `upper()`-cased, and an invalid level throws `InvalidOptionError`.
 
 ### Event Callbacks and Log Levels
 
@@ -101,12 +101,6 @@ All methods are grouped by event domain as follows:
 |------|---------|------|
 | `on_node_start(event)` | INFO | Records node startup, and outputs the number of executed tasks and the execution mode |
 | `on_node_end(event)` | INFO | Records node completion, and outputs success / failure / skip statistics and elapsed time |
-
-#### Worker Thread (Worker)
-
-| Callback | Log Level | Description |
-|------|---------|------|
-| `on_worker_crash(event)` | CRITICAL | Records a worker crash |
 
 #### Task (Task)
 
@@ -137,7 +131,7 @@ metrics_view = MetricsObserver()
 log_spout = LogSpout()
 log_spout.start()
 
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 # Register the inlet on the node's ObserverHub to consume events and record logs
 # hub.on_node_start(NodeStartEvent(node="NodeA", ...)) -> writes a log
 

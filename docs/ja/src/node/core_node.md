@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `core_node.py` は CelestialFlow ノード層のコア基底クラス `BaseTaskNode[T, R, Y]` を定義します。これは「キュー通信 / タスクスケジューリング / イベント追跡 / 観測者コールバック」などのランタイム関心を 1 つのオブジェクトに集約し、上位の `TaskExecutor` / `TaskSplitter` / `TaskRouter` が再利用するための `run` / `start` などのエントリメソッドを公開します。
 
@@ -22,7 +22,7 @@
 | `func` | `Callable[[T], R]` または `Callable[[T], Awaitable[R]]` | タスクを実際に実行するコールバック |
 | `execution_mode` | `str` | `'serial'` / `'thread'` / `'async'`、デフォルト `'serial'` |
 | `max_workers` | `int` | 最大並行 worker 数（デフォルト `min(32, cpu_count+4)`） |
-| `max_retries` | `int` | 単一タスクの最大リトライ回数（`1` は「元 1 回 + リトライ 1 回」） |
+| `max_retries` | `int` | 単一タスクの最大リトライ回数（`1` は「元 1 回 + リトライ 1 回」）。構築時に `max(max_retries, 0)` でクランプされ、負値は一律 `0` として扱われます |
 | `retry_exceptions` | `tuple[type[Exception], ...]` | リトライ可能な例外型の集合。`set_retry_exceptions` で登録 |
 | `max_queue_size` | `int` | 入力キューの容量上限（`0` は無制限） |
 | `max_info` | `int` | ログ内の各タスク文字列の最大長（デフォルト `50`） |
@@ -54,9 +54,9 @@ classDiagram
         +put_task(task)
         +put_signal()
         +drain_task_queue()
-        +run(task_source)
-        +run_async(task_source)
-        +restore_db(db_path)
+        +run(task_source, log_level)
+        +run_async(task_source, log_level)
+        +restore_db(db_path, log_level)
         +start()
         +start_async()
         +get_meta()
@@ -90,7 +90,7 @@ def __init__(
 1. `set_name` で名前を書き込み、`_set_func` でコールバックシグネチャを検証（位置引数を 1 つだけ受け取る必要がある）。それ以外は `ConfigurationError` を送出；
 2. `set_skip_func` でタスクスキップ判定関数を登録（同様に単一位置引数が必要）。`None` はスキップしない；
 3. `set_execution_mode` がモードの正当性を検証；`execution_mode == "async"` だが `func` が `iscoroutinefunction` でない場合は `ConfigurationError` を送出；
-4. `max_workers / max_retries / max_queue_size / max_info` を初期化し、`retry_exceptions` を空タプルにプリセット；
+4. `max_workers / max_retries / max_queue_size / max_info` を初期化：`max_workers` の省略時は `min(32, (os.cpu_count() or 1) + 4)`；`max_retries` は `max(max_retries, 0)` でクランプされ、負値は `0` として扱われます；その後 `retry_exceptions` を空タプルにプリセット；
 5. デフォルトで `LocalEventClient()` をインストール。後で `set_ctree(...)` で置換可能；
 6. `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)` をインスタンス化し、`TaskInQueue`（`out_name` はノード名）/ `TaskOutQueue`（`in_name` はノード名）/ `ObserverHub` を新規作成；
 7. `_lifecycle_db_path` を `None` に初期化し、単独実行時に組み立てエントリが書き込みます。
@@ -146,17 +146,25 @@ def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
 |------|------|
 | `put_task(task)` | 単一タスクを `TaskEnvelope(task, input_id)` にラップします。`input_id` は `ctree_client.emit(CTreeEvent.TASK_INPUT)` で生成；その後エンキューして `TaskInputEvent` をブロードキャスト（`from_node=None` は外部注入を意味） |
 | `put_signal()` | `ctree_client.emit(CTreeEvent.TERMINATION_INPUT)` で `termination_id` を生成し、`TerminationSignal(termination_id, source="input")` をキューに配置して `TerminationInputEvent` をブロードキャスト |
-| `drain_task_queue()` | タスクキューを空にし、各遗留タスクを `UnconsumedError()` として `handle_task_fail` 経由で処理 |
+| `drain_task_queue()` | タスクキューを空にし、残存する各タスクを `UnconsumedError()` として `handle_task_fail` 経由で処理 |
 
 ## エントリメソッド
 
-### `run(task_source, *, if_put_signal=True)`
+### `run(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
 ```python
-def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
+def run(
+    self,
+    task_source: Iterable[T],
+    *,
+    if_put_signal: bool = True,
+    log_level: str = DEFAULT_LOG_LEVEL,
+) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(self.observers) as lifecycle_db_path:
+        with run_node_resources(
+            self.observers, log_level=log_level
+        ) as lifecycle_db_path:
             self._lifecycle_db_path = lifecycle_db_path
             for task in task_source:
                 self.put_task(task)
@@ -169,32 +177,40 @@ def run(self, task_source: Iterable[T], *, if_put_signal: bool = True) -> None:
         raise ExceptionGroup("Errors occurred during run", error_list)
 ```
 
-`run_node_resources`（`celestialflow.assembly` に配置）は単一ノードの実行時リソースを組み立てます：`MetricsObserver` を作成し、`LifecycleInlet` / `LogInlet` 観測者と対応する spout を注入して一括で起動・停止します。lifecycle データベースパスを生成します。
+パラメータ：
 
-### `async run_async(task_source, *, if_put_signal=True)`
+| パラメータ | 型 | デフォルト値 | 説明 |
+|------|------|--------|------|
+| `task_source` | `Iterable[T]` | 必須 | 注入するタスクソース |
+| `if_put_signal` | `bool` | `True` | タスク注入後に自動で `put_signal()` するかどうか |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` のログフィルタレベル。そのまま `run_node_resources` へ透過 |
 
-非同期バージョン。`await self.start_async()` を呼び出し、同様に `run_node_resources` のコンテキスト内で実行されます。
+`run_node_resources`（`celestialflow.assembly` に配置）は単一ノードの実行時リソースを組み立てます：`MetricsObserver` を作成し、`LifecycleInlet` / `LogInlet` 観測者と対応する spout を注入して一括で起動・停止します。lifecycle データベースパスを生成します。`log_level` は `normalize_log_level` で正規化され（大文字小文字と前後の空白を無視）、不正なレベルは `InvalidOptionError`、文字列以外は `ConfigurationError` を送出します。
 
-### `restore_db(db_path, statuses=None, *, filter_by_error_type=False)`
+### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
+
+非同期バージョン。パラメータの意味は `run` と完全に同じです（`log_level` の透過を含む）。違いは最後に `await self.start_async()` を呼び出すことで、同様に `run_node_resources(self.observers, log_level=log_level)` コンテキスト内で実行されます。
+
+### `restore_db(db_path, statuses=None, *, filter_by_error_type=False, log_level=DEFAULT_LOG_LEVEL)`
 
 sqlite データベースから前回の未完了タスクを読み込み、リプレイします:
 
 1. `statuses` のデフォルトは `["failed", "pending"]`；
 2. `load_tasks_grouped_by_node(db_path, statuses)` でノード名ごとにレコードを取り出します；
 3. `filter_by_error_type=True` の場合、`get_retry_error_type_names()` で `error_type` をフィルタリング（`pending` レコードは常に保持）；
-4. `record["task_json"]` を取り出した後、`self.run(tasks)` を呼び出します。
+4. `record["task_json"]` を取り出した後、`self.run(tasks, log_level=log_level)` を呼び出します。つまり `log_level` は単独実行エントリへ引き続き透過されます。
 
 ### `start()`
 
-- 準備フェーズ `_prepare_start` で `NodeStartEvent`（`execution_mode` / `max_workers` を含む）をブロードキャスト；
+- 準備フェーズ `_prepare_start` で `NodeStartEvent`（`execution_mode` / `max_workers` / `start_time=time.time()` を含む）をブロードキャスト；
 - `execution_mode` に応じて `dispatch.dispatch_serial()` / `dispatch.dispatch_thread()` を選択；`async` は `start_async` へ、それ以外は `InvalidOptionError` を送出；
-- 終了フェーズ `_finish_start` で `NodeEndEvent`（`elapsed` を含む）をブロードキャスト；
+- 終了フェーズ `_finish_start` で `NodeEndEvent`（`elapsed` と `end_time=time.time()` を含む）をブロードキャスト；
 - いずれのフェーズで発生した例外も最終的に `ExceptionGroup("Errors occurred during execution", ...)` に集約されて送出。
 
 ### `async start_async()`
 
 - `execution_mode == "async"` の場合のみ正当。それ以外は `InvalidOptionError` を送出；
-- 内部で `await self.dispatch.dispatch_async()` を呼び出し、終了時に `NodeEndEvent` をブロードキャスト。
+- 内部で `await self.dispatch.dispatch_async()` を呼び出し、終了時に `NodeEndEvent` をブロードキャスト（同様に `end_time` を伴います）。
 
 ## 結果 / イベント / エラー処理
 
@@ -296,8 +312,8 @@ node.run([1, 2, 3, 4])
 
 | 例外 | トリガーシーン |
 |------|---------|
-| `ConfigurationError` | `_set_func` / `set_skip_func` の引数数 ≠ 1；`set_execution_mode("async")` だが `func` がコルーチンでない |
-| `InvalidOptionError` | `execution_mode` が `("serial", "thread", "async")` のいずれにも該当しない；`start()` 時にモードが serial でも thread でもない |
+| `ConfigurationError` | `_set_func` / `set_skip_func` の引数数 ≠ 1；`set_execution_mode("async")` だが `func` がコルーチンでない；`log_level` が文字列でない |
+| `InvalidOptionError` | `execution_mode` が `("serial", "thread", "async")` のいずれにも該当しない；`start()` 時にモードが serial でも thread でもない；`run` / `run_async` / `restore_db` の `log_level` が許可されたレベルの集合に含まれない |
 | `CallableParameterKindError` | コールバックが `POSITIONAL_ONLY` / `POSITIONAL_OR_KEYWORD` 以外の引数を含む |
 | `NotImplementedError` | サブクラスが `process_task_success` をオーバーライドしていない |
 | `ExceptionGroup` | `run` / `run_async` / `start` / `start_async` プロセス中の例外が最終的に集約されて送出 |

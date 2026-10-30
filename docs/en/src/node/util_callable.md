@@ -1,6 +1,6 @@
 # src/celestialflow/node/util_callable.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 `util_callable.py` provides lightweight validation of executor function signatures. It currently exposes a single utility function, `validate_executor_func_signature`, which `BaseTaskNode._set_func` calls when registering a callback.
 
@@ -21,7 +21,7 @@ Behavior:
 2. Iterate over every `Parameter`, requiring its `kind` to be only:
    - `inspect.Parameter.POSITIONAL_ONLY`
    - `inspect.Parameter.POSITIONAL_OR_KEYWORD`
-3. If a type other than `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD` / `POSITIONAL_OR_KEYWORD` is found, raise `CallableParameterKindError` (defined in `celestialflow.runtime.util_errors`);
+3. If a parameter kind not in the allowed list is found, such as `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD`, raise `CallableParameterKindError` (defined in `celestialflow.runtime.util_errors`);
 4. Return the total parameter count `len(parameters)`.
 
 > The caller (`BaseTaskNode._set_func`) further checks `parameter_count != 1` and raises `ConfigurationError`, thereby guaranteeing that the callback accepts only one positional task argument.

@@ -1,6 +1,6 @@
 # bench/bench_observer.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -15,8 +15,8 @@ Help users choose an appropriate observation strategy based on task scale and re
 | Scenario | Observer | Description |
 |------|--------|------|
 | **No observer** | `None` | Bare executor with no callback output, used as the baseline |
-| **print logging** | `PrintObserver` | Executes a `print()` with a `name` prefix on every lifecycle event, simulating simple log output |
-| **tqdm progress bar** | `TqdmObserver` | Updates a `tqdm` progress bar on every lifecycle event, providing visual feedback |
+| **print logging** | `PrintObserver` | Prints a `name`-prefixed statistics line on the node start/end and task input / success / fail / skip callbacks, simulating simple log output |
+| **tqdm progress bar** | `TqdmObserver` | Updates the `tqdm` progress bar on the node start/end and task input / success / fail / skip callbacks, providing visual feedback |
 
 ### Task Workload
 
@@ -37,6 +37,40 @@ heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 | `execution_mode` | `serial` | All scenarios use serial mode to control variables and isolate observer impact |
 | `max_workers` | 1 | Single worker to avoid parallel scheduling interference |
 | `max_retries` | 0 | No retries, eliminating extra time from retry logic |
+
+## Key Functions
+
+### `run_benchmark`
+
+```python
+def run_benchmark(
+    name: str,
+    task_data: list[Any],
+    func: Any,
+    *,
+    observer: Observer | None = None,
+) -> float
+```
+
+Creates a `TaskExecutor(name, func, execution_mode="serial", max_workers=1, max_retries=0)`;
+if an `observer` is passed, it calls `executor.add_observer(observer)`, then wraps
+`executor.run(task_data)` with `time.perf_counter()` and returns the elapsed time (seconds). Every call creates a new executor to avoid leftover state.
+
+### `TqdmObserver`
+
+`TqdmObserver` inherits from the framework's `Observer` base class and only overrides the progress-related callbacks:
+
+| Callback | Behavior |
+|------|------|
+| `on_node_start` | Creates `tqdm(total=...)` using the currently accumulated `_total` |
+| `on_task_input` | `_total += 1`; if the progress bar has already been created, expands `total` accordingly and calls `refresh()` |
+| `on_task_success` / `on_task_fail` / `on_task_skip` | Advances progress via the shared `_advance(1)` |
+| `on_node_end` | Closes the progress bar |
+
+### Worker Functions
+
+- `fibonacci(n)`: **Iterative** implementation (`O(n)`), not recursive; `n <= 0` raises `ValueError`, a non-`int` raises `TypeError`
+- `cpu_intensive(x)`: Pure CPU loop, used to amplify observer overhead; **the current script does not call it in any scenario**
 
 ## Potential Issues
 
@@ -129,5 +163,5 @@ runs = 10  # Change from 5 to 10 for more stable averages
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `BaseObserver`, `PrintObserver`)
+- `celestialflow` (`Observer`, `PrintObserver`, `TaskExecutor`, plus the various event types under `celestialflow.observer`)
 - `tqdm` (used by `TqdmObserver`)

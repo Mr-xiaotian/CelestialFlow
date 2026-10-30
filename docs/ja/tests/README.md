@@ -1,6 +1,6 @@
 # tests/ テスト概要
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 説明
 
@@ -15,7 +15,7 @@
 1. `conftest.md`：まずテストヘルパーと共有初期化の説明を確認
 2. `runtime/`：基本型、キュー、例外、スケジューリングプリミティブのカバレッジ範囲を理解
 3. `graph/`：グラフ構造、タスクトポロジのコアテストを理解
-4. `observability/`：最後に Reporter とレポートチェーンの統合テストを確認
+4. `observability/`：最後にオブザーバーと指標収集の統合テストを確認
 
 ## ドキュメントインデックス
 
@@ -23,7 +23,7 @@
 
 | ドキュメント | 説明 |
 |------|------|
-| `conftest.md` | グローバル fixture、テストヘルパー、共有初期化の説明 |
+| `conftest.md` | グローバルなテスト補助ツールと共有初期化の説明 |
 
 ### サブディレクトリ説明
 
@@ -31,9 +31,9 @@
 |------|------|
 | `funnel/test_inlet.md` / `test_spout.md` | Inlet / Spout パイプライン関連テスト |
 | `graph/test_graph.md` など | `TaskGraph`、トポロジ分析、構造エクスポート関連テスト |
-| `observability/test_observer.md` / `test_reporter.md` | オブザーバー、Reporter、注入、レポート関連テスト |
-| `persistence/test_lifecycle.md` など | ライフサイクル / ログ / sqlite ユーティリティなど永続化関連テスト |
-| `runtime/test_envelope.md` など | キュー、エンベロープ、例外、カウンターなどの基本ランタイムテスト |
+| `observability/test_observer.md` / `test_metrics.md` | オブザーバーコールバックと指標オブザーバー関連テスト |
+| `persistence/test_lifecycle.md` など | ライフサイクル / ログ / sqlite ユーティリティなど永続化関連テスト（ソースは `tests/persist/`） |
+| `runtime/test_envelope.md` など | キュー、エンベロープ、例外、ログレベル、カウンターなど基本ランタイムテスト |
 | `benchmark/test_benchmark.md` / `test_clone.md` | `benchmark_graph` / `benchmark_executor` ベンチマークテストと clone ヘルパーのテスト |
 
 ## 使用方法
@@ -44,7 +44,8 @@
 pytest tests -v
 pytest tests/runtime -v
 pytest tests/graph -v
-pytest tests/observability -v
+pytest tests/observer -v
+pytest tests/persist -v
 ```
 
 キーワードでフィルタすることもできます：

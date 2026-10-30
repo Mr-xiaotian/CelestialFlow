@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_constant.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 `runtime/util_constant.py` defines runtime global constants, primarily the log level mapping table `LEVEL_DICT`.
 
@@ -114,4 +114,5 @@ print(validate_level("VERBOSE"))  # False
 
 ## Notes
 
-- `LEVEL_DICT` is used by `load_log_level_from_pyproject()` in `util_config` to validate the user-configured log level; do not arbitrarily modify the numeric values.
+- `LEVEL_DICT` is the only valid value set for log levels: `normalize_log_level()` in `runtime/util_log_level.py` uses it to validate and normalize the `log_level` passed to run entry points, and `LogInlet` uses it for level filtering and comparison. Do not modify the numeric values arbitrarily.
+- This file is a `util_*` module and is not in the `__all__` of `celestialflow.runtime`; it must be imported via the full path.

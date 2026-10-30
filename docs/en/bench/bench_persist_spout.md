@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -37,8 +37,20 @@ Thus the test results are closer to "peak processing speed of the background wri
 - `--lifecycle-count`: default `20_000`
 - `LogSpout` writes to `bench_task_logger.log` in a temporary directory
 - `LifecycleSpout` writes to `bench_lifecycle.sqlite3` in a temporary directory
-- The two spouts are respectively inherited by the `BenchLogSpout` / `BenchLifecycleSpout` subclasses from the source `LogSpout` / `LifecycleSpout`, which redirect the output path to a temporary directory in `_before_start()` (`LogSpout` uses `connect_db` to establish a SQLite connection)
+- The two spouts are respectively inherited by the `BenchLogSpout` / `BenchLifecycleSpout` subclasses from the source `LogSpout` / `LifecycleSpout`, and override `_before_start()` to point the output path at a temporary directory: `BenchLogSpout` opens a text file handle, while `BenchLifecycleSpout` establishes a SQLite connection via `connect_db()`
+- The temporary directory is created by `tempfile.TemporaryDirectory()` (prefixes `cf_bench_log_` / `cf_bench_lifecycle_`) and is cleaned up automatically when the `with` block exits
 - `LifecycleSpout` uses the current project implementation, i.e., "direct `commit()` after each valid change"
+
+## Output Metrics
+
+`run_spout_bench()` returns and prints four metrics:
+
+| Metric | Meaning |
+|------|------|
+| `records` | Number of records written in this run |
+| `elapsed` | Total time from `spout.start()` to `spout.stop()` (seconds) |
+| `throughput` | `len(records) / elapsed`, in records/s |
+| `avg per record` | `elapsed / len(records) × 1e6`, in microseconds per record; `0.0` for an empty record set |
 
 ## Potential Issues
 
@@ -86,7 +98,7 @@ Thus the test results are closer to "peak processing speed of the background wri
 python bench/bench_persist_spout.py
 ```
 
-If the project is not installed as an importable package, you can also directly use the local virtual environment interpreter:
+The script inserts `<project root>/src` into `sys.path` at the start, so there is no need to install the project as an importable package; you can also run it directly with the local virtual environment interpreter:
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_persist_spout.py

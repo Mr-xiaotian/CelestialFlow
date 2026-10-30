@@ -1,12 +1,12 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
 より複雑な生産者-消費者トポロジ（SPSC、MPSC、SPMC）において、`multiprocessing.Queue` と `shared_memory` ベースのカスタムリングバッファの性能を比較する。CelestialFlow の高スループットシナリオにおける IPC 最適化に詳細なデータを提供する。
 
-> **注意**：フレームワークは既に `stage_mode="process"` および内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
+> **注意**：フレームワークは既に `process` グラフモードおよび内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
 
 ## テスト内容
 
@@ -17,15 +17,19 @@
 | SPMC | 1 | 4 | 単一生産者複数消費者 |
 
 - **規模**：`COUNT = 100_000`、`REPEAT = 3`
-- **SharedMemory 設定**：`SLOT_COUNT = 1024`、各スロットサイズ = 4B 長さプレフィックス + ペイロード
+- **負荷**：どちらのメカニズムも転送するのは **bytes payload**（`int` モードは `struct.pack("<Q", i)`、それ以外のモードは UTF-8 文字列のバイト列）。pickle のオーバーヘッドを比較に混入させない
+- **SharedMemory 設定**：`SLOT_COUNT = 1024`、各スロットサイズ = 4B の長さプレフィックス + `payload_max_bytes(mode)`（`int` 8 / `small` 32 / `medium` 160 / `large` 4200）
 - **同期プリミティブ**：`Lock`（読み書きインデックス保護）、`Semaphore`（空/満スロットカウント）
+- **検証**：トポロジに応じて `COUNT` を生産者と消費者に均等配分し、集計後の `consumed` と `checksum` を比較する（`int` は等差数列の和、それ以外は payload 長の和）。一致しない場合は `RuntimeError` を送出
+- **起動方式**：`__main__` で `set_start_method("spawn")` を試行し、既に設定済みの場合は `RuntimeError` を無視する
 
 ## 主要実装
 
 ### SharedMemory Ring プロトコル
-1. **Producer**：`empty_slots.acquire()` → `write_lock` 下でペイロード書き込み → `full_slots.release()`
-2. **Consumer**：`full_slots.acquire()` → `read_lock` 下でペイロード読み取り → `empty_slots.release()`
-3. **主要設計**：`full_slots.release()` をロック外で実行し、並行度を最大化
+1. **Producer**：`empty_slots.acquire()` → `write_lock` 下でスロットを確保し、長さプレフィックスと payload を書き込む → `full_slots.release()`
+2. **Consumer**：`full_slots.acquire()` → `read_lock` 下でスロットを確保し、payload を読み取る → `empty_slots.release()`
+3. **主要設計**：`full_slots.release()` をロック外で実行し、並行度を最大化する。MPSC では `write_lock` が payload 書き込み全体を覆う必要がある。そうでないと消費者が書き込み途中のスロットを読む可能性がある
+4. 各プロセスは `finally` で `shm.close()` を実行し、メインプロセスは全子プロセス終了後に `shm.close()` + `shm.unlink()` を実行する
 
 ## 発生し得る問題
 
@@ -126,4 +130,5 @@ python bench/bench_mpqueue_vs_shared_memory.py
 
 ## 依存関係
 
-- `bench_utils.summarize`
+- `bench_utils.summarize`（同ディレクトリのモジュール）
+- Python 標準ライブラリ：`multiprocessing`（`Queue`、`Lock`、`Semaphore`、`Value`、`Process`、`shared_memory`、`set_start_method`）、`struct`

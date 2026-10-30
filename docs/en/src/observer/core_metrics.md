@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_metrics.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `core_metrics.py` defines the **graph-level metrics observer** `MetricsObserver`. It simultaneously plays the two roles of "write model" and "read-only view": as an observer it writes each node's counts, status, and run start time from events, and it exposes an immutable `NodeMetrics` snapshot through a read-only view.
 
@@ -29,14 +29,16 @@ A single instance serves one run scope: the entire task graph, or a single indep
 
 | Event | Write Behavior |
 |------|---------|
-| `on_node_start` | Set the node status to `RUNNING` and record the wall-clock start time |
-| `on_node_end` | Set the node status to `STOPPED` |
+| `on_node_start` | Set the node status to `RUNNING`, write the `start_time` carried by the event into `_start_time`, and reset `_end_time` to `0.0` |
+| `on_node_end` | Set the node status to `STOPPED`, write the `end_time` carried by the event into `_end_time` |
 | `on_task_input` | Distinguish the source: when `from_node is None`, accumulate the external-injection count; otherwise accumulate both the receiver's upstream count and the source's downstream count |
 | `on_task_success` | Accumulate the node's success count |
 | `on_task_fail` | Accumulate the node's fail count |
 | `on_task_skip` | Accumulate the node's skip count |
 
 A storage cell is **created on demand** (`_ensure`, idempotent) with the first event, and edge counts are also written incrementally by the actual task flow, so it does not depend on graph-construction structure events; an upstream delivery writes both the receiver's upstream count and the source's downstream count, so no counter objects need to be shared between nodes, and no per-node-type specialized statistics logic is needed.
+
+> Timestamps **come entirely from the events themselves**: `MetricsObserver` does not `import time` and does not call `time.time()`; the start / end times are verbatim copies of `NodeStartEvent.start_time` and `NodeEndEvent.end_time`.
 
 ## Read-Only View
 
@@ -51,7 +53,8 @@ Reads are exposed through the `runtime.util_types.MetricsView` protocol, returni
 |------|------|
 | `node` | Node name |
 | `status` | Node lifecycle status (`NodeStatus`) |
-| `start_time` | Wall-clock time (seconds) when the node entered the running state; `0.0` when not started |
+| `start_time` | Wall-clock time (seconds) when the node entered the running state, from `NodeStartEvent.start_time`; `0.0` when not started |
+| `end_time` | Wall-clock time (seconds) when the node exited the running state, from `NodeEndEvent.end_time`; `0.0` when not ended |
 | `external_input` | Externally injected task count |
 | `upstream_input` | Upstream-provided task count |
 | `input_total` | Total input (external injection + upstream-provided) |

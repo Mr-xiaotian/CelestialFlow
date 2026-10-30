@@ -1,6 +1,6 @@
 # tests/graph/test_order_graph.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 `celestialflow.graph.util_order_graph` の基礎グラフ解析能力を検証します。`OrderGraph` 構築、階層計算（`compute_node_levels`）、ソースノード検索（`source_nodes`）、SCC 分割（`tarjan_scc`）、および深さが Python のデフォルト再帰上限（約 1000）を超える場合の反復アルゴリズムのリグレッションを含みます。
@@ -19,7 +19,7 @@
 | `TestBuildOrderGraph` | 3 | 線形鎖 / 循環あり / 孤立ノードのグラフ構築 | ノード数、エッジ総数、`successors` 隣接方向が正しい |
 | `TestComputeNodeLevels` | 5 | 線形 DAG、ファンアウト DAG、単純循環、尾付き循環、非連結グラフ | 階層が単調増加、B/C 同層、循環内で階層共有、尾は循環より1層高い、各連結成分が独立に0から開始 |
 | `TestFindSourceNodes` | 4 | 線形 DAG、複数ソース、純粋な循環、ホイール型トポロジ | 入次数0のソースノード、純粋な循環 SCC は代表点1つを返す、Center は唯一の source |
-| `TestDeepGraphRegression` | 3 | 5000 ノードの深鎖 / 深環 / TaskGraph 経由のフルチェーン構築 | 深鎖の SCC は全て単点、RecursionError なし、深環は単一 SCC に収束、`get_nodes` / `get_source_nodes` / `layers_dict` が正常動作 |
+| `TestDeepGraphRegression` | 3 | 5000 ノードの深鎖 / 深環 / TaskGraph 経由のフルチェーン構築 | 深鎖の SCC は全て単点、RecursionError なし、深環は単一 SCC に収束、`get_nodes()` / `get_source_nodes()` / `is_dag()` / `get_layers()` が正常動作 |
 | **合計** | **15** | | |
 
 ## 主要テストフロー
@@ -36,7 +36,7 @@
 4. **深グラフリグレッション** (`TestDeepGraphRegression`):
    - 深鎖（5000 ノード）：`tarjan_scc` は全て単点 SCC、ソースノードは `n0`、階層は 0 から 4999 へ線形に増加。
    - 深環（5000 ノード）：全ノードが単一 SCC に収束。
-   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`layers_dict[4999] == ["n4999"]`、`get_nodes()` は 5000 個のノードを返し、`get_source_nodes() == ["n0"]`、`is_dag is True`。
+   - 深鎖を `TaskGraph`（`graph_mode="thread"`）経由でフルチェーン構築・解析してもクラッシュせず、`get_nodes()` は 5000 個のノードを返し、`get_source_nodes() == ["n0"]`、`is_dag()` は `True` を返し、さらに `get_layers()[4999] == ["n4999"]`。
 
 ## テストヘルパー関数
 - `_make_graph(edges)`: エッジ定義（暗黙に出現する下流ノードを含む）からテストグラフを構築。
@@ -75,7 +75,7 @@ pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 | `TestBuildOrderGraph` | < 0.1s（純粋なメモリ計算） |
 | `TestComputeNodeLevels` | < 0.1s |
 | `TestFindSourceNodes` | < 0.1s |
-| `TestDeepGraphRegression` | ~1s（5000 ノード規模、純粋なメモリ計算） |
+| `TestDeepGraphRegression` | ~0.2s（5000 ノード規模、純粋なメモリ計算） |
 
 ## 重要な詳細
 - `TestDeepGraphRegression.test_deep_chain_through_taskgraph` を除き、すべて純粋なメモリ計算であり、実行速度は非常に高速です。
@@ -83,3 +83,4 @@ pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 
 ## 注意事項
 - テストコードは `tests/graph/test_order_graph.py` にあり、対応する実装は `src/celestialflow/graph/util_order_graph.py` にあります。
+- 同名シンボルの出所が異なる点に注意：`util_order_graph.is_dag(graph)` はモジュールレベル関数（Kahn アルゴリズムで `OrderGraph` を判定）であり、`TaskGraph.is_dag()` はグラフオブジェクトのメソッド（必要に応じて解析キャッシュを構築した後に真偽値を返す）です。深グラフのケースがアサートするのは後者です。

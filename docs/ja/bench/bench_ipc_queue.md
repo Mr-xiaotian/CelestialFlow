@@ -1,31 +1,33 @@
 # bench/bench_ipc_queue.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
 実際のクロスプロセスシナリオにおいて、複数の Python IPC（プロセス間通信）メカニズム（MPQueue、SimpleQueue、Pipe、Manager().Queue）の性能を比較する。CelestialFlow のマルチプロセスモードにおけるキュー選定にデータを提供する。
 
-> **注意**：フレームワークは既に `stage_mode="process"` および内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
+> **注意**：フレームワークは既に `process` グラフモードおよび内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
 
 ## テスト内容
 
 | メカニズム | 説明 | トポロジ対応 |
 |------------|------|-------------|
-| `MPQueue` | 標準マルチプロセスキュー | SPSC |
-| `SimpleQueue` | ロックフリー簡略化キュー | SPSC |
-| `Pipe` | 双方向/単方向パイプ | SPSC |
-| `Manager().Queue` | Manager サーバーベースのキュー | SPSC |
+| `MPQueue` | `multiprocessing.Queue`、feeder スレッドとロックを伴う | SPSC |
+| `SimpleQueue` | `multiprocessing.SimpleQueue`、パイプに直接書き込む簡略化キュー（feeder スレッドなし、`qsize` 非対応） | SPSC |
+| `Pipe` | `Pipe(duplex=False)` の単方向パイプ | SPSC |
+| `Manager().Queue` | Manager サーバープロセスベースのキュー | SPSC |
 
 - **規模**：`COUNT = 100_000`、`REPEAT = 3`
-- **負荷モード**：`int`（Python 整数オブジェクト）、`small`（~16 バイト）、`medium`（~144 バイト）、`large`（~4104 バイト）
-- **検証**：チェックサムによるデータ整合性確認（欠落・破損なし）
+- **負荷モード**：`int`（Python 整数オブジェクト）、`small`（`f"item-{i}"`）、`medium`（`f"{i}-"` + `x` 128 個）、`large`（`f"{i}-"` + `x` 4096 個）
+- **検証**：消費者は `(consumed, checksum)` を結果キューに返送する。`consumed` は `COUNT` と等しく、`checksum` は `expected_checksum()` と等しくなければならない（`int` モードは等差数列の和、それ以外は各 payload の長さの和）。一致しない場合は `RuntimeError` を送出
+- **起動方式**：`__main__` で `set_start_method("spawn")` を試行し、既に設定済みの場合は `RuntimeError` を無視する
 
 ## 主要実装
 
 - `producer_queue` / `consumer_queue`：センチネルオブジェクト `_SENTINEL = None` でストリーム終了を識別
-- `producer_pipe` / `consumer_pipe`：明示的な `conn.close()` でハンドルリークを防止
+- `producer_pipe` / `consumer_pipe`：`try/finally` 内で明示的に `conn.close()` を呼び、ハンドルリークを防止する。親プロセスは 2 つの子プロセスを起動した直後に自身の両端のハンドルを閉じる
 - `expected_checksum`：負荷モードに基づき期待されるチェックサムを解析計算
+- `run_queue_case` / `run_pipe_case` / `run_manager_queue_case`：各メカニズムで `REPEAT` ラウンドを実行し、ラウンドごとに検証したうえで `summarize()` に渡して平均 / 標準偏差 / スループットを出力
 
 ## 発生し得る問題
 
@@ -113,4 +115,5 @@ python bench/bench_ipc_queue.py
 
 ## 依存関係
 
-- `bench_utils.summarize`
+- `bench_utils.summarize`（同ディレクトリのモジュール。`python bench/bench_ipc_queue.py` で直接インポート可能）
+- Python 標準ライブラリ：`multiprocessing`（`Queue`、`SimpleQueue`、`Pipe`、`Manager`、`Process`、`set_start_method`）

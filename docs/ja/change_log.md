@@ -1,6 +1,6 @@
 # 更新ログ（Change Log）
 
-> 📅 最終更新日: 2026/09/10
+> 📅 最終更新日: 2026/10/30
 
 - 2021: マルチスレッドとシングルスレッド処理関数をサポートするクラスを構築
 - 2023: GPT-4 の支援でマルチプロセスとコルーチン実行モードを追加
@@ -476,3 +476,59 @@
     - タスクリトライログの `retry_times` の意味が曖昧な問題を修正。`fail_times` を使用
     - reporter の `_push_*` メソッドで返り値を処理しない問題を修正
     - `TaskReporter._pull_injection` で、プルしたタスクリストを誤って `put_task` する問題を修正
+- 3.3.1
+  - feat:
+    - [IMPORTANT] `TaskMetrics` に `upstream_counter` / `downstream_counter` を追加し、上下流の転送データ量を細かく記録
+      - `reporter` でノードの `upstream_counter` / `downstream_counter` を送信
+      - Web 側も同期的に更新し、Web 側の構造図で正確な上下流の転送タスク数を表示可能に
+    - [IMPORTANT] `duplocate` 機構を削除
+      - これは非常に非常に難しい選択だった。`duplocate` 機構は極めて古く、しかし慎重に評価した結果、問題は 3 つあると考えた：
+        - 1. 渡されるタスクが hash 可能とは限らず、既存の hash 関数の不確実性が極めて大きい
+        - 2. タスクが hash 可能であることを保証するなら、タスク処理用の func を別途渡すのが望ましいが、node のパラメータ複雑度が増す
+        - 3. また duplocate は単一 node ではタスク入力前のフィルタで完全に置き換え可能であり、graph 時の利点は非常に不明瞭
+      - 何度も検討した結果、簡潔さという第一原理に従うことにした
+    - `log.task_success` の出力を簡略化し、`execution_mode` を表示しない
+    - `lifecycle` に `retry_time` フィールドを追加
+    - そのまま使える `observer` である `ObserverPrint` を追加
+      - graph 環境で表示される `total` に問題があるため、次バージョンで解決
+  - refactor:
+    - [IMPORTANT] `reporter` 内のデータを大幅に簡略化し、現在は生の状態データのみを転送し、具体的な分析はフロントエンドに任せる
+    - `log.split_trace` / `log.split_success` / `log.route_success` を削除し、下流タスクの成功を表すには `log.task_in` に統一
+    - `node.get_binding_counter` と `node.prev_binding` を削除し、`node.connect_to` を追加して上下流ノードのバインドを統一的に担当
+    - `TaskNode` に新しいジェネリック `Y` を追加し、下流へ転送するタスク型を表現
+      - これは `splitter` と `router` を最適化するため
+    - ノードの `elapsed_time` は現在 `dispatch` が自ら計算し、精度を保証
+      - そもそも以前はなぜあんなに面倒で不正確なアルゴリズムにしたのか？
+    - `reporter` の `status` にゲートを追加し、現在の状態が前回送信した状態と一致する場合は送信しない
+      - これで `reporter` 内のすべての `push_*` がゲートを持ち、無効なデータ送信を回避
+  - chore:
+    - 並行環境下で funnel 使用時と lock 使用時のデータ記録のパフォーマンス差をテストする `bench_funnel_vs_lock` を追加
+      - 前者は送信レイテンシが低いが、メモリ使用量が高い
+      - ![bench/bench_funnel_vs_lock.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/bench/bench_funnel_vs_lock.md)
+    - 複雑な構造の Web デモ用に `demo_web` を追加
+- 3.3.2
+  - feat:
+    - [IMPORTANT] `observer` 機構を大幅に拡充し、より多くのフックを追加
+      - 管理用に `ObserverHub` を追加。これ自体も `observer`
+    - [IMPORTANT] `ticker` 機構を追加し、周期的な時間を駆動とする
+      - 純イベント駆動の `observer` の補完として
+    - [IMPORTANT] 削除された `duplocate` 機構を置き換える `skip` 機構を導入
+    - `reprter` 機構の完全なリファクタリングにより、その有効化・使用方法も変化
+      - `.pyproject` での設定に変更
+  - refactor:
+    - [IMPORTANT] `log` / `lifecycle` を新しい `observer` 体系に統合
+      - 構造がより簡潔で効率的に
+    - [IMPORTANT] `reporter` を完全に分離された `push` と `pull` に分割
+      - 前者は `PushInlet` がイベント化して `error` `meta` データを収集し、`PushSnapshotHandler` が周期的に状態情報を収集
+      - 後者は `InjectionHandler` が周期的にサーバー側から注入タスクと注入終了符を収集
+    - `metric` 機構を `observer` 体系に統合
+- 3.3.3
+  - feat:
+    - `GraphEndEvent` / `NodeEndEvent` に `end_time` を追加
+    - `GraphStartEvent` から `class_name` を削除
+  - refactor:
+    - `on_worker_crash` など一部の不要な observer イベントを削除
+    - log と reporter の設定を `.toml` からランタイム設定に移動
+    - 一部の不要な sqlite 関数を削除
+  - fix:
+    - グラフ分析キャッシュの問題を修正

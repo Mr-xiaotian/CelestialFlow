@@ -1,35 +1,36 @@
 # tests/runtime/test_config.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
-Validates the `load_report_url_from_pyproject` and `load_if_report_from_pyproject` functions in `celestialflow.runtime.util_config`, ensuring that they can correctly read the reporting URL and reporting switch from the `[tool.celestialflow]` section of the project-level `pyproject.toml`, and fall back to defaults / raise `ConfigurationError` when the configuration is missing or invalid.
+Validates the construction checks and address normalization of `celestialflow.runtime.ReportConfig`: the default address fallback, stripping of leading/trailing whitespace and trailing slashes, and whether invalid inputs such as non-strings, empty strings, and illegal schemes are rejected via `ConfigurationError`. It also verifies that the configuration object is immutable.
 
 ## Core Test Objects
-- `load_report_url_from_pyproject()`: Reads `report_url`; returns `DEFAULT_REPORT_URL` (`http://127.0.0.1:5005`) when not configured or when there is no `pyproject.toml`.
-- `load_if_report_from_pyproject()`: Reads `if_report`; returns `False` when not configured or when there is no `pyproject.toml`; raises `ConfigurationError` when the configuration is non-boolean.
-- `DEFAULT_REPORT_URL`: The default constant for the reporting address, used as the fallback when there is no configuration.
+- `ReportConfig`: A frozen dataclass (`frozen=True, slots=True`) whose only field is `url`; validation and normalization are completed in `__post_init__` at construction time.
+- `DEFAULT_REPORT_URL`: The default reporting address (`http://127.0.0.1:5005`) used when no address is explicitly specified, re-exported by the `celestialflow.runtime` package.
+- `ConfigurationError`: The custom configuration exception raised uniformly for illegal addresses.
 
-## Test Helpers
-- `tmp_path` + `monkeypatch.chdir`: writes a `pyproject.toml` in the temporary directory before calling the functions under test, isolating them from dependence on the real working directory.
+## Test Coverage Matrix
+
+| Test Class | Case Count | Coverage Goal |
+|--------|--------|---------|
+| `TestReportConfig` | 6 | Default address, whitespace and trailing-slash normalization, empty-string rejection, non-`http`/`https` scheme rejection, non-string rejection, object frozenness |
 
 ## Key Test Scenarios
 
-### `load_report_url_from_pyproject`
-1. **Reading a configured address** (`test_load_report_url_reads_report_url`): when `pyproject.toml` configures `report_url = "http://127.0.0.1:9000"`, it returns that address.
-2. **Default value when not configured** (`test_load_report_url_defaults_when_absent`): returns `DEFAULT_REPORT_URL` when only `log_level` is present without `report_url`.
-3. **No `pyproject.toml`** (`test_load_report_url_defaults_without_pyproject`): returns `DEFAULT_REPORT_URL` in an empty directory.
-
-### `load_if_report_from_pyproject`
-1. **Reading a configured switch** (`test_load_if_report_reads_true`): returns `True` when `if_report = true`.
-2. **Default off when not configured** (`test_load_if_report_defaults_to_false`): returns `False` when only `report_url` is configured without `if_report` (the switch is decoupled from the address).
-3. **No `pyproject.toml`** (`test_load_if_report_returns_false_without_pyproject`): returns `False` in an empty directory.
-4. **Non-boolean configuration throws** (`test_load_if_report_rejects_non_boolean`): raises `ConfigurationError` when `if_report = "yes"`.
+### `TestReportConfig`
+1. **Default address** (`test_default_url`): for a no-argument construction, `ReportConfig().url == DEFAULT_REPORT_URL`.
+2. **Normalized to a slash-free address** (`test_strips_whitespace_and_trailing_slash`): the `url` of `ReportConfig(url=" http://127.0.0.1:9000/ ")` is `"http://127.0.0.1:9000"`, avoiding a double slash when concatenating with the reporting endpoint.
+3. **Rejecting a whitespace-only string** (`test_rejects_empty_url`): `url="   "` becomes empty after stripping whitespace, raising `ConfigurationError`.
+4. **Rejecting non-HTTP schemes** (`test_rejects_non_http_scheme`): `url="ftp://127.0.0.1:9000"` raises `ConfigurationError`.
+5. **Rejecting non-strings** (`test_rejects_non_string_url`): `url=5005` raises `ConfigurationError`.
+6. **Immutability** (`test_is_frozen`): assigning to `url` after construction raises `AttributeError`.
 
 ## Test Focus
-- **Default fallback**: both the reporting address and the switch have explicit defaults when configuration is missing.
-- **Switch decoupling**: the presence of `report_url` does not implicitly enable reporting; `if_report` must be explicitly `true`.
-- **Invalid input**: a non-boolean `if_report` is rejected via `ConfigurationError` rather than silently ignored.
+- **Validation before startup**: the address is validated at `ReportConfig` construction time, so an illegal configuration fails before the runtime resources start.
+- **Normalization**: leading/trailing whitespace is removed by `strip()` and trailing slashes by `rstrip("/")`, keeping endpoint path concatenation stable.
+- **Explicit opt-in semantics**: whether reporting is enabled is decided by whether a `ReportConfig` is passed to the runtime entry point; `ReportConfig` itself is no longer a combined "switch + address" configuration.
+- **Clear failure mode**: every illegal address is rejected with `ConfigurationError` instead of silently falling back to the default value.
 
 ## How to Run
 
@@ -37,13 +38,18 @@ Validates the `load_report_url_from_pyproject` and `load_if_report_from_pyprojec
 # Run all
 pytest tests/runtime/test_config.py -v
 
-# Run report URL related tests only
-pytest tests/runtime/test_config.py -k "report_url" -v
+# Run only the default address and normalization cases
+pytest tests/runtime/test_config.py -k "default_url or strips_whitespace" -v
 
-# Run report switch related tests only
-pytest tests/runtime/test_config.py -k "if_report" -v
+# Run only the illegal input and frozen-related cases
+pytest tests/runtime/test_config.py -k "rejects or frozen" -v
 ```
 
+## Important Details
+- In the implementation, `url` is validated with `urlsplit`: the scheme must be `http` / `https` and `netloc` must be present (so addresses lacking a host, such as `http://`, are also rejected); the test cases cover the illegal-scheme branch with `ftp://`.
+- Because `slots=True` and `frozen=True` are set, instances can neither gain attributes dynamically nor have `url` overwritten after construction.
+- All cases are pure in-memory construction with no file/network side effects.
+
 ## Notes
-- The related implementation is in `src/celestialflow/runtime/util_config.py`.
-- All cases switch the working directory via `monkeypatch.chdir`, so the tests are fast and have no real network/file side effects.
+- The related implementation is located at `src/celestialflow/runtime/core_config.py`, and public symbols are re-exported by `src/celestialflow/runtime/__init__.py`.
+- The host project's `pyproject.toml` no longer participates in reading the reporting configuration; the configuration must be passed in explicitly by the caller.

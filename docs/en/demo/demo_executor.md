@@ -1,6 +1,6 @@
 # demo/demo_executor.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -57,7 +57,7 @@ flowchart TB
 | `demo_fibonacci_async` | async | Async Fibonacci | Coroutine concurrency |
 
 - **Input**: `range(25, 32) + [0, 27, None, 0, ""]`
-- **Exception design**: Two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`); due to `set_retry_exceptions(ValueError)` they still fail after 1 auto-retry; `""` triggers a type error (`<=` does not support comparing `str` and `int`), which is not in the retry list and fails directly
+- **Exception design**: The two `0`s hit the `n <= 0` check in `fibonacci` and raise `ValueError`; because of `set_retry_exceptions(ValueError)` they are automatically retried once and still fail after the retry; `None` and `""` trigger `TypeError` at `n <= 0` (Python 3 does not support comparing `NoneType` / `str` with `int`), are not in the retry list, and fail directly
 
 ## Key Configuration
 
@@ -94,7 +94,7 @@ After running, the three modes execute sequentially, with the main output being 
 [FibonacciSerial] finish total=12, skipped=0, succeeded=8, failed=4
 ```
 
-> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s and `None` trigger `ValueError` (in Python 3, `None <= 0` is `True`) and still fail after 1 retry; `""` triggers a type error (not in the retry list).
+> **Note**: Of the 12 tasks, 4 invalid inputs (two `0`s, `None`, `""`) cause failures; the remaining 8 are valid Fibonacci tasks. The two `0`s trigger `ValueError` and still fail after 1 retry; `None` and `""` trigger `TypeError` at `n <= 0` (not in the retry list, so they fail directly).
 > All three modes use the iterative Fibonacci (O(n)) from `demo_utils`; single-task computation itself is very fast.
 
 ## Dependencies

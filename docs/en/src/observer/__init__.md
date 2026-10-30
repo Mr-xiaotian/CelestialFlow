@@ -1,6 +1,6 @@
 # src/celestialflow/observer/__init__.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 The `observer` module is CelestialFlow's **observability module**, responsible for the observer protocol, task / node / task graph event types, the event dispatch hub, and the built-in metrics and progress output observers.
 
@@ -25,7 +25,6 @@ __all__ = [
     "TaskSuccessEvent",
     "TerminationInputEvent",
     "TerminationMergeEvent",
-    "WorkerCrashEvent",
 ]
 ```
 
@@ -40,16 +39,15 @@ The exported symbols can be categorized as follows:
 | `NodeStartEvent` / `NodeEndEvent` | `core_event` | Node start / end events |
 | `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` | `core_event` | Task input / success / fail / skip / retry events |
 | `TerminationInputEvent` / `TerminationMergeEvent` | `core_event` | Termination-signal input / merge events |
-| `WorkerCrashEvent` | `core_event` | Worker crash event |
 | `GraphStartEvent` / `GraphEndEvent` | `core_event` | Task graph start / end events |
 
 ## File Descriptions
 
 1. **core_observer.py** (`Observer`)
-   - **Purpose**: Executor lifecycle observer base class, declaring 12 event callbacks and `handle_exception`.
+   - **Purpose**: Executor lifecycle observer base class, declaring 11 event callbacks and `handle_exception`.
    - **Features**: All callbacks provide default no-op implementations; it is not an ABC, and subclasses override as needed.
 
-2. **core_event.py** (12 event `dataclass`es)
+2. **core_event.py** (11 event `dataclass`es)
    - **Purpose**: Defines all event types of the task / node / task graph lifecycle.
    - **Features**: All are read-only data classes with `frozen=True, slots=True`, used as observer callback arguments.
 
@@ -80,6 +78,7 @@ The exported symbols can be categorized as follows:
 
 ### Event-Driven Dispatch
 - **Event objects as callback parameters**: All callbacks receive read-only `dataclass`es defined in `core_event.py`, carrying rich fields.
+- **Explicit lifecycle timestamps**: The start/end times of nodes and task graphs are carried by event fields (`start_time` / `end_time`), so observers do not need to sample `time.time()` themselves.
 - **Multicast dispatch**: `ObserverHub` broadcasts the same event to all registered observers at once.
 - **Exception isolation**: An exception raised by a single observer callback is caught by the hub and handed to that observer's own `handle_exception`, **without interrupting** the dispatch to other observers, nor escaping into the framework execution path.
 

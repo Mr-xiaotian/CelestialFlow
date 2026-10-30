@@ -1,6 +1,6 @@
 # tests/runtime/test_format.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 Validates the `format_repr` and `format_table` formatting functions in `celestialflow.runtime.util_format`, ensuring correctness of string truncation representation and table rendering output.
@@ -51,7 +51,7 @@ pytest tests/runtime/test_format.py -k "table" -v
 
 ## Important Details
 - The `format_repr` truncation algorithm keeps the first 2/3 of the characters, followed by `...`, then the last 1/3 of the characters.
-- In `format_table`, the first column is fixed as the `#` row-number column and is mutually exclusive with `row_names`.
+- In `format_table`, the first column is fixed as the row-number column (its header is given by `index_header`, defaulting to `#`) and defaults to the row index, with `row_names` available to override the labels of that column.
 - Column alignment is implemented by controlling the direction of inner padding in the header and data.
 
 ## Notes

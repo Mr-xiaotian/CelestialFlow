@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/__init__.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 Provides executor/task graph cloning and benchmarking capabilities. This module sits at the top of the dependency chain — it may depend on other modules, but should not be depended on by them.
 
@@ -86,7 +86,9 @@ graph TD
 
 - **Cloning mechanism**: All cloning operations are implemented by constructing new instances and copying key parameters, so the original and cloned objects are completely independent.
 - **State isolation**: Each run in benchmarking uses a cloned object to avoid state contamination that could affect test results.
+- **Cloning fidelity**: `clone_executor` only copies `name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` and `retry_exceptions`; `max_queue_size`, `skip_func`, and already-registered observers are not carried over by cloning (not sharing observers also avoids duplicate counter accumulation).
 - **Function references**: Cloning only copies function references, not the functions themselves.
 - **Async requirement**: `benchmark_executor` and `benchmark_graph` are both async functions and must be called with `await` or via `asyncio.run`.
 - **Internal tool positioning**: Cloning functions like `clone_executor` / `clone_graph` are not part of the public API and may change signature or semantics with adjustments to benchmark internal implementations.
 - **`clone_graph` node type limitations**: Supports only `TaskExecutor` nodes; not applicable to specialized nodes such as `TaskSplitter` or `TaskRouter` (will throw a `ConfigurationError`).
+

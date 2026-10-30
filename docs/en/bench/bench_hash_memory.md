@@ -1,26 +1,28 @@
 # bench/bench_hash_memory.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
 Compare the memory usage and lookup performance when storing SHA1 hash values in a `set` as three types — `str` (40-char hex), `bytes` (20-byte raw), and `int` (160-bit integer) — to inform the data type selection for `processed_set`.
 
+> The script **constructs keys on the fly** with `random.seed(42)` + `random.randbytes(20)` to mimic the length and distribution of a SHA1 digest (so that `tracemalloc` can capture the allocations); it does not actually compute SHA1.
+
 ## Test Strategy
 
 | Type | Construction Method | Single Object Size | Description |
 |------|---------------------|-------------------|------|
-| `str` | `randbytes(20).hex()` | 81 B | Original approach, 40-char hex string |
-| `bytes` | `randbytes(20)` | 53 B | Current approach, direct output from `hashlib.sha1().digest()` |
-| `int` | `int.from_bytes(randbytes(20), 'big')` | 48 B | Most compact, but loses fixed-length semantics |
+| `str` | `random.randbytes(20).hex()` | 81 B | Original approach, 40-char hex string |
+| `bytes` | `random.randbytes(20)` | 53 B | Current approach, equivalent to the output shape of `hashlib.sha1().digest()` |
+| `int` | `int.from_bytes(random.randbytes(20), "big")` | 48 B | Most compact, but loses fixed-length semantics |
 
 ## Measurement Dimensions
 
 - **Single object size**: Python object memory from `sys.getsizeof()`
-- **Total set memory delta**: `tracemalloc` snapshot difference after constructing N objects and adding to set
-- **Average overhead per entry**: total delta / N (including set bucket, pointer, etc. overhead)
-- **Build time**: Total time for N `set.add()` calls
-- **Lookup latency**: hit / miss measured with 0.3s steady-state, reported in nanoseconds per lookup
+- **Total set memory delta**: constructs N objects on the fly and adds them to a set under `tracemalloc`; after `compare_to(..., "lineno")`, only the parts with `size_diff > 0` are summed
+- **Average overhead per entry**: total delta / N (including set buckets, pointers, etc. overhead)
+- **Build time**: total time for N `set.add()` calls (constructed once separately from the memory measurement, so the two do not interfere)
+- **Lookup latency**: hit samples use `list(s)[0]`, while miss samples are `"0" * 40` / `b"\x00" * 20` / `0` respectively; each runs a 0.3s steady-state loop and is then converted to ns/call
 
 ## Benchmark Results (Measured)
 

@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_benchmark.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 `benchmark/util_benchmark.py` は実行器とタスクグラフのパフォーマンスベンチマークテスト機能を提供し、異なる実行モードのパフォーマンス差異を比較します。
 
@@ -38,12 +38,15 @@ async def benchmark_executor(
 ```
 
 テストフロー:
-1. 実行器テンプレートをクローン（`async` モードは `async_executor` を、それ以外のモードは `sync_executor` をクローン）し、状態汚染を防止
-2. `set_execution_mode(mode)` を呼び出して現在のテストモードを設定
-3. `serial` / `thread` モード: `run(task_list)` を呼び出し（内部でタスク注入、終了シグナル注入、起動を実行）; `async` モード: `await run_async(task_list)` を呼び出し
-4. 各モードの実行時間を記録し、`format_table` で時間テーブルを出力
+1. `task_source` をまず全体として `task_list` に実体化する（`list(task_source)`）。これにより以降のすべてのモードが同じタスク群を実行する
+2. `execution_modes` を 1 つずつイテレートする；`async` モードでは `async_executor` を、それ以外のモードでは `sync_executor` をクローンし、状態汚染を防ぐ
+3. `set_execution_mode(mode)` を呼び出して現在のテストモードを設定する
+4. `time.perf_counter()` で起点 `start_perf` を取得し、続いて `serial`/`thread` モードでは `run(task_list)` を呼び出す（内部でタスク注入、終了シグナル注入、起動を完了する）。`async` モードでは `await run_async(task_list)` を呼び出す；差分 `time.perf_counter() - start_perf` をそのモードの所要時間として記録する
+5. `format_table(use_time, execution_modes, ["Time"])` で時間テーブルを出力して `print` する；結果辞書を返す
 
-出力例（`format_table` が生成するボーダー付きテーブル、単位は秒）:
+> 計測区間は `run()` / `run_async()` の呼び出し全体を包むため、**実行期のリソース（`lifecycle` / `log` spout、オブザーバー）の組み立てと後片付けを含み**、純粋なタスク実行時間ではない。
+
+出力例（`format_table` が生成する枠付きテーブル、数値の単位は秒；行名列は `#`、データ列は `Time`）:
 ```
 +--------+--------+
 | #      | Time   |
@@ -83,11 +86,14 @@ async def benchmark_graph(
 ```
 
 テストフロー:
-1. `graph_modes` × `execution_modes` のすべての組み合わせをイテレート
-2. タスクグラフをクローン（`execution_mode="async"` の場合は `async_graph` を、それ以外は `sync_graph` をクローン）。`clone_graph` 内部では全ノードが `TaskExecutor` であることがアサートされ、`TaskSplitter` などの特化ノードを含む場合は `ConfigurationError` を送出します
-3. `set_graph_mode(graph_mode)` と `set_node_execution_mode(execution_mode)` を呼び出し
-4. `graph_mode="async"` の場合は `await run_async()` を実行; その他のグラフモードでは `run()` を実行。このうち `execution_mode="async"` の組み合わせは関数内部で `asyncio.to_thread(...)` により起動され、`benchmark_graph()` 自身のイベントループとの競合を回避
-5. 実行時間を記録し、`format_table` で時間テーブルを出力
+1. `init_tasks_dict` をまず全体として `base_tasks` に浅くコピーする（各ノードのタスクはさらに `list` に実体化する）。これによりすべてのセルが元のタスク集合から出発することを保証する
+2. `graph_modes` × `execution_modes` のすべての組み合わせをイテレートする
+3. タスクグラフをクローンする（`execution_mode="async"` の場合は `async_graph` を、それ以外は `sync_graph` をクローン）。`clone_graph` 内部では `isinstance` により全ノードが `TaskExecutor` であることを検査し、`TaskSplitter` などの特化ノードを含む場合は `ConfigurationError` を送出する
+4. `set_graph_mode(graph_mode)` と `set_node_execution_mode(execution_mode)` を呼び出し、現在のセル用にタスク辞書をもう一度コピーする
+5. `time.perf_counter()` で起点 `start_perf` を取得する：`graph_mode="async"` の場合は `await run_async()` を実行し、その他のグラフモードでは `run()` を実行する。このうち `execution_mode="async"` の組み合わせは `asyncio.to_thread(cloned_graph.run, run_tasks)` を通じて起動し、`benchmark_graph()` 自身のイベントループとの競合を回避する
+6. `time.perf_counter() - start_perf` を記録し、`format_table(test_table_list, graph_modes, execution_modes, "graph/execution")` で時間テーブルを出力する。行名列は `graph/execution`
+
+> 計測区間は同様に `run()` / `run_async()` の呼び出し全体を包み、実行期リソースの組み立てと後片付けを含む。
 
 出力例（単位は秒）:
 ```
@@ -226,23 +232,26 @@ asyncio.run(
 ### 戻り値
 
 `benchmark_executor` は以下の内容を含む辞書を返します:
-- `use_time`: 各モードの実行時間リスト（`execution_modes` と 1 対 1 に対応）
-- `execution_modes`: テストされた実行モードのリスト
-- `table`: フォーマット済み時間テーブル文字列
+- `use_time`: `list[list[float]]`。各 `execution_mode` が 1 行で、各行には要素が 1 つだけ入る（テーブルの唯一の `Time` 列に対応）。行の順序は `execution_modes` と一致
+- `execution_modes`: テストされた実行モードのリスト（テーブルの行名に対応）
+- `table`: フォーマット済み時間テーブル文字列（列名は `["Time"]`、行番号列の見出しはデフォルトの `#`）
 
 `benchmark_graph` は以下の内容を含む辞書を返します:
-- `use_time`: `graph_modes × execution_modes` の実行時間マトリックス（行・列はテーブルと対応）
-- `table`: フォーマット済み時間テーブル文字列
+- `use_time`: `list[list[float]]`。`graph_modes × execution_modes` の所要時間マトリックス（行・列はテーブルと対応）
+- `table`: フォーマット済み時間テーブル文字列（行名列は `graph/execution`）
 - `graph_modes`: テストされたグラフモードのリスト（テーブルの行に対応）
 - `execution_modes`: テストされた実行モードのリスト（テーブルの列に対応）
 
 ## 注意事項
 
 1. **クローン機構**: 各テストで元のオブジェクトをクローンし、状態汚染を防止
-2. **タスク固定**: 全テストで同じタスクリストを使用し、公平性を確保
+2. **タスク固定**: `benchmark_executor` はまずタスクソースを実体化し、`benchmark_graph` は各セルごとにタスクリストを再コピーして、各モードが同じタスク群を実行することを保証
 3. **リソース競合**: スレッドモードはリソース競合により結果が変動する可能性があります。複数回のテストを推奨
 4. **非同期要件**: `benchmark_executor` と `benchmark_graph` はどちらも非同期関数であり、`await` または `asyncio.run` が必要
 5. **テンプレートの分離**: `benchmark_executor` と `benchmark_graph` はどちらも同期/非同期テンプレートをそれぞれ別に提供する必要があります。`execution_mode="async"` には async 関数が必要なため
 6. **マトリックスの完全性**: `benchmark_graph` の現在の実装はデフォルトで `serial/thread/async × serial/thread/async` の 9 通りの組み合わせをカバーします
 7. **ノード型制限**: 内部で使用される `clone_graph` は `TaskExecutor` ノードのみサポート；`TaskSplitter` / `TaskRouter` などの特化ノードが含まれる場合は `ConfigurationError` を送出します
-8. **内部ツール**: `util_benchmark.py` 自体はベンチマークの内部モジュールです。外部コードは `from celestialflow import benchmark_executor / benchmark_graph` を通じてアクセスしてください
+8. **不正なモード**: `execution_modes` / `graph_modes` に `serial` / `thread` / `async` 以外の文字列を渡すと、`set_execution_mode()` / `set_graph_mode()` の箇所で `InvalidOptionError` を送出します
+9. **計測の口径**: 両関数とも `time.perf_counter()` を使用し、計測区間は `run()` / `run_async()` の実行期リソースの組み立てと後片付けを含むため、数値は大きめになり純粋なタスク実行時間とは一致しません
+10. **クローンで失われる設定**: `clone_executor` は `name` / `func` / `execution_mode` / `max_workers` / `max_retries` / `max_info` と `retry_exceptions` のみをコピーし、`max_queue_size`、`skip_func`、登録済みのオブザーバーはいずれもデフォルト値に戻ります
+11. **内部ツール**: `util_benchmark.py` 本体はベンチマークの内部モジュールです。外部コードは `from celestialflow import benchmark_executor / benchmark_graph` を通じてアクセスしてください

@@ -1,6 +1,6 @@
 # Quick Start
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 This section will guide you through quickly installing and running **TaskGraph**, experiencing its task graph scheduling mechanism through examples.
 
@@ -51,17 +51,27 @@ The `dev` dependency group already includes `pytest`, `python-dotenv`, `redis`, 
 
 ## (Optional) Set Up Status Reporting
 
-The main repo no longer includes a built-in Web service. If the example code enables `TaskReporter`, you can point it to a self-hosted HTTP service or a standalone `celestialflow-web` project; if you only want to experience the core scheduling capabilities of CelestialFlow, this section can be skipped.
+The main repo no longer includes a built-in Web service. If the example code enables reporting, you can point it to a self-hosted HTTP service or a standalone `celestialflow-web` project; if you only want to experience the core scheduling capabilities of CelestialFlow, this section can be skipped.
 
-Configuring status reporting can be done by passing a `TaskReporter` instance to `set_reporter`:
+Status reporting is configured by explicitly passing a `ReportConfig` instance to the `report` parameter of the run entry point:
 
 ```python
-from celestialflow import TaskReporter
+from celestialflow import ReportConfig, TaskExecutor, TaskGraph
 
-graph.set_reporter(TaskReporter("127.0.0.1", 5005, graph))
+node = TaskExecutor("process", func=lambda x: x * 2)
+graph = TaskGraph(name="demo", graph_mode="thread")
+graph.set_nodes([node])
+
+# Omitting report (or passing report=None) disables reporting
+graph.run(
+    {"process": [1, 2, 3]},
+    report=ReportConfig("http://127.0.0.1:5005"),
+)
 ```
 
-If you enable `TaskReporter` but the target service is not started, the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/persistence/core_log.md) will contain some `WARNING` messages. This indicates that Reporter cannot connect to the remote service, but it does not affect the task graph's own operation.
+`ReportConfig` only accepts `http` / `https` addresses; validation is performed at construction time, and a trailing `/` is stripped. After reporting is enabled, if the target service is not started,
+the [logs](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/en/src/persist/core_log.md)
+will contain some `WARNING` messages. This indicates that the reporting channel cannot connect to the remote service, but it does not affect the task graph's own operation.
 
 ```log
 2025-12-10 08:57:13 WARNING [Reporter] Task injection fetch failed: ConnectTimeout
@@ -85,6 +95,6 @@ pytest tests/node/test_node.py
 ```
 
 - `tests/graph/test_graph.py` contains graph-structure-related tests: DAG construction, layered scheduling, thread mode, loop/grid/complete graph structures, etc.
-- `tests/node/test_node.py` contains node-related tests: types, counters, snapshots, etc.
+- `tests/node/test_node.py` contains node-related tests: types, meta information, scheduling and lifecycle, etc.
 
-During code execution, you can inspect the running status through logs, `BaseObserver` (e.g. the `PrintObserver` console observer), or node `get_snapshot()` snapshots.
+During code execution, you can inspect the running status through logs, `PrintObserver` (console observer), `MetricsObserver` (metrics observer), or `ReportConfig` remote reporting. `MetricsObserver` must be registered via `graph.add_observer(...)` before running and the instance kept; after running, call `get_node_metrics()` / `get_graph_metrics()` to read the statistics.

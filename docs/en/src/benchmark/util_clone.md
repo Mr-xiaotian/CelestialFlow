@@ -1,6 +1,6 @@
 # src/celestialflow/benchmark/util_clone.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 `benchmark/util_clone.py` provides functionality for cloning executors and task graphs, used for performance testing and configuration reuse.
 
@@ -28,14 +28,19 @@ def clone_executor[T, R](
     """
 ```
 
-Copied attributes:
+Copied attributes (collected by the internal `_get_clone_init_kwargs()` and then passed to `TaskExecutor(**kwargs)`):
 - `name`: Executor name
-- `func`: Task function
+- `func`: Task function (only the reference is copied, no deep copy)
 - `execution_mode`: Execution mode
 - `max_workers`: Concurrency limit
 - `max_retries`: Max retry count
 - `max_info`: Max log info length
-- `retry_exceptions`: List of retryable exceptions (set via `set_retry_exceptions()`)
+- `retry_exceptions`: List of retryable exceptions (copied after construction via `set_retry_exceptions(*executor.retry_exceptions)`)
+
+**Configuration that is not copied** (the clone reverts to the constructor defaults):
+- `max_queue_size` (default `0`, unlimited)
+- `skip_func` (default `None`, skip no tasks)
+- Already-registered observers (the `Observer` / `ObserverHub` registered via `add_observer()`)
 
 ### clone_graph
 
@@ -50,6 +55,10 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     graphs composed of ``TaskExecutor``, and directly reuses
     :func:`clone_executor` to clone all nodes.
 
+    The clone does not carry the observers of the original graph / nodes:
+    ``clone_executor`` creates brand-new instances, and sharing an observer with
+    counters would cause duplicate counting.
+
     :param graph: The task graph to clone
     :return: The cloned task graph
     :raises ConfigurationError: Raised when the graph contains non-``TaskExecutor`` nodes
@@ -57,12 +66,14 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
 ```
 
 Cloning flow:
-1. Starting from the source node, traverse the original graph via BFS (breadth-first) in the out-edge order of `graph.order_graph.out_edges` to collect all nodes
-2. Assert that every node is a `TaskExecutor`; if specialized nodes such as `TaskSplitter` / `TaskRouter` are encountered, immediately raise `ConfigurationError`
+1. Starting from the source nodes (`graph.get_source_nodes()`), traverse the original graph via BFS (breadth-first) in the out-edge order of `graph.order_graph.out_edges` to collect all nodes
+2. Perform an `isinstance(node, TaskExecutor)` check on each node; if specialized nodes such as `TaskSplitter` / `TaskRouter` are encountered, immediately raise `ConfigurationError`
 3. Clone each node and build a mapping from the original node name to the cloned node
 4. Register all cloned nodes via `set_nodes()` and rebuild the connection relationships between nodes with `connect()`
 5. Copy graph configuration (`name`, `graph_mode`)
-6. Copy the CelestialTree event client (cloned via `clone_event_client`)
+6. Copy the CelestialTree event client (cloned via `clone_event_client(graph.ctree_client)`)
+
+> ⚠️ After cloning, the key order of `node_dict` becomes BFS order (source nodes first), no longer the original graph's node registration order.
 
 > ⚠️ **`clone_graph` does not guarantee preservation of all node types**: only `TaskExecutor` nodes will be cloned as the same type; specialized nodes such as `TaskSplitter` / `TaskRouter` will neither be cloned as the same subclass, nor will their split / route behavior be preserved. This tool is an internal benchmark utility, and only applies to task graphs that "consist entirely of `TaskExecutor` and are used for benchmarking".
 
@@ -215,8 +226,9 @@ asyncio.run(main())
 ## Notes
 
 1. **State independence**: Cloned objects are completely independent from the original (achieved by constructing new instances); modifications do not affect each other
-2. **Connection reconstruction**: When cloning a graph, connection relationships between nodes are rebuilt
+2. **Connection reconstruction**: When cloning a graph, connection relationships between nodes are rebuilt, but the key order of `node_dict` becomes BFS order
 3. **Function references**: Cloning only copies function references, not the functions themselves
-4. **Performance overhead**: Cloning large graphs has some overhead, but is faster than rebuilding from scratch
-5. **Internal tool**: `clone_executor` / `clone_graph` are internal benchmark utilities, not in the top-level package entry's `__all__`; their signatures / semantics may change as the internal benchmark implementation evolves
-6. **Node type limitation**: `clone_graph` only supports `TaskExecutor` nodes; encountering specialized nodes such as `TaskSplitter` / `TaskRouter` will raise `ConfigurationError`, and **does not** preserve the type or behavior of those subclasses
+4. **Configuration loss**: `clone_executor` does not copy `max_queue_size`, `skip_func`, or already-registered observers; `clone_graph` reuses `clone_executor`, so nodes in the cloned graph likewise lose these configurations (losing observers also avoids duplicate counter accumulation)
+5. **Performance overhead**: Cloning large graphs has some overhead, but is faster than rebuilding from scratch
+6. **Internal tool**: `clone_executor` / `clone_graph` are internal benchmark utilities, not in the top-level package entry's `__all__`; their signatures / semantics may change as the internal benchmark implementation evolves
+7. **Node type limitation**: `clone_graph` only supports `TaskExecutor` nodes; encountering specialized nodes such as `TaskSplitter` / `TaskRouter` will raise `ConfigurationError`, and **does not** preserve the type or behavior of those subclasses

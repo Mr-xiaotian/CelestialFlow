@@ -1,6 +1,6 @@
 # bench/ ベンチマーク概要
 
-> 📅 最終更新日: 2026/09/14
+> 📅 最終更新日: 2026/10/30
 
 ## 説明
 
@@ -41,7 +41,7 @@
 
 | ドキュメント | 説明 |
 |--------------|------|
-| `bench_persistence_spout.md` | 永続化 spout のログ / lifecycle 書き込みパフォーマンス |
+| `bench_persist_spout.md` | 永続化 spout のログ / lifecycle 書き込みパフォーマンス |
 | `bench_queue.md` | キュー実装ベンチマーク |
 | `bench_ipc_queue.md` | プロセス間キュー通信オーバーヘッドテスト |
 | `bench_mpqueue_vs_shared_memory.md` | `multiprocessing.Queue` と共有メモリ方式の比較 |

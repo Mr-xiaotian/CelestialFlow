@@ -1,6 +1,6 @@
 # tests/node/test_node.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 
@@ -96,7 +96,7 @@ pytest tests/node/test_node.py -k "execution_mode" -v
 
 ## Notes
 
-- `test_connect_to_binding_survives_execution_mode_switch` is a regression test: the downstream queue pool `yield_queue` and upstream input sources `source_names` established by `connect_to` remain stable after switching execution mode; the binding is not lost when the dispatcher is rebuilt.
+- `test_connect_to_binding_survives_execution_mode_switch` is a regression test: the downstream queue pool `yield_queue` and the upstream input queue `TaskInQueue.source_names` established by `connect_to` remain stable after switching execution mode; the binding is not lost because the dispatcher is rebuilt.
 - `get_meta()` only returns build-time metadata (`class_name` / `execution_mode` / `max_workers`), which is reported once with the graph structure.
 - `TestBaseTaskNodeStartErrors` uses `monkeypatch.setattr` to replace two **internal hooks**, `_prepare_start` and `_finish_start`, verifying that exceptions are aggregated into an `ExceptionGroup` on both synchronous and asynchronous startup.
 - `ExceptionGroup` is only available in Python 3.11+; this repository is based on Python 3.14 which satisfies the requirement.

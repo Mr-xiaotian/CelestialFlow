@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -47,7 +47,7 @@ Observer overview:
 | `TaskProgress` | Locally defined in this file | Display execution progress using `tqdm`, suitable for CLI interactive scenarios |
 | `PrintObserver` | Built into `celestialflow` | Output each callback's count using `print`, with the constructor argument `name` as the output prefix |
 
-`PrintObserver` implements the following callbacks (`name` is the prefix passed at construction):
+`PrintObserver` implements the following callbacks (`name` is the prefix passed at construction); all callbacks receive the corresponding event `dataclass` from `core_event.py`:
 
 | Callback | Output / Purpose |
 |------|------|
@@ -60,7 +60,7 @@ Observer overview:
 
 ## Potential Issues
 
-1. **Default `main()` runs both `demo_progress_observer` and `demo_print_observer`**: Both observers execute in sequence, first showing the tqdm progress bar, then outputting logs.
+1. **`__main__` runs both `demo_progress_observer` and `demo_print_observer`**: Both observers execute in sequence, first showing the tqdm progress bar, then outputting logs.
 2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_task_input`, `on_node_start`, `on_task_success`, and `on_node_end`.
 3. **`on_task_input` arrives before `on_node_start`**: `run()` injects all tasks before starting the executor, so by the time `on_node_start` fires, `total` has already accumulated to its final value (`PrintObserver` prints several `total=...(+1)` lines first, then `start total=7`). `TaskProgress` also relies on this, using the accumulated `_total` to create the progress bar in `on_node_start`.
 4. **No assertions**: This is a demo script. It does not validate result values; it only demonstrates observer invocation timing.
@@ -101,17 +101,16 @@ When running `demo_print_observer()`, it prints observer lifecycle logs similar 
 [FibonacciSerial2] finish total=7, skipped=0, succeeded=7, failed=0
 ```
 
-To observe failure, skip, and retry events, you can change the input back to a list containing invalid values, duplicates, or illegal inputs, for example:
+If you want to observe events such as failures, skips, and retries, you can change the input back to a list containing exception values, duplicate values, or illegal inputs, for example:
 
 ```python
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-This makes it easier to trigger:
+This makes it easier to trigger `on_task_fail` / `on_task_skip`; but note:
 
-- `on_task_fail`
-- `on_task_skip`
-- `on_task_retry`
+- `TaskProgress` only implements `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end`, and has no retry callback.
+- `PrintObserver` only implements `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip`, and likewise **does not implement `on_task_retry`**. Although the `Observer` base class provides the `on_task_retry` callback, neither of this demo's observers produces output for it.
 
 ## Dependencies
 

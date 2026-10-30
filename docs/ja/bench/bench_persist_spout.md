@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -37,8 +37,20 @@ preload queue -> start spout -> drain all queued records
 - `--lifecycle-count`: デフォルト `20_000`
 - `LogSpout` は一時ディレクトリ下の `bench_task_logger.log` に出力
 - `LifecycleSpout` は一時ディレクトリ下の `bench_lifecycle.sqlite3` に出力
-- 2 つの spout はそれぞれ `BenchLogSpout` / `BenchLifecycleSpout` サブクラスがソース内の `LogSpout` / `LifecycleSpout` を継承し、`_before_start()` 内で出力パスを一時ディレクトリに向ける（`LogSpout` は `connect_db` で SQLite 接続を確立する）
+- 2 つの spout はそれぞれ `BenchLogSpout` / `BenchLifecycleSpout` サブクラスがソース内の `LogSpout` / `LifecycleSpout` を継承し、`_before_start()` をオーバーライドして出力パスを一時ディレクトリに向ける：`BenchLogSpout` はテキストファイルのハンドルを開き、`BenchLifecycleSpout` は `connect_db()` で SQLite 接続を確立する
+- 一時ディレクトリは `tempfile.TemporaryDirectory()`（プレフィックス `cf_bench_log_` / `cf_bench_lifecycle_`）で作成され、`with` ブロックを抜けると自動的にクリーンアップされる
 - `LifecycleSpout` は現在のプロジェクト実装、すなわち「各有効変更後に直接 `commit()`」を使用
+
+## 出力指標
+
+`run_spout_bench()` は 4 つの指標を返し、出力する：
+
+| 指標 | 意味 |
+|------|------|
+| `records` | 今回書き込んだレコード数 |
+| `elapsed` | `spout.start()` → `spout.stop()` の総所要時間（秒） |
+| `throughput` | `len(records) / elapsed`、単位は records/s |
+| `avg per record` | `elapsed / len(records) × 1e6`、単位はマイクロ秒/件。レコード集合が空の場合は `0.0` |
 
 ## 発生しうる問題
 
@@ -87,7 +99,7 @@ preload queue -> start spout -> drain all queued records
 python bench/bench_persist_spout.py
 ```
 
-プロジェクトがインポート可能なパッケージとしてインストールされていない場合、ローカル仮想環境のインタープリターを直接使用することもできます：
+スクリプトの冒頭で `<プロジェクトルート>/src` を `sys.path` に挿入するため、プロジェクトをインポート可能なパッケージとしてインストールする必要はありません。ローカル仮想環境のインタープリターで直接実行することもできます：
 
 ```bash
 .\.venv\Scripts\python.exe bench/bench_persist_spout.py

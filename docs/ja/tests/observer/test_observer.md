@@ -1,6 +1,6 @@
 # tests/observer/test_observer.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 
@@ -10,12 +10,12 @@
 
 | クラス / オブジェクト | ソース | 説明 |
 |-----------|------|------|
-| `Observer` | `celestialflow.observer` | オブザーバー基底クラス。`on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_worker_crash` / `on_graph_start` / `on_graph_end` などのイベントコールバックを提供 |
+| `Observer` | `celestialflow.observer` | オブザーバー基底クラス。`on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_node_end` / `on_graph_start` / `on_graph_end` の計 11 個のイベントコールバックを提供し、さらに `handle_exception` をコールバック例外ハンドラとして提供 |
 | `ObserverHub` | `celestialflow.observer` | オブザーバー集約器。各 `on_*` メソッドを明示的に実装し登録済みオブザーバーへブロードキャスト。循環登録を拒否 |
 | `PrintObserver` | `celestialflow` | 組み込みオブザーバー。構築引数は `name` で、`[<name>] start` / `[<name>] finish` のログを出力し、`total` / `succeeded` / `failed` カウントを保持 |
 | `MetricsObserver` | `celestialflow.observer` | 指標オブザーバー。`metrics_of(executor)` 経由でノード指標を読み取るテスト |
 | `TaskExecutor` / `TaskGraph` / `TaskChain` | `celestialflow` | 実行ホスト。ライフサイクル中にオブザーバーへイベントをトリガー |
-| イベント型 | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `WorkerCrashEvent` / `GraphStartEvent` / `GraphEndEvent` |
+| イベント型 | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `GraphStartEvent` / `GraphEndEvent` |
 
 ## テストカバレッジマトリックス
 
@@ -38,7 +38,7 @@
 | `TestGraphObserver` | `test_node_local_observer_runs_before_graph_observer` | 同一ノード内で、ノードローカルのオブザーバーがグラフレベルのオブザーバーより先に呼び出される |
 | `TestGraphObserver` | `test_graph_hub_is_injected_as_object` | 注入されるのは hub オブジェクト自体：run の後に登録したグラフレベルオブザーバーも有効 |
 | `TestGraphObserver` | `test_run_async_injects_graph_observers` | `run_async` パスでもグラフレベルオブザーバー注入が実行される |
-| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | グラフレベルオブザーバーが `GraphStartEvent` / `GraphEndEvent` を受信し、開始イベントがグラフメタ情報（`nodes` / `edges` / `source_nodes` / `node_meta` / `class_name` / `is_dag`）を保持 |
+| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | グラフレベルオブザーバーが `GraphStartEvent` / `GraphEndEvent` を受信；開始イベントは `graph` / `graph_mode` / `is_dag` / `nodes` / `edges` / `source_nodes` / `node_meta` を保持し、うち `node_meta["only"]["class_name"] == "TaskExecutor"`（`class_name` はノードメタ情報に属し、イベントのトップレベルフィールドではなくなった） |
 | `TestGraphObserver` | `test_structure_supports_graph_observer` | 構造クラス（`TaskChain`）もグラフレベルオブザーバーをサポート |
 | `TestGraphObserver` | `test_graph_rejects_cycle_between_graph_and_node_hub` | node hub を graph hub へ登録すると、注入時に循環参照のため `ConfigurationError` が送出される |
 

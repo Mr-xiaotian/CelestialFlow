@@ -1,6 +1,6 @@
 # bench/bench_gil_vs_nogil.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -27,8 +27,9 @@ Script file: `bench/bench_gil_vs_nogil.py`
 
 - **CPU tasks**: Execute pure Python integer loops and hash-based mixed operations, aiming to stress Python bytecode execution overhead
 - **I/O tasks**: `time.sleep()` to simulate blocking waits
-- **Graph structure**: Fixed as a simple 3-node series pipeline to avoid topology differences confounding results
-- **Repetitions**: Each workload runs 3 times by default, with average / min / max statistics
+- **Graph structure**: Fixed as a simple 3-node series pipeline (`node_1 → node_2 → node_3`) to avoid topology differences confounding results
+- **Repetitions**: Each workload runs 3 times by default, reporting average / min / max / standard deviation (`stdev_seconds`, `0.0` for a single round)
+- **Correctness check**: After each run, `metrics_of()` retrieves the `MetricsObserver` from the run object's hub and compares the sink node's `succeeded` count with the task count; any mismatch raises `RuntimeError` immediately
 
 ## Key Configuration
 
@@ -37,13 +38,14 @@ Default parameters:
 | Parameter | Default | Description |
 |------|--------|------|
 | `repeats` | `3` | Number of repetitions per workload |
-| `workers` | `0` | Automatically set to `min(os.cpu_count(), 16)` |
+| `workers` | `0` | Automatically set to `min(os.cpu_count() or 1, 16)` |
 | `cpu_tasks` | `128` | Number of CPU tasks for `TaskExecutor` |
 | `cpu_loops` | `120000` | Loop intensity per CPU task |
 | `pipeline_tasks` | `96` | Number of pipeline tasks for `TaskGraph` |
 | `pipeline_loops` | `60000` | Loop intensity for pipeline CPU tasks |
 | `io_tasks` | `96` | Number of I/O pipeline tasks |
 | `io_sleep_ms` | `10.0` | Sleep duration per I/O task (milliseconds) |
+| `json-out` | `None` | Optional JSON output path; when given, the complete payload (environment info + parameters + per-workload statistics) is written to that file |
 
 ## How to Run
 

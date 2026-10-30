@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 Verifies the dedicated analysis capabilities of two predefined cyclic graph structures, `TaskLoop` and `TaskWheel`, as well as the input validation for various predefined graph structures (`TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`), ensuring that empty/illegal inputs do not cause silent construction or crashes.
@@ -14,20 +14,21 @@ Verifies the dedicated analysis capabilities of two predefined cyclic graph stru
 
 | Test Class | Case Count | Coverage Target |
 |--------|--------|---------|
-| `TestTaskLoop` | 2 | is_dag identified as False, cycle nodes share the same level, source node derivation returns a representative |
-| `TestTaskWheel` | 2 | Center at level 0, Ring at level 1, source node returns only Center |
+| `TestTaskLoop` | 2 | `is_dag()` returns False, cycle nodes share the same level; source node derivation returns a representative |
+| `TestTaskWheel` | 2 | `is_dag()` returns False, Center at level 0, Ring at level 1; source node returns only Center |
 | `TestStructureValidation` | 10 | Empty nodes / empty layers / empty grid / empty first row / mismatched row length / single-node Complete / empty input validation for each structure |
 | **Total** | **14** | |
 
 ## Key Test Flows
 
 ### TaskLoop Analysis
-- Verifies `is_dag` is correctly identified as `False`.
-- Verifies that all nodes within the cycle are assigned to the same logical level.
-- Verifies that source node derivation selects a representative from the cycle as the injection point.
+- Verifies that `is_dag()` returns `False`.
+- Verifies that in `get_layers()` all nodes within the cycle are assigned to the same logical level.
+- Verifies that source node derivation can select a representative from the cycle as the injection point.
 
 ### TaskWheel Analysis
-- Verifies that the center node (Center) is at Level 0 while the ring node (Ring) is at Level 1.
+- Verifies that `is_dag()` returns `False`.
+- Verifies that in `get_layers()` the center node (Center) is at level 0 while the ring nodes (Ring) are at level 1.
 - Verifies that `get_source_nodes()` only returns the Center node, ensuring tasks are injected from the center.
 
 ### Structure Input Validation (`TestStructureValidation`)
@@ -72,13 +73,13 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 | Test | Duration |
 |------|------|
-| `TestTaskLoop` | ~1s (includes graph start and termination) |
-| `TestTaskWheel` | ~1s |
+| `TestTaskLoop` | < 0.1s (includes graph start and termination) |
+| `TestTaskWheel` | < 0.1s |
 | `TestStructureValidation` | < 0.1s (pure construction validation) |
 
 ## Important Details
 - `TaskLoop` is started via `run()` and injects tasks (`run` defaults to `if_put_signal=True`, automatically emitting a termination signal for the source node to ensure test exit).
-- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_node_execution_mode()`, it directly reads `is_dag` and `layers_dict` and calls `get_source_nodes()` for static analysis.
+- `TaskWheel` does not execute tasks: after configuring via `set_graph_mode()` and `set_node_execution_mode()`, it directly calls `is_dag()`, `get_layers()`, and `get_source_nodes()` for static analysis.
 - The test focus is on "analysis results" (whether the graph is a DAG, level distribution, source nodes) rather than "execution results."
 - The input validation tests are pure construction operations and do not involve graph startup.
 

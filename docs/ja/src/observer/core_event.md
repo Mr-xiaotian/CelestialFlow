@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_event.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `core_event.py` は観測者体系における**すべてのイベント型**を定義します。これらは観測者コールバックの引数として、タスク / ノード / タスクグラフのライフサイクルにおけるさまざまな変化を記述します。すべてのイベントは `frozen=True, slots=True` の読み取り専用 `dataclass` です。
 
@@ -8,8 +8,8 @@
 
 | イベント | フィールド | トリガー時期 |
 |------|------|----------|
-| `NodeStartEvent` | `node`、`execution_mode`、`max_workers` | ノード起動 |
-| `NodeEndEvent` | `node`、`execution_mode`、`max_workers`、`elapsed` | ノード終了 |
+| `NodeStartEvent` | `node`、`execution_mode`、`max_workers`、`start_time` | ノード起動 |
+| `NodeEndEvent` | `node`、`execution_mode`、`max_workers`、`elapsed`、`end_time` | ノード終了 |
 | `TaskInputEvent` | `node`、`task`、`task_repr`、`input_id`、`from_node` | タスクがノードの入力キューに入る |
 | `TaskSuccessEvent` | `node`、`task`、`task_repr`、`result`、`result_repr`、`elapsed`、`task_id`、`success_id` | タスクの成功処理 |
 | `TaskFailEvent` | `node`、`task`、`task_repr`、`exception`、`task_id`、`error_id` | タスクの最終失敗 |
@@ -17,9 +17,8 @@
 | `TaskRetryEvent` | `node`、`task`、`task_repr`、`exception`、`task_id`、`retry_times` | タスク失敗だがリトライをトリガー |
 | `TerminationInputEvent` | `node`、`termination_id` | 終了シグナルが入力キューに入る |
 | `TerminationMergeEvent` | `node`、`parent_ids`、`termination_id` | 複数ソースの終了シグナルがマージされる |
-| `WorkerCrashEvent` | `node`、`exception` | ワーカースレッド / コルーチンがフォールバック層で未処理例外を捕捉 |
-| `GraphStartEvent` | `graph`、`graph_mode`、`start_time`、`class_name`、`is_dag`、`nodes`、`edges`、`source_nodes`、`node_meta` | タスクグラフ起動 |
-| `GraphEndEvent` | `graph`、`elapsed` | タスクグラフ終了 |
+| `GraphStartEvent` | `graph`、`graph_mode`、`start_time`、`is_dag`、`nodes`、`edges`、`source_nodes`、`node_meta` | タスクグラフ起動 |
+| `GraphEndEvent` | `graph`、`end_time`、`elapsed` | タスクグラフ終了 |
 
 ## フィールドの説明
 
@@ -40,12 +39,19 @@
 
 - `from_node`：上流の発生源ノード名。`None` は外部から直接注入されたことを表します。このフィールドは `MetricsObserver` が外部注入と上流配信を区別する根拠です。
 
+### ライフサイクルタイムスタンプ
+
+- `start_time`：ノード / タスクグラフ起動のウォールクロック時刻（秒）。`NodeStartEvent` / `GraphStartEvent` が持ちます。
+- `end_time`：ノード / タスクグラフ終了のウォールクロック時刻（秒）。`NodeEndEvent` / `GraphEndEvent` が持ちます。
+- `elapsed`：ノード / タスクグラフの実行所要時間（秒）。
+
+タイムスタンプはイベント構築時に一度だけ書き込まれ、下流の観測者（`MetricsObserver` など）はイベントフィールドを直接読み取り、自ら `time.time()` でサンプリングすることはありません。
+
 ### グラフ元情報（`GraphStartEvent`）
 
 - `graph`：タスクグラフ名。
 - `graph_mode`：タスクグラフの実行モード。
 - `start_time`：タスクグラフの起動時間。
-- `class_name`：タスクグラフクラス名。
 - `is_dag`：DAG タスクグラフかどうか。
 - `nodes`：タスクグラフのノード名リスト。
 - `edges`：タスクグラフの辺隣接リスト（`{from_name: [to_name, ...]}`）。
@@ -81,7 +87,6 @@ from celestialflow.observer import (
     ObserverHub,
     TaskFailEvent,
     TaskSuccessEvent,
-    WorkerCrashEvent,
 )
 
 
@@ -91,9 +96,6 @@ class MyObserver(Observer):
 
     def on_task_fail(self, event: TaskFailEvent) -> None:
         print(f"{event.node} 失敗: {event.exception}")
-
-    def on_worker_crash(self, event: WorkerCrashEvent) -> None:
-        print(f"{event.node} ワーカークラッシュ: {event.exception}")
 
 
 hub = ObserverHub()

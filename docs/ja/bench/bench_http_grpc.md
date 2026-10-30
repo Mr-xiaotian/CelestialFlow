@@ -1,6 +1,6 @@
 # bench/bench_http_grpc.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 ## 目的
 
@@ -10,17 +10,29 @@ CelestialTree イベント追跡システムの異なる転送プロトコル（
 
 | シナリオ | 説明 |
 |----------|------|
-| `bench_no_ctree` | CelestialTree を完全に無効化、ベースラインとして使用 |
-| `bench_http_ctree` | HTTP プロトコルで CelestialTree にイベントを報告 |
-| `bench_grpc_ctree` | gRPC プロトコルで CelestialTree にイベントを報告 |
+| `bench_no_ctree` | `chain.set_ctree()` を呼び出さず、ノード既定の `LocalEventClient`（ネットワークアクセスなし、イベント ID をローカル生成）をそのまま使用。ベースラインとして扱う |
+| `bench_http_ctree` | `CelestialTreeClient(transport="http")` で CelestialTree にイベントを報告 |
+| `bench_grpc_ctree` | `CelestialTreeClient(transport="grpc")` で CelestialTree にイベントを報告 |
+
+3 つのシナリオは同一のグラフ構造を共有する：
+
+```python
+task_splitter = TaskSplitter("splitter")
+process_node = TaskExecutor(
+    "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
+)
+chain = TaskChain("bench_xxx", [task_splitter, process_node])
+```
 
 - **グラフ構造**：`TaskSplitter → TaskExecutor` のシンプルなチェーン
-- **タスク**：`no_op` 恒等関数（`range(1e4)` を処理）
-- **設定**：`execution_mode="thread"`、`max_workers=50`（`TaskSplitter` はデフォルトで直列、`TaskExecutor` 自身も `execution_mode` を明示的に設定しない。構築時に直接引数を渡しているため）
+- **タスク**：`no_op` 恒等関数。入力は `{"splitter": [range(int(1e4))]}`
+- **設定**：`TaskSplitter` はデフォルトの `execution_mode="serial"`（直列展開）を使用。`TaskExecutor` は `execution_mode="thread"`、`max_workers=50` を明示的に設定
+- **計時**：`start_perf = time.perf_counter()` を `chain.run()` の前に、`end_time = time.perf_counter()` をその後に置き、`print(f"{シナリオ名}: {end_time - start_perf}")` で直接出力する。複数ラウンドの統計は取らない
 
 ## 主要設定
 
-- `ctree_host`、`ctree_http_port`、`ctree_grpc_port` は `.env` から読み込み
+- `ctree_host`、`ctree_http_port`、`ctree_grpc_port` は `load_dotenv()` により `.env` から読み込み、デフォルト値はそれぞれ `127.0.0.1`、`7777`、`7778`
+- `bench_no_ctree` にはコメントアウトされた `# chain.set_ctree(False)` の行が残っているが、現在は有効化されていない
 
 ## 発生し得る問題
 

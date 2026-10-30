@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_lifecycle.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `persist/core_lifecycle.py` はタスクライフサイクル（Lifecycle）の永続化を担当します：タスクのライフサイクル全体における状態変化（pending → success / failed / skipped、およびリトライ回数の更新）を記録し、データを `lifecycles/` ディレクトリ下の SQLite データベースファイルへ書き込みます。中核コンポーネントは `LifecycleSpout` と `LifecycleInlet` です。
 
@@ -83,7 +83,7 @@ Lifecycle データはデフォルトで `./lifecycles/` ディレクトリ下�
 ```python
 class LifecycleInlet(BaseInlet, Observer):
     def on_task_input(self, event: TaskInputEvent) -> None:
-        """タスクが or の node に入ったことを示す pending レコードを書き込む。"""
+        """タスクが node に入ったことを示す pending レコードを書き込む。"""
 
     def on_task_success(self, event: TaskSuccessEvent) -> None:
         """正常に処理されたタスクに対応する pending レコードを success に昇格させ、結果を書き込む。"""
@@ -136,7 +136,7 @@ hub.on_task_input(
 lifecycle_spout.stop()
 ```
 
-実際の使用では、`LifecycleInlet` は通常 `assembly/core_run.py` で組み立てられ、タスクグラフの実行中にタスクライフサイクルを永続化します。永続化されたレコードの読み取りには `util_sqlite` の `load_records` / `load_task_error_records` / `load_task_result_records` などの関数を使用してください。
+実際の使用では、`LifecycleInlet` は通常 `assembly/core_run.py` で組み立てられ、タスクグラフの実行中にタスクライフサイクルを永続化します。永続化されたレコードの読み取りには `util_sqlite` の読み取り関数を使用してください：`load_tasks_grouped_by_node`（指定状態のレコードを node ごとにグループ化して読み取る）、`load_task_error_records`（ある node の `(task, error)` ペアを読み取る）、`load_task_result_records`（ある node の `(task, result)` ペアを読み取る）。
 
 ## 注意事項
 
@@ -144,3 +144,4 @@ lifecycle_spout.stop()
 2. **即時 commit**：書き込み操作が実際にレコードを変更するたびに直ちに commit が行われ、データの損失を防ぎます。
 3. **Inlet はキューへの書き込みのみ**：データベースを直接操作せず、すべての I/O は `LifecycleSpout` のバックグラウンドスレッドで実行されます。
 4. **オブザーバーコールバック駆動**：本クラスは `task_input` / `task_success` などの手動呼び出しメソッドを提供せず、`on_*` イベントコールバックを通じてライフサイクルを消費します。
+5. **パッケージを跨ぐインポート**：`Observer` と各 `*Event` は統一的に `from ..observer import (...)` のパッケージレベルインポートで取得し、`core_*` のパッケージ間インポート規則に従います。

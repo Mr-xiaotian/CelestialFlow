@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_constant.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/10/30
 
 `runtime/util_constant.py` はランタイムのグローバル定数を定義します。主にログレベルマッピングテーブル `LEVEL_DICT` です。
 
@@ -114,4 +114,5 @@ print(validate_level("VERBOSE"))  # False
 
 ## 注意事項
 
-- `LEVEL_DICT` は `util_config` の `load_log_level_from_pyproject()` がユーザー設定のログレベルを検証するために使用します。レベル数値を随意に変更しないでください。
+- `LEVEL_DICT` はログレベルの唯一の有効値集合です。`runtime/util_log_level.py` の `normalize_log_level()` がこれを使ってランタイムエントリから渡された `log_level` を検証・正規化し、`LogInlet` がこれを使ってレベルフィルタリングと比較を行います。レベル数値を勝手に変更しないでください。
+- 本ファイルは `util_*` モジュールであり、`celestialflow.runtime` の `__all__` に含まれていないため、完全修飾パスでインポートする必要があります。

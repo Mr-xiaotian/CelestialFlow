@@ -1,6 +1,6 @@
 # demo/demo_structure.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -227,7 +227,7 @@ flowchart TD
 
 ## 発生しうる問題
 
-1. **`__main__` が未定義の `demo_forest` を呼び出す**：`__main__` は `demo_chain()` の直後に `demo_forest()` を呼び出すが、本ファイルではこの関数はもはや定義されていない（フォレストのサンプルは `demo_web.py` に移行済み）。そのためここで `NameError` がスローされ、後続の `demo_cross()`、`demo_grid()`、`demo_loop()`、`demo_complete()`、`demo_multi_cycle()` は実行されない。
+1. **実行時間が長い**：`demo_chain`（20 タスク × 5 ノード、`execution_mode="serial"`）と `demo_grid`（4×4 グリッド、`add_one_sleep` は 1 秒の sleep を含む）はいずれも大量の sleep を蓄積する。`__main__` は 6 つのデモを順に実行するため、全体の所要時間は数分に達することがある。
 2. **循環グラフが自動停止しない可能性がある**：4 つの循環グラフサンプルはいずれも明示的に `if_put_signal=False` を渡す（自動終了シグナルを注入しない）。うち `demo_wheel` の `Core` は `square` を使用するため（例外をスローしない）、タスクは継続的にループバックしてローテーションする。それ以外のサンプルは、タスクが `add_one_sleep` の例外閾値（n>30）まで増加した後、新しいタスクを生成しなくなるため、やはり自動的に終了しない。実行前に **Ctrl+C** で手動終了できるよう準備しておくことを推奨。
 3. **sleep 遅延の蓄積**：`square` と `add_one_sleep` はいずれも 1 秒の sleep を含み、タスク数が多いと総所要時間が明らかに増加する。
 4. **アサーションなし**：フレームワークが起動・実行できることのみを検証し、結果の数値はチェックしない。
@@ -242,7 +242,7 @@ python demo/demo_structure.py
 
 ## 想定される動作
 
-以下の出力はすべて期待される出力（mock）であり、具体的なログ形式はフレームワークの出力に依存する。
+以下の出力はすべて期待される出力（mock）である：ソースコードはこれらの構造に `PrintObserver` を登録していないため、実際に実行してもターミナルには下記のタスクごとのログや `Summary` は表示されない。
 
 ### DAG 構造
 
@@ -287,6 +287,7 @@ Grid33: success=180  fail=0
 > **重要**：循環グラフサンプル（`demo_loop`、`demo_wheel`、`demo_complete`、`demo_multi_cycle`）はいずれも明示的に `if_put_signal=False` を渡すため、終了シグナルが自動注入されず、デフォルト実行時に継続的にループする可能性がある。**Ctrl+C** で手動終了することを推奨。
 
 > 複数の構造を順に実行する場合、`Summary` セクションに各ノードの成功/失敗カウントが表示される。
+> 上記の各レベルの `Input -> Output` と `Summary` はいずれも模式的な出力である。ソースコードはこれらの構造に `PrintObserver` を登録していないため、実際のターミナル出力はフレームワークのログに準じる。
 > `demo_grid` のカウントは mock の推計：`Grid00` は `range(10)` を入力とし、そのうち `0` が `add_one_sleep` の `ValueError` をトリガーして失敗する。残りのタスクは 4×4 グリッドに沿って下方に伝播し、`Grid33` には合計 180 件のタスクが集約される。
 
 ## 依存関係
@@ -294,4 +295,4 @@ Grid33: success=180  fail=0
 - `celestialflow`（`TaskGraph`、`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`、`TaskExecutor`）
 - `demo_utils`
 - `python-dotenv`
-- 外部サービス：CelestialTree（オプション）
+- `celestialtree`（モジュールレベルの `import`。存在しない場合スクリプトは起動できない。各 `set_ctree` 呼び出しはデフォルトでコメントアウトされており、サーバー側は必須ではない）

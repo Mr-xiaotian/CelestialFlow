@@ -1,6 +1,6 @@
 # src/celestialflow/node/util_types.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `util_types.py` は `node` モジュールにノード層特有の型エイリアスを提供します。現状は `AnyTaskNode` 型エイリアス 1 つだけを定義し、`TaskGraph` などの上位構造が「任意のノード」としてノードオブジェクトを参照できるようにします。
 
@@ -37,6 +37,6 @@ def collect_names(nodes: list[AnyTaskNode]) -> list[str]:
 
 ## 注意事項
 
-1. **型エイリアスでありインポートリストには参加しない**：本ファイルには `__all__` がなく、`celestialflow.node.util_types` からの明示的な `import` は不要；`celestialflow.node` を経由して間接的にアクセスできます。
+1. **型エイリアスでありインポートリストには参加しない**：本ファイルには `__all__` がなく、`AnyTaskNode` も `celestialflow.node` の `__all__` には含まれません。使用する場合は `celestialflow.node.util_types` から直接インポートしてください（`util_*` シンボルはパッケージエントリから再エクスポートされません）。
 2. **範囲の限定**：`AnyTaskNode` を「具体的なノード」の位置に使うべきではありません。例えば `TaskExecutor[T, R]` の入力引数は引き続きジェネリックバージョンを使用し、静的推論を損なわないようにしてください。
-3. **`runtime` モジュールの型との連携**：`BaseTaskNode` は内部で直接 `runtime` モジュールの `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `TaskMetrics` / `ValueWrapper` / `CTreeEvent` / `TerminationSignal` を使用しており、これらの型の詳細説明は対応するドキュメントを参照してください。
+3. **`runtime` モジュールの型との連携**：`BaseTaskNode` は内部で直接 `runtime` モジュールの `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `CTreeEvent` / `TerminationSignal` を使用しており、観測者関連の型は `celestialflow.observer` が提供します。これらの型の詳細説明は対応するドキュメントを参照してください。

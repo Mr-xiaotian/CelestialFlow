@@ -1,26 +1,38 @@
 # bench/bench_http_grpc.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
-Quantitatively compare the performance overhead of the CelestialTree event tracking system under different transport protocols (disabled / HTTP / gRPC), helping users make trade-offs between high-precision tracing and minimal latency.
+Quantitatively compare the performance overhead of the CelestialTree event tracking system under different transport protocols (not connected / HTTP / gRPC), helping users make trade-offs between high-precision tracing and minimal latency.
 
 ## Test Content
 
 | Scenario | Description |
 |------|------|
-| `bench_no_ctree` | CelestialTree completely disabled, as baseline |
-| `bench_http_ctree` | Report events to CelestialTree via HTTP |
-| `bench_grpc_ctree` | Report events to CelestialTree via gRPC |
+| `bench_no_ctree` | Does not call `chain.set_ctree()`, using the nodes' default `LocalEventClient` (no network, event IDs generated locally), as baseline |
+| `bench_http_ctree` | Reports events to CelestialTree via `CelestialTreeClient(transport="http")` |
+| `bench_grpc_ctree` | Reports events to CelestialTree via `CelestialTreeClient(transport="grpc")` |
+
+All three scenarios share the same graph structure:
+
+```python
+task_splitter = TaskSplitter("splitter")
+process_node = TaskExecutor(
+    "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
+)
+chain = TaskChain("bench_xxx", [task_splitter, process_node])
+```
 
 - **Graph structure**: Simple chain of `TaskSplitter → TaskExecutor`
-- **Tasks**: `no_op` identity function (processing `range(1e4)`)
-- **Config**: `execution_mode="thread"`, `max_workers=50` (`TaskSplitter` defaults to serial; `TaskExecutor` itself does not explicitly set `execution_mode` since it is passed directly at construction time)
+- **Tasks**: `no_op` identity function, input is `{"splitter": [range(int(1e4))]}`
+- **Config**: `TaskSplitter` uses the default `execution_mode="serial"` (serial expansion); `TaskExecutor` explicitly sets `execution_mode="thread"`, `max_workers=50`
+- **Timing**: `start_perf = time.perf_counter()` before `chain.run()`, `end_time = time.perf_counter()` after it, then `print(f"{scenario name}: {end_time - start_perf}")` directly, with no multi-round statistics
 
 ## Key Configuration
 
-- `ctree_host`, `ctree_http_port`, `ctree_grpc_port` read from `.env`
+- `ctree_host`, `ctree_http_port`, `ctree_grpc_port` are read from `.env` via `load_dotenv()`, with defaults `127.0.0.1`, `7777`, `7778` respectively
+- `bench_no_ctree` keeps a commented-out line `# chain.set_ctree(False)`, which is currently not enabled
 
 ## Potential Issues
 

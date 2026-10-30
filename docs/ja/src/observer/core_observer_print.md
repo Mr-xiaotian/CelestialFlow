@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_observer_print.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `core_observer_print.py` はすぐに使えるコンソール観測者 `PrintObserver` を提供します。これは `Observer` を継承し、タスクの実行進捗（起動、入力、成功、失敗、スキップ、終了）を `print` で標準出力に出力します。ローカルデバッグやサンプルデモに便利です。
 
@@ -39,7 +39,7 @@ class PrintObserver(Observer):
 | コールバック | 動作 |
 |------|------|
 | `on_node_start(event)` | `[{name}] start total={total}` を出力 |
-| `on_node_end(event)` | `total += ...`、`[{name}] finish total=..., skipped=..., succeeded=..., failed=...` を出力 |
+| `on_node_end(event)` | `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` を出力（いずれのカウンタも変更しない） |
 | `on_task_input(event)` | `total += 1`、`[{name}] total=...(+1)` を出力 |
 | `on_task_success(event)` | `succeeded += 1`、`[{name}] succeeded=...(+1), total=...` を出力 |
 | `on_task_fail(event)` | `failed += 1`、`[{name}] failed=...(+1), total=...` を出力 |

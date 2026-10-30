@@ -1,6 +1,6 @@
 # src/celestialflow/persist/core_log.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 `persist/core_log.py` モジュールは、スレッドセーフなログシステムを提供します。プロデューサー・コンシューマーパターンにより、ログを統一的に収集・フォーマットし、`logs/` ディレクトリ配下のテキストファイルに永続化します。中核コンポーネントは `LogSpout` と `LogInlet` です。
 
@@ -29,7 +29,7 @@ flowchart LR
 `LogInlet` は `BaseInlet, Observer` を継承し、ログシステムをイベントバスに接続します：
 
 1. **LogInlet (プロデューサー + オブザーバー)**：
-   - すべてのイベントコールバック（グラフ / ノード / タスク / 終了シグナル / ワーカークラッシュ）をオーバーライドし、コールバック内で `_log()` を呼び出して対応するログを記録します。
+   - すべてのイベントコールバック（グラフ / ノード / タスク / 終了シグナル）をオーバーライドし、コールバック内で `_log()` を呼び出して対応するログを記録します。
    - ノードの起動停止を記録する際、`metrics_view` を介してノード集計（入力総数、成功 / 失敗 / スキップ数など）を読み取ります。
    - ログレベルに基づくフィルタリングをサポートし、不要な通信を削減します。
 
@@ -49,7 +49,7 @@ flowchart LR
 | INFO | 30 | 一般情報。ノード / グラフの起動停止、グラフ構造の出力など |
 | WARNING | 40 | 警告情報。タスクリトライなど |
 | ERROR | 50 | エラー情報。タスク失敗など |
-| CRITICAL | 60 | 重大エラー。ノード / ワーカークラッシュなど |
+| CRITICAL | 60 | 重大エラー（現在の内蔵コールバックではこのレベルは使用されません） |
 
 ## LogSpout
 
@@ -78,11 +78,11 @@ logs/
 ### 初期化
 
 ```python
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 ```
 
-- `metrics_view`: 指標の読み取り専用ビュー（`MetricsView`）。ノードの起動停止時にノード集計を記録するために使用します。
-- `log_level`: 最低ログレベル。このレベル未満のログは記録されません；不正なレベルは `InvalidOptionError` を送出します。
+- `metrics_view`：指標の読み取り専用ビュー（`MetricsView`）。ノードの起動停止時にノード集計を記録するために使用します。
+- `log_level`：最低ログレベル。このレベル未満のログは記録されません。デフォルトは `runtime.util_log_level.DEFAULT_LOG_LEVEL`（現在は `"INFO"`）で、渡された値はまず `upper()` され、不正なレベルは `InvalidOptionError` を送出します。
 
 ### イベントコールバックとログレベル
 
@@ -101,12 +101,6 @@ inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
 |------|---------|------|
 | `on_node_start(event)` | INFO | ノード起動を記録し、実行するタスク数と実行モードを出力 |
 | `on_node_end(event)` | INFO | ノード終了を記録し、成功 / 失敗 / スキップ数と経過時間を出力 |
-
-#### ワーカースレッド (Worker)
-
-| コールバック | ログレベル | 説明 |
-|------|---------|------|
-| `on_worker_crash(event)` | CRITICAL | ワーカークラッシュを記録 |
 
 #### タスク (Task)
 
@@ -137,7 +131,7 @@ metrics_view = MetricsObserver()
 log_spout = LogSpout()
 log_spout.start()
 
-inlet = LogInlet(metrics_view, log_level="INFO").bind_spout(log_spout)
+inlet = LogInlet(metrics_view).bind_spout(log_spout)
 # inlet をノードの ObserverHub に登録し、イベントを消費してログを記録
 # hub.on_node_start(NodeStartEvent(node="NodeA", ...)) -> ログへ書き込み
 

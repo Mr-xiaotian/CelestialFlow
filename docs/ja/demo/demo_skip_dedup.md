@@ -1,6 +1,6 @@
 # demo/demo_skip_dedup.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 目標
 
@@ -42,7 +42,12 @@ flowchart LR
 
 - スキップされたタスクは `no_op` を実行せず、リトライ回数も消費しません。
 - そのため `succeeded` は重複排除後の数、`skipped` は重複タスク数になります。
-- 実行後は `PrintObserver` でノードログを出力し、`MetricsObserver` から `input_total` / `succeeded` / `skipped` を読み取って集計を出力します。
+- 実行後は `PrintObserver` でノードログを出力し、`MetricsObserver` から `input_total` / `succeeded` / `skipped` を読み取って集計を出力する：
+
+```text
+[executor] input=6, succeeded=3, skipped=3
+[executor] 重複排除後に残ったタスク: [1, 2, 3]
+```
 
 ### シナリオ 2：Graph 中間ノードの重複排除（`demo_skip_dedup_graph`）
 
@@ -60,7 +65,7 @@ flowchart LR
 実行後に各ノードのカウントを出力：
 
 ```text
-[demo] 各ノードのカウント:
+[graph] 各ノードのカウント:
   Generator  input=3    ok=3    fail=0  skip=0    pending=0
   Dedup      input=9    ok=4    fail=0  skip=5    pending=0
   Sink       input=4    ok=4    fail=0  skip=0    pending=0

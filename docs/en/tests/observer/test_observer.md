@@ -1,6 +1,6 @@
 # tests/observer/test_observer.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/10/30
 
 ## Purpose
 
@@ -10,12 +10,12 @@ Validates the callback contract between `Observer` (observer base class), `Obser
 
 | Class / Object | Source | Description |
 |-----------|------|------|
-| `Observer` | `celestialflow.observer` | Observer base class, providing event callbacks such as `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_worker_crash` / `on_graph_start` / `on_graph_end` |
+| `Observer` | `celestialflow.observer` | Observer base class, providing 11 event callbacks `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_task_retry` / `on_termination_input` / `on_termination_merge` / `on_node_end` / `on_graph_start` / `on_graph_end`, plus `handle_exception` as the callback exception handler |
 | `ObserverHub` | `celestialflow.observer` | Observer aggregator that explicitly implements each `on_*` method and broadcasts to registered observers; rejects cyclic registration |
 | `PrintObserver` | `celestialflow` | Built-in observer, constructor argument `name`, outputs `[<name>] start` / `[<name>] finish` logs, maintains `total` / `succeeded` / `failed` counts |
 | `MetricsObserver` | `celestialflow.observer` | Metrics observer; tests read node metrics via `metrics_of(executor)` |
 | `TaskExecutor` / `TaskGraph` / `TaskChain` | `celestialflow` | Runtime hosts responsible for triggering events to observers during the lifecycle |
-| Event types | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `WorkerCrashEvent` / `GraphStartEvent` / `GraphEndEvent` |
+| Event types | `celestialflow.observer` | `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` / `TerminationInputEvent` / `TerminationMergeEvent` / `GraphStartEvent` / `GraphEndEvent` |
 
 ## Test Coverage Matrix
 
@@ -38,7 +38,7 @@ Validates the callback contract between `Observer` (observer base class), `Obser
 | `TestGraphObserver` | `test_node_local_observer_runs_before_graph_observer` | Within the same node, the node-local observer is invoked before the graph-level observer |
 | `TestGraphObserver` | `test_graph_hub_is_injected_as_object` | The hub object itself is injected: graph-level observers registered after `run` still take effect |
 | `TestGraphObserver` | `test_run_async_injects_graph_observers` | The `run_async` path also completes graph-level observer injection |
-| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | The graph-level observer receives `GraphStartEvent` / `GraphEndEvent`; the start event carries graph metadata (`nodes` / `edges` / `source_nodes` / `node_meta` / `class_name` / `is_dag`) |
+| `TestGraphObserver` | `test_graph_observer_receives_graph_events` | The graph-level observer receives `GraphStartEvent` / `GraphEndEvent`; the start event carries `graph` / `graph_mode` / `is_dag` / `nodes` / `edges` / `source_nodes` / `node_meta`, where `node_meta["only"]["class_name"] == "TaskExecutor"` (`class_name` belongs to the node metadata and is no longer a top-level event field) |
 | `TestGraphObserver` | `test_structure_supports_graph_observer` | Structure classes (`TaskChain`) also support graph-level observers |
 | `TestGraphObserver` | `test_graph_rejects_cycle_between_graph_and_node_hub` | After registering a node hub into the graph hub, injection raises `ConfigurationError` due to the cyclic reference |
 

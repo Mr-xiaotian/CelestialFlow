@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/10/30
 
 ## 役割
 `TaskLoop` と `TaskWheel` の2つの事前定義循環グラフ構造の専用解析能力を検証し、ならびに各種事前定義グラフ構造（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）の入力検証を行い、空入力や不正入力で静的に構築されたりクラッシュが発生したりしないことを確認します。
@@ -14,20 +14,21 @@
 
 | テストクラス | ケース数 | カバレッジ対象 |
 |------------|---------|--------------|
-| `TestTaskLoop` | 2 | isDAG が False と識別、循環内ノード同層、ソースノード導出が代表点1つを返す |
-| `TestTaskWheel` | 2 | Center が第0層、Ring が第1層、ソースノードが Center のみを返す |
+| `TestTaskLoop` | 2 | `is_dag()` が False を返す、循環内ノードが同層；ソースノード導出が代表点1つを返す |
+| `TestTaskWheel` | 2 | `is_dag()` が False を返す、Center が第0層、Ring が第1層；ソースノードが Center のみを返す |
 | `TestStructureValidation` | 10 | 空 nodes / 空 layers / 空グリッド / 先頭行空 / 行長不一致 / 単一ノード Complete / 各構造の空入力検証 |
 | **合計** | **14** | |
 
 ## 主要テストフロー
 
 ### TaskLoop 解析
-- `isDAG` が正しく `False` として識別されることを検証。
-- 循環内の全ノードが同一の論理階層に割り当てられることを検証。
+- `is_dag()` が `False` を返すことを検証。
+- `get_layers()` において循環内の全ノードが同一の論理階層に割り当てられることを検証。
 - ソースノード導出が循環から1つの代表点を注入点として選択できることを検証。
 
 ### TaskWheel 解析
-- 中心ノード（Center）が第0層にあり、外側の循環ノード（Ring）が第1層にあることを検証。
+- `is_dag()` が `False` を返すことを検証。
+- `get_layers()` において中心ノード（Center）が第0層にあり、外側の循環ノード（Ring）が第1層にあることを検証。
 - `get_source_nodes()` は Center ノードのみを返し、タスクが中心から注入されることを検証。
 
 ### 構造入力検証 (`TestStructureValidation`)
@@ -72,13 +73,13 @@ pytest tests/graph/test_structure.py::TestStructureValidation -v
 
 | テスト | 所要時間 |
 |--------|---------|
-| `TestTaskLoop` | ~1s（グラフ起動と終了を含む） |
-| `TestTaskWheel` | ~1s |
+| `TestTaskLoop` | < 0.1s（グラフ起動と終了を含む） |
+| `TestTaskWheel` | < 0.1s |
 | `TestStructureValidation` | < 0.1s（純粋な構築検証） |
 
 ## 重要な詳細
 - `TaskLoop` は `run()` で起動しタスクを注入します（`run` のデフォルトは `if_put_signal=True` で、ソースノードに終了シグナルを自動補完してテストの終了を保証）。
-- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`is_dag`、`layers_dict` を直接読み取り、`get_source_nodes()` を呼び出して静的解析を行います。
+- `TaskWheel` はタスクを実行しません。`set_graph_mode()` と `set_node_execution_mode()` で設定した後、`is_dag()`、`get_layers()`、`get_source_nodes()` を直接呼び出して静的解析を行います。
 - テストの重点は「実行結果」ではなく「解析結果」にあります（グラフが DAG かどうか、階層分布、ソースノード）。
 - 入力検証テストはすべて純粋な構築操作であり、グラフの起動を伴いません。
 

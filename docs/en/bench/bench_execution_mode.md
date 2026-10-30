@@ -1,6 +1,6 @@
 # bench/bench_execution_mode.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/10/30
 
 ## Objective
 
@@ -53,7 +53,7 @@ The only difference is that `fibonacci_async` has an `await` yield point every 8
 
 1. **CPU-intensive tasks constrained by GIL**: Python's GIL restricts only one thread to execute Python bytecode at a time. In `thread` mode, even with 6 workers, most of the pure computation time is still serialized by the GIL.
 2. **`asyncio` event loop conflict**: `main()` uses `asyncio.run()`, which will error in Jupyter or environments with an existing event loop.
-3. **`benchmark_executor` output format**: This tool changes `TaskExecutor`'s `execution_mode` multiple times and reruns, total time = number of modes × number of tasks × single task time.
+3. **`benchmark_executor` output format**: This tool calls `clone_executor()` to copy the template executor, then for each copy calls `set_execution_mode(mode)` in turn and repeatedly runs the same batch of tasks, finally printing `Use time:<table>`; total time ≈ number of modes × number of tasks × single task time. The `async` mode uses the passed-in `executor_async` template, while the other modes use the synchronous template.
 
 ## How to Run
 
@@ -204,4 +204,5 @@ Input of 6 tasks, each sleeping 1 second, max_workers=6. Sync and async sleep be
 
 ## Dependencies
 
-- `celestialflow` (`TaskExecutor`, `benchmark_executor`, and optional observer `PrintObserver`, not enabled in this script)
+- `celestialflow` (`TaskExecutor`, `benchmark_executor`)
+- Lines such as `# executor.add_observer(TaskProgress())` in the script are all commented out; no observer is currently enabled
