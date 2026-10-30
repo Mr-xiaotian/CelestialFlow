@@ -301,6 +301,7 @@ def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
     )
     return cursor.rowcount > 0
 
+
 def load_tasks_grouped_by_node(
     db_path: str | Path,
     statuses: Iterable[str] = ("failed", "pending"),

@@ -32,8 +32,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 ### normalize_log_level
 
 ```python
-def normalize_log_level(log_level: str) -> str:
-    ...
+def normalize_log_level(log_level: str) -> str: ...
 ```
 
 校验并规范化日志级别：

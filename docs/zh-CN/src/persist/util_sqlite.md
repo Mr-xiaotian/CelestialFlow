@@ -221,7 +221,9 @@ from celestialflow.persist.util_sqlite import (
 )
 
 db_path = "lifecycles/2026-10-30/flow_lifecycle(10-00-00-123).sqlite3"
-errors = load_task_error_records(db_path, node="StageA")  # [(task, (error_type, error_message))]
+errors = load_task_error_records(
+    db_path, node="StageA"
+)  # [(task, (error_type, error_message))]
 results = load_task_result_records(db_path, node="StageA")  # [(task, result)]
 ```
 

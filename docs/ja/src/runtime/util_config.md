@@ -70,7 +70,9 @@ print(f"現在のログレベル: {level}")
 # レポートアドレスとスイッチ
 url = load_report_url_from_pyproject()
 if_report = load_if_report_from_pyproject()
-print(f"レポートアドレス: {url}（デフォルト {DEFAULT_REPORT_URL}）、有効か: {if_report}")
+print(
+    f"レポートアドレス: {url}（デフォルト {DEFAULT_REPORT_URL}）、有効か: {if_report}"
+)
 ```
 
 ## 注意事項

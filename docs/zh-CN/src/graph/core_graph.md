@@ -206,7 +206,7 @@ def run(
     init_tasks_dict: dict[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
-    log_level: str = DEFAULT_LOG_LEVEL,        # 默认 "INFO"
+    log_level: str = DEFAULT_LOG_LEVEL,  # 默认 "INFO"
     report: ReportConfig | None = None,
 ) -> None:
     """
@@ -421,8 +421,8 @@ graph.set_nodes([a, b])
 graph.connect([a], [b])
 
 print(graph.get_source_nodes())  # ['A']
-print(graph.is_dag())            # True（注意是方法调用）
-print(graph.get_layers())        # {0: ['A'], 1: ['B']}
+print(graph.is_dag())  # True（注意是方法调用）
+print(graph.get_layers())  # {0: ['A'], 1: ['B']}
 ```
 
 > 语义细节：`get_source_nodes()` 返回的是「每个源 SCC 的一个代表节点」（由 `util_order_graph.source_nodes()` 得到），因此含环图不会返回环上的全部节点；`get_layers()` 中同一 SCC 内的节点共享同一层级。三者返回的 `list` / `dict` 都是缓存对象本身，调用方应只读。

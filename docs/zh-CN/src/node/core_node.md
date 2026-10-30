@@ -162,7 +162,9 @@ def run(
 ) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(self.observers, log_level=log_level) as lifecycle_db_path:
+        with run_node_resources(
+            self.observers, log_level=log_level
+        ) as lifecycle_db_path:
             self._lifecycle_db_path = lifecycle_db_path
             for task in task_source:
                 self.put_task(task)
