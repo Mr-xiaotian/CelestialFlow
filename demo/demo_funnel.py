@@ -38,7 +38,7 @@ class EventInlet(BaseInlet):
     """A tiny event collector built on top of BaseInlet."""
 
     def emit(self, event: str, payload: Any) -> None:
-        self._funnel(
+        self.send(
             {
                 "timestamp": strftime("%Y-%m-%d %H:%M:%S", localtime()),
                 "event": event,

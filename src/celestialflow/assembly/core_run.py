@@ -9,7 +9,7 @@ from pathlib import Path
 import requests
 
 from ..observer import MetricsObserver, ObserverHub
-from ..persist import LifecycleInlet, LifecycleSpout, LogInlet, LogSpout
+from ..persist import LifecycleObserver, LogObserver
 from ..reporter import (
     InjectionHandler,
     InjectionTarget,
@@ -26,6 +26,34 @@ _TICK_INTERVAL: float = 1.0
 
 
 @contextmanager
+def _persistence_resources(
+    observers: ObserverHub,
+    metrics_view: MetricsObserver,
+    log_level: str,
+) -> Generator[Path | None, None, None]:
+    """
+    装配并运行 lifecycle 与 log 观察者。
+
+    :param observers: 目标观察者 hub
+    :param metrics_view: 指标只读视图，供日志记录节点汇总
+    :param log_level: 日志过滤级别（已规范化）
+    :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
+    """
+    lifecycle = LifecycleObserver()
+    log = LogObserver(metrics_view, log_level)
+    observers.add_observer(lifecycle)
+    observers.add_observer(log)
+
+    try:
+        lifecycle.start()
+        log.start()
+        yield lifecycle.db_path
+    finally:
+        lifecycle.stop()
+        log.stop()
+
+
+@contextmanager
 def run_graph_resources(
     observers: ObserverHub,
     injection_target: InjectionTarget,
@@ -37,19 +65,20 @@ def run_graph_resources(
     任务图运行期资源：``metrics`` + ``lifecycle`` + ``log``，并按 ``report``
     决定是否追加远程上报与注入。
 
-    指标写模型由本入口创建并注册到 ``observers``，其只读视图交给 ``LogInlet``
-    与快照处理器。上报配置由调用方显式传入：``report is None`` 时不上报；
-    否则本入口自行生成一个不透明的上报会话标识，注册 :class:`PushInlet` 与
-    :class:`PushSnapshotHandler`、启动 :class:`PushSpout` 并启动一个以
-    :data:`_TICK_INTERVAL` 为基准周期的节拍器，按拍把状态快照推送到
-    ``report.url``（并在图结束时补推一次终态快照），同时按拍从远端拉取任务
-    注入到 ``injection_target``。
+    指标写模型由本入口创建并注册到 ``observers``，其只读视图交给
+    :class:`LogObserver` 与快照处理器。上报配置由调用方显式传入：
+    ``report is None`` 时不上报；否则本入口自行生成一个不透明的上报会话标识，
+    注册 :class:`PushInlet` 与 :class:`PushSnapshotHandler`、启动
+    :class:`PushSpout` 并启动一个以 :data:`_TICK_INTERVAL` 为基准周期的节拍器，
+    按拍把状态快照推送到 ``report.url``（并在图结束时补推一次终态快照），
+    同时按拍从远端拉取任务注入到 ``injection_target``。
 
     退出时先停节拍器再统一停止 spout，保证运行期即使抛出异常也能完成回收。
 
     :param observers: 任务图自身的观察者 hub
     :param injection_target: 任务注入目标，通常是任务图自身
-    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
+    :param log_level: :class:`LogObserver` 的日志过滤级别，默认
+        ``DEFAULT_LOG_LEVEL``
     :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
@@ -58,11 +87,6 @@ def run_graph_resources(
 
     metrics_view = MetricsObserver()
     observers.add_observer(metrics_view)
-
-    lifecycle_spout = LifecycleSpout()
-    log_spout = LogSpout()
-    observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-    observers.add_observer(LogInlet(metrics_view, log_level).bind_spout(log_spout))
 
     push_spout: PushSpout | None = None
     session: requests.Session | None = None
@@ -92,18 +116,17 @@ def run_graph_resources(
         observers.add_observer(push_inlet)
 
     try:
-        lifecycle_spout.start()
-        log_spout.start()
-        if push_spout is not None:
-            push_spout.start()
-        if ticker is not None:
-            ticker.start()
-        yield lifecycle_spout.db_path
+        with _persistence_resources(observers, metrics_view, log_level) as db_path:
+            if push_spout is not None:
+                push_spout.start()
+            if ticker is not None:
+                ticker.start()
+            try:
+                yield db_path
+            finally:
+                if ticker is not None:
+                    ticker.stop()
     finally:
-        if ticker is not None:
-            ticker.stop()
-        lifecycle_spout.stop()
-        log_spout.stop()
         if push_spout is not None:
             push_spout.stop()
         if session is not None:
@@ -124,7 +147,8 @@ def run_node_resources(
     无需外部持有。退出时统一停止 spout，保证运行期即使抛出异常也能完成回收。
 
     :param observers: 节点自身的观察者 hub
-    :param log_level: ``LogInlet`` 的日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
+    :param log_level: :class:`LogObserver` 的日志过滤级别，默认
+        ``DEFAULT_LOG_LEVEL``
     :return: 进入时产出 lifecycle 数据库路径，未就绪时为 ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
     """
@@ -133,15 +157,5 @@ def run_node_resources(
     metrics_view = MetricsObserver()
     observers.add_observer(metrics_view)
 
-    lifecycle_spout = LifecycleSpout()
-    log_spout = LogSpout()
-    observers.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-    observers.add_observer(LogInlet(metrics_view, log_level).bind_spout(log_spout))
-
-    try:
-        lifecycle_spout.start()
-        log_spout.start()
-        yield lifecycle_spout.db_path
-    finally:
-        lifecycle_spout.stop()
-        log_spout.stop()
+    with _persistence_resources(observers, metrics_view, log_level) as db_path:
+        yield db_path

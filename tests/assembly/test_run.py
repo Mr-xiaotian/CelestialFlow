@@ -5,8 +5,8 @@ import pytest
 from celestialflow.assembly import core_run
 from celestialflow.assembly.core_run import run_graph_resources, run_node_resources
 from celestialflow.observer import MetricsObserver, ObserverHub
-from celestialflow.persist.core_lifecycle import LifecycleSpout
-from celestialflow.persist.core_log import LogInlet, LogSpout
+from celestialflow.persist.core_lifecycle import LifecycleObserver
+from celestialflow.persist.core_log import LogObserver
 from celestialflow.reporter import PushInlet, PushSnapshotHandler, PushSpout
 from celestialflow.runtime.core_config import DEFAULT_REPORT_URL, ReportConfig
 from celestialflow.runtime.util_errors import InvalidOptionError
@@ -25,21 +25,21 @@ class _InjectionTarget:
         return None
 
 
-def _patch_recording_spouts(monkeypatch, stopped: list[str]) -> None:
-    """将上下文引用的 spout 替换为记录 ``stop`` 调用的子类。"""
+def _patch_recording_observers(monkeypatch, stopped: list[str]) -> None:
+    """将上下文引用的持久化观察者替换为记录 ``stop`` 调用的子类。"""
 
-    class _RecordingLifecycleSpout(LifecycleSpout):
+    class _RecordingLifecycleObserver(LifecycleObserver):
         def stop(self) -> None:
             super().stop()
             stopped.append('lifecycle')
 
-    class _RecordingLogSpout(LogSpout):
+    class _RecordingLogObserver(LogObserver):
         def stop(self) -> None:
             super().stop()
             stopped.append('log')
 
-    monkeypatch.setattr(core_run, 'LifecycleSpout', _RecordingLifecycleSpout)
-    monkeypatch.setattr(core_run, 'LogSpout', _RecordingLogSpout)
+    monkeypatch.setattr(core_run, 'LifecycleObserver', _RecordingLifecycleObserver)
+    monkeypatch.setattr(core_run, 'LogObserver', _RecordingLogObserver)
 
 
 def _patch_recording_push_spouts(
@@ -74,7 +74,7 @@ def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
 
 class TestGraphRunResources:
     def test_yields_db_path_and_registers_observers(self, tmp_path, monkeypatch):
-        """图入口进入时应启动 spout、产出数据库路径并注入 lifecycle / log inlet。"""
+        """图入口进入时应启动 spout、产出数据库路径并注入 lifecycle / log 观察者。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
@@ -85,10 +85,10 @@ class TestGraphRunResources:
             assert len(observers._snapshot()) == 3
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
-        """图入口退出时应停止 lifecycle / log spout。"""
+        """图入口退出时应停止 lifecycle / log 持久化观察者。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
-        _patch_recording_spouts(monkeypatch, stopped)
+        _patch_recording_observers(monkeypatch, stopped)
 
         with run_graph_resources(ObserverHub(), _InjectionTarget()):
             pass
@@ -96,10 +96,10 @@ class TestGraphRunResources:
         assert set(stopped) == {'lifecycle', 'log'}
 
     def test_cleans_up_when_body_raises(self, tmp_path, monkeypatch):
-        """图入口上下文体内抛出异常时，异常应向外传播且 spout 仍被回收。"""
+        """图入口上下文体内抛出异常时，异常应向外传播且持久化观察者仍被回收。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
-        _patch_recording_spouts(monkeypatch, stopped)
+        _patch_recording_observers(monkeypatch, stopped)
 
         with pytest.raises(RuntimeError, match='boom'):
             with run_graph_resources(ObserverHub(), _InjectionTarget()):
@@ -188,19 +188,19 @@ class TestGraphRunResources:
         assert events == ['push', 'ticker-start', 'ticker-stop']
 
     def test_log_level_argument(self, tmp_path, monkeypatch):
-        """图入口应按 ``log_level`` 参数构造 ``LogInlet``，并规范化为大写。"""
+        """图入口应按 ``log_level`` 参数构造 ``LogObserver``，并规范化为大写。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
         with run_graph_resources(observers, _InjectionTarget(), log_level='error'):
-            inlets = [
+            log_observers = [
                 observer
                 for observer in observers._snapshot()
-                if isinstance(observer, LogInlet)
+                if isinstance(observer, LogObserver)
             ]
 
-        assert len(inlets) == 1
-        assert inlets[0].log_level == 'ERROR'
+        assert len(log_observers) == 1
+        assert log_observers[0].log_level == 'ERROR'
 
     def test_rejects_invalid_log_level(self, tmp_path, monkeypatch):
         """非法 ``log_level`` 应在进入运行期资源时抛出 ``InvalidOptionError``。"""
@@ -215,7 +215,7 @@ class TestGraphRunResources:
 
 class TestNodeRunResources:
     def test_registers_metrics_and_inlets(self, tmp_path, monkeypatch):
-        """节点入口应内部创建指标观察者，并注入 lifecycle / log inlet。"""
+        """节点入口应内部创建指标观察者，并注入 lifecycle / log 观察者。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
@@ -227,18 +227,18 @@ class TestNodeRunResources:
             assert any(isinstance(observer, MetricsObserver) for observer in snapshot)
 
     def test_log_level_argument(self, tmp_path, monkeypatch):
-        """``LogInlet`` 的日志级别应来自 ``log_level`` 参数。"""
+        """``LogObserver`` 的日志级别应来自 ``log_level`` 参数。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
         with run_node_resources(observers, log_level='error'):
-            inlets = [
+            log_observers = [
                 observer
                 for observer in observers._snapshot()
-                if isinstance(observer, LogInlet)
+                if isinstance(observer, LogObserver)
             ]
-            assert len(inlets) == 1
-            assert inlets[0].log_level == 'ERROR'
+            assert len(log_observers) == 1
+            assert log_observers[0].log_level == 'ERROR'
 
     def test_rejects_invalid_log_level(self, tmp_path, monkeypatch):
         """非法 ``log_level`` 应抛出 ``InvalidOptionError``。"""
@@ -249,10 +249,10 @@ class TestNodeRunResources:
                 pass
 
     def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
-        """节点入口退出时应停止 lifecycle / log spout。"""
+        """节点入口退出时应停止 lifecycle / log 持久化观察者。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
-        _patch_recording_spouts(monkeypatch, stopped)
+        _patch_recording_observers(monkeypatch, stopped)
 
         with run_node_resources(ObserverHub()):
             pass

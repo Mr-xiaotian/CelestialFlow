@@ -29,9 +29,9 @@ class BaseInlet:
         self._counter = spout.get_counter()
         return self
 
-    def _funnel(self, record: Any) -> None:
+    def send(self, record: Any) -> None:
         """
-        将记录放入队列。
+        将记录送入绑定 spout 的队列。
 
         :param record: 待发送的记录
         :return: ``None``

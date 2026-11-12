@@ -75,12 +75,30 @@ class LogSpout(BaseSpout):
             self._file = None
 
 
-class LogInlet(BaseInlet, Observer):
-    """
-    线程安全日志包装类，所有日志通过队列发送到监听线程写入。
+class LogInlet(BaseInlet):
+    """Log 记录入口。
 
-    以观察者形式消费全部事件：图结构、节点启停、任务输入/成功/失败/跳过/重试、
-    终止信号与上报器日志均在 :meth:`on_event` 中按事件类型记录。
+    将日志记录字典投递到绑定的 spout。记录包含 ``timestamp``、``level`` 与
+    ``message`` 三个字段。
+    """
+
+    def send(self, record: dict[str, Any]) -> None:
+        """
+        将一条日志记录送入 spout 队列。
+
+        :param record: 包含 timestamp, level, message 的日志记录字典
+        """
+        super().send(record)
+
+
+class LogObserver(Observer):
+    """运行日志观察者（门面）。
+
+    将观测事件翻译为日志记录，经 :class:`LogInlet` 投递到后台
+    :class:`LogSpout` 写入文件；同时管理 spout 的启停并暴露日志文件路径。
+
+    图结构、节点启停、任务输入/成功/失败/跳过/重试、终止信号均在
+    :meth:`on_event` 中按事件类型记录。
     """
 
     def __init__(
@@ -89,11 +107,12 @@ class LogInlet(BaseInlet, Observer):
         log_level: str = DEFAULT_LOG_LEVEL,
     ) -> None:
         """
-        初始化日志收集器。
+        初始化日志观察者并绑定 spout 与 inlet。
 
         :param metrics_view: 指标只读视图，用于记录节点汇总
         :param log_level: 日志级别，低于此级别的日志不记录，默认
             ``DEFAULT_LOG_LEVEL``
+        :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中
         """
         self._metrics_view = metrics_view
         self.log_level: str = log_level.upper()
@@ -102,6 +121,22 @@ class LogInlet(BaseInlet, Observer):
             raise InvalidOptionError(
                 "log level", self.log_level, tuple(LEVEL_DICT.keys())
             )
+
+        self._spout = LogSpout()
+        self._inlet = LogInlet().bind_spout(self._spout)
+
+    @property
+    def log_path(self) -> Path | None:
+        """日志文件路径；spout 尚未启动时为 ``None``。"""
+        return self._spout.log_path
+
+    def start(self) -> None:
+        """启动后台写入循环并打开日志文件。"""
+        self._spout.start()
+
+    def stop(self) -> None:
+        """停止后台写入循环并关闭日志文件。"""
+        self._spout.stop()
 
     def _log(self, level: str, message: str) -> None:
         """
@@ -117,7 +152,7 @@ class LogInlet(BaseInlet, Observer):
             return
 
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
-        super()._funnel(
+        self._inlet.send(
             {"timestamp": timestamp, "level": level_upper, "message": message}
         )
 

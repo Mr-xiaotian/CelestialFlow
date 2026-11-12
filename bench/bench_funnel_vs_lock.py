@@ -108,7 +108,7 @@ class CountingInlet(BaseInlet):
         :param seq: 该生产者内部的递增序号
         :return: ``None``
         """
-        self._funnel((producer_id, seq))
+        self.send((producer_id, seq))
 
 
 class CountingSpout(BaseSpout):

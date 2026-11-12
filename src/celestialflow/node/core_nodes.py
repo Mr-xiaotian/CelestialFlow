@@ -21,10 +21,10 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
     - 任务输入/结果队列与 ctree 客户端由执行器自身持有；指标由
       :class:`~celestialflow.observer.core_metrics.MetricsObserver` 依据事件维护：
       独立运行时由 :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 注册单节点
-      观察者，参与图调度时由图级观察者统一维护。全局 ``LifecycleSpout`` /
-      ``LogSpout`` 的启停与全局 funnel 观察者的注册由
+      观察者，参与图调度时由图级观察者统一维护。全局 ``LifecycleObserver`` /
+      ``LogObserver`` 的注册与启停由
       :meth:`~celestialflow.node.core_node.BaseTaskNode.run` 统一负责，TaskExecutor
-      自身不直接持有 spout 实例。
+      自身不直接持有持久化观察者实例。
     """
 
     # ==== 覆写方法 ====

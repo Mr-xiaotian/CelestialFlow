@@ -24,10 +24,12 @@ class BaseSpout:
 
     def start(self) -> None:
         """启动后台监听线程（若未运行）。"""
+        if self._thread is not None and self._thread.is_alive():
+            return
+
         self._before_start()
-        if self._thread is None or not self._thread.is_alive():
-            self._thread = Thread(target=self._spout, daemon=True)
-            self._thread.start()
+        self._thread = Thread(target=self._spout, daemon=True)
+        self._thread.start()
 
     def _spout(self) -> None:
         """

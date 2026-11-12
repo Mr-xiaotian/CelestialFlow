@@ -22,7 +22,7 @@ from celestialflow.observer import (
     TaskInputEvent,
     TaskRetryEvent,
 )
-from celestialflow.persist import LifecycleInlet, LifecycleSpout
+from celestialflow.persist import LifecycleObserver
 from celestialflow.observer import MetricsObserver
 from celestialflow.runtime import TaskEnvelope
 from celestialflow.runtime.util_types import TerminationSignal
@@ -258,11 +258,10 @@ class TestDispatchSerial:
         executor.yield_queue.add_queue("downstream_b", collector_b)
 
         # 直接驱动 dispatch（不经过 node.run），因此手动装配 lifecycle 持久化。
-        lifecycle_spout = LifecycleSpout()
-        lifecycle_observer = LifecycleInlet().bind_spout(lifecycle_spout)
+        lifecycle_observer = LifecycleObserver()
         executor.add_observer(lifecycle_observer)
-        lifecycle_spout.start()
-        executor._lifecycle_db_path = lifecycle_spout.db_path
+        lifecycle_observer.start()
+        executor._lifecycle_db_path = lifecycle_observer.db_path
         try:
             lifecycle_observer.on_event(
                 TaskInputEvent(executor.get_name(), 3, "(3)", 0)
@@ -285,7 +284,7 @@ class TestDispatchSerial:
             )
             assert executor.get_success_pairs() == [(3, 9)]
         finally:
-            lifecycle_spout.stop()
+            lifecycle_observer.stop()
 
 
 # ── thread ─────────────────────────────────────────────

@@ -55,10 +55,10 @@ class BaseTaskNode[T, R, Y]:
       安全重置并再次复用。如需重复执行同一逻辑，请重新创建新的 BaseTaskNode 实例。
     - 启动前的 setter（``set_execution_mode`` / ``set_retry_exceptions`` / ``set_ctree`` /
       ``add_observer`` 等）允许在 start 之前多次调用。
-    - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标观察者与全局 funnel
-      观察者、``LifecycleSpout`` / ``LogSpout`` 的装配与启停，独立运行时由
+    - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标观察者与全局
+      ``LifecycleObserver`` / ``LogObserver`` 的装配与启停，独立运行时由
       :func:`~celestialflow.assembly.run_node_resources` 统一负责，参与图调度时
-      由图级观察者统一维护。BaseTaskNode 自身不直接持有 spout 实例。
+      由图级观察者统一维护。BaseTaskNode 自身不直接持有持久化观察者实例。
     """
 
     # ==== 类级类型注解 ====

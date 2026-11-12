@@ -6,16 +6,20 @@
 
 from .core_lifecycle import (
     LifecycleInlet,
+    LifecycleObserver,
     LifecycleSpout,
 )
 from .core_log import (
     LogInlet,
+    LogObserver,
     LogSpout,
 )
 
 __all__ = [
     "LifecycleInlet",
+    "LifecycleObserver",
     "LifecycleSpout",
     "LogInlet",
+    "LogObserver",
     "LogSpout",
 ]

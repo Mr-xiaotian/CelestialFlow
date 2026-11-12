@@ -17,9 +17,7 @@ class MockSpout(BaseSpout):
 
 
 class MockInlet(BaseInlet):
-    def send(self, data):
-        """将数据经由 inlet 发送到目标队列。"""
-        self._funnel(data)
+    """测试用 inlet，直接复用基类的发送实现。"""
 
 
 class TestBaseInlet:
@@ -42,8 +40,8 @@ class TestBaseInlet:
 
         assert spout.received == ['msg1', {'key': 'val'}]
 
-    def test_funnel_puts_record_into_queue(self):
-        """_funnel 应将原始记录直接放入目标队列。"""
+    def test_send_puts_record_into_queue(self):
+        """send 应将原始记录直接放入目标队列。"""
         spout = MockSpout()
         inlet = MockInlet().bind_spout(spout)
 

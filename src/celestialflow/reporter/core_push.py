@@ -203,7 +203,7 @@ class PushInlet(BaseInlet, Observer):
         """
         match event:
             case GraphStartEvent():
-                self._funnel(
+                self.send(
                     PushRecord(
                         kind="graph_start",
                         graph=event.graph,
@@ -217,7 +217,7 @@ class PushInlet(BaseInlet, Observer):
                     )
                 )
             case GraphEndEvent():
-                self._funnel(
+                self.send(
                     PushRecord(
                         kind="graph_end",
                         graph=event.graph,
@@ -226,7 +226,7 @@ class PushInlet(BaseInlet, Observer):
                     )
                 )
             case TaskFailEvent():
-                self._funnel(
+                self.send(
                     PushRecord(
                         kind="task_fail",
                         event_id=event.error_id,
@@ -250,4 +250,4 @@ class PushInlet(BaseInlet, Observer):
 
         :param snapshot: 节点名称到状态字典的映射
         """
-        self._funnel(PushRecord(kind="snapshot", snapshot=snapshot))
+        self.send(PushRecord(kind="snapshot", snapshot=snapshot))

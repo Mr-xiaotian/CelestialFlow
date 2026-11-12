@@ -113,12 +113,48 @@ class LifecycleSpout(BaseSpout):
             self._conn = None
 
 
-class LifecycleInlet(BaseInlet, Observer):
+class LifecycleInlet(BaseInlet):
+    """Lifecycle 记录入口。
+
+    将生命周期操作字典投递到绑定的 spout。记录以 ``__op__`` 区分操作类型，
+    其余字段由 :class:`LifecycleSpout` 解释。
     """
-    线程安全 lifecycle 记录包装类，以观察者形式消费任务事件。
+
+    def send(self, record: dict[str, Any]) -> None:
+        """
+        将一条生命周期记录送入 spout 队列。
+
+        :param record: 生命周期操作字典
+        """
+        super().send(record)
+
+
+class LifecycleObserver(Observer):
+    """任务生命周期观察者（门面）。
+
+    将观测事件翻译为生命周期记录，经 :class:`LifecycleInlet` 投递到后台
+    :class:`LifecycleSpout` 写入 sqlite；同时管理 spout 的启停并暴露数据库路径。
 
     仅处理会产生生命周期记录的任务事件，其余事件类型在 :meth:`on_event` 中被忽略。
     """
+
+    def __init__(self) -> None:
+        """创建并绑定生命周期 spout 与 inlet。"""
+        self._spout = LifecycleSpout()
+        self._inlet = LifecycleInlet().bind_spout(self._spout)
+
+    @property
+    def db_path(self) -> Path | None:
+        """生命周期数据库路径；spout 尚未启动时为 ``None``。"""
+        return self._spout.db_path
+
+    def start(self) -> None:
+        """启动后台写入循环并创建数据库文件。"""
+        self._spout.start()
+
+    def stop(self) -> None:
+        """停止后台写入循环并关闭数据库连接。"""
+        self._spout.stop()
 
     def on_event(self, event: Event) -> None:
         """
@@ -145,10 +181,10 @@ class LifecycleInlet(BaseInlet, Observer):
                         "task_json": to_persisted_payload(event.task),
                     },
                 }
-                self._funnel(pending_item)
+                self._inlet.send(pending_item)
             case TaskSuccessEvent():
                 now = datetime.now()
-                self._funnel(
+                self._inlet.send(
                     {
                         "__op__": "promote_success",
                         "event_id": event.task_id,
@@ -167,10 +203,10 @@ class LifecycleInlet(BaseInlet, Observer):
                     "error_message": str(error),
                     "ts": now.timestamp(),
                 }
-                self._funnel(fail_item)
+                self._inlet.send(fail_item)
             case TaskSkipEvent():
                 now = datetime.now()
-                self._funnel(
+                self._inlet.send(
                     {
                         "__op__": "promote_skipped",
                         "event_id": event.task_id,
@@ -183,7 +219,7 @@ class LifecycleInlet(BaseInlet, Observer):
                 error = event.exception
                 error_type = type(error).__name__
                 error_message = str(error)
-                self._funnel(
+                self._inlet.send(
                     {
                         "__op__": "update_retry",
                         "event_id": event.task_id,

@@ -7,21 +7,20 @@ from celestialflow.observer import (
     TaskRetryEvent,
     TaskSkipEvent,
 )
-from celestialflow.persist.core_log import LogInlet, LogSpout
+from celestialflow.persist.core_log import LogObserver
 from celestialflow.observer import MetricsObserver
 
 
 class TestLogPersistence:
     def test_log_persistence(self, tmp_path, monkeypatch):
-        """`LogInlet`/`LogSpout` 应将日志批量刷新到文件。"""
+        """`LogObserver` 应将日志批量刷新到文件。"""
         monkeypatch.chdir(tmp_path)
 
-        spout = LogSpout()
-        inlet = LogInlet(MetricsObserver(), log_level='INFO').bind_spout(spout)
+        observer = LogObserver(MetricsObserver(), log_level='INFO')
 
-        spout.start()
+        observer.start()
         try:
-            inlet.on_event(
+            observer.on_event(
                 GraphStartEvent(
                     graph="test_graph",
                     graph_mode="thread",
@@ -39,50 +38,49 @@ class TestLogPersistence:
                     },
                 )
             )
-            inlet.on_event(
+            observer.on_event(
                 TaskRetryEvent("func", None, "hello world", ValueError("oops"), 0, 1)
             )
-            inlet.on_event(GraphEndEvent("test_graph", 2.0, 1.0))
-            inlet.on_event(
+            observer.on_event(GraphEndEvent("test_graph", 2.0, 1.0))
+            observer.on_event(
                 NodeStartEvent('node', 'parallel', 4, 1.0)
             )
             wait_until(
-                lambda: spout.log_path.exists()
-                and '| node |' in spout.log_path.read_text(encoding='utf-8')
-                and 'hello world' in spout.log_path.read_text(encoding='utf-8'),
-                message='timeout waiting for log_spout to write records',
+                lambda: observer.log_path.exists()
+                and '| node |' in observer.log_path.read_text(encoding='utf-8')
+                and 'hello world' in observer.log_path.read_text(encoding='utf-8'),
+                message='timeout waiting for LogObserver to write records',
             )
         finally:
-            spout.stop()
+            observer.stop()
 
-        assert spout.log_path.exists()
-        content = spout.log_path.read_text(encoding='utf-8')
+        assert observer.log_path.exists()
+        content = observer.log_path.read_text(encoding='utf-8')
         assert '| node |' in content
         assert 'hello world' in content
         assert 'INFO' in content
         assert 'WARNING' in content
 
     def test_skip_log(self, tmp_path, monkeypatch):
-        """`LogInlet.on_task_skip` 应在 SUCCESS 级别写入跳过日志。"""
+        """`LogObserver` 收到跳过事件时应在 SUCCESS 级别写入跳过日志。"""
         monkeypatch.chdir(tmp_path)
 
-        spout = LogSpout()
-        inlet = LogInlet(MetricsObserver(), log_level='SUCCESS').bind_spout(spout)
+        observer = LogObserver(MetricsObserver(), log_level='SUCCESS')
 
-        spout.start()
+        observer.start()
         try:
-            inlet.on_event(
+            observer.on_event(
                 TaskSkipEvent("node", "hello world", "hello world", 7, 8)
             )
             wait_until(
-                lambda: spout.log_path.exists()
-                and 'hello world' in spout.log_path.read_text(encoding='utf-8'),
-                message='timeout waiting for log_spout to write skip record',
+                lambda: observer.log_path.exists()
+                and 'hello world' in observer.log_path.read_text(encoding='utf-8'),
+                message='timeout waiting for LogObserver to write skip record',
             )
         finally:
-            spout.stop()
+            observer.stop()
 
-        content = spout.log_path.read_text(encoding='utf-8')
+        content = observer.log_path.read_text(encoding='utf-8')
         assert 'hello world' in content
         assert 'skipped' in content
         assert '[7->8*]' in content

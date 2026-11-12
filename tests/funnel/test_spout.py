@@ -28,12 +28,35 @@ class MockSpout(BaseSpout):
 
 
 class MockInlet(BaseInlet):
-    def send(self, data):
-        """将数据经由 inlet 发送到目标队列。"""
-        self._funnel(data)
+    """测试用 inlet，直接复用基类的发送实现。"""
 
 
 class TestBaseSpout:
+    def test_start_is_idempotent(self):
+        """重复调用 start 不应重新执行 _before_start。"""
+
+        class CountingSpout(BaseSpout):
+            def __init__(self):
+                """初始化启动计数。"""
+                super().__init__()
+                self.before_calls = 0
+
+            def _before_start(self):
+                """累计启动前回调次数。"""
+                self.before_calls += 1
+
+            def _handle_record(self, record):
+                """丢弃记录。"""
+                return None
+
+        spout = CountingSpout()
+        spout.start()
+        try:
+            spout.start()
+            assert spout.before_calls == 1
+        finally:
+            spout.stop()
+
     def test_base_spout_lifecycle(self):
         """BaseSpout 启停时应调用生命周期钩子并消费停止前的数据。"""
         spout = MockSpout()
