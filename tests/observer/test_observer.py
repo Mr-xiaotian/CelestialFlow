@@ -369,6 +369,63 @@ class TestObserverHub:
         with pytest.raises(ConfigurationError):
             a.add_observer(a)
 
+    def test_find_returns_direct_observer(self):
+        """find 命中本层注册的观察者"""
+        observer = RecordingObserver()
+        hub = ObserverHub()
+        hub.add_observer(observer)
+
+        assert hub.find(RecordingObserver) is observer
+
+    def test_find_returns_none_when_missing(self):
+        """find 未命中时返回 None"""
+        hub = ObserverHub()
+        hub.add_observer(RecordingObserver())
+
+        assert hub.find(PrintObserver) is None
+
+    def test_find_recurses_into_nested_hub(self):
+        """find 会递归进入嵌套 hub"""
+        observer = RecordingObserver()
+        nested = ObserverHub()
+        nested.add_observer(observer)
+        outer = ObserverHub()
+        outer.add_observer(nested)
+
+        assert outer.find(RecordingObserver) is observer
+
+    def test_find_prefers_direct_registration_over_nested(self):
+        """本层直接注册的观察者优先于嵌套 hub 中的匹配"""
+        nested = ObserverHub()
+        nested.add_observer(RecordingObserver())
+        local = RecordingObserver()
+        outer = ObserverHub()
+        outer.add_observer(nested)
+        outer.add_observer(local)
+
+        assert outer.find(RecordingObserver) is local
+
+    def test_find_matches_subclass(self):
+        """find 使用 isinstance 匹配，子类实例同样命中"""
+        class CustomRecording(RecordingObserver):
+            pass
+
+        observer = CustomRecording()
+        hub = ObserverHub()
+        hub.add_observer(observer)
+
+        assert hub.find(RecordingObserver) is observer
+
+    def test_find_returns_first_registered_match(self):
+        """同一层存在多个匹配时返回最先注册的"""
+        first = RecordingObserver()
+        second = RecordingObserver()
+        hub = ObserverHub()
+        hub.add_observer(first)
+        hub.add_observer(second)
+
+        assert hub.find(RecordingObserver) is first
+
 
 class TestGraphObserver:
     def test_graph_observer_receives_all_nodes(self):

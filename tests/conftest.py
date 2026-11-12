@@ -16,16 +16,16 @@ def metrics_of(node: Any) -> MetricsObserver:
     """
     取回独立运行节点 hub 上的指标观察者。
 
-    节点自身不再持有 ``metrics`` 字段；指标观察者由运行入口注册到 ``node.observers``，
-    这里从 hub 快照中取回，供断言读取。
+    节点自身不再持有 ``metrics`` 字段；指标观察者由运行入口注册到 ``node.observers``
+    或其嵌套的图级 hub 上，这里通过 hub 的查找接口取回，供断言读取。
 
     :param node: 已运行的任务节点
     :return: 该节点 hub 上的指标观察者
     """
-    for observer in node.observers._snapshot():
-        if isinstance(observer, MetricsObserver):
-            return observer
-    raise AssertionError("metrics observer not registered on node hub")
+    metrics = node.observers.find(MetricsObserver)
+    if metrics is None:
+        raise AssertionError("metrics observer not registered on node hub")
+    return metrics
 
 
 def wait_until(

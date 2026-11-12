@@ -80,6 +80,33 @@ class ObserverHub(Observer):
                 child for child in hub._snapshot() if isinstance(child, ObserverHub)
             )
 
+    # ==== 查询 ====
+
+    def find[O: Observer](self, observer_type: type[O]) -> O | None:
+        """
+        查找指定类型的观察者。
+
+        先扫描本层直接注册的观察者，未命中时再按注册顺序递归进入嵌套 hub，
+        因此越靠近调用方的注册越优先。匹配使用 :func:`isinstance`，子类实例
+        同样会命中。
+
+        :param observer_type: 期望的观察者类型
+        :return: 第一个匹配的观察者；未找到时返回 ``None``
+        """
+        observers = self._snapshot()
+
+        for observer in observers:
+            if isinstance(observer, observer_type):
+                return observer
+
+        for observer in observers:
+            if isinstance(observer, ObserverHub):
+                found = observer.find(observer_type)
+                if found is not None:
+                    return found
+
+        return None
+
     # ==== 分发 ====
 
     def on_event(self, event: Event) -> None:
