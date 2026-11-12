@@ -20,6 +20,7 @@ from ..observer import (
     TaskSkipEvent,
     TerminationInputEvent,
 )
+from ..persist import LifecycleObserver
 from ..persist.util_sqlite import (
     load_task_error_records,
     load_task_result_records,
@@ -76,7 +77,6 @@ class BaseTaskNode[T, R, Y]:
     skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
     observers: ObserverHub
-    _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
 
@@ -135,7 +135,6 @@ class BaseTaskNode[T, R, Y]:
             in_name=self.get_name(),
         )
         self.observers = ObserverHub()
-        self._lifecycle_db_path = None
 
     # ==== 观察者 ====
     def add_observer(self, observer: Observer) -> None:
@@ -467,8 +466,7 @@ class BaseTaskNode[T, R, Y]:
             with run_node_resources(
                 self.observers,
                 log_level=log_level,
-            ) as lifecycle_db_path:
-                self._lifecycle_db_path = lifecycle_db_path
+            ):
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:
@@ -504,8 +502,7 @@ class BaseTaskNode[T, R, Y]:
             with run_node_resources(
                 self.observers,
                 log_level=log_level,
-            ) as lifecycle_db_path:
-                self._lifecycle_db_path = lifecycle_db_path
+            ):
                 for task in task_source:
                     self.put_task(task)
                 if if_put_signal:
@@ -651,33 +648,46 @@ class BaseTaskNode[T, R, Y]:
 
     # ==== 结果获取 ====
 
+    def _find_lifecycle_db_path(self) -> Path | None:
+        """
+        在当前节点的观察者 hub 中查找 lifecycle 观察者并返回其数据库路径。
+
+        查找会递归进入嵌套 hub，因此既能命中独立运行时直接注册在节点上的
+        观察者，也能命中图运行时由节点共享的图级观察者。
+
+        :return: 生命周期数据库路径；未找到观察者或尚未启动时为 ``None``
+        """
+        lifecycle = self.observers.find(LifecycleObserver)
+        if lifecycle is None:
+            return None
+        return lifecycle.db_path
+
     def get_success_pairs(self) -> list[tuple[T, R]]:
         """
         获取成功任务的列表。
 
-        仅在本节点通过 :meth:`run` / :meth:`run_async` 独立运行时可用；
-        由图级调度（:class:`~celestialflow.graph.core_graph.TaskGraph`）统一运行时，
-        记录落在图级 lifecycle 库，本方法返回空列表。
+        通过观察者 hub 查找 :class:`~celestialflow.persist.core_lifecycle.LifecycleObserver`
+        并读取其数据库路径，因此独立运行与图级调度均可用。
 
         :return: (task, result) 元组列表；无 lifecycle 库时为空
         """
-        if self._lifecycle_db_path is None:
+        db_path = self._find_lifecycle_db_path()
+        if db_path is None:
             return []
-        return load_task_result_records(self._lifecycle_db_path, self.get_name())
+        return load_task_result_records(db_path, self.get_name())
 
     def get_error_pairs(self) -> list[tuple[T, PersistedError]]:
         """
         获取出错任务的列表。
 
-        可用条件同 :meth:`get_success_pairs`，节点未独立运行时返回空列表。
+        可用条件同 :meth:`get_success_pairs`，无 lifecycle 库时返回空列表。
 
         :return: (task, PersistedError) 元组列表；无 lifecycle 库时为空
         """
-        if self._lifecycle_db_path is None:
+        db_path = self._find_lifecycle_db_path()
+        if db_path is None:
             return []
-        task_error_pairs = load_task_error_records(
-            self._lifecycle_db_path, self.get_name()
-        )
+        task_error_pairs = load_task_error_records(db_path, self.get_name())
         return [
             (task, PersistedError(error_type, error_message))
             for task, (error_type, error_message) in task_error_pairs

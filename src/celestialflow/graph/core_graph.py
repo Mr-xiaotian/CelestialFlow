@@ -56,7 +56,6 @@ class TaskGraph:
     ctree_client: EventClient
     _is_dag: bool
     _layers_dict: dict[int, list[str]]
-    _lifecycle_db_path: Path | None
 
     # ==== 初始化 ====
 
@@ -102,9 +101,6 @@ class TaskGraph:
 
         # 用于保存观察者
         self.observers = ObserverHub()
-
-        # 用于保存生命周期数据库路径
-        self._lifecycle_db_path = None
 
     # ==== 建图 ====
 
@@ -287,8 +283,7 @@ class TaskGraph:
                 self,
                 log_level=log_level,
                 report=report,
-            ) as lifecycle_db_path:
-                self._lifecycle_db_path = lifecycle_db_path
+            ):
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
                         self.node_dict[node_name].put_task(task)
@@ -332,8 +327,7 @@ class TaskGraph:
                 self,
                 log_level=log_level,
                 report=report,
-            ) as lifecycle_db_path:
-                self._lifecycle_db_path = lifecycle_db_path
+            ):
                 for node_name, tasks in init_tasks_dict.items():
                     for task in tasks:
                         self.node_dict[node_name].put_task(task)

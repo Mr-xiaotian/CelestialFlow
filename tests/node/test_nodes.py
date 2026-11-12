@@ -20,7 +20,7 @@ from celestialflow.runtime.util_errors import (
     PersistedError,
 )
 from celestialflow.runtime.util_types import CTreeEvent
-from conftest import metrics_of
+from conftest import lifecycle_db_of, metrics_of
 
 
 def build_result_dict(executor: TaskExecutor[Any, Any]) -> dict[Any, Any]:
@@ -373,6 +373,15 @@ class TestTaskExecutor:
         assert result_dict[2] == 3
         assert result_dict[3] == 4
 
+    def test_graph_run_node_reads_lifecycle_through_nested_hub(self) -> None:
+        """图运行时节点可通过嵌套 hub 找到图级 lifecycle 观察者并读回结果。"""
+        node = TaskExecutor("OnlyNode", add_one, execution_mode="serial")
+        graph = TaskGraph("GraphLifecycleLookup")
+        graph.set_nodes([node])
+        graph.run({"OnlyNode": [1, 2]})
+
+        assert sorted(node.get_success_pairs()) == [(1, 2), (2, 3)]
+
     def test_rejects_zero_argument_func(self) -> None:
         """执行函数没有参数时应直接报配置错误。"""
 
@@ -411,7 +420,7 @@ class TestTaskExecutor:
         graph.run({"up": [1, 2]})
 
         # up: 1->2, 2->3；down 应以 [2, 3] 作为输入并产出 [20, 30]
-        assert load_task_result_records(graph._lifecycle_db_path, "down") == [
+        assert load_task_result_records(lifecycle_db_of(graph), "down") == [
             (2, 20),
             (3, 30),
         ]
@@ -601,8 +610,7 @@ class TestTaskSkip:
 
         assert ctree.events.count(CTreeEvent.TASK_SKIP) == 2
 
-        db_path = executor._lifecycle_db_path
-        assert db_path is not None
+        db_path = lifecycle_db_of(executor)
         conn = sqlite3.connect(db_path)
         try:
             statuses = [
@@ -697,7 +705,7 @@ class TestTaskSplitter:
         graph.run({"S": [[" a ", " b ", " c "]]})
 
         assert metrics_of(graph).get_node_metrics(splitter.get_name()).downstream_counts["A"] == 3
-        result_pairs = load_task_result_records(graph._lifecycle_db_path, "A")
+        result_pairs = load_task_result_records(lifecycle_db_of(graph), "A")
         assert sorted(task for task, _ in result_pairs) == ["a", "b", "c"]
 
 
@@ -768,7 +776,7 @@ class TestTaskRouter:
         assert router_metrics.failed == 1
         assert router_metrics.processed == 2
 
-        error_pairs = load_task_error_records(graph._lifecycle_db_path, "R")
+        error_pairs = load_task_error_records(lifecycle_db_of(graph), "R")
         assert len(error_pairs) == 1
         task, (_error_type, error_message) = error_pairs[0]
         assert task == "msg2"
@@ -794,8 +802,9 @@ class TestTaskRouter:
         graph.run({"R": ["msg1"]})
 
         # 下游记录的输入应为路由器给出的载荷，而不是路由器自身的输入任务
-        pairs_a = load_task_result_records(graph._lifecycle_db_path, "msg1_a")
-        pairs_b = load_task_result_records(graph._lifecycle_db_path, "msg1_b")
+        db_path = lifecycle_db_of(graph)
+        pairs_a = load_task_result_records(db_path, "msg1_a")
+        pairs_b = load_task_result_records(db_path, "msg1_b")
         assert [task for task, _ in pairs_a] == ["msg1-a"]
         assert [task for task, _ in pairs_b] == ["msg1-b"]
         assert metrics_of(graph).get_node_metrics(router.get_name()).downstream_counts["msg1_a"] == 1

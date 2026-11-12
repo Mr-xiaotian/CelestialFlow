@@ -261,7 +261,6 @@ class TestDispatchSerial:
         lifecycle_observer = LifecycleObserver()
         executor.add_observer(lifecycle_observer)
         lifecycle_observer.start()
-        executor._lifecycle_db_path = lifecycle_observer.db_path
         try:
             lifecycle_observer.on_event(
                 TaskInputEvent(executor.get_name(), 3, "(3)", 0)
