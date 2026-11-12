@@ -241,18 +241,11 @@ class TaskGraph:
                 "Consider using graph_mode='thread' or 'async'."
             )
 
-    def put_source_signal(self) -> None:
-        """
-        将终止信号放入所有源节点的队列中。
-        """
-        for source_name in self._source_names:
-            self.node_dict[source_name].put_signal()
-
     # ==== 执行 ====
 
     def run(
         self,
-        init_tasks_dict: dict[str, Iterable[Any]],
+        init_tasks_dict: Mapping[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
@@ -265,12 +258,14 @@ class TaskGraph:
         启动全局 ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
         最后统一收尾。
 
-        :param init_tasks_dict: 任务列表字典，键为节点名称，值为任务列表
+        :param init_tasks_dict: 节点名到任务序列的映射；未知节点名会被拒绝
         :param if_put_signal: 是否注入终止信号，默认 True
         :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
+        :raises ExceptionGroup: 注入或执行期间出错；其中可能包含节点名未知的
+            :class:`UnknownNodeError`
         """
         self._build_analysis()
         self._inject_observers()
@@ -284,11 +279,9 @@ class TaskGraph:
                 log_level=log_level,
                 report=report,
             ):
-                for node_name, tasks in init_tasks_dict.items():
-                    for task in tasks:
-                        self.node_dict[node_name].put_task(task)
+                self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
-                    self.put_source_signal()
+                    self.inject_terminations(self._source_names)
                 self.start()
         except Exception as exception:
             error_list.append(exception)
@@ -298,7 +291,7 @@ class TaskGraph:
 
     async def run_async(
         self,
-        init_tasks_dict: dict[str, Iterable[Any]],
+        init_tasks_dict: Mapping[str, Iterable[Any]],
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
@@ -309,12 +302,14 @@ class TaskGraph:
 
         运行期资源的实例化与收尾同 :meth:`run`，区别仅在于以协程方式启动。
 
-        :param init_tasks_dict: 初始任务字典，键为节点名称，值为任务可迭代对象
+        :param init_tasks_dict: 节点名到任务序列的映射；未知节点名会被拒绝
         :param if_put_signal: 是否注入终止信号，默认 True
         :param log_level: 日志过滤级别，默认 ``DEFAULT_LOG_LEVEL``
         :param report: 远程上报配置；``None`` 表示不上报，默认 ``None``
         :return: ``None``
         :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
+        :raises ExceptionGroup: 注入或执行期间出错；其中可能包含节点名未知的
+            :class:`UnknownNodeError`
         """
         self._build_analysis()
         self._inject_observers()
@@ -328,11 +323,9 @@ class TaskGraph:
                 log_level=log_level,
                 report=report,
             ):
-                for node_name, tasks in init_tasks_dict.items():
-                    for task in tasks:
-                        self.node_dict[node_name].put_task(task)
+                self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
-                    self.put_source_signal()
+                    self.inject_terminations(self._source_names)
                 await self.start_async()
         except Exception as exception:
             error_list.append(exception)
@@ -664,14 +657,14 @@ class TaskGraph:
 
     # ==== 注入接口 ====
 
-    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+    def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
         """
         按节点名将注入任务写入待执行队列。
 
         先为图中存在的节点尽力注入，再对未知节点统一报错，因此单个未知节点
         不会导致其余节点的任务被丢弃。
 
-        :param tasks: 节点名到任务序列的映射
+        :param tasks: 节点名到任务可迭代对象的映射，每个值只会被遍历一次
         :raises UnknownNodeError: 存在图中不存在的目标节点
         """
         missing_nodes: list[str] = []

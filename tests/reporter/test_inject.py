@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 import pytest
@@ -53,10 +53,10 @@ class FakeTarget:
     """记录注入调用的 ``InjectionTarget`` 替身。"""
 
     def __init__(self) -> None:
-        self.tasks: list[Mapping[str, Sequence[Any]]] = []
+        self.tasks: list[Mapping[str, Iterable[Any]]] = []
         self.terminations: list[Sequence[str]] = []
 
-    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+    def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
         """记录注入的任务。"""
         self.tasks.append(tasks)
 
@@ -119,7 +119,7 @@ def test_injection_handler_propagates_inject_failure() -> None:
     class RaisingTarget(FakeTarget):
         """任务注入抛错的注入目标。"""
 
-        def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+        def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
             """模拟注入失败。"""
             raise RuntimeError("unknown node")
 

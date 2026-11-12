@@ -1,7 +1,7 @@
 # reporter/core_inject.py
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Protocol
 
 import requests
@@ -19,7 +19,7 @@ class InjectionTarget(Protocol):
     只暴露注入语义，不暴露节点容器与持久化细节，从而让注入处理器与图结构解耦。
     """
 
-    def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None: ...
+    def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None: ...
 
     def inject_terminations(self, nodes: Sequence[str]) -> None: ...
 

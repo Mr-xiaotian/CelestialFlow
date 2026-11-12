@@ -1,4 +1,5 @@
 import sqlite3
+from types import MappingProxyType
 
 import pytest
 
@@ -142,6 +143,33 @@ class TestTaskGraphBasic:
         # node1 结果: 2, 3, 4 -> node2 结果: 4, 6, 8
         assert metrics_of(graph).get_node_metrics(node1.get_name()).succeeded == 3
         assert metrics_of(graph).get_node_metrics(node2.get_name()).succeeded == 3
+
+    def test_run_accepts_mapping_of_iterables(self):
+        """run 接受任意只读映射与一次性可迭代对象，不必是 dict 与 list。"""
+        node1 = TaskExecutor("s1", add_one, execution_mode="serial")
+        node2 = TaskExecutor("s2", double, execution_mode="serial")
+
+        graph = TaskGraph("test_run_accepts_mapping_of_iterables")
+        graph.set_nodes(nodes=[node1, node2])
+        graph.connect([node1], [node2])
+
+        graph.run(MappingProxyType({"s1": (value for value in [1, 2, 3])}))
+
+        assert metrics_of(graph).get_node_metrics(node1.get_name()).succeeded == 3
+        assert metrics_of(graph).get_node_metrics(node2.get_name()).succeeded == 3
+
+    def test_run_raises_exception_group_for_unknown_node(self):
+        """run 注入未知节点名时应抛出聚合了 UnknownNodeError 的 ExceptionGroup。"""
+        node = TaskExecutor("s1", add_one, execution_mode="serial")
+        graph = TaskGraph("test_run_raises_exception_group_for_unknown_node")
+        graph.set_nodes(nodes=[node])
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            graph.run({"s1": [1], "missing": [2]})
+
+        exceptions = exc_info.value.exceptions
+        assert [type(exception) for exception in exceptions] == [UnknownNodeError]
+        assert "missing" in str(exceptions[0])
 
     def test_graph_fan_out(self):
         """扇出：一个节点到多个下游"""
