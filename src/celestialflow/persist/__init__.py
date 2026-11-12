@@ -5,21 +5,35 @@
 """
 
 from .core_lifecycle import (
+    InsertRecord,
     LifecycleInlet,
     LifecycleObserver,
+    LifecycleRecord,
     LifecycleSpout,
+    PromoteFailedRecord,
+    PromoteSkippedRecord,
+    PromoteSuccessRecord,
+    UpdateRetryRecord,
 )
 from .core_log import (
     LogInlet,
     LogObserver,
+    LogRecord,
     LogSpout,
 )
 
 __all__ = [
+    "InsertRecord",
     "LifecycleInlet",
     "LifecycleObserver",
+    "LifecycleRecord",
     "LifecycleSpout",
     "LogInlet",
     "LogObserver",
+    "LogRecord",
     "LogSpout",
+    "PromoteFailedRecord",
+    "PromoteSkippedRecord",
+    "PromoteSuccessRecord",
+    "UpdateRetryRecord",
 ]

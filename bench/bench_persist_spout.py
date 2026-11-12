@@ -12,8 +12,8 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from celestialflow.persist.core_lifecycle import LifecycleSpout
-from celestialflow.persist.core_log import LogSpout
+from celestialflow.persist.core_lifecycle import InsertRecord, LifecycleSpout
+from celestialflow.persist.core_log import LogRecord, LogSpout
 from celestialflow.persist.util_sqlite import connect_db
 
 
@@ -39,28 +39,20 @@ class BenchLifecycleSpout(LifecycleSpout):
         self._conn = connect_db(self.db_path)
 
 
-def build_log_records(count: int) -> list[dict[str, Any]]:
+def build_log_records(count: int) -> list[LogRecord]:
     return [
-        {
-            "timestamp": "2026-06-17 12:00:00",
-            "level": "INFO",
-            "message": f"bench log line {i}",
-        }
+        LogRecord(
+            timestamp="2026-06-17 12:00:00",
+            level="INFO",
+            message=f"bench log line {i}",
+        )
         for i in range(count)
     ]
 
 
-def build_lifecycle_insert_records(count: int) -> list[dict[str, Any]]:
+def build_lifecycle_insert_records(count: int) -> list[InsertRecord]:
     return [
-        {
-            "__op__": "insert",
-            "record": {
-                "event_id": i,
-                "node": "BenchStage",
-                "status": "pending",
-                "task_json": i,
-            },
-        }
+        InsertRecord(event_id=i, ts=0.0, node="BenchStage", task=i)
         for i in range(count)
     ]
 

@@ -1,9 +1,10 @@
 # persist/core_log.py
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from time import localtime, strftime
-from typing import Any, TextIO
+from typing import TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observer import (
@@ -26,6 +27,20 @@ from ..runtime.util_errors import InitializationError, InvalidOptionError
 from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
 from ..runtime.util_types import MetricsView
 from .util_render import render_structure_list
+
+
+@dataclass(frozen=True, slots=True)
+class LogRecord:
+    """单条日志记录。
+
+    :param timestamp: 格式化后的时间戳
+    :param level: 日志级别
+    :param message: 日志消息
+    """
+
+    timestamp: str
+    level: str
+    message: str
 
 
 class LogSpout(BaseSpout):
@@ -52,17 +67,13 @@ class LogSpout(BaseSpout):
         # 同时避免重新引入显式的刷新计数机制。
         self._file = self.log_path.open("a", encoding="utf-8", buffering=1)
 
-    def _handle_record(self, record: dict[str, Any]) -> None:
+    def _handle_record(self, record: LogRecord) -> None:
         """
         处理单条日志记录并写入日志文件。
 
-        :param record: 包含 timestamp, level, message 的日志记录字典
+        :param record: 日志记录
         """
-        timestamp: str = record["timestamp"]
-        level: str = record["level"]
-        message: str = record["message"]
-
-        line = f"{timestamp} {level} {message}\n"
+        line = f"{record.timestamp} {record.level} {record.message}\n"
 
         if self._file is None:
             raise InitializationError("log file is not initialized")
@@ -78,15 +89,14 @@ class LogSpout(BaseSpout):
 class LogInlet(BaseInlet):
     """Log 记录入口。
 
-    将日志记录字典投递到绑定的 spout。记录包含 ``timestamp``、``level`` 与
-    ``message`` 三个字段。
+    将日志记录投递到绑定的 spout。
     """
 
-    def send(self, record: dict[str, Any]) -> None:
+    def send(self, record: LogRecord) -> None:
         """
         将一条日志记录送入 spout 队列。
 
-        :param record: 包含 timestamp, level, message 的日志记录字典
+        :param record: 日志记录
         """
         super().send(record)
 
@@ -153,7 +163,7 @@ class LogObserver(Observer):
 
         timestamp = strftime("%Y-%m-%d %H:%M:%S", localtime())
         self._inlet.send(
-            {"timestamp": timestamp, "level": level_upper, "message": message}
+            LogRecord(timestamp=timestamp, level=level_upper, message=message)
         )
 
     def on_event(self, event: Event) -> None:

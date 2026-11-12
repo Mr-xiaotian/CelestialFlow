@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observer import (
@@ -25,6 +26,96 @@ from .util_sqlite import (
     promote_record_to_skipped_by_event_id,
     promote_record_to_success_by_event_id,
     update_retry_by_event_id,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class InsertRecord:
+    """新任务进入节点时写入的 pending 记录。
+
+    :param event_id: 任务输入事件 ID
+    :param ts: 记录时间戳
+    :param node: 节点名称
+    :param task: 任务的 JSON 友好载荷
+    """
+
+    event_id: int
+    ts: float
+    node: str
+    task: Any
+
+
+@dataclass(frozen=True, slots=True)
+class PromoteSuccessRecord:
+    """将 pending 记录晋升为 success 并写入任务结果。
+
+    :param event_id: 任务输入事件 ID
+    :param ts: 记录时间戳
+    :param result: 任务结果的 JSON 友好载荷
+    """
+
+    event_id: int
+    ts: float
+    result: Any
+
+
+@dataclass(frozen=True, slots=True)
+class PromoteFailedRecord:
+    """将 pending 记录晋升为 failed。
+
+    :param event_id: 任务输入事件 ID
+    :param error_id: 最终失败事件 ID
+    :param ts: 记录时间戳
+    :param error_type: 异常类型名称
+    :param error_message: 异常消息
+    """
+
+    event_id: int
+    error_id: int
+    ts: float
+    error_type: str
+    error_message: str
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateRetryRecord:
+    """更新 pending 记录的重试次数与最近一次失败信息。
+
+    :param event_id: 任务输入事件 ID
+    :param ts: 记录时间戳
+    :param retry_times: 已重试次数
+    :param error_type: 最近一次异常类型名称
+    :param error_message: 最近一次异常消息
+    """
+
+    event_id: int
+    ts: float
+    retry_times: int
+    error_type: str
+    error_message: str
+
+
+@dataclass(frozen=True, slots=True)
+class PromoteSkippedRecord:
+    """将 pending 记录晋升为 skipped。
+
+    :param event_id: 任务输入事件 ID
+    :param skip_id: 跳过事件 ID
+    :param ts: 记录时间戳
+    """
+
+    event_id: int
+    skip_id: int
+    ts: float
+
+
+# 生命周期记录联合类型，由 LifecycleSpout 按具体类型写入 sqlite。
+type LifecycleRecord = (
+    InsertRecord
+    | PromoteSuccessRecord
+    | PromoteFailedRecord
+    | UpdateRetryRecord
+    | PromoteSkippedRecord
 )
 
 
@@ -51,57 +142,71 @@ class LifecycleSpout(BaseSpout):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = connect_db(self.db_path)
 
-    def _handle_record(self, record: dict[str, Any]) -> None:
+    def _handle_record(self, record: LifecycleRecord) -> None:
         """
         处理单条 lifecycle 记录并写入 sqlite。
 
-        :param record: lifecycle 操作字典
+        :param record: 生命周期记录
+        :raises InitializationError: 数据库尚未初始化
+        :raises CelestialFlowError: 收到不支持的生命周期记录类型
         """
         if self._conn is None:
             raise InitializationError("lifecycle database is not initialized")
 
-        op = str(record["__op__"])
-        if op == "insert":
-            # 新任务进入某个 node，写入一条 pending 记录。
-            changed = insert_record(self._conn, cast(dict[str, Any], record["record"]))
-        elif op == "promote_success":
-            # 任务成功时，将 pending 记录晋升为 success 并写入结果。
-            changed = promote_record_to_success_by_event_id(
-                self._conn,
-                int(record["event_id"]),
-                record["result_json"],
-                ts=float(record["ts"]),
-            )
-        elif op == "promote_failed":
-            # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
-            changed = promote_record_to_failed_by_event_id(
-                self._conn,
-                int(record["event_id"]),
-                int(record["error_id"]),
-                ts=float(record["ts"]),
-                error_type=str(record["error_type"]),
-                error_message=str(record["error_message"]),
-            )
-        elif op == "update_retry":
-            # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
-            changed = update_retry_by_event_id(
-                self._conn,
-                int(record["event_id"]),
-                ts=float(record["ts"]),
-                retry_times=int(record["retry_times"]),
-                error_type=str(record["error_type"]),
-                error_message=str(record["error_message"]),
-            )
-        elif op == "promote_skipped":
-            # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
-            changed = promote_record_to_skipped_by_event_id(
-                self._conn,
-                int(record["event_id"]),
-                int(record["skip_id"]),
-                ts=float(record["ts"]),
-            )
-        else:
-            raise ValueError(f"unsupported lifecycle operation: {op}")
+        changed = False
+        match record:
+            case InsertRecord():
+                # 新任务进入某个 node，写入一条 pending 记录。
+                changed = insert_record(
+                    self._conn,
+                    {
+                        "event_id": record.event_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "status": "pending",
+                        "task_json": record.task,
+                    },
+                )
+            case PromoteSuccessRecord():
+                # 任务成功时，将 pending 记录晋升为 success 并写入结果。
+                changed = promote_record_to_success_by_event_id(
+                    self._conn,
+                    record.event_id,
+                    record.result,
+                    ts=record.ts,
+                )
+            case PromoteFailedRecord():
+                # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
+                changed = promote_record_to_failed_by_event_id(
+                    self._conn,
+                    record.event_id,
+                    record.error_id,
+                    ts=record.ts,
+                    error_type=record.error_type,
+                    error_message=record.error_message,
+                )
+            case UpdateRetryRecord():
+                # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
+                changed = update_retry_by_event_id(
+                    self._conn,
+                    record.event_id,
+                    ts=record.ts,
+                    retry_times=record.retry_times,
+                    error_type=record.error_type,
+                    error_message=record.error_message,
+                )
+            case PromoteSkippedRecord():
+                # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
+                changed = promote_record_to_skipped_by_event_id(
+                    self._conn,
+                    record.event_id,
+                    record.skip_id,
+                    ts=record.ts,
+                )
+            # case _:
+            #     raise CelestialFlowError(
+            #         f"unsupported lifecycle record: {type(record).__name__}"
+            #     )
         if changed:
             self._conn.commit()
 
@@ -116,15 +221,15 @@ class LifecycleSpout(BaseSpout):
 class LifecycleInlet(BaseInlet):
     """Lifecycle 记录入口。
 
-    将生命周期操作字典投递到绑定的 spout。记录以 ``__op__`` 区分操作类型，
-    其余字段由 :class:`LifecycleSpout` 解释。
+    将生命周期记录投递到绑定的 spout，具体写入语义由 :class:`LifecycleSpout`
+    按记录类型决定。
     """
 
-    def send(self, record: dict[str, Any]) -> None:
+    def send(self, record: LifecycleRecord) -> None:
         """
         将一条生命周期记录送入 spout 队列。
 
-        :param record: 生命周期操作字典
+        :param record: 生命周期记录
         """
         super().send(record)
 
@@ -170,64 +275,51 @@ class LifecycleObserver(Observer):
         """
         match event:
             case TaskInputEvent():
-                now = datetime.now()
-                pending_item = {
-                    "__op__": "insert",
-                    "record": {
-                        "event_id": event.input_id,
-                        "ts": now.timestamp(),
-                        "node": event.node,
-                        "status": "pending",
-                        "task_json": to_persisted_payload(event.task),
-                    },
-                }
-                self._inlet.send(pending_item)
-            case TaskSuccessEvent():
-                now = datetime.now()
                 self._inlet.send(
-                    {
-                        "__op__": "promote_success",
-                        "event_id": event.task_id,
-                        "ts": now.timestamp(),
-                        "result_json": to_persisted_payload(event.result),
-                    }
+                    InsertRecord(
+                        event_id=event.input_id,
+                        ts=datetime.now().timestamp(),
+                        node=event.node,
+                        task=to_persisted_payload(event.task),
+                    )
+                )
+            case TaskSuccessEvent():
+                self._inlet.send(
+                    PromoteSuccessRecord(
+                        event_id=event.task_id,
+                        ts=datetime.now().timestamp(),
+                        result=to_persisted_payload(event.result),
+                    )
                 )
             case TaskFailEvent():
-                now = datetime.now()
                 error = event.exception
-                fail_item = {
-                    "__op__": "promote_failed",
-                    "event_id": event.task_id,
-                    "error_id": event.error_id,
-                    "error_type": type(error).__name__,
-                    "error_message": str(error),
-                    "ts": now.timestamp(),
-                }
-                self._inlet.send(fail_item)
-            case TaskSkipEvent():
-                now = datetime.now()
                 self._inlet.send(
-                    {
-                        "__op__": "promote_skipped",
-                        "event_id": event.task_id,
-                        "skip_id": event.skip_id,
-                        "ts": now.timestamp(),
-                    }
+                    PromoteFailedRecord(
+                        event_id=event.task_id,
+                        error_id=event.error_id,
+                        ts=datetime.now().timestamp(),
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
+                )
+            case TaskSkipEvent():
+                self._inlet.send(
+                    PromoteSkippedRecord(
+                        event_id=event.task_id,
+                        skip_id=event.skip_id,
+                        ts=datetime.now().timestamp(),
+                    )
                 )
             case TaskRetryEvent():
-                now = datetime.now()
                 error = event.exception
-                error_type = type(error).__name__
-                error_message = str(error)
                 self._inlet.send(
-                    {
-                        "__op__": "update_retry",
-                        "event_id": event.task_id,
-                        "retry_times": event.retry_times,
-                        "error_type": error_type,
-                        "error_message": error_message,
-                        "ts": now.timestamp(),
-                    }
+                    UpdateRetryRecord(
+                        event_id=event.task_id,
+                        ts=datetime.now().timestamp(),
+                        retry_times=event.retry_times,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
                 )
             case _:
                 pass
