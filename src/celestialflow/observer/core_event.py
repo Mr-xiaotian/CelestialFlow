@@ -5,8 +5,19 @@ from dataclasses import dataclass
 from typing import Any
 
 
+class Event:
+    """所有观测事件的基类。
+
+    观察者通过 :meth:`~celestialflow.observer.core_observer.Observer.on_event`
+    接收任意事件，并依据具体事件类型分派处理。事件均为不可变数据类，基类不携带
+    任何状态。
+    """
+
+    __slots__ = ()
+
+
 @dataclass(frozen=True, slots=True)
-class NodeStartEvent:
+class NodeStartEvent(Event):
     """节点启动事件。
 
     :param node: 节点名称
@@ -22,7 +33,7 @@ class NodeStartEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class NodeEndEvent:
+class NodeEndEvent(Event):
     """节点结束事件。
 
     :param node: 节点名称
@@ -40,7 +51,7 @@ class NodeEndEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TaskInputEvent:
+class TaskInputEvent(Event):
     """任务输入事件。
 
     :param node: 接收任务的节点名称
@@ -58,7 +69,7 @@ class TaskInputEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TaskSuccessEvent:
+class TaskSuccessEvent(Event):
     """任务成功事件。
 
     :param node: 节点名称
@@ -82,7 +93,7 @@ class TaskSuccessEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TaskFailEvent:
+class TaskFailEvent(Event):
     """任务失败事件。
 
     :param node: 节点名称
@@ -102,7 +113,7 @@ class TaskFailEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TaskSkipEvent:
+class TaskSkipEvent(Event):
     """任务跳过事件。
 
     :param node: 节点名称
@@ -120,7 +131,7 @@ class TaskSkipEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TaskRetryEvent:
+class TaskRetryEvent(Event):
     """任务重试事件。
 
     :param node: 节点名称
@@ -140,7 +151,7 @@ class TaskRetryEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TerminationInputEvent:
+class TerminationInputEvent(Event):
     """终止信号输入事件。
 
     :param node: 接收终止信号的节点名称
@@ -152,7 +163,7 @@ class TerminationInputEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class TerminationMergeEvent:
+class TerminationMergeEvent(Event):
     """终止信号合并事件。
 
     :param node: 执行合并的节点名称
@@ -166,7 +177,7 @@ class TerminationMergeEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class GraphStartEvent:
+class GraphStartEvent(Event):
     """任务图启动事件。
 
     :param graph: 任务图名称
@@ -190,7 +201,7 @@ class GraphStartEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class GraphEndEvent:
+class GraphEndEvent(Event):
     """任务图结束事件。
 
     :param graph: 任务图名称

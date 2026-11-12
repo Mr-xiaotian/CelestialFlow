@@ -5,6 +5,7 @@
 """
 
 from .core_event import (
+    Event,
     GraphEndEvent,
     GraphStartEvent,
     NodeEndEvent,
@@ -23,6 +24,7 @@ from .core_observer import Observer
 from .core_print import PrintObserver
 
 __all__ = [
+    "Event",
     "GraphEndEvent",
     "GraphStartEvent",
     "MetricsObserver",

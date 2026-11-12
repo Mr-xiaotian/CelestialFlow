@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observer import (
+    Event,
     Observer,
     TaskFailEvent,
     TaskInputEvent,
@@ -116,98 +117,81 @@ class LifecycleInlet(BaseInlet, Observer):
     """
     线程安全 lifecycle 记录包装类，以观察者形式消费任务事件。
 
-    仅覆写会产生生命周期记录的任务事件回调，其余事件沿用
-    :class:`~celestialflow.observer.core_observer.Observer` 的默认空实现。
+    仅处理会产生生命周期记录的任务事件，其余事件类型在 :meth:`on_event` 中被忽略。
     """
 
-    def on_task_input(self, event: TaskInputEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        写入一条 pending 记录，表示任务已进入某个 node。
+        接收并处理观测事件，按事件类型写入生命周期记录。
 
-        :param event: 任务输入事件
+        - ``TaskInputEvent``：写入一条 pending 记录，表示任务已进入某个 node；
+        - ``TaskSuccessEvent``：将 pending 记录晋升为 success 并写入结果；
+        - ``TaskFailEvent``：将 pending 记录晋升为 failed，并绑定最终的 error_id；
+        - ``TaskSkipEvent``：将 pending 记录晋升为 skipped；
+        - ``TaskRetryEvent``：更新 pending 记录的重试次数与最近一次失败信息。
+
+        :param event: 任意观测事件
         """
-        now = datetime.now()
-        pending_item = {
-            "__op__": "insert",
-            "record": {
-                "event_id": event.input_id,
-                "ts": now.timestamp(),
-                "node": event.node,
-                "status": "pending",
-                "task_json": to_persisted_payload(event.task),
-            },
-        }
-        self._funnel(pending_item)
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。
-
-        :param event: 任务成功事件
-        """
-        now = datetime.now()
-        self._funnel(
-            {
-                "__op__": "promote_success",
-                "event_id": event.task_id,
-                "ts": now.timestamp(),
-                "result_json": to_persisted_payload(event.result),
-            }
-        )
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        将 pending 记录晋升为 failed，并绑定最终的 error_id。
-
-        :param event: 任务失败事件
-        """
-        now = datetime.now()
-        error = event.exception
-        fail_item = {
-            "__op__": "promote_failed",
-            "event_id": event.task_id,
-            "error_id": event.error_id,
-            "error_type": type(error).__name__,
-            "error_message": str(error),
-            "ts": now.timestamp(),
-        }
-        self._funnel(fail_item)
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        将 pending 记录晋升为 skipped，表示任务被跳过而未执行。
-
-        :param event: 任务跳过事件
-        """
-        now = datetime.now()
-        self._funnel(
-            {
-                "__op__": "promote_skipped",
-                "event_id": event.task_id,
-                "skip_id": event.skip_id,
-                "ts": now.timestamp(),
-            }
-        )
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """
-        更新 pending 记录的重试次数与最近一次失败的错误信息。
-
-        记录保持 pending 状态，最终由 ``on_task_success`` 或 ``on_task_fail`` 晋升。
-
-        :param event: 任务重试事件
-        """
-        now = datetime.now()
-        error = event.exception
-        error_type = type(error).__name__
-        error_message = str(error)
-        self._funnel(
-            {
-                "__op__": "update_retry",
-                "event_id": event.task_id,
-                "retry_times": event.retry_times,
-                "error_type": error_type,
-                "error_message": error_message,
-                "ts": now.timestamp(),
-            }
-        )
+        match event:
+            case TaskInputEvent():
+                now = datetime.now()
+                pending_item = {
+                    "__op__": "insert",
+                    "record": {
+                        "event_id": event.input_id,
+                        "ts": now.timestamp(),
+                        "node": event.node,
+                        "status": "pending",
+                        "task_json": to_persisted_payload(event.task),
+                    },
+                }
+                self._funnel(pending_item)
+            case TaskSuccessEvent():
+                now = datetime.now()
+                self._funnel(
+                    {
+                        "__op__": "promote_success",
+                        "event_id": event.task_id,
+                        "ts": now.timestamp(),
+                        "result_json": to_persisted_payload(event.result),
+                    }
+                )
+            case TaskFailEvent():
+                now = datetime.now()
+                error = event.exception
+                fail_item = {
+                    "__op__": "promote_failed",
+                    "event_id": event.task_id,
+                    "error_id": event.error_id,
+                    "error_type": type(error).__name__,
+                    "error_message": str(error),
+                    "ts": now.timestamp(),
+                }
+                self._funnel(fail_item)
+            case TaskSkipEvent():
+                now = datetime.now()
+                self._funnel(
+                    {
+                        "__op__": "promote_skipped",
+                        "event_id": event.task_id,
+                        "skip_id": event.skip_id,
+                        "ts": now.timestamp(),
+                    }
+                )
+            case TaskRetryEvent():
+                now = datetime.now()
+                error = event.exception
+                error_type = type(error).__name__
+                error_message = str(error)
+                self._funnel(
+                    {
+                        "__op__": "update_retry",
+                        "event_id": event.task_id,
+                        "retry_times": event.retry_times,
+                        "error_type": error_type,
+                        "error_message": error_message,
+                        "ts": now.timestamp(),
+                    }
+                )
+            case _:
+                pass

@@ -12,6 +12,7 @@ from celestialflow import (
     TaskGraph,
 )
 from celestialflow.observer import (
+    Event,
     GraphEndEvent,
     GraphStartEvent,
     NodeEndEvent,
@@ -77,48 +78,8 @@ class RecordingObserver(Observer):
         """初始化事件记录列表。"""
         self.events = []
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
-        """记录节点启动事件。"""
-        self.events.append(event)
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """记录任务输入事件。"""
-        self.events.append(event)
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """记录任务成功事件。"""
-        self.events.append(event)
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """记录任务失败事件。"""
-        self.events.append(event)
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """记录任务跳过事件。"""
-        self.events.append(event)
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """记录任务重试事件。"""
-        self.events.append(event)
-
-    def on_termination_input(self, event: TerminationInputEvent) -> None:
-        """记录终止信号输入事件。"""
-        self.events.append(event)
-
-    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
-        """记录终止信号合并事件。"""
-        self.events.append(event)
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """记录节点结束事件。"""
-        self.events.append(event)
-
-    def on_graph_start(self, event: GraphStartEvent) -> None:
-        """记录任务图启动事件。"""
-        self.events.append(event)
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """记录任务图结束事件。"""
+    def on_event(self, event: Event) -> None:
+        """记录收到的观测事件。"""
         self.events.append(event)
 
 
@@ -193,13 +154,13 @@ class TestExecutorObserver:
                 self.successes = 0
                 self.failures = 0
 
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
-                """累计成功任务数量。"""
-                self.successes += 1
-
-            def on_task_fail(self, event: TaskFailEvent) -> None:
-                """累计失败任务数量。"""
-                self.failures += 1
+            def on_event(self, event: Event) -> None:
+                """累计成功与失败任务数量。"""
+                match event:
+                    case TaskSuccessEvent():
+                        self.successes += 1
+                    case TaskFailEvent():
+                        self.failures += 1
 
         observer = CountObserver()
         executor = TaskExecutor(
@@ -219,9 +180,11 @@ class TestExecutorObserver:
                 """初始化跳过计数。"""
                 self.skipped = 0
 
-            def on_task_skip(self, event: TaskSkipEvent) -> None:
+            def on_event(self, event: Event) -> None:
                 """累计跳过任务数量。"""
-                self.skipped += 1
+                match event:
+                    case TaskSkipEvent():
+                        self.skipped += 1
 
         observer = SkipObserver()
         executor = TaskExecutor(
@@ -249,9 +212,11 @@ class TestExecutorObserver:
                 """初始化成功计数。"""
                 self.count = 0
 
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
+            def on_event(self, event: Event) -> None:
                 """累计成功回调次数。"""
-                self.count += 1
+                match event:
+                    case TaskSuccessEvent():
+                        self.count += 1
 
         o1, o2 = Counter(), Counter()
         executor = TaskExecutor("MultiObserver", add_one, execution_mode="serial")
@@ -322,19 +287,23 @@ class TestObserverHub:
         """单个 observer 抛异常不会中断其余 observer 的分发"""
 
         class Boom(Observer):
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
-                """成功回调直接抛异常。"""
-                msg = "observer boom"
-                raise RuntimeError(msg)
+            def on_event(self, event: Event) -> None:
+                """成功事件直接抛异常。"""
+                match event:
+                    case TaskSuccessEvent():
+                        msg = "observer boom"
+                        raise RuntimeError(msg)
 
         class Counter(Observer):
             def __init__(self):
                 """初始化成功计数。"""
                 self.count = 0
 
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
+            def on_event(self, event: Event) -> None:
                 """累计成功回调次数。"""
-                self.count += 1
+                match event:
+                    case TaskSuccessEvent():
+                        self.count += 1
 
         counter = Counter()
         executor = TaskExecutor("HubIsolation", add_one, execution_mode="serial")
@@ -352,10 +321,12 @@ class TestObserverHub:
         """观察者的 handle_exception 自身抛异常时，由 hub 兜底且不中断分发"""
 
         class Boom(Observer):
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
-                """成功回调直接抛异常。"""
-                msg = "observer boom"
-                raise RuntimeError(msg)
+            def on_event(self, event: Event) -> None:
+                """成功事件直接抛异常。"""
+                match event:
+                    case TaskSuccessEvent():
+                        msg = "observer boom"
+                        raise RuntimeError(msg)
 
             def handle_exception(self, exception: Exception) -> None:
                 """错误处理器自身也抛异常。"""
@@ -367,9 +338,11 @@ class TestObserverHub:
                 """初始化成功计数。"""
                 self.count = 0
 
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
+            def on_event(self, event: Event) -> None:
                 """累计成功回调次数。"""
-                self.count += 1
+                match event:
+                    case TaskSuccessEvent():
+                        self.count += 1
 
         counter = Counter()
         executor = TaskExecutor("HubBackstop", add_one, execution_mode="serial")
@@ -432,9 +405,11 @@ class TestGraphObserver:
                 """记录标签。"""
                 self.tag = tag
 
-            def on_task_success(self, event: TaskSuccessEvent) -> None:
-                """记录调用顺序。"""
-                order.append(self.tag)
+            def on_event(self, event: Event) -> None:
+                """记录成功事件到达顺序。"""
+                match event:
+                    case TaskSuccessEvent():
+                        order.append(self.tag)
 
         graph = TaskGraph("graph_observer_order")
         node = TaskExecutor("only", add_one)
@@ -454,7 +429,7 @@ class TestGraphObserver:
 
         late = RecordingObserver()
         graph.add_observer(late)
-        node.observers.on_task_success(
+        node.observers.on_event(
             TaskSuccessEvent("only", 1, "(1)", 2, "(2)", 0.0, 1, 2)
         )
 

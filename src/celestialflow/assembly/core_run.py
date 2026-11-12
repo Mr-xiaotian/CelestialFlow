@@ -86,7 +86,7 @@ def run_graph_resources(
         )
         ticker = Ticker(_TICK_INTERVAL, hub, name="report")
 
-        # 快照处理器同时观察 on_graph_end 补推终态快照；注册在 PushInlet 之前，
+        # 快照处理器同时观察 GraphEndEvent 补推终态快照；注册在 PushInlet 之前，
         # 保证终态快照先于 shutdown_session 入队。
         observers.add_observer(snapshot_handler)
         observers.add_observer(push_inlet)

@@ -21,7 +21,7 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.on_graph_start(
+            inlet.on_event(
                 GraphStartEvent(
                     graph="test_graph",
                     graph_mode="thread",
@@ -39,11 +39,11 @@ class TestLogPersistence:
                     },
                 )
             )
-            inlet.on_task_retry(
+            inlet.on_event(
                 TaskRetryEvent("func", None, "hello world", ValueError("oops"), 0, 1)
             )
-            inlet.on_graph_end(GraphEndEvent("test_graph", 2.0, 1.0))
-            inlet.on_node_start(
+            inlet.on_event(GraphEndEvent("test_graph", 2.0, 1.0))
+            inlet.on_event(
                 NodeStartEvent('node', 'parallel', 4, 1.0)
             )
             wait_until(
@@ -71,7 +71,7 @@ class TestLogPersistence:
 
         spout.start()
         try:
-            inlet.on_task_skip(
+            inlet.on_event(
                 TaskSkipEvent("node", "hello world", "hello world", 7, 8)
             )
             wait_until(

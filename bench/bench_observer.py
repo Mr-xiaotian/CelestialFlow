@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from celestialflow import Observer, PrintObserver, TaskExecutor
 from celestialflow.observer import (
+    Event,
     NodeEndEvent,
     NodeStartEvent,
     TaskFailEvent,
@@ -57,59 +58,32 @@ class TqdmObserver(Observer):
     _total: int
 
     def __init__(self) -> None:
-        """初始化进度条观察者，进度条延迟到 on_node_start 时创建"""
+        """初始化进度条观察者，进度条延迟到节点启动事件时创建"""
         self._bar = None
         self._total = 0
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
-        """节点启动回调，总量取启动前已注入的任务数"""
-        self._bar = tqdm(total=self._total)
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        任务输入回调
+        接收并处理观测事件，按事件类型推进进度条。
 
-        该回调可能先于 ``on_node_start`` 到达，此时仅累加总量。
+        节点启动时总量取启动前已注入的任务数；``TaskInputEvent`` 可能先于节点
+        启动事件到达，此时仅累加总量。
 
-        :param event: 任务输入事件
+        :param event: 任意观测事件
         """
-        self._total += 1
-        if self._bar is not None:
-            self._bar.total += 1
-            self._bar.refresh()
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        成功回调
-
-        :param event: 任务成功事件
-        """
-        self._advance(1)
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        失败回调
-
-        :param event: 任务失败事件
-        """
-        self._advance(1)
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        跳过回调
-
-        :param event: 任务跳过事件
-        """
-        self._advance(1)
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        节点结束回调
-
-        :param event: 节点结束事件
-        """
-        if self._bar is not None:
-            self._bar.close()
+        match event:
+            case NodeStartEvent():
+                self._bar = tqdm(total=self._total)
+            case NodeEndEvent():
+                if self._bar is not None:
+                    self._bar.close()
+            case TaskInputEvent():
+                self._total += 1
+                if self._bar is not None:
+                    self._bar.total += 1
+                    self._bar.refresh()
+            case TaskSuccessEvent() | TaskFailEvent() | TaskSkipEvent():
+                self._advance(1)
 
     def _advance(self, count: int) -> None:
         """

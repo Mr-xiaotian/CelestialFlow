@@ -39,7 +39,7 @@ class TestMetricsObserverEvents:
         """外部输入只增加接收方计数。"""
         observer = MetricsObserver()
 
-        observer.on_task_input(_external_input("a"))
+        observer.on_event(_external_input("a"))
 
         metrics = observer.get_node_metrics("a")
         assert metrics is not None
@@ -49,7 +49,7 @@ class TestMetricsObserverEvents:
     def test_upstream_input_updates_both_sides(self):
         """上游投递同时写接收方上游计数与来源方下游计数。"""
         observer = MetricsObserver()
-        observer.on_task_input(_upstream_input("dst", "src"))
+        observer.on_event(_upstream_input("dst", "src"))
 
         dst = observer.get_node_metrics("dst")
         src = observer.get_node_metrics("src")
@@ -62,9 +62,9 @@ class TestMetricsObserverEvents:
         """成功/失败/跳过事件分别写入对应计数。"""
         observer = MetricsObserver()
 
-        observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
-        observer.on_task_fail(TaskFailEvent("a", 1, "(1)", ValueError("x"), 1, 2))
-        observer.on_task_skip(TaskSkipEvent("a", 1, "(1)", 1, 2))
+        observer.on_event(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
+        observer.on_event(TaskFailEvent("a", 1, "(1)", ValueError("x"), 1, 2))
+        observer.on_event(TaskSkipEvent("a", 1, "(1)", 1, 2))
 
         metrics = observer.get_node_metrics("a")
         assert metrics is not None
@@ -76,14 +76,14 @@ class TestMetricsObserverEvents:
     def test_node_status_transitions(self):
         """节点启停事件应维护运行状态。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1, 10.0))
+        observer.on_event(NodeStartEvent("a", "serial", 1, 10.0))
         running = observer.get_node_metrics("a")
         assert running is not None
         assert running.status == NodeStatus.RUNNING
         assert running.start_time == 10.0
         assert running.end_time == 0.0
 
-        observer.on_node_end(NodeEndEvent("a", "serial", 1, 0.5, 20.0))
+        observer.on_event(NodeEndEvent("a", "serial", 1, 0.5, 20.0))
         stopped = observer.get_node_metrics("a")
         assert stopped is not None
         assert stopped.status == NodeStatus.STOPPED
@@ -94,10 +94,10 @@ class TestMetricsObserverGraphView:
     def test_cells_are_isolated_between_nodes(self):
         """不同节点的存储格互不影响。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1, 1.0))
-        observer.on_node_start(NodeStartEvent("b", "serial", 1, 2.0))
+        observer.on_event(NodeStartEvent("a", "serial", 1, 1.0))
+        observer.on_event(NodeStartEvent("b", "serial", 1, 2.0))
 
-        observer.on_task_success(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
+        observer.on_event(TaskSuccessEvent("a", 1, "(1)", 2, "(2)", 0.0, 1, 2))
 
         a = observer.get_node_metrics("a")
         b = observer.get_node_metrics("b")
@@ -108,8 +108,8 @@ class TestMetricsObserverGraphView:
     def test_graph_metrics_covers_all_registered_nodes(self):
         """``get_graph_metrics`` 应覆盖所有已登记节点。"""
         observer = MetricsObserver()
-        observer.on_node_start(NodeStartEvent("a", "serial", 1, 1.0))
-        observer.on_node_start(NodeStartEvent("b", "serial", 1, 2.0))
+        observer.on_event(NodeStartEvent("a", "serial", 1, 1.0))
+        observer.on_event(NodeStartEvent("b", "serial", 1, 2.0))
 
         snapshot = observer.get_graph_metrics()
 

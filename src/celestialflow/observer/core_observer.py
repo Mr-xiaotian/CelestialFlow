@@ -3,115 +3,35 @@ from __future__ import annotations
 
 import traceback
 
-from .core_event import (
-    GraphEndEvent,
-    GraphStartEvent,
-    NodeEndEvent,
-    NodeStartEvent,
-    TaskFailEvent,
-    TaskInputEvent,
-    TaskRetryEvent,
-    TaskSkipEvent,
-    TaskSuccessEvent,
-    TerminationInputEvent,
-    TerminationMergeEvent,
-)
+from .core_event import Event
 
 
 class Observer:
     """执行器生命周期观察者基类。
 
-    所有回调均提供默认空实现，实现方继承本基类即可只覆写关心的方法。
+    所有事件统一通过 :meth:`on_event` 进入。实现方继承本基类后只需覆写该方法，
+    并使用 ``match`` 按具体事件类型分派处理，未关心的事件类型自然被忽略。
+
     :class:`~celestialflow.observer.core_hub.ObserverHub` 在转发事件时捕获回调
     抛出的异常，并交由该观察者自身的 :meth:`handle_exception` 处理，不会逃逸到框架
     执行路径。
     """
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        节点启动回调。
+        观测事件统一回调。
 
-        :param event: 节点启动事件
-        """
-        ...
+        默认实现忽略所有事件。子类可覆写本方法，并使用 ``match`` 按事件类型分派，
+        例如::
 
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """
-        任务输入回调。
+            def on_event(self, event: Event) -> None:
+                match event:
+                    case TaskSuccessEvent():
+                        ...
+                    case TaskFailEvent():
+                        ...
 
-        :param event: 任务输入事件
-        """
-        ...
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        任务成功回调。
-
-        :param event: 任务成功事件
-        """
-        ...
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        任务失败回调。
-
-        :param event: 任务失败事件
-        """
-        ...
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        任务跳过回调。
-
-        :param event: 任务跳过事件
-        """
-        ...
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """
-        任务重试回调。
-
-        :param event: 任务重试事件
-        """
-        ...
-
-    def on_termination_input(self, event: TerminationInputEvent) -> None:
-        """
-        终止信号输入回调。
-
-        :param event: 终止信号输入事件
-        """
-        ...
-
-    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
-        """
-        终止信号合并回调。
-
-        :param event: 终止信号合并事件
-        """
-        ...
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        节点结束回调。
-
-        :param event: 节点结束事件
-        """
-        ...
-
-    def on_graph_start(self, event: GraphStartEvent) -> None:
-        """
-        任务图启动回调。
-
-        :param event: 任务图启动事件
-        """
-        ...
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """
-        任务图结束回调。
-
-        :param event: 任务图结束事件
+        :param event: 任意观测事件
         """
         ...
 

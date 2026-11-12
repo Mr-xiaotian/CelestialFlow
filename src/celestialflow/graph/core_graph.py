@@ -404,7 +404,7 @@ class TaskGraph:
 
         :return: ``None``
         """
-        self.observers.on_graph_start(
+        self.observers.on_event(
             GraphStartEvent(
                 graph=self.name,
                 graph_mode=self.graph_mode,
@@ -437,7 +437,7 @@ class TaskGraph:
             error_list.append(exception)
 
         try:
-            self.observers.on_graph_end(
+            self.observers.on_event(
                 GraphEndEvent(
                     graph=self.name,
                     end_time=time.time(),

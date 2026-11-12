@@ -16,6 +16,7 @@ from weakref import WeakKeyDictionary
 import pytest
 
 from celestialflow.observer import (
+    Event,
     Observer,
     TaskFailEvent,
     TaskInputEvent,
@@ -263,7 +264,7 @@ class TestDispatchSerial:
         lifecycle_spout.start()
         executor._lifecycle_db_path = lifecycle_spout.db_path
         try:
-            lifecycle_observer.on_task_input(
+            lifecycle_observer.on_event(
                 TaskInputEvent(executor.get_name(), 3, "(3)", 0)
             )
             _put(executor, 3)
@@ -349,31 +350,35 @@ class TestDispatchAsync:
 
 
 class _CrashOnFailObserver(Observer):
-    """``on_task_fail`` 抛异常，用于验证 hub 的异常隔离。"""
+    """收到 ``TaskFailEvent`` 时抛异常，用于验证 hub 的异常隔离。"""
 
     def __init__(self) -> None:
         """初始化调用计数。"""
         self.calls = 0
 
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """失败回调，累加计数后抛出异常。"""
-        self.calls += 1
-        msg = "observer boom"
-        raise RuntimeError(msg)
+    def on_event(self, event: Event) -> None:
+        """失败事件累加计数后抛出异常。"""
+        match event:
+            case TaskFailEvent():
+                self.calls += 1
+                msg = "observer boom"
+                raise RuntimeError(msg)
 
 
 class _CrashOnRetryObserver(Observer):
-    """``on_task_retry`` 抛异常，用于验证 hub 的异常隔离。"""
+    """收到 ``TaskRetryEvent`` 时抛异常，用于验证 hub 的异常隔离。"""
 
     def __init__(self) -> None:
         """初始化调用计数。"""
         self.calls = 0
 
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """重试回调，累加计数后抛出异常。"""
-        self.calls += 1
-        msg = "retry observer boom"
-        raise RuntimeError(msg)
+    def on_event(self, event: Event) -> None:
+        """重试事件累加计数后抛出异常。"""
+        match event:
+            case TaskRetryEvent():
+                self.calls += 1
+                msg = "retry observer boom"
+                raise RuntimeError(msg)
 
 
 def _run_dispatch(dispatch: TaskDispatch[Any, Any], mode: str) -> None:

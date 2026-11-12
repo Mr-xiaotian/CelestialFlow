@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from ..observer import GraphEndEvent, Observer
+from ..observer import Event, GraphEndEvent, Observer
 from ..runtime.util_types import MetricsView, NodeMetrics
 from ..ticker import TickEvent, TickHandler
 from .core_push import PushInlet
@@ -47,8 +47,9 @@ class PushSnapshotHandler(TickHandler, Observer):
 
     同时作为 :class:`~celestialflow.observer.Observer` 监听图结束事件：快照只在
     节拍上产生，而图收尾会立即停止节拍器，末拍与图结束之间的终态（全部节点
-    ``STOPPED`` 与最终计数）不会被任何节拍捕获，因此在 :meth:`on_graph_end` 补推
-    一次终态快照。本处理器只做投影与入队，不进行任何网络 IO。
+    ``STOPPED`` 与最终计数）不会被任何节拍捕获，因此在 :meth:`on_event` 收到
+    ``GraphEndEvent`` 时补推一次终态快照。本处理器只做投影与入队，不进行任何
+    网络 IO。
     """
 
     def __init__(self, metrics_view: MetricsView, inlet: PushInlet) -> None:
@@ -69,16 +70,21 @@ class PushSnapshotHandler(TickHandler, Observer):
         """
         self._push_snapshot()
 
-    def on_graph_end(self, event: GraphEndEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        图结束时补推一次终态快照。
+        接收并处理观测事件。
 
-        本回调在节点全部结束、图收尾阶段触发，此时指标已收敛为终值；补推可
-        确保服务端拿到图运行结束时的完整状态。
+        仅在 ``GraphEndEvent`` 时补推一次终态快照：该事件在节点全部结束、图收尾
+        阶段触发，此时指标已收敛为终值；补推可确保服务端拿到图运行结束时的完整
+        状态。
 
-        :param event: 任务图结束事件
+        :param event: 任意观测事件
         """
-        self._push_snapshot()
+        match event:
+            case GraphEndEvent():
+                self._push_snapshot()
+            case _:
+                pass
 
     def _push_snapshot(self) -> None:
         """读取整图指标并投影入队为一条状态快照记录。"""

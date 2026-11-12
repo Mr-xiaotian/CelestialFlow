@@ -50,7 +50,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result)
         elapsed = time.perf_counter() - start_perf
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -68,7 +68,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
                 CTreeEvent.TASK_INPUT,
                 parents=[result_id],
             )
-            self.observers.on_task_input(
+            self.observers.on_event(
                 TaskInputEvent(
                     node=target_name,
                     task=result,
@@ -117,7 +117,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result_list)
         elapsed = time.perf_counter() - start_perf
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -137,7 +137,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                     parents=[result_id],
                 )
                 item_repr = self._get_repr(item)
-                self.observers.on_task_input(
+                self.observers.on_event(
                     TaskInputEvent(
                         node=target_name,
                         task=item,
@@ -187,7 +187,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
         task_repr = self._get_repr(task)
         result_repr = self._get_repr(result)
         elapsed = time.perf_counter() - start_perf
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -206,7 +206,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
                 parents=[result_id],
             )
             yie_repr = self._get_repr(yie)
-            self.observers.on_task_input(
+            self.observers.on_event(
                 TaskInputEvent(
                     node=target,
                     task=yie,

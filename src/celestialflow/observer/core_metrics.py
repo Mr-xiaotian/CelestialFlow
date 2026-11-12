@@ -5,6 +5,7 @@ from threading import Lock
 
 from ..runtime.util_types import NodeMetrics, NodeStatus
 from .core_event import (
+    Event,
     NodeEndEvent,
     NodeStartEvent,
     TaskFailEvent,
@@ -20,9 +21,9 @@ class MetricsObserver(Observer):
 
     持有任务图中每个节点的计数、状态与运行起始时间，并作为观察者从事件中写入：
 
-    - 节点生命周期：``on_node_start`` / ``on_node_end`` 维护节点状态；
-    - 任务事件：``on_task_input`` 区分外部注入与上游投递，``on_task_success`` /
-      ``on_task_fail`` / ``on_task_skip`` 累加对应计数。
+    - 节点生命周期：``NodeStartEvent`` / ``NodeEndEvent`` 维护节点状态；
+    - 任务事件：``TaskInputEvent`` 区分外部注入与上游投递，``TaskSuccessEvent`` /
+      ``TaskFailEvent`` / ``TaskSkipEvent`` 累加对应计数。
 
     存储格随首个事件按需建立，边计数亦由实际任务流向增量写入，因此不依赖建图期的
     结构事件；上游投递会同时写入接收方的上游计数与来源方的下游计数，无需在节点间
@@ -98,85 +99,58 @@ class MetricsObserver(Observer):
             downstream_counts=dict(self._downstream[node]),
         )
 
-    # ==== 节点生命周期 ====
+    # ==== 事件处理 ====
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        记录节点开始执行。
+        接收并处理观测事件。
 
-        :param event: 节点开始执行事件
+        - ``NodeStartEvent`` / ``NodeEndEvent``：维护节点状态与起止时间；
+        - ``TaskInputEvent``：外部注入只增加接收方的外部输入计数；上游投递同时增加
+          接收方的上游计数与来源方的下游计数；
+        - ``TaskSuccessEvent`` / ``TaskFailEvent`` / ``TaskSkipEvent``：累加对应计数。
+
+        :param event: 任意观测事件
         """
-        with self._lock:
-            self._ensure(event.node)
-            self._status[event.node] = NodeStatus.RUNNING
-            self._start_time[event.node] = event.start_time
-            self._end_time[event.node] = 0.0
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        记录节点结束执行。
-
-        :param event: 节点结束执行事件
-        """
-        with self._lock:
-            self._ensure(event.node)
-            self._status[event.node] = NodeStatus.STOPPED
-            self._end_time[event.node] = event.end_time
-
-    # ==== 任务事件 ====
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """
-        记录任务输入。
-
-        外部注入只增加接收方的外部输入计数；上游投递同时增加接收方的上游计数与
-        来源方的下游计数。
-
-        :param event: 任务输入事件
-        """
-        with self._lock:
-            self._ensure(event.node)
-            if event.from_node is None:
-                self._external[event.node] += 1
-                return
-
-            self._ensure(event.from_node)
-            self._upstream[event.node][event.from_node] = (
-                self._upstream[event.node].get(event.from_node, 0) + 1
-            )
-            self._downstream[event.from_node][event.node] = (
-                self._downstream[event.from_node].get(event.node, 0) + 1
-            )
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        记录任务成功。
-
-        :param event: 任务成功事件
-        """
-        with self._lock:
-            self._ensure(event.node)
-            self._success[event.node] += 1
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        记录任务失败。
-
-        :param event: 任务失败事件
-        """
-        with self._lock:
-            self._ensure(event.node)
-            self._fail[event.node] += 1
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        记录任务跳过。
-
-        :param event: 任务跳过事件
-        """
-        with self._lock:
-            self._ensure(event.node)
-            self._skip[event.node] += 1
+        match event:
+            case NodeStartEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    self._status[event.node] = NodeStatus.RUNNING
+                    self._start_time[event.node] = event.start_time
+                    self._end_time[event.node] = 0.0
+            case NodeEndEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    self._status[event.node] = NodeStatus.STOPPED
+                    self._end_time[event.node] = event.end_time
+            case TaskInputEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    if event.from_node is None:
+                        self._external[event.node] += 1
+                    else:
+                        self._ensure(event.from_node)
+                        self._upstream[event.node][event.from_node] = (
+                            self._upstream[event.node].get(event.from_node, 0) + 1
+                        )
+                        self._downstream[event.from_node][event.node] = (
+                            self._downstream[event.from_node].get(event.node, 0) + 1
+                        )
+            case TaskSuccessEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    self._success[event.node] += 1
+            case TaskFailEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    self._fail[event.node] += 1
+            case TaskSkipEvent():
+                with self._lock:
+                    self._ensure(event.node)
+                    self._skip[event.node] += 1
+            case _:
+                pass
 
     # ==== 只读视图 ====
 

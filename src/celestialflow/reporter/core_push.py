@@ -8,7 +8,7 @@ from typing import Any, Literal
 import requests
 
 from ..funnel import BaseInlet, BaseSpout
-from ..observer import GraphEndEvent, GraphStartEvent, Observer, TaskFailEvent
+from ..observer import Event, GraphEndEvent, GraphStartEvent, Observer, TaskFailEvent
 from ..persist.util_payload import to_persisted_payload
 from ..runtime.util_errors import ReporterError
 
@@ -28,7 +28,7 @@ class PushRecord:
 
     kind: PushKind
 
-    # on_graph_start
+    # GraphStartEvent
     graph: str = ""
     graph_mode: str = ""
     start_time: float = 0.0
@@ -40,11 +40,11 @@ class PushRecord:
         default_factory=dict[str, dict[str, Any]]
     )
 
-    # on_graph_end
+    # GraphEndEvent
     end_time: float = 0.0
     elapsed: float = 0.0
 
-    # on_task_fail
+    # TaskFailEvent
     event_id: int = 0
     node: str = ""
     task_json: Any = None
@@ -190,61 +190,55 @@ class PushInlet(BaseInlet, Observer):
     按拍直接把图级状态快照入队。
     """
 
-    def on_graph_start(self, event: GraphStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        将图启动事件携带的图元信息转换为上报记录并入队。
+        接收并处理观测事件，按事件类型将对应上报记录入队。
 
-        :param event: 任务图启动事件
+        - ``GraphStartEvent``：图元信息；
+        - ``GraphEndEvent``：会话下线通知，服务端收到后把本会话标记为已结束，
+          会话数据与错误库仍保留，供前端切换查看；
+        - ``TaskFailEvent``：任务失败信息。
+
+        :param event: 任意观测事件
         """
-        self._funnel(
-            PushRecord(
-                kind="graph_start",
-                graph=event.graph,
-                graph_mode=event.graph_mode,
-                start_time=event.start_time,
-                is_dag=event.is_dag,
-                nodes=event.nodes,
-                edges=event.edges,
-                source_nodes=event.source_nodes,
-                node_meta=event.node_meta,
-            )
-        )
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """
-        将图结束事件转换为会话下线通知记录并入队。
-
-        服务端收到后把本会话标记为已结束；会话数据与错误库仍保留，
-        供前端切换查看。
-
-        :param event: 任务图结束事件
-        """
-        self._funnel(
-            PushRecord(
-                kind="graph_end",
-                graph=event.graph,
-                end_time=event.end_time,
-                elapsed=event.elapsed,
-            )
-        )
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        将任务失败事件转换为上报记录并入队。
-
-        :param event: 任务失败事件
-        """
-        self._funnel(
-            PushRecord(
-                kind="task_fail",
-                event_id=event.error_id,
-                node=event.node,
-                task_json=to_persisted_payload(event.task),
-                error_type=type(event.exception).__name__,
-                error_message=str(event.exception),
-                ts=time.time(),
-            )
-        )
+        match event:
+            case GraphStartEvent():
+                self._funnel(
+                    PushRecord(
+                        kind="graph_start",
+                        graph=event.graph,
+                        graph_mode=event.graph_mode,
+                        start_time=event.start_time,
+                        is_dag=event.is_dag,
+                        nodes=event.nodes,
+                        edges=event.edges,
+                        source_nodes=event.source_nodes,
+                        node_meta=event.node_meta,
+                    )
+                )
+            case GraphEndEvent():
+                self._funnel(
+                    PushRecord(
+                        kind="graph_end",
+                        graph=event.graph,
+                        end_time=event.end_time,
+                        elapsed=event.elapsed,
+                    )
+                )
+            case TaskFailEvent():
+                self._funnel(
+                    PushRecord(
+                        kind="task_fail",
+                        event_id=event.error_id,
+                        node=event.node,
+                        task_json=to_persisted_payload(event.task),
+                        error_type=type(event.exception).__name__,
+                        error_message=str(event.exception),
+                        ts=time.time(),
+                    )
+                )
+            case _:
+                pass
 
     # ==== 供 Ticker 使用 ====
 

@@ -7,6 +7,7 @@ from typing import Any, TextIO
 
 from ..funnel import BaseInlet, BaseSpout
 from ..observer import (
+    Event,
     GraphEndEvent,
     GraphStartEvent,
     NodeEndEvent,
@@ -79,7 +80,7 @@ class LogInlet(BaseInlet, Observer):
     线程安全日志包装类，所有日志通过队列发送到监听线程写入。
 
     以观察者形式消费全部事件：图结构、节点启停、任务输入/成功/失败/跳过/重试、
-    终止信号与上报器日志均通过对应的观察者回调记录。
+    终止信号与上报器日志均在 :meth:`on_event` 中按事件类型记录。
     """
 
     def __init__(
@@ -120,155 +121,101 @@ class LogInlet(BaseInlet, Observer):
             {"timestamp": timestamp, "level": level_upper, "message": message}
         )
 
-    # ==== 任务图 ====
-
-    def on_graph_start(self, event: GraphStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        记录任务图启动及结构信息
+        接收并处理观测事件，按事件类型记录日志。
 
-        :param event: 任务图启动事件
+        - 图级：记录启动结构信息与结束耗时；
+        - 节点级：记录节点启停与执行统计；
+        - 任务级：记录输入、成功、失败、跳过与重试；
+        - 终止信号：记录输入与合并。
+
+        :param event: 任意观测事件
         """
-        structure_list = render_structure_list(
-            event.nodes, event.edges, event.source_nodes
-        )
-        self._log(
-            "INFO",
-            f"Graph '{event.graph}' start by {event.graph_mode}. Graph structure:",
-        )
-        for line in structure_list:
-            self._log("INFO", line)
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """
-        记录任务图结束
-
-        :param event: 任务图结束事件
-        """
-        self._log("INFO", f"Graph '{event.graph}' end. Use {event.elapsed:.2f}s.")
-
-    # ==== 节点 ====
-
-    def on_node_start(self, event: NodeStartEvent) -> None:
-        """
-        记录节点启动
-
-        :param event: 节点启动事件
-        """
-        node_metrics = self._metrics_view.get_node_metrics(event.node)
-        node_inputs = node_metrics.input_total if node_metrics is not None else 0
-        text = (
-            f"Node '{event.node}' start; "
-            + f"execute {node_inputs} tasks by "
-            + f"{event.execution_mode}-{event.max_workers}."
-        )
-        self._log("INFO", text)
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        记录节点结束及统计
-
-        :param event: 节点结束事件
-        """
-        node_metrics = self._metrics_view.get_node_metrics(event.node)
-        node_success = node_metrics.succeeded if node_metrics is not None else 0
-        node_fail = node_metrics.failed if node_metrics is not None else 0
-        node_skip = node_metrics.skipped if node_metrics is not None else 0
-        self._log(
-            "INFO",
-            f"Node '{event.node}' end; execute tasks by "
-            + f"{event.execution_mode}-{event.max_workers}. Use {event.elapsed:.2f}s. "
-            + f"{node_success} tasks succeeded, {node_fail} tasks failed, "
-            + f"{node_skip} tasks skipped.",
-        )
-
-    # ==== 任务 ====
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """
-        记录任务输入
-
-        :param event: 任务输入事件
-        """
-        origin = event.from_node if event.from_node is not None else "external"
-        self._log(
-            "DEBUG",
-            f"In '{event.node}', Task {event.task_repr} input from {origin}. [{event.input_id}*]",
-        )
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        记录任务成功
-
-        :param event: 任务成功事件
-        """
-        self._log(
-            "SUCCESS",
-            f"In '{event.node}', Task {event.task_repr} succeeded. "
-            + f"Result is {event.result_repr}. Used {event.elapsed:.2f}s. "
-            + f"[{event.task_id}->{event.success_id}*]",
-        )
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        记录任务失败
-
-        :param event: 任务失败事件
-        """
-        exception_type = type(event.exception).__name__
-        exception_text = str(event.exception).replace("\n", " ")
-        self._log(
-            "ERROR",
-            f"In '{event.node}', Task {event.task_repr} failed and can't retry: "
-            + f"({exception_type}){exception_text}. "
-            + f"[{event.task_id}->{event.error_id}*]",
-        )
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        记录任务被跳过
-
-        :param event: 任务跳过事件
-        """
-        self._log(
-            "SUCCESS",
-            f"In '{event.node}', Task {event.task_repr} skipped. "
-            + f"[{event.task_id}->{event.skip_id}*]",
-        )
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """
-        记录任务重试
-
-        :param event: 任务重试事件
-        """
-        self._log(
-            "WARNING",
-            f"In '{event.node}', Task {event.task_repr} failed {event.retry_times} "
-            + f"times and will retry: ({type(event.exception).__name__}). "
-            + f"[{event.task_id}*]",
-        )
-
-    # ==== 终止信号 ====
-
-    def on_termination_input(self, event: TerminationInputEvent) -> None:
-        """
-        记录终止信号输入
-
-        :param event: 终止信号输入事件
-        """
-        self._log(
-            "DEBUG",
-            f"In '{event.node}', Termination input. [{event.termination_id}*]",
-        )
-
-    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
-        """
-        记录终止信号合并
-
-        :param event: 终止信号合并事件
-        """
-        self._log(
-            "TRACE",
-            f"In '{event.node}', Termination merge. "
-            + f"[{event.parent_ids}->{event.termination_id}*]",
-        )
+        match event:
+            case GraphStartEvent():
+                structure_list = render_structure_list(
+                    event.nodes, event.edges, event.source_nodes
+                )
+                self._log(
+                    "INFO",
+                    f"Graph '{event.graph}' start by {event.graph_mode}. Graph structure:",
+                )
+                for line in structure_list:
+                    self._log("INFO", line)
+            case GraphEndEvent():
+                self._log(
+                    "INFO", f"Graph '{event.graph}' end. Use {event.elapsed:.2f}s."
+                )
+            case NodeStartEvent():
+                node_metrics = self._metrics_view.get_node_metrics(event.node)
+                node_inputs = node_metrics.input_total if node_metrics is not None else 0
+                text = (
+                    f"Node '{event.node}' start; "
+                    + f"execute {node_inputs} tasks by "
+                    + f"{event.execution_mode}-{event.max_workers}."
+                )
+                self._log("INFO", text)
+            case NodeEndEvent():
+                node_metrics = self._metrics_view.get_node_metrics(event.node)
+                node_success = node_metrics.succeeded if node_metrics is not None else 0
+                node_fail = node_metrics.failed if node_metrics is not None else 0
+                node_skip = node_metrics.skipped if node_metrics is not None else 0
+                self._log(
+                    "INFO",
+                    f"Node '{event.node}' end; execute tasks by "
+                    + f"{event.execution_mode}-{event.max_workers}. "
+                    + f"Use {event.elapsed:.2f}s. "
+                    + f"{node_success} tasks succeeded, {node_fail} tasks failed, "
+                    + f"{node_skip} tasks skipped.",
+                )
+            case TaskInputEvent():
+                origin = event.from_node if event.from_node is not None else "external"
+                self._log(
+                    "DEBUG",
+                    f"In '{event.node}', Task {event.task_repr} input from {origin}. "
+                    + f"[{event.input_id}*]",
+                )
+            case TaskSuccessEvent():
+                self._log(
+                    "SUCCESS",
+                    f"In '{event.node}', Task {event.task_repr} succeeded. "
+                    + f"Result is {event.result_repr}. Used {event.elapsed:.2f}s. "
+                    + f"[{event.task_id}->{event.success_id}*]",
+                )
+            case TaskFailEvent():
+                exception_type = type(event.exception).__name__
+                exception_text = str(event.exception).replace("\n", " ")
+                self._log(
+                    "ERROR",
+                    f"In '{event.node}', Task {event.task_repr} failed and can't retry: "
+                    + f"({exception_type}){exception_text}. "
+                    + f"[{event.task_id}->{event.error_id}*]",
+                )
+            case TaskSkipEvent():
+                self._log(
+                    "SUCCESS",
+                    f"In '{event.node}', Task {event.task_repr} skipped. "
+                    + f"[{event.task_id}->{event.skip_id}*]",
+                )
+            case TaskRetryEvent():
+                self._log(
+                    "WARNING",
+                    f"In '{event.node}', Task {event.task_repr} failed "
+                    + f"{event.retry_times} times and will retry: "
+                    + f"({type(event.exception).__name__}). "
+                    + f"[{event.task_id}*]",
+                )
+            case TerminationInputEvent():
+                self._log(
+                    "DEBUG",
+                    f"In '{event.node}', Termination input. [{event.termination_id}*]",
+                )
+            case TerminationMergeEvent():
+                self._log(
+                    "TRACE",
+                    f"In '{event.node}', Termination merge. "
+                    + f"[{event.parent_ids}->{event.termination_id}*]",
+                )
+            case _:
+                pass

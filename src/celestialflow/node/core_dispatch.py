@@ -106,7 +106,7 @@ class TaskDispatch[T, R, Y]:
             termination_id,
             source=self.task_node.get_name(),
         )
-        self.task_node.observers.on_termination_merge(
+        self.task_node.observers.on_event(
             TerminationMergeEvent(
                 node=self.task_node.get_name(),
                 parent_ids=parent_ids,

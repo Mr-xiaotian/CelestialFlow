@@ -278,7 +278,7 @@ class BaseTaskNode[T, R, Y]:
         绑定下游节点，将当前节点注册为其前置节点。
 
         绑定只建立节点与队列之间的数据通路；上下游传输计数由指标观察者在投递
-        事件（``on_task_input``）中推导，不再在节点间共享计数器对象。
+        事件（``TaskInputEvent``）中推导，不再在节点间共享计数器对象。
 
         :param next_node: 下游节点
         """
@@ -300,7 +300,7 @@ class BaseTaskNode[T, R, Y]:
         self.task_queue.put(envelope)
 
         task_repr = self._get_repr(task)
-        self.observers.on_task_input(
+        self.observers.on_event(
             TaskInputEvent(
                 node=self.get_name(),
                 task=task,
@@ -318,7 +318,7 @@ class BaseTaskNode[T, R, Y]:
         )
         signal = TerminationSignal(termination_id, source="input")
         self.task_queue.put(signal)
-        self.observers.on_termination_input(
+        self.observers.on_event(
             TerminationInputEvent(
                 node=self.get_name(),
                 termination_id=termination_id,
@@ -376,7 +376,7 @@ class BaseTaskNode[T, R, Y]:
         )
 
         task_repr = self._get_repr(task)
-        self.observers.on_task_fail(
+        self.observers.on_event(
             TaskFailEvent(
                 node=self.get_name(),
                 task=task,
@@ -402,7 +402,7 @@ class BaseTaskNode[T, R, Y]:
         )
 
         task_repr = self._get_repr(task)
-        self.observers.on_task_skip(
+        self.observers.on_event(
             TaskSkipEvent(
                 node=self.get_name(),
                 task=task,
@@ -428,7 +428,7 @@ class BaseTaskNode[T, R, Y]:
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
 
-        self.observers.on_task_retry(
+        self.observers.on_event(
             TaskRetryEvent(
                 node=self.get_name(),
                 task=task,
@@ -559,7 +559,7 @@ class BaseTaskNode[T, R, Y]:
 
         :return: ``None``
         """
-        self.observers.on_node_start(
+        self.observers.on_event(
             NodeStartEvent(
                 node=self.get_name(),
                 execution_mode=self.execution_mode,
@@ -578,7 +578,7 @@ class BaseTaskNode[T, R, Y]:
         elapsed = time.perf_counter() - start_perf
 
         try:
-            self.observers.on_node_end(
+            self.observers.on_event(
                 NodeEndEvent(
                     node=self.get_name(),
                     execution_mode=self.execution_mode,

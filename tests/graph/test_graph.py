@@ -10,6 +10,7 @@ from celestialflow import (
     TaskExecutor,
 )
 from celestialflow.observer import (
+    Event,
     Observer,
     TerminationInputEvent,
 )
@@ -1092,9 +1093,11 @@ class TestTaskGraphReporterCapabilities:
         terminated: list[str] = []
 
         class _TerminationRecorder(Observer):
-            def on_termination_input(self, event: TerminationInputEvent) -> None:
+            def on_event(self, event: Event) -> None:
                 """记录收到终止信号的节点。"""
-                terminated.append(event.node)
+                match event:
+                    case TerminationInputEvent():
+                        terminated.append(event.node)
 
         node.add_observer(_TerminationRecorder())
 

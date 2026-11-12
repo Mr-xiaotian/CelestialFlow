@@ -3,6 +3,7 @@ from threading import Lock
 
 from ..runtime.util_types import ValueWrapper
 from .core_event import (
+    Event,
     NodeEndEvent,
     NodeStartEvent,
     TaskFailEvent,
@@ -36,63 +37,43 @@ class PrintObserver(Observer):
 
         self.name: str = name
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        节点启动回调，此时 total 已包含启动前注入的任务数
+        接收并处理观测事件，按事件类型更新计数并打印进度。
 
-        :param event: 节点启动事件
-        """
-        print(f"[{self.name}] start total={self.total.get()}")
+        节点启动时 ``total`` 已包含启动前注入的任务数。
 
-    def on_node_end(self, event: NodeEndEvent) -> None:
+        :param event: 任意观测事件
         """
-        节点结束回调，打印最终统计结果
-
-        :param event: 节点结束事件
-        """
-        print(
-            f"[{self.name}] finish "
-            f"total={self.total.get()}, skipped={self.skipped.get()}, "
-            f"succeeded={self.succeeded.get()}, failed={self.failed.get()}"
-        )
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """
-        任务输入回调
-
-        :param event: 任务输入事件
-        """
-        self.total.add(1)
-        print(f"[{self.name}] total={self.total.get()}(+1)")
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        任务成功回调
-
-        :param event: 任务成功事件
-        """
-        self.succeeded.add(1)
-        print(
-            f"[{self.name}] succeeded={self.succeeded.get()}(+1), "
-            f"total={self.total.get()}"
-        )
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        任务失败回调
-
-        :param event: 任务失败事件
-        """
-        self.failed.add(1)
-        print(f"[{self.name}] failed={self.failed.get()}(+1), total={self.total.get()}")
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        任务跳过回调
-
-        :param event: 任务跳过事件
-        """
-        self.skipped.add(1)
-        print(
-            f"[{self.name}] skipped={self.skipped.get()}(+1), total={self.total.get()}"
-        )
+        match event:
+            case NodeStartEvent():
+                print(f"[{self.name}] start total={self.total.get()}")
+            case NodeEndEvent():
+                print(
+                    f"[{self.name}] finish "
+                    f"total={self.total.get()}, skipped={self.skipped.get()}, "
+                    f"succeeded={self.succeeded.get()}, failed={self.failed.get()}"
+                )
+            case TaskInputEvent():
+                self.total.add(1)
+                print(f"[{self.name}] total={self.total.get()}(+1)")
+            case TaskSuccessEvent():
+                self.succeeded.add(1)
+                print(
+                    f"[{self.name}] succeeded={self.succeeded.get()}(+1), "
+                    f"total={self.total.get()}"
+                )
+            case TaskFailEvent():
+                self.failed.add(1)
+                print(
+                    f"[{self.name}] failed={self.failed.get()}(+1), "
+                    f"total={self.total.get()}"
+                )
+            case TaskSkipEvent():
+                self.skipped.add(1)
+                print(
+                    f"[{self.name}] skipped={self.skipped.get()}(+1), "
+                    f"total={self.total.get()}"
+                )
+            case _:
+                pass

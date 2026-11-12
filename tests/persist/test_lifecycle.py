@@ -24,19 +24,19 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s1", "data1", "(data1)", 1)
             )
-            inlet.on_task_fail(
+            inlet.on_event(
                 TaskFailEvent(
                     "s1", "data1", "(data1)", ValueError("oops"), 1, 21
                 )
             )
 
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s2", "data2", "(data2)", 2)
             )
-            inlet.on_task_success(
+            inlet.on_event(
                 TaskSuccessEvent("s2", "data2", "(data2)", "ok2", "(ok2)", 0.0, 2, 3)
             )
         finally:
@@ -79,16 +79,16 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s1", "task1", "(task1)", 1)
             )
-            inlet.on_task_success(
+            inlet.on_event(
                 TaskSuccessEvent("s1", "task1", "(task1)", 100, "(100)", 0.0, 1, 2)
             )
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s2", "task2", "(task2)", 2)
             )
-            inlet.on_task_success(
+            inlet.on_event(
                 TaskSuccessEvent("s2", "task2", "(task2)", 200, "(200)", 0.0, 2, 3)
             )
         finally:
@@ -106,36 +106,36 @@ class TestLifecyclePersistence:
         spout.start()
         try:
             # 重试后最终成功：错误信息应在晋升 success 时清空
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s1", "retry_ok", "(retry_ok)", 1)
             )
-            inlet.on_task_retry(
+            inlet.on_event(
                 TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 1"), 1, 1)
             )
-            inlet.on_task_retry(
+            inlet.on_event(
                 TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 2"), 1, 2)
             )
-            inlet.on_task_success(
+            inlet.on_event(
                 TaskSuccessEvent(
                     "s1", "retry_ok", "(retry_ok)", "ok", "(ok)", 0.0, 1, 3
                 )
             )
 
             # 重试后最终失败：保留最新错误信息
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s2", "retry_fail", "(retry_fail)", 2)
             )
-            inlet.on_task_retry(
+            inlet.on_event(
                 TaskRetryEvent(
                     "s2", "retry_fail", "(retry_fail)", ValueError("try 1"), 2, 1
                 )
             )
-            inlet.on_task_retry(
+            inlet.on_event(
                 TaskRetryEvent(
                     "s2", "retry_fail", "(retry_fail)", ValueError("try 2"), 2, 2
                 )
             )
-            inlet.on_task_fail(
+            inlet.on_event(
                 TaskFailEvent(
                     "s2",
                     "retry_fail",
@@ -178,16 +178,16 @@ class TestLifecyclePersistence:
 
         spout.start()
         try:
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s1", "skip_me", "(skip_me)", 1)
             )
-            inlet.on_task_skip(
+            inlet.on_event(
                 TaskSkipEvent("s1", "skip_me", "(skip_me)", 1, 31)
             )
-            inlet.on_task_input(
+            inlet.on_event(
                 TaskInputEvent("s2", "run_me", "(run_me)", 2)
             )
-            inlet.on_task_success(
+            inlet.on_event(
                 TaskSuccessEvent("s2", "run_me", "(run_me)", "ok", "(ok)", 0.0, 2, 3)
             )
         finally:

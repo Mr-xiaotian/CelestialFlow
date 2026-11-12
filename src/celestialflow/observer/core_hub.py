@@ -4,19 +4,7 @@ from __future__ import annotations
 from threading import Lock
 
 from ..runtime.util_errors import ConfigurationError
-from .core_event import (
-    GraphEndEvent,
-    GraphStartEvent,
-    NodeEndEvent,
-    NodeStartEvent,
-    TaskFailEvent,
-    TaskInputEvent,
-    TaskRetryEvent,
-    TaskSkipEvent,
-    TaskSuccessEvent,
-    TerminationInputEvent,
-    TerminationMergeEvent,
-)
+from .core_event import Event
 from .core_observer import Observer
 
 
@@ -94,167 +82,23 @@ class ObserverHub(Observer):
 
     # ==== 分发 ====
 
-    def on_node_start(self, event: NodeStartEvent) -> None:
+    def on_event(self, event: Event) -> None:
         """
-        转发节点启动事件。
+        将事件按注册顺序转发给所有观察者。
 
-        :param event: 节点启动事件
+        单个观察者回调抛出的异常会被捕获，并交由该观察者自身的
+        :meth:`~celestialflow.observer.core_observer.Observer.handle_exception`
+        处理；若该处理器自身再抛出异常，则由本 hub 的
+        :meth:`~celestialflow.observer.core_observer.Observer.handle_exception`
+        作为最终兜底。两种情况都不会中断其余观察者的分发。
+
+        :param event: 待转发的观测事件
         """
         for observer in self._snapshot():
             try:
+                observer.on_event(event)
+            except Exception as exception:
                 try:
-                    observer.on_node_start(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """
-        转发任务输入事件。
-
-        :param event: 任务输入事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_task_input(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """
-        转发任务成功事件。
-
-        :param event: 任务成功事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_task_success(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """
-        转发任务失败事件。
-
-        :param event: 任务失败事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_task_fail(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """
-        转发任务跳过事件。
-
-        :param event: 任务跳过事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_task_skip(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """
-        转发任务重试事件。
-
-        :param event: 任务重试事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_task_retry(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_termination_input(self, event: TerminationInputEvent) -> None:
-        """
-        转发终止信号输入事件。
-
-        :param event: 终止信号输入事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_termination_input(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_termination_merge(self, event: TerminationMergeEvent) -> None:
-        """
-        转发终止信号合并事件。
-
-        :param event: 终止信号合并事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_termination_merge(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_node_end(self, event: NodeEndEvent) -> None:
-        """
-        转发节点结束事件。
-
-        :param event: 节点结束事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_node_end(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_graph_start(self, event: GraphStartEvent) -> None:
-        """
-        转发任务图启动事件。
-
-        :param event: 任务图启动事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_graph_start(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
-
-    def on_graph_end(self, event: GraphEndEvent) -> None:
-        """
-        转发任务图结束事件。
-
-        :param event: 任务图结束事件
-        """
-        for observer in self._snapshot():
-            try:
-                try:
-                    observer.on_graph_end(event)
-                except Exception as e:
-                    observer.handle_exception(e)
-            except Exception as e:
-                self.handle_exception(e)
+                    observer.handle_exception(exception)
+                except Exception as fallback:
+                    self.handle_exception(fallback)

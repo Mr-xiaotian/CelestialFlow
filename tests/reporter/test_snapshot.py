@@ -126,7 +126,7 @@ def test_handler_pushes_final_snapshot_on_graph_end() -> None:
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=5)})
     handler = PushSnapshotHandler(view, inlet)
 
-    handler.on_graph_end(GraphEndEvent(graph="g1", end_time=2.0, elapsed=1.0))
+    handler.on_event(GraphEndEvent(graph="g1", end_time=2.0, elapsed=1.0))
 
     record = spout.get_queue().get()
     assert isinstance(record, PushRecord)

@@ -94,7 +94,7 @@ def test_inlet_maps_task_fail_event() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_task_fail(_fail_event(error_id=7, node="s2", task={"value": 1},
+    inlet.on_event(_fail_event(error_id=7, node="s2", task={"value": 1},
                                    exc=TypeError("bad")))
 
     record = _dequeue(spout)
@@ -112,7 +112,7 @@ def test_inlet_maps_graph_start_event() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_graph_start(_start_event())
+    inlet.on_event(_start_event())
 
     record = _dequeue(spout)
     assert record.kind == "graph_start"
@@ -131,7 +131,7 @@ def test_inlet_maps_graph_end_event() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_graph_end(_end_event())
+    inlet.on_event(_end_event())
 
     record = _dequeue(spout)
     assert record.kind == "graph_end"
@@ -147,7 +147,7 @@ def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_task_fail(_fail_event(error_id=7, node="s2"))
+    inlet.on_event(_fail_event(error_id=7, node="s2"))
     spout._handle_record(_dequeue(spout))
 
     assert len(session.posts) == 1
@@ -168,7 +168,7 @@ def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_graph_start(_start_event())
+    inlet.on_event(_start_event())
     spout._handle_record(_dequeue(spout))
 
     assert len(session.posts) == 1
@@ -189,7 +189,7 @@ def test_spout_pushes_graph_end_to_shutdown_endpoint() -> None:
     spout._session = session
     inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_graph_end(_end_event())
+    inlet.on_event(_end_event())
     spout._handle_record(_dequeue(spout))
 
     assert len(session.posts) == 1
@@ -217,8 +217,8 @@ def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
 
     spout.start()
     try:
-        inlet.on_task_fail(_fail_event(error_id=7))
-        inlet.on_graph_start(_start_event())
+        inlet.on_event(_fail_event(error_id=7))
+        inlet.on_event(_start_event())
         wait_until(
             lambda: len(session.posts) == 2 and spout.get_pending_count() == 0,
             message="records were not pushed in time",
@@ -243,7 +243,7 @@ def test_spout_thread_survives_push_failure(monkeypatch) -> None:
 
     spout.start()
     try:
-        inlet.on_task_fail(_fail_event(error_id=7))
+        inlet.on_event(_fail_event(error_id=7))
         wait_until(
             lambda: spout.get_pending_count() == 0,
             message="record was not consumed in time",
@@ -266,8 +266,8 @@ def test_null_spout_discards_records(monkeypatch) -> None:
 
     spout.start()
     try:
-        inlet.on_task_fail(_fail_event())
-        inlet.on_graph_start(_start_event())
+        inlet.on_event(_fail_event())
+        inlet.on_event(_start_event())
         wait_until(
             lambda: spout.get_pending_count() == 0,
             message="null spout did not drain records in time",
