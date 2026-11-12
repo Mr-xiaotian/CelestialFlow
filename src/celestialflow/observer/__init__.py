@@ -20,7 +20,7 @@ from .core_event import (
 from .core_hub import ObserverHub
 from .core_metrics import MetricsObserver
 from .core_observer import Observer
-from .core_observer_print import PrintObserver
+from .core_print import PrintObserver
 
 __all__ = [
     "GraphEndEvent",
