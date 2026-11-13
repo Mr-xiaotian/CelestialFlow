@@ -1,8 +1,10 @@
 # src/celestialflow/persist/core_lifecycle.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
-`persist/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / skipped，以及重试次数更新），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。核心组件为 `LifecycleSpout` 与 `LifecycleInlet`。
+`persist/core_lifecycle.py` 负责任务生命周期（Lifecycle）的持久化：记录任务在整个生命周期中的状态变化（pending → success / failed / skipped，以及重试次数更新），并将数据写入 `lifecycles/` 目录下的 SQLite 数据库文件。
+
+核心组件为记录类型 `InsertRecord` / `PromoteSuccessRecord` / `PromoteFailedRecord` / `UpdateRetryRecord` / `PromoteSkippedRecord`、监听器 `LifecycleSpout`、入口 `LifecycleInlet` 与观察者门面 `LifecycleObserver`。
 
 ## 架构设计
 
@@ -10,19 +12,93 @@
 
 ```mermaid
 flowchart LR
-    subgraph Producer["观察者 Inlet"]
-        Inlet[LifecycleInlet]
-        Inlet -->|on_task_* 回调| Funnel[_funnel]
+    subgraph EventLayer["观察者层"]
+        Hub[ObserverHub] -->|on_event| Obs[LifecycleObserver]
+        Obs -->|构造 LifecycleRecord| Inlet[LifecycleInlet]
     end
-    Funnel --> Queue[queue.Queue]
+    Inlet -->|send record| Queue[queue.Queue]
     Queue -->|后台线程轮询| Spout[LifecycleSpout._handle_record]
-    Spout -->|操作: insert / promote_* / update_retry| SQLite[lifecycles/**/*.sqlite3]
+    Spout -->|按记录类型写 SQLite| DB[lifecycles/**/*.sqlite3]
 ```
 
 系统采用 **生产者-消费者** 模式：
 
-1. **LifecycleInlet (生产者 + 观察者)**：继承 `BaseInlet, Observer`，在 `on_task_*` 事件回调中把任务生命周期事件封装为操作字典，通过 `_funnel()` 放入线程安全队列。
-2. **LifecycleSpout (消费者)**：继承 `BaseSpout`，运行在独立后台线程中，持续监听队列，根据操作类型（`__op__`）执行对应的 SQLite 写操作。
+1. **LifecycleObserver（观察者 + 翻译器）**：继承 `Observer`，在 `on_event()` 中把观测事件翻译为对应的记录 dataclass，经 `LifecycleInlet.send()` 放入线程安全队列；同时负责 spout 的 `start()` / `stop()` 并暴露 `db_path`。
+2. **LifecycleInlet（记录入口）**：只继承 `BaseInlet`，提供类型化的 `send(record)`，不直接消费事件、也不操作数据库。
+3. **LifecycleSpout（消费者）**：继承 `BaseSpout`，运行在独立后台线程中，根据记录的具体类型执行对应的 SQLite 写操作。
+
+## 记录类型
+
+所有记录均为 `frozen=True, slots=True` 的只读 dataclass，并且可用 `match` 按类型分派。
+
+### InsertRecord
+
+新任务进入节点时写入的 pending 记录。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `event_id` | `int` | 任务输入事件 ID（`TaskInputEvent.input_id`） |
+| `ts` | `float` | 记录时间戳 |
+| `node` | `str` | 节点名称 |
+| `task` | `Any` | 任务的 JSON 友好载荷（已经过 `to_persisted_payload`） |
+
+### PromoteSuccessRecord
+
+将 pending 记录晋升为 success 并写入任务结果。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `event_id` | `int` | 任务输入事件 ID（`TaskSuccessEvent.task_id`） |
+| `ts` | `float` | 记录时间戳 |
+| `result` | `Any` | 任务结果的 JSON 友好载荷 |
+
+### PromoteFailedRecord
+
+将 pending 记录晋升为 failed。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `event_id` | `int` | 任务输入事件 ID（`TaskFailEvent.task_id`） |
+| `error_id` | `int` | 最终失败事件 ID（`TaskFailEvent.error_id`） |
+| `ts` | `float` | 记录时间戳 |
+| `error_type` | `str` | 异常类型名称（`type(exception).__name__`） |
+| `error_message` | `str` | 异常消息（`str(exception)`） |
+
+### UpdateRetryRecord
+
+更新 pending 记录的重试次数与最近一次失败信息。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `event_id` | `int` | 任务输入事件 ID（`TaskRetryEvent.task_id`） |
+| `ts` | `float` | 记录时间戳 |
+| `retry_times` | `int` | 已重试次数（`TaskRetryEvent.retry_times`） |
+| `error_type` | `str` | 最近一次异常类型名称 |
+| `error_message` | `str` | 最近一次异常消息 |
+
+### PromoteSkippedRecord
+
+将 pending 记录晋升为 skipped。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `event_id` | `int` | 任务输入事件 ID（`TaskSkipEvent.task_id`） |
+| `skip_id` | `int` | 跳过事件 ID（`TaskSkipEvent.skip_id`） |
+| `ts` | `float` | 记录时间戳 |
+
+### LifecycleRecord
+
+```python
+type LifecycleRecord = (
+    InsertRecord
+    | PromoteSuccessRecord
+    | PromoteFailedRecord
+    | UpdateRetryRecord
+    | PromoteSkippedRecord
+)
+```
+
+`LifecycleInlet.send()` 与 `LifecycleSpout._handle_record()` 都接收该联合类型，由 `match` 按具体类型决定写入语义。
 
 ## LifecycleSpout
 
@@ -34,35 +110,43 @@ flowchart LR
 class LifecycleSpout(BaseSpout):
     def __init__(self) -> None:
         """初始化生命周期记录监听器。"""
+        super().__init__()
 
-    self.db_path: Path | None = None
+        self.db_path: Path | None = None
+        self._conn: sqlite3.Connection | None = None
 ```
 
-启动后（`_before_start()`），会在 `./lifecycles/{date}/` 目录下创建一个 `flow_lifecycle({time}).sqlite3` 文件并建立 sqlite 连接：
+启动后（`_before_start()`），会在 `./lifecycles/{date}/` 目录下创建一个 `flow_lifecycle({time}).sqlite3` 文件并建立 sqlite 连接。时间部分取自 `%H-%M-%S-%f` 并截断到毫秒，避免同一秒内多次运行互相覆盖。
 
 ```python
 from celestialflow.persist import LifecycleSpout
 
 lifecycle_spout = LifecycleSpout()
 lifecycle_spout.start()
-print(lifecycle_spout.db_path)  # ./lifecycles/2026-10-09/flow_lifecycle(....).sqlite3
+print(lifecycle_spout.db_path)  # ./lifecycles/2026-11-13/flow_lifecycle(....).sqlite3
+lifecycle_spout.stop()
 ```
 
 `_after_stop()` 会先 `commit()` 再关闭连接，确保剩余事务落盘。
 
-### _handle_record 操作类型
+### _handle_record 记录类型
 
-`LifecycleSpout._handle_record` 根据 `record["__op__"]` 执行不同的 SQLite 操作：
+`LifecycleSpout._handle_record(record: LifecycleRecord)` 按记录类型执行不同操作：
 
-| 操作 | 触发回调 | 说明 |
+| 记录 | 底层调用 | 说明 |
 |------|---------|------|
-| `insert` | `LifecycleInlet.on_task_input()` | 新任务进入 node，写入一条 `pending` 记录 |
-| `promote_success` | `LifecycleInlet.on_task_success()` | 将 pending 晋升为 `success`，写入结果 JSON |
-| `promote_failed` | `LifecycleInlet.on_task_fail()` | 将 pending 晋升为 `failed`，切换到错误事件 ID 并写入错误类型与消息 |
-| `promote_skipped` | `LifecycleInlet.on_task_skip()` | 将 pending 晋升为 `skipped`，切换到跳过事件 ID |
-| `update_retry` | `LifecycleInlet.on_task_retry()` | 保持 pending 状态，仅更新 `retry_times` 与最近一次失败的错误类型 / 消息 |
+| `InsertRecord` | `insert_record` | 新任务进入 node，写入一条 `pending` 记录（`task_json` 为载荷） |
+| `PromoteSuccessRecord` | `promote_record_to_success_by_event_id` | 将 pending 晋升为 `success`，写入结果 JSON 并清空错误字段 |
+| `PromoteFailedRecord` | `promote_record_to_failed_by_event_id` | 将 pending 晋升为 `failed`，切换到 `error_id` 并写入错误类型与消息 |
+| `UpdateRetryRecord` | `update_retry_by_event_id` | 保持 pending 状态，仅更新 `retry_times` 与最近一次失败的错误类型 / 消息 |
+| `PromoteSkippedRecord` | `promote_record_to_skipped_by_event_id` | 将 pending 晋升为 `skipped`，切换到 `skip_id` 并清空错误字段 |
 
-每次操作实际改动记录后会立即 `commit()`；未知的 `__op__` 或连接未初始化会抛出异常。
+其他类型的记录不会命中任何分支，`changed` 保持 `False`，因此不产生写入。
+
+写入语义：
+
+- 连接未初始化（`_conn is None`）时抛 `InitializationError`；
+- 每条底层写函数返回"是否实际改动记录"的 `bool`，仅当 `changed` 为 `True` 时才 `commit()`。
 
 ### 文件路径
 
@@ -70,78 +154,115 @@ Lifecycle 数据默认保存在 `./lifecycles/` 目录下，按日期归档：
 
 ```text
 ./lifecycles/
-└── 2026-10-09/
+└── 2026-11-13/
     └── flow_lifecycle(14-30-05-123).sqlite3
 ```
 
 ## LifecycleInlet
 
-`LifecycleInlet` 继承 `BaseInlet, Observer`，是以观察者形式消费任务事件的线程安全写入封装。仅覆写会产生生命周期记录的任务事件回调，其余事件沿用 `Observer` 的默认空实现。
+```python
+class LifecycleInlet(BaseInlet):
+    def send(self, record: LifecycleRecord) -> None: ...
+```
 
-### 事件回调
+- 只继承 `BaseInlet`，**不再是 `Observer`**，不消费事件；
+- `send()` 转调 `BaseInlet.send()`，把记录放入绑定 spout 的队列；
+- 未绑定 spout 时调用 `send()` 会由 `BaseInlet` 抛 `InitializationError`；
+- `bind_spout(spout)` 来自 `BaseInlet`，返回 `self` 以支持链式调用。
 
 ```python
-class LifecycleInlet(BaseInlet, Observer):
-    def on_task_input(self, event: TaskInputEvent) -> None:
-        """写入一条 pending 记录，表示任务已进入某个 node。"""
-
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        """将已成功处理任务对应的 pending 记录晋升为 success 并写入结果。"""
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        """将 pending 记录晋升为 failed，并绑定最终的 error_id。"""
-
-    def on_task_skip(self, event: TaskSkipEvent) -> None:
-        """将 pending 记录晋升为 skipped，表示任务被跳过而未执行。"""
-
-    def on_task_retry(self, event: TaskRetryEvent) -> None:
-        """更新 pending 记录的重试次数与最近一次失败的错误信息。"""
+lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
 ```
+
+## LifecycleObserver
+
+```python
+class LifecycleObserver(Observer):
+    def __init__(self) -> None: ...
+
+    @property
+    def db_path(self) -> Path | None: ...
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+    def on_event(self, event: Event) -> None: ...
+```
+
+- `__init__` 内部创建 `LifecycleSpout` 并构造 `LifecycleInlet().bind_spout(spout)`；
+- `db_path` 透传 spout 的数据库路径，spout 尚未启动时为 `None`；
+- `start()` / `stop()` 分别启动 / 停止 spout 的后台写入循环；
+- `on_event()` 按事件类型生成记录，未关心的事件落入 `case _: pass` 被忽略。
+
+### 事件到记录的映射
+
+| 事件 | 生成的记录 | 字段来源 |
+|------|-----------|---------|
+| `TaskInputEvent` | `InsertRecord` | `event_id=event.input_id`、`node=event.node`、`task=to_persisted_payload(event.task)` |
+| `TaskSuccessEvent` | `PromoteSuccessRecord` | `event_id=event.task_id`、`result=to_persisted_payload(event.result)` |
+| `TaskFailEvent` | `PromoteFailedRecord` | `event_id=event.task_id`、`error_id=event.error_id`、`error_type=type(event.exception).__name__`、`error_message=str(event.exception)` |
+| `TaskSkipEvent` | `PromoteSkippedRecord` | `event_id=event.task_id`、`skip_id=event.skip_id` |
+| `TaskRetryEvent` | `UpdateRetryRecord` | `event_id=event.task_id`、`retry_times=event.retry_times`、最近一次错误类型 / 消息 |
 
 说明：
 
-- `on_task_input` 中的任务经 `to_persisted_payload()` 序列化为 JSON 友好结构后存入 `task_json` 字段。
-- `on_task_fail` 会将 `error_type`（异常类名）与 `error_message`（`str(error)`）一并持久化，并切换到 `error_id`。
-- `on_task_retry` 只更新 `retry_times` 与最近一次错误信息，记录保持 `pending` 状态，最终仍由 `on_task_success` / `on_task_fail` 晋升。
-- `LifecycleInlet` 只写队列，不直接操作数据库；所有 I/O 都在 `LifecycleSpout` 的后台线程中完成。
-
-### 绑定 spout
-
-```python
-lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
-```
-
-`bind_spout()` 来自 `BaseInlet`，将 inlet 与 spout 关联，之后 `_funnel()` 才会把记录写入 spout 的消费队列。
+- 所有记录的 `ts` 均取记录构造时刻的 `datetime.now().timestamp()`；
+- 只有 `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `TaskRetryEvent` 会产生记录，节点 / 图 / 终止信号事件被忽略；
+- 重试记录保持 `pending` 状态，最终仍由成功 / 失败 / 跳过记录晋升；
+- `LifecycleObserver` 只写队列，不直接操作数据库；所有 I/O 都在 `LifecycleSpout` 的后台线程中完成。
 
 ## 使用示例
 
+### 通过观察者门面（推荐）
+
 ```python
-from celestialflow.observer import ObserverHub, TaskInputEvent
-from celestialflow.persist import LifecycleInlet, LifecycleSpout
+from celestialflow.observer import TaskInputEvent, TaskSuccessEvent
+from celestialflow.persist import LifecycleObserver
 
-lifecycle_spout = LifecycleSpout()
-lifecycle_spout.start()
+observer = LifecycleObserver()
+observer.start()
+try:
+    observer.on_event(
+        TaskInputEvent(node="StageA", task="hello", task_repr="'hello'", input_id=1)
+    )
+    observer.on_event(
+        TaskSuccessEvent(
+            node="StageA",
+            task="hello",
+            task_repr="'hello'",
+            result="HELLO",
+            result_repr="'HELLO'",
+            elapsed=0.01,
+            task_id=1,
+            success_id=2,
+        )
+    )
+finally:
+    observer.stop()
 
-lifecycle_inlet = LifecycleInlet().bind_spout(lifecycle_spout)
-
-# 以观察者形式注册到一个 hub，消费任务事件
-hub = ObserverHub()
-hub.add_observer(lifecycle_inlet)
-
-# 模拟节点产生任务事件（实际由节点在运行时发起）
-hub.on_task_input(
-    TaskInputEvent(node="StageA", task="hello", task_repr="hello", input_id=1)
-)
-
-lifecycle_spout.stop()
+print(observer.db_path)  # ./lifecycles/2026-11-13/flow_lifecycle(...).sqlite3
 ```
 
-实际使用中，`LifecycleInlet` 通常由 `assembly/core_run.py` 装配并在任务图运行期间持久化任务生命周期。读取已持久化记录请使用 `util_sqlite` 的读取函数：`load_tasks_grouped_by_node`（按 node 分组读取指定状态的记录）、`load_task_error_records`（读取某 node 的 `(task, error)` 配对）、`load_task_result_records`（读取某 node 的 `(task, result)` 配对）。
+实际使用中，`LifecycleObserver` 由 `assembly/core_run.py` 的 `run_graph_resources` / `run_node_resources` 注册到 hub 并统一启停，进入上下文时产出 `db_path`。
+
+### 手动投递记录
+
+```python
+from celestialflow.persist import InsertRecord, LifecycleInlet, LifecycleSpout
+
+spout = LifecycleSpout()
+spout.start()
+inlet = LifecycleInlet().bind_spout(spout)
+
+inlet.send(InsertRecord(event_id=1, ts=0.0, node="StageA", task={"x": 1}))
+
+spout.stop()
+```
+
+读取已持久化记录请使用 `util_sqlite` 的读取函数：`load_tasks_grouped_by_node`（按 node 分组读取指定状态的记录）、`load_task_error_records`（读取某 node 的 `(task, (error_type, error_message))` 配对）、`load_task_result_records`（读取某 node 的 `(task, result)` 配对）。
 
 ## 注意事项
 
 1. **SQLite 存储**：使用 WAL 模式 + `check_same_thread=False`，支持跨线程读写（见 `util_sqlite.connect_db`）。
-2. **即时 commit**：每次写操作实际改动记录后立即 commit，保证数据不丢失。
-3. **Inlet 只写队列**：不直接操作数据库，所有 I/O 在 `LifecycleSpout` 的后台线程中完成。
-4. **观察者回调驱动**：本类不再提供 `task_input` / `task_success` 等手工调用方法，而是通过 `on_*` 事件回调消费生命周期。
-5. **跨包导入**：`Observer` 与各 `*Event` 统一通过 `from ..observer import (...)` 包级导入，遵循 `core_*` 跨包导入规则。
+2. **按需 commit**：仅当底层写操作实际改动记录后才 `commit()`；`_after_stop()` 再做一次兜底提交。
+3. **Inlet 只写队列**：`LifecycleInlet` 不直接操作数据库，也不消费事件；所有 I/O 在 `LifecycleSpout` 的后台线程中完成。
+4. **观察者与入口已拆分**：历史版本中 `LifecycleInlet` 同时是 `Observer` 并覆写 `on_task_*`；现在事件消费统一由 `LifecycleObserver.on_event()` 完成，`LifecycleInlet` 只保留 `send(record)`。
+5. **跨包导入**：`Event` / `Observer` / 各 `*Event` 统一通过 `from ..observer import (...)` 包级导入，遵循 `core_*` 跨包导入规则。

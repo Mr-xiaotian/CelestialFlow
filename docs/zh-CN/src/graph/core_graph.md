@@ -1,6 +1,6 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `TaskGraph` 是 CelestialFlow 的核心调度器，负责管理一组任务节点（`BaseTaskNode` 派生对象，公共 API 包括 `TaskExecutor`、`TaskSplitter`、`TaskRouter`）的依赖关系、执行流程与生命周期。
 
@@ -187,15 +187,6 @@ def _build_analysis(self) -> None:
 
 > 该方法是幂等的「缓存重建入口」，不应由外部直接调用；公开读取请使用 `get_source_nodes()` / `is_dag()` / `get_layers()`。
 
-### put_source_signal
-
-```python
-def put_source_signal(self) -> None:
-    """将终止信号放入所有源节点的队列中。"""
-```
-
-遍历 `_source_names`，对 `node_dict` 中对应节点调用 `put_signal()`。由于 `run()` / `run_async()` / `start()` 已经触发过 `_build_analysis()`，此处读取到的源节点列表是有效的缓存。
-
 ## 启动执行
 
 ### run
@@ -203,7 +194,7 @@ def put_source_signal(self) -> None:
 ```python
 def run(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,  # 默认 "INFO"
@@ -213,8 +204,8 @@ def run(
     运行任务图。流程：
     1. 调用 _build_analysis() 构建（或复用）图分析缓存
     2. 调用 _inject_observers() 注入图级观察者 hub
-    3. 在 run_graph_resources 上下文中，把 init_tasks_dict 中每个任务注入对应节点（node.put_task）
-    4. if_put_signal=True 时自动向源节点注入终止信号
+    3. 在 run_graph_resources 上下文中调用 inject_tasks(init_tasks_dict) 注入初始任务
+    4. if_put_signal=True 时调用 inject_terminations(self._source_names) 向源节点注入终止信号
     5. 调用 start() 启动执行
     """
 ```
@@ -223,13 +214,14 @@ def run(
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|:------:|------|
-| `init_tasks_dict` | `dict[str, Iterable[Any]]` | 必填 | 键为节点名称，值为该节点的任务可迭代对象 |
-| `if_put_signal` | `bool` | `True` | 是否在注入任务后自动向源节点补发终止信号 |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` 的日志过滤级别，大小写不敏感，首尾空白会被忽略 |
+| `init_tasks_dict` | `Mapping[str, Iterable[Any]]` | 必填 | 键为节点名称，值为该节点的任务可迭代对象；每个值只会被遍历一次 |
+| `if_put_signal` | `bool` | `True` | 是否在注入任务后自动向源节点（`_source_names`）补发终止信号 |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogObserver` 的日志过滤级别，大小写不敏感，首尾空白会被忽略 |
 | `report` | `ReportConfig \| None` | `None` | 远程上报配置；`None` 表示不上报 |
 
+- 注入阶段由 `inject_tasks()` / `inject_terminations()` 完成：两者都先为图中存在的节点尽力注入，再对未知节点统一抛出 `UnknownNodeError`，因此单个未知节点不会导致其余节点已注入的数据被丢弃。
 - `raises InvalidOptionError`: `log_level` 不在允许的级别集合中时（由 `run_graph_resources` 内部的 `normalize_log_level()` 抛出）。
-- 运行期异常会被收集为 `error_list`，最终以 `ExceptionGroup("Errors occurred during run", ...)` 抛出。
+- 运行期异常（含注入阶段抛出的 `UnknownNodeError`、执行阶段异常与收尾阶段异常）会被收集为 `error_list`，最终以 `ExceptionGroup("Errors occurred during run", ...)` 抛出。
 
 ```python
 from celestialflow import TaskExecutor, TaskGraph
@@ -253,7 +245,7 @@ graph.run(
 ```python
 async def run_async(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,
@@ -346,7 +338,7 @@ async def start_async(self) -> None:
 ```python
 def _prepare_start(self) -> None:
     """
-    启动前准备：向图级观察者 hub 广播 on_graph_start 事件。
+    启动前准备：向图级观察者 hub 投递 GraphStartEvent（observers.on_event(...)）。
     start_time 取调用时刻的 time.time()；is_dag 通过 self.is_dag() 现取。
     """
 
@@ -354,11 +346,11 @@ def _prepare_start(self) -> None:
 def _finish_start(self, start_perf: float) -> list[Exception]:
     """
     启动后收尾：遍历所有节点调用 drain_task_queue() 收集未消费任务，
-    广播 on_graph_end 事件，清理线程引用，返回收集到的异常列表。
+    投递 GraphEndEvent，清理线程引用，返回收集到的异常列表。
     """
 ```
 
-`_prepare_start()` 广播的 `GraphStartEvent` 字段：`graph`、`graph_mode`、`start_time`（`time.time()`）、`is_dag`（`self.is_dag()`）、`nodes`、`edges`、`source_nodes`、`node_meta`。事件中**不包含** `class_name`；节点类名只在 `node_meta` 的每一项里出现。`start_time` 在真正开始执行时才取 `time.time()`，`TaskGraph` 不再维护 `self.start_time` 实例字段。
+`_prepare_start()` 通过 `observers.on_event()` 投递的 `GraphStartEvent` 字段：`graph`、`graph_mode`、`start_time`（`time.time()`）、`is_dag`（`self.is_dag()`）、`nodes`、`edges`、`source_nodes`、`node_meta`。事件中**不包含** `class_name`；节点类名只在 `node_meta` 的每一项里出现。`start_time` 在真正开始执行时才取 `time.time()`，`TaskGraph` 不再维护 `self.start_time` 实例字段。
 
 `_finish_start()` 中 `elapsed` 由 `time.perf_counter() - start_perf` 计算，结束后清空 `self.threads`。
 
@@ -430,10 +422,11 @@ print(graph.get_layers())  # {0: ['A'], 1: ['B']}
 ### 注入接口
 
 ```python
-def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
     """
     按节点名将注入任务写入待执行队列。先尽力注入存在的节点，再对未知节点统一报错。
 
+    :param tasks: 节点名到任务可迭代对象的映射，每个值只会被遍历一次
     :raises UnknownNodeError: 存在图中不存在的目标节点
     """
 
@@ -464,7 +457,7 @@ def inject_terminations(self, nodes: Sequence[str]) -> None:
 
 ### 图级事件（观察者）
 
-`TaskGraph` 在 `_prepare_start()` / `_finish_start()` 阶段向观察者 hub 广播 `GraphStartEvent` 与 `GraphEndEvent`。图分析信息（图名、模式、启动时间、`is_dag`、节点/边/源节点列表、节点元信息等）在启动事件中一次性上报；运行时监控建议通过 `add_observer()` 注册图级观察者完成，而非依赖单个节点轮询。
+`TaskGraph` 在 `_prepare_start()` / `_finish_start()` 阶段通过 `observers.on_event(...)` 向观察者 hub 投递 `GraphStartEvent` 与 `GraphEndEvent`。图分析信息（图名、模式、启动时间、`is_dag`、节点/边/源节点列表、节点元信息等）在启动事件中一次性上报；运行时监控建议通过 `add_observer()` 注册图级观察者完成，而非依赖单个节点轮询。
 
 | 事件 | 字段 |
 |------|------|
@@ -477,7 +470,7 @@ def inject_terminations(self, nodes: Sequence[str]) -> None:
 flowchart TD
     INIT[__init__] --> INIT_STATE[_init_state]
     INIT_STATE --> BUILD[set_nodes + connect]
-    BUILD --> PREPARE[_prepare_start<br/>广播 GraphStartEvent]
+    BUILD --> PREPARE[_prepare_start<br/>投递 GraphStartEvent]
     PREPARE --> START[start / start_async]
     START -->|serial| SER[_execute_nodes_serial]
     START -->|thread| THR[_execute_nodes_thread]
@@ -489,8 +482,8 @@ flowchart TD
     DRAIN --> END[图执行完成]
 
     RUN[run / run_async] -->|_build_analysis + _inject_observers| RES[run_graph_resources]
-    RES -->|注入初始任务| PUT[node.put_task]
-    RES -->|注入终止信号| SIGNAL[put_source_signal]
+    RES -->|inject_tasks| PUT[node.put_task]
+    RES -->|inject_terminations| SIGNAL[源节点终止信号]
 ```
 
 ## 图执行模式详解

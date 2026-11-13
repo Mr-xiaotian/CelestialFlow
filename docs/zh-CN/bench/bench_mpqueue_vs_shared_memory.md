@@ -1,10 +1,10 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
-在更复杂的生产者-消费者拓扑（SPSC、MPSC、SPMC）下，对比 `multiprocessing.Queue` 与基于 `shared_memory` 的自定义环形缓冲区性能。为 CelestialFlow 在高吞吐场景下的 IPC 优化提供深度数据。
+在更复杂的生产者-消费者拓扑（SPSC、MPSC、SPMC）下，对比 `multiprocessing.Queue` 与基于 `shared_memory` 的自定义环形缓冲区性能，为高吞吐跨进程通信场景提供选型参考。
 
 > **注意**：框架已移除 `process` 图模式及内部 multiprocessing 依赖（见 change log），因此本脚本结果不再反映框架当前内部行为，仅作为跨进程 IPC 性能的历史参考。
 

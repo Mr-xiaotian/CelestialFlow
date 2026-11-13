@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `TaskLoop` 和 `TaskWheel` 两种预定义含环图结构的专用分析能力，以及各类预定义图结构（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）的输入校验，确保空/非法输入不会导致静默构造或崩溃。
@@ -47,26 +47,27 @@
 | `test_complete_single_node_raises` | `TaskComplete` 单节点抛出 `InvalidStructureError` |
 | `test_complete_empty_nodes_raises` | `TaskComplete` 空节点列表抛出 `InvalidStructureError` |
 
-## 测试重点
+## 测试重点与断言
 - **非 DAG 识别**: 确保含环结构不会被错误地当作 DAG 处理。
 - **层级一致性**: 验证在存在循环依赖时，逻辑层级的划分依然符合物理直觉。
 - **源节点特化**: 针对特定结构优化的源节点查找逻辑。
-- **边界校验**: 确保所有预定义图结构均严格拒绝空/非法输入，而非静默构造空图。
+- **边界校验**: 确保所有预定义图结构均严格拒绝空/非法输入，而非静默构造空图；断言只检查异常类型 `InvalidStructureError`，不校验消息文本。
+- **断言载体**: 结构分析用例只读取 `is_dag()` / `get_layers()` / `get_source_nodes()` 的返回值，不检查任务执行指标。
 
 ## 运行方式
 
 ```bash
 # 全部执行
-pytest tests/graph/test_structure.py -v
+uv run pytest tests/graph/test_structure.py -v
 
 # 仅运行 TaskLoop 测试
-pytest tests/graph/test_structure.py::TestTaskLoop -v
+uv run pytest tests/graph/test_structure.py::TestTaskLoop -v
 
 # 仅运行 TaskWheel 测试
-pytest tests/graph/test_structure.py::TestTaskWheel -v
+uv run pytest tests/graph/test_structure.py::TestTaskWheel -v
 
 # 仅运行输入校验测试
-pytest tests/graph/test_structure.py::TestStructureValidation -v
+uv run pytest tests/graph/test_structure.py::TestStructureValidation -v
 ```
 
 ## 性能参考

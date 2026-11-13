@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -25,12 +25,9 @@
 ```mermaid
 flowchart TB
     Input["输入任务<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
-    Progress["TaskProgress"] -.监听.-> Executor
-    Custom["PrintObserver<br/>celestialflow 内置"] -.监听.-> Executor
-    Executor --> NodeStart["on_node_start"]
-    Executor --> TaskInput["on_task_input"]
-    Executor --> Success["on_task_success"]
-    Executor --> NodeEnd["on_node_end"]
+    Executor -->|"Event 对象<br/>NodeStart / NodeEnd / TaskInput / TaskSuccess ..."| Hub["ObserverHub"]
+    Hub --> Progress["TaskProgress<br/>on_event + match"]
+    Hub --> Print["PrintObserver<br/>on_event + match"]
 ```
 
 ## 关键配置
@@ -45,24 +42,27 @@ observer 一览：
 | observer | 来源 | 作用 |
 |----------|------|------|
 | `TaskProgress` | 本文件本地定义 | 用 `tqdm` 展示执行进度，适合命令行交互场景 |
-| `PrintObserver` | `celestialflow` 内置 | 用 `print` 输出各回调计数，构造参数 `name` 作为输出前缀 |
+| `PrintObserver` | `celestialflow` 内置（`celestialflow.observer.core_print`） | 在 `on_event` 中输出各事件计数，构造参数 `name` 作为输出前缀 |
 
-`PrintObserver` 实现了以下回调（`name` 为构造时传入的前缀），所有回调接收 `core_event.py` 中对应的事件 `dataclass`：
+`PrintObserver` 只实现统一的 `on_event(event)`，用 `match event` 按事件类型维护计数并打印（`name` 为构造时传入的前缀）：
 
-| 回调 | 输出 / 作用 |
+| 事件 | 输出 / 作用 |
 |------|------|
-| `on_node_start` | 打印 `[{name}] start total={total}` |
-| `on_task_input` | 累加总数并打印 `[{name}] total={total}(+1)` |
-| `on_task_success` | 统计成功数并打印 `[{name}] succeeded={n}(+1), total={total}` |
-| `on_task_fail` | 统计失败数并打印 `[{name}] failed={n}(+1), total={total}` |
-| `on_task_skip` | 统计跳过数并打印 `[{name}] skipped={n}(+1), total={total}` |
-| `on_node_end` | 打印 `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+| `NodeStartEvent` | 打印 `[{name}] start total={total}` |
+| `TaskInputEvent` | 累加 `total` 并打印 `[{name}] total={total}(+1)` |
+| `TaskSuccessEvent` | 累加成功数并打印 `[{name}] succeeded={n}(+1), total={total}` |
+| `TaskFailEvent` | 累加失败数并打印 `[{name}] failed={n}(+1), total={total}` |
+| `TaskSkipEvent` | 累加跳过数并打印 `[{name}] skipped={n}(+1), total={total}` |
+| `NodeEndEvent` | 打印 `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+
+`TaskRetryEvent`、终止信号事件与图事件不在上述分支中，会由 `match` 的兜底分支忽略。
+`Observer` 基类当前只提供 `on_event` 与 `handle_exception`，不再有逐个事件回调。
 
 ## 可能出现的问题
 
 1. **`__main__` 同时运行 `demo_progress_observer` 和 `demo_print_observer`**：两个 observer 依次执行，先显示 tqdm 进度条，再输出日志。
-2. **当前示例只展示成功路径**：`test_task` 现在是 `range(25, 32)`，因此运行时通常只会看到 `on_task_input`、`on_node_start`、`on_task_success` 和 `on_node_end`。
-3. **`on_task_input` 与 `on_node_start` 的先后**：`run()` 会先注入全部任务再启动执行器，因此 `on_node_start` 触发时 `total` 已累加到最终值（`PrintObserver` 会先打印若干条 `total=...(+1)`，再打印 `start total=7`）。`TaskProgress` 也正是依赖这一点，在 `on_node_start` 时用累计的 `_total` 创建进度条。
+2. **当前示例只展示成功路径**：`test_task` 现在是 `range(25, 32)`，因此运行时通常只会看到 `TaskInputEvent`、`NodeStartEvent`、`TaskSuccessEvent` 和 `NodeEndEvent` 对应的输出。
+3. **`TaskInputEvent` 与 `NodeStartEvent` 的先后**：`run()` 会先注入全部任务再启动执行器，因此 `NodeStartEvent` 到达时 `total` 已累加到最终值（`PrintObserver` 会先打印若干条 `total=...(+1)`，再打印 `start total=7`）。`TaskProgress` 也正是依赖这一点，在 `NodeStartEvent` 时用累计的 `_total` 创建进度条。
 4. **无断言**：这是演示脚本，不验证结果数值，只用于展示 observer 调用时机。
 5. **计算耗时受输入影响**：当前为迭代 O(n) 斐波那契，单任务耗时随 `n` 线性增长，但 `fibonacci(31)` 与 `fibonacci(25)` 的差异仍在微秒级，不会显著影响总时长。
 
@@ -107,10 +107,10 @@ python demo/demo_observer.py
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-这样更容易让 `on_task_fail` / `on_task_skip` 触发；但要注意：
+这样更容易让 `TaskFailEvent` / `TaskSkipEvent` 触发；但要注意：
 
-- `TaskProgress` 只实现了 `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end`，没有重试回调。
-- `PrintObserver` 只实现了 `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip`，同样**没有实现 `on_task_retry`**。虽然 `Observer` 基类提供 `on_task_retry` 回调，但本 demo 的两个 observer 都不会对其产生输出。
+- `TaskProgress` 的 `on_event` 只 `match` `NodeStartEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `NodeEndEvent`，不处理 `TaskRetryEvent`。
+- `PrintObserver` 的 `on_event` 同样只处理 `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent`，其兜底分支会忽略 `TaskRetryEvent`。`Observer` 基类本身也只提供 `on_event` 与 `handle_exception`，因此本 demo 的两个 observer 都不会对重试事件产生输出。
 
 ## 依赖
 

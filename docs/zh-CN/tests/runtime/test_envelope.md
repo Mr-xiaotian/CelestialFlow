@@ -1,6 +1,6 @@
 # tests/runtime/test_envelope.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `celestialflow.runtime.core_envelope` 模块中的 `TaskEnvelope` 类，确保任务数据与 ID 能被信封正确保存并通过 Getter 还原，同时验证 `__slots__` 的内存约束生效。
@@ -29,13 +29,13 @@
 
 ```bash
 # 全部执行
-pytest tests/runtime/test_envelope.py -v
+uv run pytest tests/runtime/test_envelope.py -v
 
 # 仅运行 Getter 相关测试
-pytest tests/runtime/test_envelope.py -k "get_id or getters" -v
+uv run pytest tests/runtime/test_envelope.py -k "get_id or getters" -v
 
 # 仅运行 slots 内存测试
-pytest tests/runtime/test_envelope.py -k "slots" -v
+uv run pytest tests/runtime/test_envelope.py -k "slots" -v
 ```
 
 ## 性能参考

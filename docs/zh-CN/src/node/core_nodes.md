@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_nodes.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 `core_nodes.py` 提供了 CelestialFlow 对外暴露的三个具体节点类：
 
@@ -70,7 +70,7 @@ def __init__(
 1. 取 `task = envelope.get_task()`、`task_id = envelope.get_id()`；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
 3. 计算 `elapsed = time.perf_counter() - start_perf`；
-4. `observers.on_task_success(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))` 广播成功事件；
+4. `observers.on_event(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))` 广播成功事件；
 5. 对每个下游目标 (`self.yield_queue.get_target_names()`)：发出 `TASK_INPUT` 事件拿到 `downstream_input_id`，广播 `TaskInputEvent`（`from_node=self.get_name()`），并 `yield_queue.put_target(target_name, TaskEnvelope(task=result, id=downstream_input_id))`。
 
 ### 示例
@@ -103,7 +103,7 @@ for task, result in executor.get_success_pairs():
 
 1. `result_list = list(result)` 物化结果（支持生成器）；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
-3. `observers.on_task_success(TaskSuccessEvent(..., result=result_list, result_repr=...)` 广播成功事件（`result` 物化为列表）；
+3. `observers.on_event(TaskSuccessEvent(..., result=result_list, result_repr=...)` 广播成功事件（`result` 物化为列表）；
 4. 对每个下游目标与每个 `item in result_list`：发出 `TASK_INPUT` 事件、广播 `TaskInputEvent`、并 `yield_queue.put_target(target_name, TaskEnvelope(item, downstream_input_id))`。
 
 > 空可迭代对象会合法地产生 0 个子任务（不会抛异常）；生成器输入会被 `list()` 完整物化后再分发。
@@ -149,7 +149,7 @@ graph.run({"Splitter": [["a", "b", "c"]]})
 
 1. 校验 `result` 中的每个目标名是否已在 `self.yield_queue.get_target_names()` 中注册；若存在未注册目标，抛 `InvalidOptionError("Unknown target", unknown[0], known_targets)`；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` 拿到 `result_id`；
-3. `observers.on_task_success(TaskSuccessEvent(..., result=result, result_repr=...)` 广播成功事件；
+3. `observers.on_event(TaskSuccessEvent(..., result=result, result_repr=...)` 广播成功事件；
 4. 对 `result.items()` 中每个 `(target, yie)`：发出 `TASK_INPUT` 事件、广播 `TaskInputEvent`、并 `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))`——下游收到的是**该目标对应的载荷** `yie`，而不是路由器的输入任务。
 
 ### 示例
@@ -190,5 +190,5 @@ graph.run({router.get_name(): ["hi", "hello world", "ok"]})
 3. **路由器目标必须预先绑定**：`func` 返回的目标字符串必须出现在 `self.yield_queue.get_target_names()` 中（即至少通过 `graph.connect` / `connect_to` 注册过）；否则抛 `InvalidOptionError`。
 4. **路由器各目标收到各自载荷**：一次路由可返回多个目标，每个下游只收到对应 key 的 value。
 5. **运行期组件自动初始化**：三个节点类都通过 `BaseTaskNode.__init__` 自动初始化 `task_queue` / `yield_queue` / `dispatch` / `observers` 等组件，无需重复创建。
-6. **结果广播与持久化**：节点自身只广播 `TaskSuccessEvent` / `TaskInputEvent`；`MetricsObserver` / `LifecycleInlet` / `LogInlet` 依据这些事件更新计数与落盘，节点不再直接写 lifecycle / log。
+6. **结果广播与持久化**：节点自身只通过 `observers.on_event(...)` 广播 `TaskSuccessEvent` / `TaskInputEvent`；`MetricsObserver` / `LifecycleObserver` / `LogObserver` 依据这些事件更新计数与落盘，节点不再直接写 lifecycle / log。
 7. **不再有 `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**：拆分与路由逻辑现在完全由传入的 `func` 承担，类本身只负责把 `func` 的结果分发到下游。

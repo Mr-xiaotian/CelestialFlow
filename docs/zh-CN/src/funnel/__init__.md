@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/__init__.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/11/13
 
 Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persistence 模块中 `LogSpout`/`LogInlet` 和 `LifecycleSpout`/`LifecycleInlet` 的底层基类。
 
@@ -19,7 +19,7 @@ Funnel 模块提供了 CelestialFlow 的队列通信基础设施，是 Persisten
 
 1. **core_inlet.py** (`BaseInlet`)
    - **作用**: 所有入口类的基类，提供队列写入功能
-   - **关键功能**: 通过 `bind_spout()` 与 spout 关联，使用 `_funnel()` 写入队列
+   - **关键功能**: 通过 `bind_spout()` 与 spout 关联，使用公开方法 `send()` 写入队列
 
 2. **core_spout.py** (`BaseSpout`)
    - **作用**: 所有出口类的基类，提供后台线程监听和队列消费功能
@@ -48,7 +48,7 @@ classDiagram
     }
     class BaseInlet {
         +bind_spout(spout) Self
-        +_funnel(record) None
+        +send(record) None
     }
     class PendingCounter {
         +increment() int
@@ -93,27 +93,32 @@ class PrintSpout(BaseSpout):
         print(f"Spout 收到: {record}")
 
 
-# 2. 自定义 Inlet：封装写入接口
-class PrintInlet(BaseInlet):
-    def send(self, data):
-        self._funnel(data)
-
-
-# 3. 创建 Spout 和 Inlet，并绑定
+# 2. 创建 Spout，并直接使用 BaseInlet：send() 已是公开方法
 spout = PrintSpout()
-inlet = PrintInlet().bind_spout(spout)
+inlet = BaseInlet().bind_spout(spout)
 
-# 4. 启动后台监听线程
+# 3. 启动后台监听线程
 spout.start()
 
-# 5. 通过 Inlet 发送记录
+# 4. 通过 Inlet 发送记录
 inlet.send("Hello, World!")
 inlet.send({"key": "value"})
 inlet.send(42)
 
-# 6. 停止 Spout
+# 5. 停止 Spout
 spout.stop()
 print("Spout 已停止")
+```
+
+> 也可以继承 `BaseInlet` 增加语义化方法，但**不要**覆写 `send()` 再回调 `self.send(...)`，否则会无限递归；正确写法是新增方法后委托给 `self.send(...)`：
+
+```python
+from celestialflow.funnel import BaseInlet
+
+
+class EventInlet(BaseInlet):
+    def graph_start(self, graph_name: str) -> None:
+        self.send({"type": "graph_start", "graph": graph_name})
 ```
 
 ### 使用 BaseSpout 的自定义钩子
@@ -149,3 +154,4 @@ spout.stop()
 1. **绑定方式**: `BaseInlet` 通过 `bind_spout()` 与 `BaseSpout` 关联，而不是直接持有队列。
 2. **待处理计数**: `BaseSpout` 内部维护 `PendingCounter`，`get_pending_count()` 可查询尚未处理完成的记录数。
 3. **异常隔离**: 单条记录处理失败会打印 traceback 后继续，不会导致后台线程终止。
+4. **`start()` 幂等**: 后台线程已存活时 `BaseSpout.start()` 直接返回，不会重复创建线程，也不会再次调用 `_before_start()`。

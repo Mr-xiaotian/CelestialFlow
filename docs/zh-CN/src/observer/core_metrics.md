@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_metrics.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `core_metrics.py` 定义了**图级指标观察者** `MetricsObserver`。它同时承担"写模型"与"只读视图"两种角色：作为观察者从事件中写入每个节点的计数、状态与运行起始时间，并通过只读视图暴露不可变的 `NodeMetrics` 快照。
 
@@ -10,12 +10,7 @@
 class MetricsObserver(Observer):
     def __init__(self) -> None: ...
 
-    def on_node_start(self, event: NodeStartEvent) -> None: ...
-    def on_node_end(self, event: NodeEndEvent) -> None: ...
-    def on_task_input(self, event: TaskInputEvent) -> None: ...
-    def on_task_success(self, event: TaskSuccessEvent) -> None: ...
-    def on_task_fail(self, event: TaskFailEvent) -> None: ...
-    def on_task_skip(self, event: TaskSkipEvent) -> None: ...
+    def on_event(self, event: Event) -> None: ...
 
     def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
     def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
@@ -25,16 +20,16 @@ class MetricsObserver(Observer):
 
 ## 事件写入逻辑
 
-MetricsObserver 只关心以下事件以维护指标：
+`on_event` 用 `match` 分派，只处理与指标相关的事件，其余事件（图级、终止信号等）落入 `case _: pass` 被忽略：
 
 | 事件 | 写入行为 |
 |------|---------|
-| `on_node_start` | 将该节点状态置为 `RUNNING`，把事件携带的 `start_time` 写入 `_start_time`，并将 `_end_time` 重置为 `0.0` |
-| `on_node_end` | 将该节点状态置为 `STOPPED`，把事件携带的 `end_time` 写入 `_end_time` |
-| `on_task_input` | 区分来源：`from_node is None` 时累加外部注入计数；否则同时累加接收方的上游计数与来源方的下游计数 |
-| `on_task_success` | 累加该节点成功计数 |
-| `on_task_fail` | 累加该节点失败计数 |
-| `on_task_skip` | 累加该节点跳过计数 |
+| `NodeStartEvent` | 将该节点状态置为 `RUNNING`，把事件携带的 `start_time` 写入 `_start_time`，并将 `_end_time` 重置为 `0.0` |
+| `NodeEndEvent` | 将该节点状态置为 `STOPPED`，把事件携带的 `end_time` 写入 `_end_time` |
+| `TaskInputEvent` | 区分来源：`from_node is None` 时累加外部注入计数；否则同时累加接收方的上游计数与来源方的下游计数 |
+| `TaskSuccessEvent` | 累加该节点成功计数 |
+| `TaskFailEvent` | 累加该节点失败计数 |
+| `TaskSkipEvent` | 累加该节点跳过计数 |
 
 存储格随首个事件**按需建立**（`_ensure`，幂等），边计数亦由实际任务流向增量写入，因此不依赖建图期的结构事件；上游投递会同时写入接收方的上游计数与来源方的下游计数，无需在节点间共享计数器对象，也无需按节点类型特化统计逻辑。
 
@@ -77,15 +72,19 @@ hub.add_observer(metrics)
 
 for node_name, nm in metrics.get_graph_metrics().items():
     print(node_name, nm.succeeded, nm.failed, nm.skipped, nm.pending)
+
+single = metrics.get_node_metrics("StageA")
+print(single.input_total if single is not None else None)
 ```
 
 ## 与节点 / 装配的关系
 
 - `BaseTaskNode` **不再**自行持有计数与 `TaskMetrics`，节点计数统一由 `MetricsObserver` 依据事件维护。
-- 装配阶段（`assembly/core_run.py`）创建 `MetricsObserver` 并注册到节点 `ObserverHub`，其只读视图交叉提供给 `LogInlet` 与快照处理器使用。
+- 装配阶段（`assembly/core_run.py`）的 `run_graph_resources` / `run_node_resources` 创建 `MetricsObserver` 并注册到观察者 hub，其只读视图交叉提供给 `LogObserver` 与快照处理器使用。
 
 ## 注意事项
 
 1. **单作用域实例**：一个 `MetricsObserver` 服务一个运行作用域，避免在不同图 / 节点间复用导致计数串扰。
 2. **线程安全**：内部所有存储访问都在 `_lock` 保护下进行。
 3. **结构由事件驱动**：不依赖建图期结构事件，任何节点只要出现任务事件即可建立其存储格。
+4. **只观察不拦截**：`NodeEndEvent` 只更新状态与结束时间，不会自动清零计数。

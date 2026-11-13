@@ -1,6 +1,6 @@
 # tests/node/test_dispatch.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 
@@ -14,8 +14,8 @@
 | `TaskExecutor` | 宿主 | 构造最小可运行的执行器用作调度宿主 |
 | `_CtreeStub` / `_SequentialCtreeStub` | Mock | 替换 `ctree_client.emit` 为递增整数，避免与 sqlite 唯一约束冲突 |
 | `MetricsObserver` | 指标观察者 | 由 `_make_executor` 经 `e.observers.add_observer(...)` 注册，指标随事件更新；测试经 `metrics_of(executor)` 读取 |
-| `_CrashOnFailObserver` | 模拟 Observer | `on_task_fail` 内抛异常，验证 observer hub 的异常隔离 |
-| `_CrashOnRetryObserver` | 模拟 Observer | `on_task_retry` 内抛异常，验证重试处理链崩溃兜底 |
+| `_CrashOnFailObserver` | 模拟 Observer | 在 `on_event` 收到 `TaskFailEvent` 时抛异常，验证 observer hub 的异常隔离 |
+| `_CrashOnRetryObserver` | 模拟 Observer | 在 `on_event` 收到 `TaskRetryEvent` 时抛异常，验证重试处理链崩溃兜底 |
 | `_make_executor` / `_put` / `_put_termination` / `_collect_results` / `_run_dispatch` | 工具函数 | 构造执行器、注入任务 / 终止信号、收集结果、按模式运行调度器 |
 
 `_make_executor` 关键构成：
@@ -36,7 +36,7 @@
 | `test_retry_exhausted` | 持续抛错时仅输出终止信号 |
 | `test_termination_single_id` | 单个终止 ID 能正确传递到结果队列 |
 | `test_termination_multi_id` | 多个终止 ID 合并后只输出 1 个终止信号 |
-| `test_success_fanout_creates_distinct_downstream_ids` | 成功扇出时为每个真实下游生成独立 `TaskEnvelope.get_id()`，并经 `LifecycleSpout` 持久化后 `get_success_pairs()` 能读回结果 |
+| `test_success_fanout_creates_distinct_downstream_ids` | 成功扇出时为每个真实下游生成独立 `TaskEnvelope.get_id()`；用例注册并启动 `LifecycleObserver`，经其内部 `LifecycleInlet` / `LifecycleSpout` 持久化后，`get_success_pairs()` 能读回结果 |
 
 ### `TestDispatchThread` — 线程调度
 
@@ -55,8 +55,8 @@
 
 | 用例 | 覆盖目标 |
 |------|---------|
-| `test_fail_handler_crash_keeps_termination` | `_CrashOnFailObserver` 的 `on_task_fail` 抛 `RuntimeError`，异常被 observer hub 隔离（不逃逸到调度路径）；`observer.calls == 1`，`handle_task_fail` 照常完成失败记账（`failed == 1`），结果队列仅剩终止信号 |
-| `test_retry_handler_crash_keeps_termination` | `_CrashOnRetryObserver` 的 `on_task_retry` 抛异常时同样被 hub 隔离；调度继续直到重试耗尽，`observer.calls == 1`，最终计入一次失败且终止信号照常发出 |
+| `test_fail_handler_crash_keeps_termination` | `_CrashOnFailObserver` 在 `on_event(TaskFailEvent)` 中抛 `RuntimeError`，异常被 observer hub 隔离（不逃逸到调度路径）；`max_retries=0` 表示不重试，任务只执行一次；`observer.calls == 1`，`handle_task_fail` 照常完成失败记账（`failed == 1`），结果队列仅剩终止信号 |
+| `test_retry_handler_crash_keeps_termination` | `_CrashOnRetryObserver` 在 `on_event(TaskRetryEvent)` 中抛异常时同样被 hub 隔离；`max_retries=1` 时调度继续直到重试耗尽，`observer.calls == 1`，最终计入一次失败且终止信号照常发出 |
 
 ### `TestDispatchCoreBehavior` — 跨模式参数化
 
@@ -131,8 +131,10 @@ pytest tests/node/test_dispatch.py -k "CoreBehavior" -v
 
 - 终止信号通过公开 API `executor.task_queue.put(TerminationSignal(_id=..., source="input"))` 注入，由调度器 `_process_termination_signal()` 合并后退出循环，不直接操作内部终止 ID 池。
 - `_CtreeStub` 起始 ID 默认为 42，避免与 sqlite 唯一约束冲突；`test_success_fanout_creates_distinct_downstream_ids` 另用 `_SequentialCtreeStub`（起始 100）以区分每个下游的 ID。
-- `test_success_fanout_creates_distinct_downstream_ids` 直接驱动 dispatch（不经 `node.run`），因此手动装配 `LifecycleSpout` / `LifecycleInlet` 并注册到 executor，模拟持久化回归。
+- `test_success_fanout_creates_distinct_downstream_ids` 直接驱动 dispatch（不经 `node.run`），因此手动创建 `LifecycleObserver`、通过 `executor.add_observer(...)` 注册并 `start()`，模拟持久化回归；观察者内部自行绑定 `LifecycleInlet` / `LifecycleSpout`。
 - 通过公开 API（`task_queue.put` / `yield_queue.add_queue`）注入测试夹具，避免修改 `executor` 内部状态；结果收集队列经弱引用字典回溯。
 - 失败 / 重试 observer 抛出的异常在 observer hub 层被隔离（并转交该观察者自身的 `handle_exception`），因此 `handle_task_fail` 仍能正常完成失败记账并返回，调度循环继续消费到终止信号。
+- 重试次数语义：`BaseTaskNode` 用 `max(max_retries, 0)` 夹取配置，调度循环按 `range(1, max_retries + 2)` 执行，因此 `max_retries=0` 表示不重试、最多执行 1 次；`max_retries=n` 最多执行 `n+1` 次。
+- `thread` / `async` 调度都以 `pending` 集合限制在飞任务数量：达到 `max_workers` 时先等待至少一个完成再接收下一个，因此并发上限严格受 `max_workers` 约束，同时支持流式到达的任务。
 - `TestHandlerCrashKeepsTerminationSignal` 的两个用例都断言 `observer.calls == 1` 与 `results == [TerminationSignal]`，失败场景额外断言 `metrics_of(executor).get_node_metrics(name).failed == 1`。
 - 相关实现位于 `src/celestialflow/node/core_dispatch.py` 与 `src/celestialflow/node/core_node.py`。

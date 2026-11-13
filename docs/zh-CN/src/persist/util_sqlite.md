@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_sqlite.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `persist/util_sqlite.py` 提供 SQLite 数据库的连接管理与记录读写工具，是 `LifecycleSpout` 的底层存储引擎。
 
@@ -234,4 +234,4 @@ results = load_task_result_records(db_path, node="StageA")  # [(task, result)]
 3. **过滤规则**：`normalize_record` 会过滤掉缺少 `event_id` 的记录（返回 `None`），`insert_record` 随即返回 `False`。
 4. **JSON 字段**：`task_json` 与 `result_json` 在库中是 `json.dumps` 后的字符串；`row_to_record_dict` 与各 `load_*` 函数读取时会 `json.loads` 还原。
 5. **`retry_times`**：由 `update_retry_by_event_id` 维护，用于记录任务在晋升前的重试次数。
-6. **业务字段显式写入**：`node` 与 `status` 为业务字段，须由调用方（如 `LifecycleInlet`）在写入记录时显式提供，`normalize_record` 不做默认推断。
+6. **业务字段显式写入**：`node` 与 `status` 为业务字段，须由调用方（如 `LifecycleObserver` 构造的记录）在写入记录时显式提供，`normalize_record` 不做默认推断。

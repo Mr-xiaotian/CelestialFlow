@@ -1,6 +1,6 @@
 # tests/runtime/test_types.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `celestialflow.runtime.util_types` 中的值对象、上下文管理器、可选加锁值包装器、生命周期状态枚举与事件常量，确保它们在运行时被各类节点/队列正确使用。
@@ -35,10 +35,11 @@
 ## 运行方式
 
 ```bash
-pytest tests/runtime/test_types.py -v
-pytest tests/runtime/test_types.py -k "value_wrapper or noop" -v
-pytest tests/runtime/test_types.py -k "termination" -v
+uv run pytest tests/runtime/test_types.py -v
+uv run pytest tests/runtime/test_types.py -k "value_wrapper or noop" -v
+uv run pytest tests/runtime/test_types.py -k "termination" -v
 ```
 
 ## 注意事项
 - 测试代码位于 `tests/runtime/test_types.py`，对应实现位于 `src/celestialflow/runtime/util_types.py`。
+- 本文件未断言 `CTreeEvent.TASK_SKIP`（只覆盖 `TASK_INPUT` / `TASK_SUCCESS` / `TASK_ERROR` / `TASK_RETRY_PREFIX` / 两个终止常量），也未覆盖同模块的 `NodeMetrics` 与 `MetricsView`（前者在 `tests/reporter/test_snapshot.py` 中构造使用）。

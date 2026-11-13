@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_log_level.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `runtime/util_log_level.py` 提供日志级别的默认值与规范化校验，**仅供运行入口内部使用**，不属于对外配置 API。
 
@@ -26,7 +26,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 |----------|------|
 | `TaskGraph.run()` / `run_async()` / `restore_db()` 的 `log_level` | 图级运行入口 |
 | `BaseTaskNode.run()` 等节点的 `log_level` | 单节点运行入口 |
-| `LogInlet.__init__()` | 日志过滤器构造默认值 |
+| `LogObserver.__init__()` | 日志观察者构造默认值 |
 | `assembly.core_run.run_graph_resources()` / `run_node_resources()` | 运行期资源装配 |
 
 ### normalize_log_level

@@ -1,6 +1,6 @@
 # CelestialFlow 技术分享
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ---
 
@@ -93,7 +93,7 @@ graph TB
     subgraph 运行时基础设施
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[NodeMetrics 指标]
-        I --> L[LogInlet / LifecycleInlet]
+        I --> L[LogObserver / LifecycleObserver]
         I --> M[CelestialTree 事件]
     end
 
@@ -258,7 +258,7 @@ graph TD
   - `processed`：`succeeded + failed + skipped`
   - `pending`：`input_total - processed`
 
-- **状态与时间**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）由 `on_node_start`/`on_node_end` 维护；`start_time` / `end_time` 直接取对应事件携带的时间戳，指标观察者不再自行采样系统时间
+- **状态与时间**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）由 `MetricsObserver.on_event()` 在收到 `NodeStartEvent` / `NodeEndEvent` 时维护；`start_time` / `end_time` 直接取对应事件携带的时间戳，指标观察者不再自行采样系统时间
 - **终止判定**：`is_tasks_finished()` 比较输入与已处理计数
 
 ---
@@ -320,21 +320,34 @@ sequenceDiagram
 
 ```mermaid
 graph LR
+    subgraph 事件源
+        E["事件<br/>GraphStartEvent / TaskSuccessEvent / ..."]
+    end
+
+    subgraph 观察者层
+        S1[LogObserver] --> A[LogInlet]
+        S2[LifecycleObserver] --> C[LifecycleInlet]
+    end
+
     subgraph 生产端
-        A[LogInlet] -->|Queue| B[LogSpout]
-        C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
+        A -->|Queue| B[LogSpout]
+        C -->|Queue| D[LifecycleSpout]
     end
 
     subgraph 消费端
-        B --> E["logs/task_logger(DATE).log"]
-        D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
+        B --> E2["logs/flow_log(DATE).log"]
+        D --> F["lifecycles/DATE/flow_lifecycle(HH-MM-SS-ms).sqlite3"]
     end
+
+    E --> S1
+    E --> S2
 ```
 
-- **Spout-Inlet 模式**：
-  - Inlet 端（线程安全）：格式化记录，写入共享队列
+- **Observer → Inlet → Spout 三层**：
+  - Observer 端（线程安全）：在统一的 `on_event(event)` 中把事件翻译为 `LogRecord` / `LifecycleRecord`（`InsertRecord` 等 frozen dataclass）
+  - Inlet 端（线程安全）：只继承 `BaseInlet`，通过 `send(record)` 把记录写入共享队列
   - Spout 端（守护线程）：从队列消费，写入存储
-  - 通过 `TerminationSignal` 优雅停止
+  - 观察者的 `start()` / `stop()` 负责成对启停 inlet 与 spout，通过 `TerminationSignal` 优雅停止
 
 - **日志分级**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 

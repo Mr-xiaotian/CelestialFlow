@@ -1,14 +1,16 @@
 # tests/graph/test_graph.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
-全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步/线程执行、错误传播、SQLite 回放、运行时快照计数、拓扑分析、执行模式矩阵、源节点推导（含 SCC）与含环图行为。
+全面验证 `TaskGraph` 及其各种拓扑子类（`TaskChain`、`TaskCross`、`TaskGrid`）的核心功能，涵盖同步/异步/线程执行、任务与终止信号注入、错误传播、SQLite 回放、运行时快照计数、拓扑分析、执行模式矩阵、源节点推导（含 SCC）与含环图行为。
 
 ## 核心测试对象
 - `TaskGraph`: 通用任务图容器
 - `TaskChain`, `TaskCross`, `TaskGrid`: 预定义拓扑结构
 - `TaskExecutor`: 图节点定义
+- `TaskGraph.inject_tasks` / `inject_terminations`: 按节点名注入任务与终止信号的入口
+- `run` / `run_async` / `start` / `start_async` / `restore_db`: 图运行入口
 
 ## 测试范围
 
@@ -16,7 +18,7 @@
 
 | 测试类 | 用例数 | 覆盖点 |
 |--------|--------|--------|
-| `TestTaskGraphBasic` | 10 | set_ctree 更新已有节点、未知节点名称查找异常、两节点 DAG、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
+| `TestTaskGraphBasic` | 12 | set_ctree 更新已有节点、未知节点名称查找异常、两节点 DAG、只读映射与一次性可迭代对象输入、未知节点注入的 `ExceptionGroup`、扇出、扇入、错误传播、DB 回放、DB 错误类型过滤回放、DB 保留 pending 记录、finish 后统一抛出异常组 |
 | `TestTaskGraphSnapshotCounts` | 3 | fan-in 上游计数、fan-out 下游计数、metrics 推导 `processed`/`pending` |
 | `TestTaskGraphAsync` | 6 | async 模式两节点、扇出、扇入、错误传播、async execution_mode、async finish 后统一抛出异常组 |
 | `TestTaskGraphStructure` | 3 | Chain、Cross、Grid 结构 |
@@ -26,7 +28,7 @@
 | `TestSourceNodes` | 5 | 线性图 source、扇入 source、菱形图 source、单源 SCC 代表点、多源 SCC 各返回一点 |
 | `TestCyclicGraph` | 3 | serial 模式含环图抛错、含环图 `is_dag()` 检测、环内同层 + 尾巴层级 |
 | `TestTaskGraphReporterCapabilities` | 3 | `inject_tasks` / `inject_terminations` 注入并处理未知节点 |
-| **合计** | **51** | |
+| **合计** | **53** | |
 
 > **说明**: 此处统计的是 `test_graph.py` 中的测试类。`TaskLoop` 和 `TaskWheel` 的专用测试在 `test_structure.py`。
 
@@ -42,13 +44,15 @@ graph LR
 ```
 
 - **两节点 DAG** (`test_graph_dag_two_nodes`): 验证 A→B 数据流正确，两节点各成功 3 个。
+- **只读映射与生成器输入** (`test_run_accepts_mapping_of_iterables`): `run()` 接受 `MappingProxyType` 这类只读映射，值可以是生成器等一次性可迭代对象（每个值只遍历一次），两节点各成功 3 个。
+- **未知节点产生异常组** (`test_run_raises_exception_group_for_unknown_node`): `run({"s1": [1], "missing": [2]})` 抛出 `ExceptionGroup`，其中只包含一个 `UnknownNodeError`，且消息包含未知节点名 `missing`。
 - **扇出** (`test_graph_fan_out`): 一个上游分发到多个下游，`sink_a` 和 `sink_b` 各成功 2 个。
 - **扇入** (`test_graph_fan_in`): 多个上游汇聚到一个下游，merge 节点收到 4 个任务。
 - **错误传播** (`test_graph_error_propagation`): 验证 `50` 触发 `ValueError` 不阻断流程，下游仅接收成功任务（node1 成功 2 / 失败 1，node2 成功 2 / 失败 0）。
 - **DB 回放** (`test_graph_restore_db`): `restore_db` 默认读取 `failed` 与 `pending` 记录并按节点名分组回放。
 - **DB 错误类型过滤** (`test_graph_restore_db_filters_error_type_when_enabled`): `restore_db(..., statuses=["failed"], filter_by_error_type=True)` 按各节点的 `retry_exceptions` 过滤 `error_type`。
 - **DB 保留 pending 记录** (`test_graph_restore_db_filter_keeps_pending_records`): 过滤开启时 `pending` 记录仍继续回放。
-- **未知节点名称异常** (`test_graph_node_lookup_unknown_node_raises`): 按节点名从 `node_dict` 查找找不到时抛出 `NodeNotFoundError`（`pytest.raises` 捕获用例中显式抛出的该异常）。
+- **未知节点名称异常** (`test_graph_node_lookup_unknown_node_raises`): 模拟按节点名查找失败的分支——`graph.node_dict.get("unknown_node")` 返回 `None` 后显式抛出 `NodeNotFoundError`，由 `pytest.raises` 捕获。该用例验证的是异常类型约定，而非某个图 API 的自动抛错行为（`run` 路径的未知节点由 `UnknownNodeError` + `ExceptionGroup` 覆盖）。
 - **set_ctree 更新已有节点** (`test_set_ctree_updates_existing_nodes`): 先 `set_nodes` 再 `set_ctree` 时，已有节点也应共享同一事件客户端。
 - **finish 后统一抛出异常组** (`test_start_raises_exception_group_after_finish`): 同步 `start` 在 `_finish_start` 后统一抛出收集到的 `ExceptionGroup`。
 
@@ -113,11 +117,19 @@ graph LR
 | `test_cyclic_layers` | `get_layers()` 中环内节点 (s1,s2,s3) 同层，尾巴 s4 在环层级 + 1 |
 
 #### 注入能力 (`TestTaskGraphReporterCapabilities`)
-- `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: 先为已存在节点注入任务，再对未知节点抛出 `UnknownNodeError`；注入任务在 `run({})` 路径下被消费。
-- `test_inject_tasks_with_only_valid_nodes_does_not_raise`: 全部目标节点均存在时不抛错。
-- `test_inject_terminations_injects_valid_nodes_and_raises_for_missing`: 先注入已存在节点的终止信号，再对未知节点抛出 `UnknownNodeError`；通过注册的 `Observer.on_termination_input` 收集实际收到终止信号的节点。
+- `test_inject_tasks_injects_valid_nodes_and_raises_for_missing`: `graph.inject_tasks({"s1": [1, 2], "missing": [9]})` 先为已存在节点 `s1` 注入任务，再对未知节点抛出 `UnknownNodeError`；已注入任务保留在队列中，随后 `graph.run({})` 消费它们，`s1` 成功 2 个。
+- `test_inject_tasks_with_only_valid_nodes_does_not_raise`: 全部目标节点均存在时不抛错，`run({})` 后 `s1` 成功 2 个。
+- `test_inject_terminations_injects_valid_nodes_and_raises_for_missing`: `graph.inject_terminations(["s1", "missing"])` 先为 `s1` 注入终止信号（节点侧 `put_signal()`），再对未知节点抛出 `UnknownNodeError`。用例注册一个 `Observer` 子类，覆写统一入口 `on_event`，用 `match event` 匹配 `TerminationInputEvent` 并记录 `event.node`，最终断言只有 `"s1"` 收到终止信号。
 
 ## 重要细节
+
+### 运行与注入语义
+`run()` / `run_async()` 的执行顺序为：`_build_analysis()` → `_inject_observers()` → `inject_tasks(init_tasks_dict)` → `if_put_signal` 为真时 `inject_terminations(self._source_names)` → `start()` / `start_async()`。
+
+- `inject_tasks` 的签名是 `Mapping[str, Iterable[Any]]`，每个值只被遍历一次，因此 `tuple`、生成器、`MappingProxyType` 均可直接传入。
+- 两个注入方法都采用「先尽力注入、后统一报错」策略：单个未知节点不会导致其余节点的任务或终止信号被丢弃，最后统一抛出 `UnknownNodeError`（消息中列出全部未知节点）。
+- `run` / `run_async` 会把注入或执行阶段抛出的异常收回 `ExceptionGroup("Errors occurred during run", [...])`，因此调用方看到的是聚合异常而非裸 `UnknownNodeError`。
+- 终止信号注入的目标是分析阶段得到的源节点列表（`self._source_names`），节点侧统一走 `put_signal()`；图中不存在单独的源信号写入接口。
 
 ### 终止信号行为
 - 含环图通过 `run()` 启动并注入任务（`run` 默认 `if_put_signal=True`，自动为源节点补发终止信号）以确保测试退出。
@@ -125,10 +137,17 @@ graph LR
 
 ### 数据库回放
 - 回放用例模块级辅助函数 `_insert_records(sqlite_path, records)` 通过 `connect_db` 建连与建表，再逐条调用 `insert_record(conn, record)` 写入，遇到重复 `event_id` 的 `sqlite3.IntegrityError` 时跳过，最后统一 `commit` 并关闭连接。
-- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True)`：`statuses` 默认 `["failed", "pending"]`；`filter_by_error_type` 为关键字参数，开启后按各节点 `get_retry_error_type_names()` 过滤 `error_type`，但 `pending` 记录始终保留。
+- `restore_db(db_path, statuses=None, *, filter_by_error_type=False, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL, report=None)`：`statuses` 默认 `["failed", "pending"]`；`filter_by_error_type` 为关键字参数，开启后按各节点 `get_retry_error_type_names()` 过滤 `error_type`，但 `pending` 记录始终保留；回放时数据库中不存在于图里的节点名会被直接跳过。
 
 ### Lambda 支持
 线程模式下可使用 lambda 作为任务函数（`test_graph_thread_with_lambda`）。
+
+### 测试装置与 patch
+- `tmp_path`：3 个 DB 回放用例把 sqlite 文件建在 pytest 临时目录下，互不污染。
+- `monkeypatch`：`test_start_raises_exception_group_after_finish` 与 `test_start_async_raises_exception_group_after_finish` 通过 `monkeypatch.setattr(graph, "_prepare_start", crash_prepare)` 注入抛错函数，并把 `_finish_start` 替换为返回 `[RuntimeError("finish failed")]` 的 lambda；由于 `_prepare_start` 先抛错，`start()` / `start_async()` 不会继续执行任何节点，用例专注于异常收集顺序（`["prepare failed", "finish failed"]`）。
+- `metrics_of`（定义于 `tests/conftest.py`）：通过 `node.observers.find(MetricsObserver)` 从 hub 取回指标观察者，本文件所有成功/失败/计数断言都经它读取。
+- 模块级任务函数：同步 `add_one` / `double` / `to_str` / `add_offset_10`，异步 `async_add_one` / `async_double` / `async_to_str` / `async_add_offset_10`；其中带偏移的版本在 `x > 30` 时抛 `ValueError`，用于制造失败任务，`*_10` 包装则满足执行器「单参数可调用对象」约束。
+- `_insert_records(sqlite_path, records)`：复用 `connect_db` / `insert_record` 直接写库，重复 `event_id` 触发 `sqlite3.IntegrityError` 时跳过，返回实际写入条数。
 
 ## 依赖
 
@@ -139,30 +158,34 @@ graph LR
 | `celestialflow.persist.util_sqlite` | `connect_db`, `insert_record`（DB 回放用例写入测试记录） |
 | `celestialflow.runtime.util_errors` | `ConfigurationError`, `NodeNotFoundError`, `UnknownNodeError` |
 | `celestialflow.runtime.util_event` | `LocalEventClient`（`set_ctree` 用例） |
-| `celestialflow.observer` | `Observer`, `TerminationInputEvent`（Reporter 注入用例） |
+| `celestialflow.observer` | `Event`、`Observer`、`TerminationInputEvent`（Reporter 注入用例通过 `on_event` 统一入口按事件类型分派） |
+| 标准库 | `sqlite3`（`IntegrityError` 去重）、`types.MappingProxyType`（只读映射输入用例） |
 | `conftest` | `metrics_of`（从节点 hub 的观察者快照中取回 `MetricsObserver` 供断言） |
 
 ## 运行方式
 
 ```bash
 # 全部执行
-pytest tests/graph/test_graph.py -v
+uv run pytest tests/graph/test_graph.py -v
 
 # 仅结构测试（含多线程）
-pytest tests/graph/test_graph.py::TestTaskGraphStructure -v
+uv run pytest tests/graph/test_graph.py::TestTaskGraphStructure -v
 
 # 仅分析测试（最快，无任务执行）
-pytest tests/graph/test_graph.py::TestTaskGraphAnalysis -v
+uv run pytest tests/graph/test_graph.py::TestTaskGraphAnalysis -v
 
 # 仅快照计数测试
-pytest tests/graph/test_graph.py::TestTaskGraphSnapshotCounts -v
+uv run pytest tests/graph/test_graph.py::TestTaskGraphSnapshotCounts -v
+
+# 仅注入能力测试
+uv run pytest tests/graph/test_graph.py::TestTaskGraphReporterCapabilities -v
 ```
 
 ## 性能参考
 
 | 测试 | 耗时 |
 |------|------|
-| `TestTaskGraphBasic` | < 0.2s（DB 回放用例约 0.06s，其余 < 0.02s） |
+| `TestTaskGraphBasic` | < 0.5s（DB 回放用例约 0.1s，其余 < 0.05s） |
 | `TestTaskGraphSnapshotCounts` | < 0.1s |
 | `TestTaskGraphAsync` | < 0.1s |
 | `TestTaskGraphStructure` | < 0.1s |
@@ -173,7 +196,7 @@ pytest tests/graph/test_graph.py::TestTaskGraphSnapshotCounts -v
 | `TestCyclicGraph` | < 0.1s |
 | `TestTaskGraphReporterCapabilities` | < 0.1s |
 
-> 整个文件（51 个用例）在当前开发机上约 1s 内完成。
+> 整个文件（53 个用例）在当前开发机上约 1s 内完成。
 
 ## 相关文件
 

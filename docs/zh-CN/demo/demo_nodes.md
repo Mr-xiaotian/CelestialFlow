@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -29,7 +29,7 @@ flowchart TD
 **图结构**：含环图（`Parser → GenURLs`）
 
 ### `demo_splitter_1`
-演示大数据包拆分：输入 `range(100_000)` 被包装在列表中传入 `TaskSplitter`，下游逐个接收处理，避免一次性加载过多任务到内存。
+演示大数据包拆分：输入 `range(100_000)` 被包装在列表中传入 `TaskSplitter`，下游逐个接收处理，避免一次性加载过多任务到内存。该场景当前未被 `__main__` 调用，且与 `demo_splitter_0` 一样，`TaskSplitter("Splitter")` 缺少必需的 `func`，直接调用会先抛 `TypeError`。
 
 ### `demo_router_0`
 演示 `TaskRouter` 根据奇偶性将任务分发到不同下游节点。
@@ -53,7 +53,7 @@ flowchart LR
 
 ## 可能出现的问题
 
-1. **`demo_splitter_0` 当前会构造失败**：源码中 `TaskSplitter("Splitter")` 没有传入 `func`，而 `BaseTaskNode.__init__` 要求位置参数 `func`，因此 `python demo/demo_nodes.py` 会在建图阶段抛出 `TypeError: ... missing 1 required positional argument: 'func'`，后续的 `graph.set_nodes(...)` 与 `graph.run(...)` 都不会执行。为 `TaskSplitter` 补一个拆分函数（如 `lambda urls: urls`）后才能跑通。
+1. **`demo_splitter_0` 与 `demo_splitter_1` 当前都会构造失败**：源码中两处 `TaskSplitter("Splitter")` 都没有传入 `func`，而 `BaseTaskNode.__init__` 要求位置参数 `func`，因此 `python demo/demo_nodes.py` 会在建图阶段抛出 `TypeError: ... missing 1 required positional argument: 'func'`，后续的 `set_nodes(...)` 与 `run(...)` 都不会执行。为 `TaskSplitter` 补一个拆分函数（如 `lambda items: items`）后才能跑通。
 2. **长耗时**：`demo_splitter_0` 中各阶段含 4-6 秒随机 sleep，完整执行可能超过 1 分钟。
 3. **含回环，可能不自动结束**：`demo_splitter_0` 存在 `Parser → GenURLs` 回环，且 `graph.run(..., if_put_signal=False)` 不注入自动终止信号；部分 URL（如解析成功的 `url_1_1`）会不断产生新 URL 继续循环，若长时间没有新输出，建议按 **Ctrl+C** 手动终止。
 4. **无断言**：演示脚本，不验证结果正确性。
@@ -69,7 +69,7 @@ python demo/demo_nodes.py
 # 如将 demo_splitter_0() 替换为 demo_router_0()
 ```
 
-> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用（`demo_router_0()` 在源码中被注释），需要手动在 `__main__` 中执行或取消注释才能运行。另外 `demo_splitter_0()` 目前会因 `TaskSplitter` 缺少 `func` 而抛 `TypeError`（见「可能出现的问题」第 1 条）。
+> **注意**：当前 `__main__` 默认仅调用 `demo_splitter_0()`；`demo_splitter_1()` 与 `demo_router_0()` 均未被调用（`demo_router_0()` 在源码中被注释），需要手动在 `__main__` 中执行或取消注释才能运行。另外 `demo_splitter_0()` 与 `demo_splitter_1()` 目前都会因 `TaskSplitter` 缺少 `func` 而抛 `TypeError`（见「可能出现的问题」第 1 条）。
 
 ## 预期行为
 

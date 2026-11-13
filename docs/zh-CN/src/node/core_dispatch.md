@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_dispatch.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `core_dispatch.py` 定义了 `TaskDispatch[T, R, Y]`，即 `BaseTaskNode` 持有的"任务调度器"组件。它从节点对象的输入队列中拉取 `TaskEnvelope` / 终止信号，按 `execution_mode` 串行 / 线程 / 异步地调用节点回调，并负责合并终止信号、初始化 / 释放线程池，以及把 worker 最外层捕获到的异常交回宿主 `handle_task_fail` 统一处理。
 
@@ -108,9 +108,18 @@ yield_queue.put(termination_signal)
 | `_call_async(task) -> R` | 调用异步回调；若返回值不可 await，抛 `ConfigurationError` |
 | `_worker(envelope) -> None` | 同步执行单个任务：先判断 `skip_func`，再 `for fail_times in range(1, max_retries + 2)` 重试循环；命中 `retry_exceptions` 时调用 `task_node.log_task_retry`，达到重试上限或非可重试异常时调用 `handle_task_fail`；成功时调用 `process_task_success`。最外层 `try` 捕获到未处理异常时同样调用 `task_node.handle_task_fail(task_envelope, exception)` 兜底 |
 | `_async_worker(envelope) -> None` | 异步版 `_worker`，使用 `await self._call_async(task)`；最外层异常同样交给 `handle_task_fail` 兜底 |
-| `_process_termination_signal(pool) -> TerminationSignal` | 把 `TerminationIdPool.ids` 中的所有 id 通过 `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` 合并为单个 `TerminationSignal(source=task_node.get_name())`，并广播 `TerminationMergeEvent` |
+| `_process_termination_signal(pool) -> TerminationSignal` | 把 `TerminationIdPool.ids` 中的所有 id 通过 `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` 合并为单个 `TerminationSignal(source=task_node.get_name())`，并通过 `task_node.observers.on_event(TerminationMergeEvent(...))` 广播 |
 | `_init_pool(execution_mode)` | 仅当 `execution_mode == "thread"` 且 `_pool is None` 时构造 `ThreadPoolExecutor(max_workers=self.max_workers)` |
 | `_release_pool()` | 关闭并清空 `_pool`（线程模式结束时调用） |
+
+### 重试次数语义
+
+`_worker` / `_async_worker` 都从宿主读取 `task_node.max_retries`（构造时已被 `max(max_retries, 0)` 夹取，因此恒 `>= 0`）：
+
+- `max_retries = 0`：`range(1, max_retries + 2)` 只产生一次迭代，即**不重试**；
+- `max_retries = n`：最多执行 `n + 1` 次（原始一次 + `n` 次重试）。
+
+是否重试还取决于异常是否命中 `task_node.retry_exceptions`；未命中则立即走 `handle_task_fail`。
 
 ### `_worker` 重试循环细节
 
@@ -202,7 +211,7 @@ classDiagram
 ## 注意事项
 
 1. **宿主类型是 `BaseTaskNode` 而非 `TaskExecutor`**：即使实际传入的是 `TaskSplitter` / `TaskRouter`，调度器也只通过 `BaseTaskNode` 接口访问宿主。
-2. **终止信号路径**：单条 `TerminationSignal` 在 `TaskInQueue` 中会与其他来源合并为 `TerminationIdPool`；调度器在收到池子时统一 emit `TERMINATION_MERGE` 并广播 `TerminationMergeEvent`。
+2. **终止信号路径**：单条 `TerminationSignal` 在 `TaskInQueue` 中会与其他来源合并为 `TerminationIdPool`；调度器在收到池子时统一 emit `TERMINATION_MERGE`，并通过 `observers.on_event(TerminationMergeEvent(...))` 广播。
 3. **线程池生命周期**：`_pool` 仅在 `dispatch_thread` 中临时存在，进入前 `_init_pool`、退出时 `_release_pool`，因此同一调度器不支持跨次 `start` 复用。
 4. **异步路径不阻塞事件循环**：`dispatch_async` 用 `asyncio.to_thread(task_queue.get)` 拉取输入，并通过 `pending` 集合的 `len` 与 `asyncio.wait(FIRST_COMPLETED)` 控制并发，实现"边收边跑"且不卡事件循环；不使用 `asyncio.Semaphore`。
 5. **worker 兜底异常回到宿主**：`_worker` / `_async_worker` 最外层 `except Exception` 调用 `task_node.handle_task_fail(task_envelope, exception)`，不再向观察者广播崩溃事件，也不再写入日志 inlet 的 `worker_crash`。

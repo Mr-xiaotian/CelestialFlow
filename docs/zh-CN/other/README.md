@@ -1,6 +1,6 @@
 # Other 模块
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/11/13
 
 ## 概述
 
@@ -79,7 +79,7 @@ worker.StartWorkerPool(
 
 1. **CelestialTree 客户端**:
    - 与 `TaskGraph` 紧密集成，自动记录任务事件
-   - 依赖 `observability` 模块的事件发射机制
+   - 依赖 `observer` 模块的事件发射机制（`Event` 子类经 `ObserverHub.on_event()` 分发）
    - 为 `web` 模块提供溯源数据支持
 
 2. **Go Worker**:

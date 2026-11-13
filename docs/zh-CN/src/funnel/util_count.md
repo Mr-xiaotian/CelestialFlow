@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/util_count.py
 
-> 📅 最后更新日期: 2026/09/24
+> 📅 最后更新日期: 2026/11/13
 
 `funnel/util_count.py` 提供了一个线程安全的待处理计数器 `PendingCounter`，用于统计某个 `BaseSpout` 对应记录中尚未完成处理的数量。
 
@@ -54,5 +54,5 @@ print(f"停止后待处理: {spout.get_pending_count()}")
 ## 注意事项
 
 1. **统计口径**：`BaseSpout._spout()` 在记录出队后先调用 `_handle_record()`，处理完成（包括异常）后才调用 `decrement()`，因此 `get_pending_count()` 包含"已出队但仍在处理"的记录。
-2. **回滚机制**：`BaseInlet._funnel()` 在入队前调用 `increment()`，若入队失败会立即调用 `decrement()` 回滚计数。
+2. **回滚机制**：`BaseInlet.send()` 在入队前调用 `increment()`，若入队失败会立即调用 `decrement()` 回滚计数。
 3. **线程安全**：所有操作均通过 `Lock` 保护，可在多生产者/单消费者场景下安全使用。

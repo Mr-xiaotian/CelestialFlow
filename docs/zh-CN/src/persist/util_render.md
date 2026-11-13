@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_render.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 `util_render.py`（原 `graph/util_render.py`，已迁移至 `persist`）提供了**图结构渲染工具**。当前仅包含一个函数 `render_structure_list`，用于将图结构（节点、邻接表、源节点）渲染为**带边框的树形文本列表**，供日志模块在任务图启动时输出图结构概览。
 
@@ -66,7 +66,7 @@ for line in lines:
 
 ## 调用方
 
-`LogInlet`（`persist/core_log.py`）在 `on_graph_start` 中调用本函数，把 `GraphStartEvent` 携带的图元信息（`nodes` / `edges` / `source_nodes`）渲染为结构文本后逐行写入日志。
+`LogObserver`（`persist/core_log.py`）在处理 `GraphStartEvent` 时调用本函数，把事件携带的图元信息（`nodes` / `edges` / `source_nodes`）渲染为结构文本后逐行写入日志。
 
 ## 注意事项
 

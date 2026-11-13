@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 简介
 
@@ -63,7 +63,7 @@
 
 | 导出符号 | 说明 |
 |----------|------|
-| `Observer` | 观察者基类，定义 on_node_start / on_task_success / on_task_fail 等回调接口 |
+| `Observer` | 观察者基类，只定义统一入口 `on_event(event: Event)` 与 `handle_exception()`；所有事件类型通过 `Event` 子类区分 |
 | `ObserverHub` | 观察者集线器，将事件广播给一组子观察者 |
 | `PrintObserver` | 基于 print 的控制台进度观察者，构造时需传入名称前缀；计数器线程安全 |
 
@@ -116,6 +116,19 @@
 | `TerminationSignal` | 终止信号，用于控制图执行流程的结束 |
 
 ---
+
+## 未通过包根导出的常用符号
+
+包根的 `__all__` 只有上表列出的 25 个符号。以下子包中的常用符号可以独立导入，但**不会**出现在 `from celestialflow import ...` 中：
+
+| 子包 | 常用符号 | 导入方式 | 说明 |
+|------|----------|----------|------|
+| `assembly` | `run_graph_resources` / `run_node_resources` | `from celestialflow.assembly import ...` | 运行期资源装配上下文，通常由 `TaskGraph.run()` / `TaskExecutor.run()` 内部调用 |
+| `reporter` | `PushInlet` / `PushSpout` / `NullPushSpout` / `PushSnapshotHandler` / `InjectionHandler` / `InjectionTarget` | `from celestialflow.reporter import ...` | 远程上报、状态快照与任务注入 |
+| `persist` | `LifecycleObserver` / `LogObserver` / `LifecycleSpout` / `LogSpout` 等 | `from celestialflow.persist import ...` | 任务生命周期与运行日志持久化 |
+| `observer` | `MetricsObserver`、`Event` 及全部事件类型 | `from celestialflow.observer import ...` | 指标观察者与事件 DTO |
+
+> 包根中的 `benchmark_executor` / `benchmark_graph` / `format_table` / `TerminationSignal` / `load_tasks_grouped_by_node` 是**按文件直接导入**的例外；除这 5 个符号外，其余 `util_*` 工具函数与类型仍应通过具体模块路径导入，不属于包级公开 API。
 
 ## `__all__` 列表
 
@@ -308,7 +321,7 @@ graph TD
     Init --> R
 ```
 
-> 依赖方向说明：`ReportConfig` 来自 `celestialflow.runtime` 的再导出；`benchmark_*`、`format_table`、`TerminationSignal`、`load_tasks_grouped_by_node` 则是包根按文件直接导入，不经过对应子包的 `__init__.py`。`benchmark` 位于依赖链顶层，不会被其他子模块导入。
+> 依赖方向说明：`ReportConfig` 来自 `celestialflow.runtime` 的再导出；`benchmark_*`、`format_table`、`TerminationSignal`、`load_tasks_grouped_by_node` 则是包根按文件直接导入，不经过对应子包的 `__init__.py`。`benchmark` 位于依赖链顶层，不会被其他子模块导入。`assembly` 与 `reporter` 不被包根导入，因此不出现在上图；它们由 `graph` / `node` 的运行入口在内部使用。
 
 ## 注意事项
 

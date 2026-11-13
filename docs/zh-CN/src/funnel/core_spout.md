@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_spout.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 `BaseSpout` 是所有出口类的基类，提供后台线程监听队列并处理记录的通用功能。
 
@@ -26,8 +26,9 @@ def start(self):
 ```
 
 流程：
-1. 调用 `_before_start()` 钩子
-2. 若线程未运行，创建并启动守护线程，执行 `_spout()` 方法
+1. 若 `_thread` 不为 `None` 且 `is_alive()` 为真，说明后台线程已在运行，**直接返回**（`start()` 幂等，此时不会再次调用 `_before_start()`）
+2. 否则调用 `_before_start()` 钩子
+3. 创建并启动守护线程，执行 `_spout()` 方法
 
 ### stop
 
@@ -111,6 +112,7 @@ stateDiagram-v2
     }
     Starting --> Running
     Running --> Running: _handle_record()
+    Running --> Running: start()（线程已存活，直接返回）
     Running --> Stopping: stop()
     state Stopping {
         [*] --> SignalSent: 发送 TERMINATION_SIGNAL
@@ -231,4 +233,5 @@ print(f"处理了 {spout.count} 条记录")  # 100
 3. **优雅停止**: 通过发送 `TerminationSignal` 通知线程停止，`join(timeout=5)` 等待最多 5 秒；超时未停止会抛出 `RuntimeStateError`。
 4. **异常隔离**: 单条记录处理失败打印 traceback 后继续，不会导致线程终止。
 5. **队列清理**: 停止时不会清理队列中的剩余记录。
-6. **待处理计数**: 计数器在 `_funnel()` 入队前增加、在 `_spout()` 处理完成后减少，可用于判断数据是否全部消费。
+6. **待处理计数**: 计数器在 `BaseInlet.send()` 入队前增加、在 `_spout()` 处理完成后减少，可用于判断数据是否全部消费。
+7. **`start()` 幂等**: 线程存活期间重复调用 `start()` 不会新建线程，也不会重复触发 `_before_start()`。

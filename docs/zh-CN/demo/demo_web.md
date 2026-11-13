@@ -1,16 +1,16 @@
 # demo/demo_web.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
-本文件包含两个演示：`demo_forest()`（两棵独立树状 DAG）与 `demo_topology_topology()`（6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图）。两者都在调用 `graph.run(...)` 时显式传入 `report=ReportConfig(...)`，由框架按节拍把状态、结构、错误与生命周期数据推送到 celestialflow-web，用于观察任务的运行情况。
+本文件包含两个演示：`demo_forest()`（同一 `TaskGraph` 内两个互不相连的 DAG 组件）与 `demo_topology_topology()`（6 层、含扇出/扇入、`TaskSplitter` 与 `TaskRouter` 的复杂任务图）。两者都在调用 `graph.run(...)` 时显式传入 `report=ReportConfig(...)`，由框架按节拍把状态、结构、错误与生命周期数据推送到 celestialflow-web，用于观察任务的运行情况。
 
 ## 演示场景
 
 ### 森林（`demo_forest`）
 
-两棵互不干扰的树状 DAG 共存于同一 `TaskGraph`：
+两个互不干扰的 DAG 组件共存于同一 `TaskGraph`：
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ graph.run({"Ingest": seeds}, report=ReportConfig("http://localhost:5005/"))
 
 ## 关键配置
 
-- 各 Stage 通过 `TaskExecutor(..., execution_mode="thread" | "serial")` 显式指定执行模式
+- 各节点通过 `TaskExecutor(..., execution_mode="thread" | "serial")` 显式指定执行模式
 - `normalize.set_retry_exceptions(ValueError)` 指定可重试异常；`max_retries=2` 提供两次重试机会
 - `Ingest` 注入 24 个种子任务，其中 `3`、`5`、`8`、`12` 与前面的种子值重复；demo 未配置 `skip_func`，故这些重复值不会被去重，仍按普通任务进入各节点
 - 图模式为 `graph_mode="thread"`，节点内部可混合执行模式

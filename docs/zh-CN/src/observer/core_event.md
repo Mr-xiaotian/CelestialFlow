@@ -1,8 +1,43 @@
 # src/celestialflow/observer/core_event.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
-`core_event.py` 定义了观察者体系中的**全部事件类型**。它们作为观察者回调的入参，描述任务 / 节点 / 任务图生命周期的各类变化。所有事件均为 `frozen=True, slots=True` 的只读 `dataclass`。
+`core_event.py` 定义了观察者体系中的**全部事件类型**。它们作为 `Observer.on_event()` 的入参，描述任务 / 节点 / 任务图生命周期的各类变化。所有事件均继承统一基类 `Event`，且为 `frozen=True, slots=True` 的只读 `dataclass`。
+
+## 类层次
+
+```mermaid
+classDiagram
+    class Event {
+        <<base>>
+        __slots__ = ()
+    }
+    class NodeStartEvent
+    class NodeEndEvent
+    class TaskInputEvent
+    class TaskSuccessEvent
+    class TaskFailEvent
+    class TaskSkipEvent
+    class TaskRetryEvent
+    class TerminationInputEvent
+    class TerminationMergeEvent
+    class GraphStartEvent
+    class GraphEndEvent
+
+    Event <|-- NodeStartEvent
+    Event <|-- NodeEndEvent
+    Event <|-- TaskInputEvent
+    Event <|-- TaskSuccessEvent
+    Event <|-- TaskFailEvent
+    Event <|-- TaskSkipEvent
+    Event <|-- TaskRetryEvent
+    Event <|-- TerminationInputEvent
+    Event <|-- TerminationMergeEvent
+    Event <|-- GraphStartEvent
+    Event <|-- GraphEndEvent
+```
+
+`Event` 仅提供类型标识，使用 `__slots__ = ()` 不携带任何状态；各具体事件自身是 `slots` 数据类，因此继承不会带来额外的 `__dict__` 开销。
 
 ## 事件一览
 
@@ -20,6 +55,8 @@
 | `GraphStartEvent` | `graph`、`graph_mode`、`start_time`、`is_dag`、`nodes`、`edges`、`source_nodes`、`node_meta` | 任务图启动 |
 | `GraphEndEvent` | `graph`、`end_time`、`elapsed` | 任务图结束 |
 
+`TaskInputEvent.from_node` 是唯一带默认值的字段（`None`），其余字段均为必填。
+
 ## 字段说明
 
 ### 通用字段
@@ -33,17 +70,17 @@
 - `task_id`：任务输入事件 ID（与 `TaskInputEvent.input_id` 对应）。
 - `success_id` / `error_id` / `skip_id`：成功 / 错误 / 跳过事件各自的事件 ID。
 - `termination_id`：终止信号事件 ID。
-- `parent_ids`：参与合并的终止信号事件 ID 列表。
+- `parent_ids`：参与合并的终止信号事件 ID 列表（`list[int]`）。
 
 ### 任务来源
 
-- `from_node`：上游来源节点名称；`None` 表示由外部直接注入。此字段是 `MetricsObserver` 区分外部注入与上游投递的依据。
+- `from_node`：上游来源节点名称；`None` 表示由外部直接注入。此字段是 `MetricsObserver` 区分外部注入与上游投递的依据，`LogObserver` 也用它决定日志中的来源文本（`"external"`）。
 
 ### 生命周期时间戳
 
 - `start_time`：节点 / 任务图启动的墙钟时间（秒），由 `NodeStartEvent` / `GraphStartEvent` 携带。
 - `end_time`：节点 / 任务图结束的墙钟时间（秒），由 `NodeEndEvent` / `GraphEndEvent` 携带。
-- `elapsed`：节点 / 任务图运行耗时（秒）。
+- `elapsed`：节点 / 任务图 / 单次任务运行耗时（秒）。
 
 时间戳在构造事件时一次性写入，下游观察者（如 `MetricsObserver`）直接读取事件字段，不再自行调用 `time.time()` 采样。
 
@@ -58,15 +95,23 @@
 - `source_nodes`：源节点名称列表。
 - `node_meta`：各节点的构建期元信息。
 
-## 代码示例
+`GraphStartEvent` 的 `nodes` / `edges` / `source_nodes` 由 `LogObserver` 交给 `persist.util_render.render_structure_list` 渲染为树形文本写入日志。
+
+## 定义示例
 
 ```python
 from dataclasses import dataclass
 from typing import Any
 
 
+class Event:
+    """所有观测事件的基类。"""
+
+    __slots__ = ()
+
+
 @dataclass(frozen=True, slots=True)
-class TaskSuccessEvent:
+class TaskSuccessEvent(Event):
     node: str
     task: Any
     task_repr: str
@@ -77,12 +122,13 @@ class TaskSuccessEvent:
     success_id: int
 ```
 
-所有事件均使用 `frozen=True, slots=True`，即不可变（构造后字段不可改、可哈希）且通过 `__slots__` 节省内存。
+所有具体事件均使用 `frozen=True, slots=True`，即不可变（构造后字段不可改、可哈希）且通过 `__slots__` 节省内存。
 
 ## 使用示例
 
 ```python
 from celestialflow.observer import (
+    Event,
     Observer,
     ObserverHub,
     TaskFailEvent,
@@ -91,11 +137,14 @@ from celestialflow.observer import (
 
 
 class MyObserver(Observer):
-    def on_task_success(self, event: TaskSuccessEvent) -> None:
-        print(f"{event.node} 成功: {event.result_repr}")
-
-    def on_task_fail(self, event: TaskFailEvent) -> None:
-        print(f"{event.node} 失败: {event.exception}")
+    def on_event(self, event: Event) -> None:
+        match event:
+            case TaskSuccessEvent():
+                print(f"{event.node} 成功: {event.result_repr}")
+            case TaskFailEvent():
+                print(f"{event.node} 失败: {event.exception}")
+            case _:
+                pass
 
 
 hub = ObserverHub()
@@ -105,5 +154,5 @@ hub.add_observer(MyObserver())
 ## 注意事项
 
 1. **只读事件**：事件均为不可变 `dataclass`，观察者不应修改事件内部字段。
-2. **由框架构造**：事件由节点 / 任务图在对应时机构造并调用 `hub.on_*()`，一般无需手动构造。
-3. **旧的"计数型回调"已废弃**：事件对象取代了旧版 `BaseObserver` 中 `on_task_success(count)` 等基本参数回调，可携带更丰富的上下文。
+2. **由框架构造**：事件由节点 / 任务图在对应时机构造，并调用 `hub.on_event(...)` 广播，一般无需手动构造（测试中可直接构造并投递给观察者）。
+3. **统一基类**：所有事件继承 `Event`，因此观察者可以只写一个 `def on_event(self, event: Event)` 入口，再按具体类型分派。

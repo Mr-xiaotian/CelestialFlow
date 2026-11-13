@@ -1,10 +1,10 @@
 # bench/bench_observer.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
-对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（框架内置的 `PrintObserver`，构造时需传入 `name` 前缀）与 **tqdm 进度条**（`TqdmObserver`，由 `bench_observer.py` 内定义）三种场景的执行耗时，量化观察者回调带来的性能开销。
+对比 `TaskExecutor` 在同一批任务下，**无观察者**、**print 日志**（框架内置的 `PrintObserver`，构造时需传入 `name` 前缀）与 **tqdm 进度条**（`TqdmObserver`，由 `bench_observer.py` 内定义）三种场景的执行耗时，量化观察者事件回调带来的性能开销。
 
 帮助用户根据任务规模与实时反馈需求，选择合适的观察策略。
 
@@ -15,18 +15,19 @@
 | 场景 | 观察者 | 说明 |
 |------|--------|------|
 | **无观察者** | `None` | 裸执行器，没有任何回调输出，作为基准线 |
-| **print 日志** | `PrintObserver` | 在 node 起止与任务输入 / 成功 / 失败 / 跳过回调中打印带 `name` 前缀的统计行，模拟简单日志输出 |
-| **tqdm 进度条** | `TqdmObserver` | 在 node 起止与任务输入 / 成功 / 失败 / 跳过回调中更新 `tqdm` 进度条，提供可视化反馈 |
+| **print 日志** | `PrintObserver` | 在统一的 `on_event` 中按事件类型（节点起止、任务输入 / 成功 / 失败 / 跳过）打印带 `name` 前缀的统计行，模拟简单日志输出 |
+| **tqdm 进度条** | `TqdmObserver` | 在统一的 `on_event` 中按同一组事件类型更新 `tqdm` 进度条，提供可视化反馈 |
 
 ### 任务负载
 
 使用两种不同计算量的斐波那契任务：
 
 ```python
-# 轻量任务：fib(20~29)，共 10 个任务，单次计算量小
+# 轻量任务：fib(20~29)，共 10 个任务
 light_tasks = list(range(20, 30))
 
-# 较重任务：fib(50, 55, 60, 65, 70, 75, 80)，共 7 个任务，单次计算量较大
+# “较重”任务：fib(50, 55, 60, 65, 70, 75, 80)，共 7 个任务
+# 注意 fibonacci 是迭代 O(n) 实现，fib(80) 也只有约 80 次循环，单任务仍为微秒级
 heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 ```
 
@@ -58,14 +59,19 @@ def run_benchmark(
 
 ### `TqdmObserver`
 
-`TqdmObserver` 继承框架的 `Observer` 基类，只覆写与进度相关的回调：
+`TqdmObserver` 继承框架的 `Observer` 基类，只覆写统一入口 `on_event(event: Event)`，
+并用 `match event` 按事件类型分派（`handle_exception` 保持基类默认实现）：
 
-| 回调 | 行为 |
+| 事件 | 行为 |
 |------|------|
-| `on_node_start` | 用当前累计的 `_total` 创建 `tqdm(total=...)` |
-| `on_task_input` | `_total += 1`；进度条已创建时同步扩展 `total` 并 `refresh()` |
-| `on_task_success` / `on_task_fail` / `on_task_skip` | 复用 `_advance(1)` 推进进度 |
-| `on_node_end` | 关闭进度条 |
+| `NodeStartEvent` | 用当前累计的 `_total` 创建 `tqdm(total=...)` |
+| `TaskInputEvent` | `_total += 1`；进度条已创建时同步扩展 `total` 并 `refresh()` |
+| `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` | 复用 `_advance(1)` 推进进度 |
+| `NodeEndEvent` | 关闭进度条 |
+
+未列出的 `TaskRetryEvent`、终止信号事件与图事件不会命中任何分支，由 `match` 自然忽略。
+`Observer` 基类当前只提供 `on_event` 与 `handle_exception`，不再有
+`on_node_start` / `on_task_success` 等逐个事件回调。
 
 ### 工作函数
 
@@ -75,13 +81,16 @@ def run_benchmark(
 ## 可能出现的问题
 
 1. **print 的 TTY 缓冲**：`print()` 默认行缓冲，当输出到实际终端时可能触发屏幕刷新，速度慢于重定向到文件。不同终端环境下 print 的开销可能有差异。
-2. **tqdm 的 `total` 延迟创建**：`TqdmObserver` 在 `on_node_start` 回调中创建进度条，并在 `on_task_input` 回调中累加总量（该回调可能先于 `on_node_start` 到达，因此 `on_task_input` 在进度条未创建时仅累加总量）。由于 `run()` 会先注入全部任务再启动节点，`on_node_start` 时 `total` 已包含启动前注入的任务数；后续若再有 `on_task_input`，进度条会动态扩展，但不影响基准结果的正确性。
+2. **tqdm 的 `total` 延迟创建**：`TqdmObserver` 在收到 `NodeStartEvent` 时创建进度条，在收到 `TaskInputEvent` 时累加总量（该事件可能先于 `NodeStartEvent` 到达，因此进度条未创建时只累加 `_total`）。由于 `run()` 会先注入全部任务再启动节点，`NodeStartEvent` 到达时 `total` 已包含启动前注入的任务数；后续若再有 `TaskInputEvent`，进度条会动态扩展，但不影响基准结果的正确性。
 3. **热启动效应**：首次运行可能受字节码缓存预热、import 初始化或系统缓存影响，后续轮次会更快。`bench_observer_multirun()` 通过多轮取均值来缓解该问题。
-4. **斐波那契计算本身已足够小**：在轻量任务下，观察者回调的 I/O 开销可能占主导，基准结果的绝对数值会因机器而异，但**相对比例**在不同平台上应保持一致。
+4. **斐波那契负载本身太轻**：`fibonacci` 是迭代 `O(n)` 实现，`light_fib` 与 `heavy_fib` 的单任务耗时都在微秒级，测得的总耗时主要由框架调度、事件分发与 observer I/O 构成，而不是计算。两组数据的差异更多来自任务数量（10 vs 7），不能把 `heavy_fib` 解读为“计算占主导”。若要观察 observer 开销随单任务耗时的衰减，需要换成真正的毫秒级负载（如递归 fib 或加入 `time.sleep`）。
 
 ## 基准结果（实测）
 
 > 🟢 本节各表格中的耗时均为历史实测数据，无法从源码验证，需人工确认。
+>
+> 这些数据采集于观察者仍使用逐事件回调的旧版本；当前实现已统一为 `on_event` + `match`，
+> 事件分发开销与相对比例可能发生变化，建议在本地重新运行后再引用。
 
 ### 2026/07/30 - 本地实测
 
@@ -110,10 +119,10 @@ def run_benchmark(
 
 **关键结论**：
 
-- 在串行模式下，观察者的附加开销与任务本身的计算量密切相关。
-- **轻量任务**中，tqdm 和 print 的 I/O 开销相对明显，三种方案的耗时差距可达 ~50%。
-- **较重任务**（fib 50~80）中，计算耗时占主导，三种方案的绝对耗时几乎相同，观察者开销可忽略。
-- 当单任务耗时超过 **1ms** 量级时，选择 print 或 tqdm 对整体性能影响极小，可按需选用。
+- 串行模式下，测量值主要由框架自身的调度与事件分发开销构成；`fibonacci` 是迭代 `O(n)`，`fib(50~80)` 也只有几十次循环，因此“轻量”和“较重”两组的单任务计算差异都在微秒级。
+- **轻量任务**中，observer 带来的**相对差异**更明显（历史单轮数据里可达 ~50%），但方向并不稳定（print 甚至出现过负值）；绝对耗时只有毫秒级，单轮数值受测量噪声主导，应以多轮均值为准。
+- **较重任务**（fib 50~80）的 7 个任务总耗时反而更低，主要是因为任务数更少，而不是“计算耗时占主导”；本脚本的两组负载都过于轻量，无法据此推出“单任务超过 1ms 后 observer 开销可忽略”的结论。
+- 若需要评估真实业务负载下的 observer 开销，应改用毫秒级以上的单任务耗时，再对比三种场景。
 
 ## 运行方式
 

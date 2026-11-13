@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -20,8 +20,8 @@
 
 | 测试项 | 说明 | 计时范围 |
 |--------|------|----------|
-| `LogSpout` | 预先构造日志记录并压入队列，然后启动 `spout` 清空队列 | `start()` 到 `stop()` |
-| `LifecycleSpout` | 预先构造 `insert` 记录并压入队列，然后启动 `spout` 清空队列 | `start()` 到 `stop()` |
+| `LogSpout` | 预先构造 `LogRecord` dataclass 并压入队列，然后启动 `spout` 清空队列 | `start()` 到 `stop()` |
+| `LifecycleSpout` | 预先构造 `InsertRecord` dataclass 并压入队列，然后启动 `spout` 清空队列 | `start()` 到 `stop()` |
 
 脚本采用的模型是：
 
@@ -29,7 +29,21 @@
 preload queue -> start spout -> drain all queued records
 ```
 
-因此测试结果更接近“后台写入端的极限处理速度”，不包含调用方实时生产数据的成本。
+因此测试结果更接近“后台写入端的极限处理速度”，不包含调用方实时生产数据的成本，也不包含
+`LogObserver` / `LifecycleObserver` 的事件翻译与 `LogInlet` / `LifecycleInlet.send()` 入队成本。
+
+```mermaid
+flowchart LR
+    Event["Event<br/>on_event"] --> Obs["LifecycleObserver / LogObserver"]
+    Obs -->|"send(record)"| Inlet["LifecycleInlet / LogInlet<br/>仅继承 BaseInlet"]
+    Inlet --> Queue["queue.Queue"]
+    Queue --> Spout["LifecycleSpout / LogSpout"]
+
+    Bench["本 benchmark<br/>直接构造 dataclass"] -.->|"绕过前三级"| Queue
+```
+
+正式运行链路由观察者消费事件、构造记录并经 Inlet 入队；本脚本则直接把记录压入
+`spout.get_queue()`，只保留队列 + spout 这一段。
 
 ## 关键配置
 
@@ -40,6 +54,7 @@ preload queue -> start spout -> drain all queued records
 - 两个 spout 分别由 `BenchLogSpout` / `BenchLifecycleSpout` 子类继承源码中的 `LogSpout` / `LifecycleSpout`，并覆写 `_before_start()` 把输出路径指向临时目录：`BenchLogSpout` 打开文本文件句柄，`BenchLifecycleSpout` 通过 `connect_db()` 建立 SQLite 连接
 - 临时目录由 `tempfile.TemporaryDirectory()` 创建（前缀 `cf_bench_log_` / `cf_bench_lifecycle_`），退出 `with` 块即自动清理
 - `LifecycleSpout` 使用当前项目实现，即“每条有效变更后直接 `commit()`”
+- 记录模型已全部改为 frozen dataclass：`build_log_records()` 生成 `LogRecord(timestamp, level, message)`，`build_lifecycle_insert_records()` 生成 `InsertRecord(event_id, ts, node, task)`；脚本直接把 dataclass 实例压入 `spout.get_queue()`，不经过观察者或 Inlet
 
 ## 输出指标
 
@@ -62,6 +77,9 @@ preload queue -> start spout -> drain all queued records
 ## 基准结果（实测）
 
 > 🟢 本节各表格中的耗时/吞吐量均为历史实测数据，无法从源码验证，需人工确认。
+>
+> 历史数据采集于记录仍为 `dict` 的版本；当前已改为 frozen dataclass，spout 消费热路径基本一致，
+> 但如需精确基线，建议在本地重新运行。
 
 ### 2026/06/17 - Windows 本地首次实测
 

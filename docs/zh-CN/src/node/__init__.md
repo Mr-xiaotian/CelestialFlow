@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 
@@ -94,9 +94,9 @@ router = TaskRouter("LengthRouter", route_by_length)
 - **`core_node`**: 定义基类 `BaseTaskNode` 与内部调度器 `TaskDispatch`，是所有节点的运行时骨架。
 - **`core_nodes`**: 提供三个公共节点类。
 - **`runtime`**: 节点依赖 `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` 进行队列与事件通信。
-- **`observer`**: 节点通过 `ObserverHub` 广播事件，`MetricsObserver` 依据事件维护计数。
-- **`persist`**: `LifecycleInlet` / `LogInlet` 以观察者形式消费事件，将任务生命周期与日志落盘。
-- **`assembly`**: 单节点独立运行时由 `run_node_resources` 装配 `MetricsObserver` / `LifecycleInlet` / `LogInlet` 观察者及 spout。
+- **`observer`**: 节点通过 `ObserverHub` 广播事件（统一入口 `observers.on_event(event)`），`MetricsObserver` 依据事件维护计数。
+- **`persist`**: `LifecycleObserver` / `LogObserver` 作为观察者消费事件，将任务生命周期与日志落盘（内部各自持有 `LifecycleInlet` / `LifecycleSpout`、`LogInlet` / `LogSpout`）。
+- **`assembly`**: 单节点独立运行时由 `run_node_resources` 装配 `MetricsObserver` / `LifecycleObserver` / `LogObserver` 并统一启停。
 
 ## 注意事项
 

@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -13,7 +13,7 @@
 ```mermaid
 flowchart LR
     Caller["调用方<br/>demo_funnel_jsonl"] --> Inlet["EventInlet<br/>emit / info / metric"]
-    Inlet -->|_funnel| Queue["queue.Queue"]
+    Inlet -->|send| Queue["queue.Queue"]
     Queue --> Spout["JsonlSpout<br/>后台线程消费"]
     Spout --> File["temp/demo_funnel/events.jsonl"]
 ```
@@ -27,7 +27,7 @@ flowchart LR
   - 在 `_after_stop()` 中关闭文件
 - `EventInlet`
   - 继承 `BaseInlet`
-  - 对 `_funnel()` 做了轻量封装，提供 `emit()` / `info()` / `metric()` 三个业务方法
+  - 对基类的 `send()` 做了轻量封装，提供 `emit()` / `info()` / `metric()` 三个业务方法
   - 通过 `EventInlet().bind_spout(spout)` 绑定到对应的 `JsonlSpout`
 - `demo_funnel_jsonl()`
   - 创建 `JsonlSpout` 和 `EventInlet`
@@ -39,7 +39,7 @@ flowchart LR
 
 - 它说明 `funnel` 不只是 `persist` 的底层实现，也可以直接拿来搭建独立的生产者-消费者通道。
 - 它覆盖了 `BaseSpout` 的完整生命周期：`start()`、`_before_start()`、`_handle_record()`、`stop()`、`_after_stop()`。
-- 它也展示了 `BaseInlet` 的典型用法：业务侧不直接操作队列，而是通过自定义方法把记录送进 `_funnel()`。
+- 它也展示了 `BaseInlet` 的典型用法：业务侧不直接操作队列，而是通过自定义方法把记录送进 `send()`。
 
 ## 关键实现
 

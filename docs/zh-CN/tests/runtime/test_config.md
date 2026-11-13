@@ -1,6 +1,6 @@
 # tests/runtime/test_config.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `celestialflow.runtime.ReportConfig` 的构造校验与地址规范化：默认地址回退、首尾空白与末尾斜杠的清理、以及非字符串/空串/非法协议等非法输入是否通过 `ConfigurationError` 拒绝；同时验证配置对象不可变。
@@ -36,13 +36,13 @@
 
 ```bash
 # 全部执行
-pytest tests/runtime/test_config.py -v
+uv run pytest tests/runtime/test_config.py -v
 
 # 仅运行默认地址与规范化用例
-pytest tests/runtime/test_config.py -k "default_url or strips_whitespace" -v
+uv run pytest tests/runtime/test_config.py -k "default_url or strips_whitespace" -v
 
 # 仅运行非法输入与冻结相关用例
-pytest tests/runtime/test_config.py -k "rejects or frozen" -v
+uv run pytest tests/runtime/test_config.py -k "rejects or frozen" -v
 ```
 
 ## 重要细节

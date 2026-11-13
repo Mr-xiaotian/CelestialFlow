@@ -1,6 +1,6 @@
 # tests/runtime/test_log_level.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `celestialflow.runtime.util_log_level.normalize_log_level` 的输入规范化与错误分支：级别名大小写不敏感、忽略首尾空白；未知级别与非字符串输入分别抛出 `InvalidOptionError` 与 `ConfigurationError`。
@@ -53,13 +53,13 @@ except ConfigurationError as error:
 
 ```bash
 # 全部执行
-pytest tests/runtime/test_log_level.py -v
+uv run pytest tests/runtime/test_log_level.py -v
 
 # 仅运行规范化用例
-pytest tests/runtime/test_log_level.py -k "uppercases" -v
+uv run pytest tests/runtime/test_log_level.py -k "uppercases" -v
 
 # 仅运行错误分支用例
-pytest tests/runtime/test_log_level.py -k "rejects" -v
+uv run pytest tests/runtime/test_log_level.py -k "rejects" -v
 ```
 
 ## 重要细节

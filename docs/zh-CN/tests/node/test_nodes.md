@@ -1,6 +1,6 @@
 # tests/node/test_nodes.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 
@@ -16,12 +16,13 @@
 | `TaskSkip`（`skip_func` / `handle_task_skip`） | 被测行为 | 跳过判定不调用任务函数、只计 `skipped`、不消耗重试，并可被覆写；`task.skip` 事件与 `skipped` 生命周期记录的完整链路 |
 | `_insert_records` / `connect_db` / `insert_record` | 工具 | 用 `connect_db` 建连后逐条 `insert_record` 写入失败 / pending 记录（重复 `event_id` 跳过），用于回放测试 |
 | `load_task_error_records` / `load_task_result_records` | 工具 | 读取 sqlite 中的 task-error / task-result 对，用于断言生命周期持久化结果 |
+| `lifecycle_db_of` | 工具（`conftest`） | 从节点或任务图的 hub 中查找 `LifecycleObserver` 并返回其 `db_path`，供直接查询 sqlite |
 | `build_result_dict` | 工具 | 聚合 `get_success_pairs` 与 `get_error_pairs` 为 `{task: result_or_error_str}` |
 | `_counts` | 工具 | 经 `metrics_of(node).get_node_metrics(name)` 取出 `NodeMetrics`，并映射为 `tasks_input` / `tasks_succeeded` / `tasks_failed` / `tasks_skipped` / `tasks_processed` / `tasks_pending` 六个键的字典 |
 
 ## 关键测试场景
 
-### `TestTaskExecutor` — 执行器（15 用例）
+### `TestTaskExecutor` — 执行器（16 用例）
 
 | 用例 | 覆盖目标 |
 |------|---------|
@@ -36,6 +37,7 @@
 | `test_restore_db_filters_error_type_when_enabled` | `filter_by_error_type=True` + `set_retry_exceptions(RuntimeError)` 时只回放 RuntimeError |
 | `test_restore_db_filter_keeps_pending_records` | 开启过滤时 `pending` 记录始终保留 |
 | `test_success_persist` | 成功结果持久化后，`get_success_pairs()` 能读回 |
+| `test_graph_run_node_reads_lifecycle_through_nested_hub` | 图运行时节点可通过嵌套 hub 找到图级 `LifecycleObserver` 并读回成功结果 |
 | `test_rejects_zero_argument_func` | 0 参函数应抛 `ConfigurationError` |
 | `test_rejects_multi_argument_func` | 多参函数应抛 `ConfigurationError` |
 | `test_name_and_execution_mode` | `get_name()` 与 `execution_mode` 暴露正确 |
@@ -119,11 +121,11 @@ flowchart LR
 
 | 测试类 | 用例数 | 覆盖目标 |
 |--------|--------|---------|
-| `TestTaskExecutor` | 15 | 三种执行模式、retry 命中/不命中、sqlite 回放（含按 error_type 过滤）、持久化、回调签名校验、扇出载荷语义 |
+| `TestTaskExecutor` | 16 | 三种执行模式、retry 命中/不命中、sqlite 回放（含按 error_type 过滤）、持久化、嵌套 hub 查找、回调签名校验、扇出载荷语义 |
 | `TestTaskSkip` | 9 | 默认不跳过、串行/线程/异步跳过、跳过不消耗重试、`set_skip_func(None)`、签名校验、覆写 handler、`task.skip` 事件与 lifecycle 记录 |
 | `TestTaskSplitter` | 5 | 默认参数、图集成、空可迭代、生成器、自定义拆分函数 |
 | `TestTaskRouter` | 6 | 默认参数、`func` 返回映射、图集成、未知 target 报错、按载荷分发、绑定跨模式稳定 |
-| **合计** | **35** | |
+| **合计** | **36** | |
 
 ## 运行方式
 
@@ -159,6 +161,7 @@ pytest tests/node/test_nodes.py -k "restore_db" -v
 ## 注意事项
 
 - `test_restore_db*` 用例通过本文件的 `_insert_records` 辅助函数写入 sqlite：它先用 `connect_db` 建立连接，再逐条调用 `insert_record`（重复 `event_id` 触发 `sqlite3.IntegrityError` 时跳过），最后统一 `commit()` 并关闭连接；记录字段 `node` 为节点名称。
+- `test_graph_run_node_reads_lifecycle_through_nested_hub` 验证图运行时 `ObserverHub` 的嵌套注入：图级 `LifecycleObserver` 经 `graph.add_observer(...)` 注册后，节点可通过 `observers.find(LifecycleObserver)` 递归找到它，从而读回成功结果。
 - `test_skip_full_chain` 通过 `executor.set_ctree(ctree)` 注入最小事件客户端，断言 `CTreeEvent.TASK_SKIP` 出现 2 次，并直接查询 `records` 表确认状态序列为 `skipped / success / skipped`。
 - `test_router_unknown_target_fails_with_hint` 通过 `load_task_error_records` 与 `get_node_metrics(...).failed / processed` 断言未知目标失败，错误 message 含 `Unknown target: <name>` 与允许目标列表，而非在 router 层抛出异常。
 - `test_router_binding_survives_mode_switch` 与 `test_connect_to_binding_survives_execution_mode_switch`（见 test_node.md）均为回归测试，覆盖绑定在多模式下保持稳定的语义。

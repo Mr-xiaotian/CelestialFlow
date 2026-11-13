@@ -1,6 +1,6 @@
 # tests/graph/test_order_graph.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 验证 `celestialflow.graph.util_order_graph` 中的基础图分析能力，包括 `OrderGraph` 构建、层级计算（`compute_node_levels`）、源节点查找（`source_nodes`）、SCC 划分（`tarjan_scc`），以及深度超过 Python 默认递归上限（约 1000）时的迭代算法回归。
@@ -44,28 +44,29 @@
 - `_make_ring(size)`: 构造 `size` 个节点的闭合环。
 
 ## 测试重点
-- **OrderGraph 构建**: 确保内部有序图结构与邻接关系正确。
+- **OrderGraph 构建**: 确保内部有序图结构与邻接关系正确（`add_edge` 会自动补全缺失端点，重复边被忽略）。
 - **层级一致性**: 复杂拓扑（如带尾巴的环）下层级计算的鲁棒性。
 - **SCC 处理**: 确保循环引用不会导致死循环或错误的层级/源节点分布。
 - **递归安全**: `tarjan_scc` 曾为递归实现，深链/深环会触发 `RecursionError`；改为迭代实现后超深图应能正常完成分析。
+- **断言载体**: 直接断言 `OrderGraph.nodes` / `out_edges` / `successors` 与三个分析函数的返回值；本文件不使用 pytest fixture 或 monkeypatch。
 
 ## 运行方式
 
 ```bash
 # 全部执行
-pytest tests/graph/test_order_graph.py -v
+uv run pytest tests/graph/test_order_graph.py -v
 
 # 仅运行图构建测试
-pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
+uv run pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
 
 # 仅运行层级计算测试
-pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
+uv run pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
 
 # 仅运行源节点查找测试
-pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
+uv run pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
 
 # 仅运行深图回归测试
-pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
+uv run pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 ```
 
 ## 性能参考

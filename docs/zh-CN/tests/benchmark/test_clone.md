@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 ## 作用
 
@@ -8,8 +8,8 @@
 
 ## 核心测试对象
 
-- `clone_executor`: 复制 `TaskExecutor`，保留 `name`、`func`、`execution_mode`；同样适用于作为图节点使用的 `TaskExecutor` 实例。
-- `clone_graph`: 复制 `TaskGraph`，保留完整的 DAG 结构（节点、边）与 `graph_mode`，且节点间相互独立。
+- `clone_executor`: 复制 `TaskExecutor`，保留 `name`、`func`、`execution_mode`、`max_workers`、`max_retries`、`max_info` 并重新注册 `retry_exceptions`；同样适用于作为图节点使用的 `TaskExecutor` 实例。
+- `clone_graph`: 复制 `TaskGraph`，保留完整的 DAG 结构（节点、边）、`graph_mode` 与独立的事件客户端，且节点间相互独立。该工具仅用于 benchmark 场景，只支持由 `TaskExecutor` 组成的图，遇到其它节点类型抛 `ConfigurationError`。
 - `LocalEventClient`: 默认本地事件客户端，克隆后应保持实例独立。
 
 ## 关键测试场景

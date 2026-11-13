@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -168,7 +168,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
 | `get_redis()` | 按 `REDIS_HOST` / `REDIS_PASSWORD` 环境变量构造并返回 `redis.Redis(port=6379, db=0, decode_responses=True)`；不做客户端缓存 |
 | `_normalize_result(result)` | 归一化远端写回的 `result`：字符串/字节原样返回；单元素列表取出唯一元素；多元素列表转为元组；其他类型原样返回 |
 | `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | 各场景的 `Start` 节点任务：sleep 1 秒后返回 `(key, payload)` 元组，`key` 分别为 `testFibonacci` / `testSum` / `testDownload` / `testReport` |
-| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | 本地直算分支：从 `(key, payload)` 元组中取出 `payload` 后分别调用 `fibonacci` / `sum_int` / `download_to_file` |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | 本地直算分支：从 `(key, payload)` 元组中取出 `payload` 后分别调用 `fibonacci` / `sum_int` / `download_to_file`（`download_to_file_wrapper` 当前只传入 `url`，与 `download_to_file(task: tuple[str, str])` 的签名不匹配，见「可能出现的问题」） |
 
 > `redis_push` 源码签名标注返回 `int`，但实际返回 `(key, task_id)` 元组，下游 `redis_wait` 依赖该元组。
 
@@ -246,7 +246,7 @@ flowchart TB
 
 - `demo_redis_ack_0`：CPU 密集型斐波那契
 - `demo_redis_ack_1`：轻量求和
-- `demo_redis_ack_2`：真实下载 I/O
+- `demo_redis_ack_2`：真实下载 I/O（本地分支当前因参数形态不匹配而失败，见「可能出现的问题」第 8 条）
 
 它们共用同一套模式：
 
@@ -319,6 +319,7 @@ python demo/demo_redis.py
 5. **无断言**：这是集成演示，不验证业务结果正确性。
 6. **本地 task_id 作用域**：`redis_push` 的 `task_id` 是当前进程内递增值，适合 demo 和单端协作，不等同于全局分布式唯一 ID。
 7. **一次性消费**：`redis_wait` 取到结果后会立刻 `HDEL`，因此同一结果默认不会被二次读取。
+8. **`download_to_file_wrapper` 参数形态不匹配**：该函数从任务元组取出 `url` 后调用 `download_to_file(url)`，而 `demo_utils.download_to_file` 的签名是 `download_to_file(task: tuple[str, str])`。字符串被当作二元组解包时会抛 `ValueError`，因此 `demo_redis_ack_2` 的本地 `Download` 分支不会真正下载文件，只有远端分支的行为取决于外部 Worker。
 
 ## 注意事项
 

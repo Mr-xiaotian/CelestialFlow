@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 ## 目标
 
@@ -28,7 +28,7 @@
 | `lock` | `ValueWrapper` + 共享 `Lock` | 生产者持锁更新，写操作同步可见。对应 `MetricsObserver` 中用 `threading.Lock` 保护共享计数的用法 |
 | `nolock` | `ValueWrapper`，不挂锁 | 刻意不加锁的基线，用于量化锁本身的开销，而非正确性演示（见下方“可能出现的问题”） |
 | `sharded` | 每个生产者一个无锁 `ValueWrapper` | 结束时汇总。无任何跨线程争用，但只适用于可聚合负载，无法表达共享记录流 |
-| `funnel` | `BaseInlet` + `BaseSpout` | 生产者调用 `emit` 入队；`CountingSpout` 单线程串行消费并更新状态 |
+| `funnel` | `BaseInlet` + `BaseSpout` | 生产者调用 `CountingInlet.emit()`（内部转调 `BaseInlet.send()`）入队；`CountingSpout` 单线程串行消费并更新状态 |
 
 `funnel` 场景中记录形如 `(producer_id, seq)`，`CountingSpout` 会在消费时校验同一生产者内 `seq` 是否严格连续，因此 `order_violations` 是漏斗“有序单写流”这一保证的实测验证。
 `lock` / `nolock` / `sharded` 不建模记录流，该维度为 `n/a`：加锁只保证单次更新的原子性，要拿到跨生产者的 FIFO 次序需要额外设计（如分片 + 归并）。

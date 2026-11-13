@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 `core_node.py` 定义了 CelestialFlow 节点层的核心基类 `BaseTaskNode[T, R, Y]`。它把"队列通信 / 任务调度 / 事件追踪 / 观察者回调"等运行期关注点集中到一个对象中，并暴露 `run` / `start` 等入口方法给上层 `TaskExecutor` / `TaskSplitter` / `TaskRouter` 复用。
 
@@ -28,7 +28,8 @@
 | `max_info` | `int` | 日志中每条任务字符串的最大长度（默认 `50`） |
 | `skip_func` | `Callable[[T], bool] | None` | 任务跳过判定函数，默认 `None` 表示不跳过 |
 | `_name` | `str` | 节点 / 管理器名称 |
-| `_lifecycle_db_path` | `Path | None` | 独立运行时产生的 lifecycle 数据库路径，参与图调度时为 `None` |
+
+> 节点**不持有** lifecycle 数据库路径字段：需要读取持久化结果时，`_find_lifecycle_db_path()` 会通过 `self.observers.find(LifecycleObserver)` 递归查找 observer hub（可穿透嵌套的图级 hub）并取其 `db_path`。
 
 ```mermaid
 classDiagram
@@ -93,7 +94,7 @@ def __init__(
 4. 初始化 `max_workers / max_retries / max_queue_size / max_info`：`max_workers` 缺省时取 `min(32, (os.cpu_count() or 1) + 4)`；`max_retries` 通过 `max(max_retries, 0)` 夹取，负值按 `0` 处理；随后预置 `retry_exceptions` 为空元组；
 5. 默认安装 `LocalEventClient()`，可通过后续 `set_ctree(...)` 替换；
 6. 实例化 `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)`，并新建 `TaskInQueue`（`out_name` 为节点名） / `TaskOutQueue`（`in_name` 为节点名） / `ObserverHub`；
-7. `_lifecycle_db_path` 初始化为 `None`，待独立运行时由装配入口写入。
+7. 不设置任何 lifecycle 路径字段：持久化观察者由 `run_node_resources`（独立运行）或图级观察者（图调度）注册到 `observers`，读取结果时再通过 `observers.find(...)` 定位。
 
 ## 配置 setter
 
@@ -123,10 +124,10 @@ def __init__(
 - `_get_class_name() -> str`：返回当前节点类名。
 - `get_meta() -> dict[str, Any]`：返回构建期元信息 `{"class_name", "execution_mode", "max_workers"}`，随图结构一次性上报。
 - `get_retry_error_type_names() -> set[str]`：返回 `retry_exceptions` 中各类的 `__name__` 集合，用于 `restore_db` 按错误类型过滤。
-- `get_success_pairs() -> list[tuple[T, R]]`：从独立运行产生的 lifecycle 库读取成功 `(task, result)` 记录；未独立运行（或由图调度）时返回空列表。
-- `get_error_pairs() -> list[tuple[T, PersistedError]]`：从独立运行产生的 lifecycle 库读取失败 `(task, PersistedError)` 记录；未独立运行（或由图调度）时返回空列表。
+- `get_success_pairs() -> list[tuple[T, R]]`：通过 `_find_lifecycle_db_path()` 定位 lifecycle 库，读取成功 `(task, result)` 记录。**独立运行与图级调度下均可用**；仅当找不到 `LifecycleObserver`（或其 `db_path` 尚未就绪）时返回空列表。
+- `get_error_pairs() -> list[tuple[T, PersistedError]]`：同样从 lifecycle 库读取失败记录并包装为 `PersistedError`；可用条件与 `get_success_pairs()` 相同。
 
-> 节点**不再提供** `get_snapshot()` / `get_lifecycle_path()` / `start_time` 等旧接口。运行期状态由 `MetricsObserver` 的快照视图（`MetricsView.get_node_metrics()`）提供，lifecycle 路径由装配入口通过 `run` / `run_async` 的上下文产出。
+> 节点**不再提供** `get_snapshot()` / `get_lifecycle_path()` / `start_time` 等旧接口。运行期状态由 `MetricsObserver` 的快照视图（`MetricsView.get_node_metrics()`）提供，lifecycle 库路径通过观察者 hub 递归查找获得（`_find_lifecycle_db_path()`）。
 
 ## 绑定下游
 
@@ -138,7 +139,7 @@ def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
     next_node.task_queue.add_source_name(self.get_name())
 ```
 
-绑定只建立节点与队列之间的数据通路。上下游传输计数**不再共享计数器对象**，而是由 `MetricsObserver` 在 `on_task_input` 事件投递时推导（上游投递同时计入接收方上游计数与来源方下游计数）。因此 `connect_to` 只做绑定，不参与计数。
+绑定只建立节点与队列之间的数据通路。上下游传输计数**不再共享计数器对象**，而是由 `MetricsObserver` 在收到 `TaskInputEvent` 时推导（上游投递同时计入接收方上游计数与来源方下游计数）。因此 `connect_to` 只做绑定，不参与计数。
 
 ## 任务注入
 
@@ -162,10 +163,7 @@ def run(
 ) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(
-            self.observers, log_level=log_level
-        ) as lifecycle_db_path:
-            self._lifecycle_db_path = lifecycle_db_path
+        with run_node_resources(self.observers, log_level=log_level):
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
@@ -183,9 +181,9 @@ def run(
 |------|------|--------|------|
 | `task_source` | `Iterable[T]` | 必填 | 待注入的任务源 |
 | `if_put_signal` | `bool` | `True` | 注入完任务后是否自动 `put_signal()` |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` 的日志过滤级别，原样透传给 `run_node_resources` |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogObserver` 的日志过滤级别，原样透传给 `run_node_resources` |
 
-`run_node_resources`（位于 `celestialflow.assembly`）负责装配单节点运行期资源：创建 `MetricsObserver`，并注入 `LifecycleInlet` / `LogInlet` 观察者及对应 spout，统一启停。它产出 lifecycle 数据库路径。`log_level` 会被 `normalize_log_level` 规范化（忽略大小写与首尾空白），非法级别抛 `InvalidOptionError`，非字符串抛 `ConfigurationError`。
+`run_node_resources`（位于 `celestialflow.assembly`）负责装配单节点运行期资源：创建并注册 `MetricsObserver`，并装配 `LifecycleObserver` / `LogObserver`（各自持有并启停 spout）。该上下文管理器进入时仍产出 lifecycle 数据库路径，但 `BaseTaskNode.run` 不再缓存它——`get_success_pairs()` / `get_error_pairs()` 会在需要时通过 `observers.find(LifecycleObserver)` 取回。`log_level` 会被 `normalize_log_level` 规范化（忽略大小写与首尾空白），非法级别抛 `InvalidOptionError`，非字符串抛 `ConfigurationError`。
 
 ### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
@@ -202,25 +200,26 @@ def run(
 
 ### `start()`
 
-- 准备阶段 `_prepare_start` 广播 `NodeStartEvent`（含 `execution_mode` / `max_workers` / `start_time=time.time()`）；
+- 准备阶段 `_prepare_start` 通过 `observers.on_event(NodeStartEvent(...))` 广播启动事件（含 `execution_mode` / `max_workers` / `start_time=time.time()`）；
 - 根据 `execution_mode` 选择 `dispatch.dispatch_serial()` / `dispatch.dispatch_thread()`；`async` 走 `start_async`，否则抛 `InvalidOptionError`；
-- 收尾阶段 `_finish_start` 广播 `NodeEndEvent`（含 `elapsed` 与 `end_time=time.time()`）；
+- 收尾阶段 `_finish_start` 通过 `observers.on_event(NodeEndEvent(...))` 广播结束事件（含 `elapsed` 与 `end_time=time.time()`）；
 - 任何阶段异常最终会被聚合成 `ExceptionGroup("Errors occurred during execution", ...)` 抛出。
 
 ### `async start_async()`
 
 - 仅当 `execution_mode == "async"` 合法，否则抛 `InvalidOptionError`；
-- 内部 `await self.dispatch.dispatch_async()`，收尾广播 `NodeEndEvent`（同样携带 `end_time`）。
+- 内部 `await self.dispatch.dispatch_async()`，收尾同样通过 `observers.on_event(NodeEndEvent(...))` 广播（携带 `end_time`）。
 
 ## 结果 / 事件 / 错误处理
 
 | 方法 | 作用 |
 |------|------|
 | `process_task_success(envelope, result, start_perf)` | 抽象钩子，由子类实现成功处理 |
-| `handle_task_fail(envelope, exception)` | 用 `ctree_client.emit(CTreeEvent.TASK_ERROR, parents=[task_id])` 生成 `error_id`，广播 `TaskFailEvent` |
-| `handle_task_skip(envelope)` | 用 `ctree_client.emit(CTreeEvent.TASK_SKIP, parents=[task_id])` 生成 `skip_id`，广播 `TaskSkipEvent` |
-| `log_task_retry(envelope, exception, fail_times)` | 广播 `TaskRetryEvent`（含 `retry_times`）；lifecycle 状态更新由 `LifecycleInlet` 响应事件完成 |
+| `handle_task_fail(envelope, exception)` | 用 `ctree_client.emit(CTreeEvent.TASK_ERROR, parents=[task_id])` 生成 `error_id`，再 `observers.on_event(TaskFailEvent(...))` |
+| `handle_task_skip(envelope)` | 用 `ctree_client.emit(CTreeEvent.TASK_SKIP, parents=[task_id])` 生成 `skip_id`，再 `observers.on_event(TaskSkipEvent(...))` |
+| `log_task_retry(envelope, exception, fail_times)` | `observers.on_event(TaskRetryEvent(...))`（含 `retry_times`）；lifecycle 状态更新由 `LifecycleObserver` 响应事件完成 |
 | `_get_repr(task) -> str` | 用 `format_repr(task, self.max_info)` 生成可读字符串 |
+| `_find_lifecycle_db_path() -> Path | None` | 通过 `observers.find(LifecycleObserver)` 递归查找并返回其 `db_path`；未找到时为 `None` |
 
 ## 关键数据流
 
@@ -246,13 +245,13 @@ flowchart LR
     PTS --> CT
 
     Hub --> Metrics[MetricsObserver]
-    Hub --> Lifecycle[LifecycleInlet]
-    Hub --> Log[LogInlet]
+    Hub --> Lifecycle[LifecycleObserver]
+    Hub --> Log[LogObserver]
     Lifecycle --> SQLite[(sqlite 持久化)]
-    Log --> LogStore[(日志 spout)]
+    Log --> LogStore[(日志文件)]
 ```
 
-`ObserverHub` 是节点事件广播的出口端：节点在某事件发生时调用对应的 `on_*` 回调，已注册的 `MetricsObserver` / `LifecycleInlet` / `LogInlet` 等分别据此更新计数、写库、写日志。这些观察者由 `run_node_resources`（独立运行）或图级客户端装配注入。
+`ObserverHub` 是节点事件广播的出口端：节点在事件发生时统一调用 `self.observers.on_event(SomeEvent(...))`，已注册的 `MetricsObserver` / `LifecycleObserver` / `LogObserver` 等分别据此更新计数、写库、写日志。这些观察者由 `run_node_resources`（独立运行）或图级客户端装配注入；图调度时节点 hub 中会嵌套图级 hub，因此 `observers.find(...)` 可以穿透查找。
 
 ## 使用示例
 
@@ -273,7 +272,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
         task_id = task_envelope.get_id()
 
         result_id = self.ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -290,7 +289,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
             downstream_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT, parents=[result_id]
             )
-            self.observers.on_task_input(
+            self.observers.on_event(
                 TaskInputEvent(
                     node=target,
                     task=result,
@@ -322,6 +321,6 @@ node.run([1, 2, 3, 4])
 
 1. **一次性 `start`**：`start()` / `start_async()` 为一次性调用，**不保证**运行完毕后实例可被安全重置复用；如需重复执行请新建节点。
 2. **setter 调用时机**：所有 setter 必须在 `start` 前完成，运行期间不要替换 `func`。
-3. **运行期资源由装配入口托管**：`MetricsObserver` / `LifecycleInlet` / `LogInlet` 由 `run_node_resources`（独立运行）或图级客户端装配，`BaseTaskNode` 自身不直接持有 spout / inlet。
+3. **运行期资源由装配入口托管**：`MetricsObserver` / `LifecycleObserver` / `LogObserver` 由 `run_node_resources`（独立运行）或图级客户端装配，`BaseTaskNode` 自身不直接持有 spout / inlet；`get_success_pairs()` / `get_error_pairs()` 在图级调度下同样可用。
 4. **ctree 客户端**：默认 `LocalEventClient()` 在内部自增事件 ID，可随时通过 `set_ctree(...)` 替换为接入 `celestialtree` 的客户端。
 5. **已移除的能力**：节点层不再携带 `TaskMetrics`，也不再提供 `get_snapshot()` / `get_lifecycle_path()` / `remove_observer()` 等旧接口；计数统计统一由 `MetricsObserver` 依据事件维护。

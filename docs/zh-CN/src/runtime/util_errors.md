@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_errors.py
 
-> 📅 最后更新日期: 2026/10/09
+> 📅 最后更新日期: 2026/11/13
 
 TaskErrors 模块定义了 CelestialFlow 框架中使用的完整异常类体系。
 
@@ -184,7 +184,7 @@ class DuplicateNodeError(GraphStructureError):
 
 ### UnknownNodeError
 
-未知的节点名称（在验证终止信号来源时触发）。
+未知的节点名称（在验证终止信号来源时触发，也会在 `TaskGraph.inject_tasks()` / `inject_terminations()` 校验注入目标节点时触发）。
 
 ```python
 class UnknownNodeError(GraphStructureError):
@@ -439,6 +439,6 @@ except RemoteWorkerError as e:
 
 1. 清空节点的任务队列，取出剩余任务。
 2. 对每个剩余任务调用 `handle_task_fail(source, UnconsumedError())`。
-3. 失败信息经观察者 `LifecycleInlet` 写入 `LifecycleSpout`（`on_task_fail` 将 pending 记录晋升为 failed），最终持久化到按日期组织的 lifecycle sqlite 数据库（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）。
+3. 失败信息以 `TaskFailEvent` 投递到观察者 hub，由 `LifecycleObserver.on_event()` 翻译为 `PromoteFailedRecord` 并经 `LifecycleInlet` 写入 `LifecycleSpout`（把 pending 记录晋升为 failed），最终持久化到按日期组织的 lifecycle sqlite 数据库（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）。
 
 因此，未消费任务的“持久化”并不是由 `util_errors.py` 自身完成，而是依赖 Graph / Node 层的生命周期（lifecycle）持久化机制。

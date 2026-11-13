@@ -1,6 +1,6 @@
 # 更新日志（Change Log）
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 - 2021: 建立一个支持多线程与单线程处理函数的类
 - 2023: 在 GPT-4 帮助下添加多进程与协程运行模式
@@ -531,3 +531,13 @@
     - 删除部分无用的sqlite函数
   - fix:
     - 修复图分析缓存的问题
+- 3.3.4
+  - feat:
+    - 在 `ObserverHub` 中添加 `find` 方法, 用于查找指定类型的observer
+  - refactor:
+    - 将observer中各个事件处理方法归于 `on_event`
+    - 将 `log` 与 `lifecycle` 中混乱的 `observer/inlet` 拆开
+      - 现在建立单独的 `*Observer` 来统筹 `spout/inlet`
+    - 在 `lifecycle` 中用明确的dataclass取代 `dict[str, Any]`
+    - `graph` 与 `node` 中不再存储 `_lifecycle_db_path`
+    - 归一化 `graph.run` 与 `graph.inject_tasks` 的输入参数类型
