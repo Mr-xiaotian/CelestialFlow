@@ -1,11 +1,12 @@
 # bench/bench_hash_memory.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-Compare the memory usage and lookup performance when storing SHA1 hash values in a `set` as three types — `str` (40-char hex), `bytes` (20-byte raw), and `int` (160-bit integer) — to inform the data type selection for `processed_set`.
+Compare the memory usage and lookup performance when storing SHA1 hash values in a `set` as three types — `str` (40-char hex), `bytes` (20-byte raw), and `int` (160-bit integer) — to provide a basis for type selection in the general scenario of "using hash values as set keys".
 
+> The framework removed the built-in duplicate-detection mechanism in 3.3.1, and the source code currently has no consumer of hash-key sets such as `processed_set`; the conclusions of this script serve only as a general reference for data type selection.
 > The script **constructs keys on the fly** with `random.seed(42)` + `random.randbytes(20)` to mimic the length and distribution of a SHA1 digest (so that `tracemalloc` can capture the allocations); it does not actually compute SHA1.
 
 ## Test Strategy

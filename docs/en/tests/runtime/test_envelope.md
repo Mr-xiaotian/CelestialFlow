@@ -1,6 +1,6 @@
 # tests/runtime/test_envelope.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Verifies the `TaskEnvelope` class in the `celestialflow.runtime.core_envelope` module, ensuring that task data and IDs are correctly stored by the envelope and restored via getters, and that the `__slots__` memory constraint is in effect.
@@ -29,13 +29,13 @@ Verifies the `TaskEnvelope` class in the `celestialflow.runtime.core_envelope` m
 
 ```bash
 # Run all
-pytest tests/runtime/test_envelope.py -v
+uv run pytest tests/runtime/test_envelope.py -v
 
 # Getter-related tests only
-pytest tests/runtime/test_envelope.py -k "get_id or getters" -v
+uv run pytest tests/runtime/test_envelope.py -k "get_id or getters" -v
 
 # slots memory tests only
-pytest tests/runtime/test_envelope.py -k "slots" -v
+uv run pytest tests/runtime/test_envelope.py -k "slots" -v
 ```
 
 ## Performance Reference

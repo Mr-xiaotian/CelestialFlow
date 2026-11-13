@@ -1,41 +1,48 @@
 # src/celestialflow/persist/core_log.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
-`persist/core_log.py` モジュールは、スレッドセーフなログシステムを提供します。プロデューサー・コンシューマーパターンにより、ログを統一的に収集・フォーマットし、`logs/` ディレクトリ配下のテキストファイルに永続化します。中核コンポーネントは `LogSpout` と `LogInlet` です。
+`persist/core_log.py` はスレッドセーフなログシステムを提供し、プロデューサー-コンシューマーパターンによってログを統一的に収集・フォーマットし、`logs/` ディレクトリ下のテキストファイルへ永続化します。
+
+中核コンポーネントはレコード型 `LogRecord`、リスナー `LogSpout`、入口 `LogInlet`、観測者ファサード `LogObserver` です。
 
 ## アーキテクチャ設計
 
 ### データフロー
 
-ログシステムはプロデューサー・コンシューマーパターンを採用しています。完全なデータフローは以下の通りです：
-
 ```mermaid
 flowchart LR
-    subgraph Observer[観察者 Inlet]
-        Inlet[LogInlet]
+    subgraph EventLayer["観測者層"]
+        Hub[ObserverHub] -->|on_event| Obs[LogObserver]
+        Obs -->|_log レベルフィルタ| Inlet[LogInlet]
     end
-    Observer -->|on_* コールバック -> _log| Queue[queue.Queue]
+    Inlet -->|send LogRecord| Queue[queue.Queue]
     Queue -->|バックグラウンドスレッドポーリング| Spout[LogSpout]
     Spout -->|_handle_record| File[logs/*.log]
 ```
 
-### ログレベルフィルタリング
+### ログレベルのフィルタリング
 
-`LogInlet._log()` メソッドはキューに書き込む前にレベルフィルタリングを行います：レベルは `LEVEL_DICT` 内の既知レベルで、かつ `log_level` 閾値以上である必要があり、それ以外は破棄されます。
+`LogObserver._log()` はキューへ書き込む前に 2 段階のフィルタリングを行います：
 
-### オブザーバーパターン
+1. レベルは `LEVEL_DICT` 内の既知のキーであること（そうでなければ直ちに return）；
+2. レベルの数値が `log_level` 閾値以上であること（そうでなければ破棄）。
 
-`LogInlet` は `BaseInlet, Observer` を継承し、ログシステムをイベントバスに接続します：
+### 観測者と入口の分離
 
-1. **LogInlet (プロデューサー + オブザーバー)**：
-   - すべてのイベントコールバック（グラフ / ノード / タスク / 終了シグナル）をオーバーライドし、コールバック内で `_log()` を呼び出して対応するログを記録します。
-   - ノードの起動停止を記録する際、`metrics_view` を介してノード集計（入力総数、成功 / 失敗 / スキップ数など）を読み取ります。
-   - ログレベルに基づくフィルタリングをサポートし、不要な通信を削減します。
+`LogObserver` は `Observer` を継承し、ログシステムをイベントバスに接続します：
 
-2. **LogSpout (コンシューマー)**：
-   - `BaseSpout` を継承し、独立したバックグラウンドスレッドで動作します。
-   - キューからログレコードを取り出し、ファイルへ書き込みます。
+1. **LogObserver（観測者 + 変換器）**：
+   - `on_event()` 内でイベント型に応じてログ（グラフ / ノード / タスク / 終了シグナル）を生成；
+   - ノードの起動停止を記録する際、`metrics_view` を通じてノード集計（入力総数、成功 / 失敗 / スキップ数）を読み取る；
+   - spout の `start()` / `stop()` を担当し `log_path` を公開。
+
+2. **LogInlet（レコード入口）**：
+   - `BaseInlet` のみを継承し、型付きの `send(record)` を提供。イベントを消費せず、ファイルも書き込みません。
+
+3. **LogSpout（コンシューマー）**：
+   - `BaseSpout` を継承し、独立したバックグラウンドスレッドで動作；
+   - キューから `LogRecord` を取り出し、1 行にフォーマットしてファイルへ書き込みます。
 
 ## ログレベル
 
@@ -49,99 +56,170 @@ flowchart LR
 | INFO | 30 | 一般情報。ノード / グラフの起動停止、グラフ構造の出力など |
 | WARNING | 40 | 警告情報。タスクリトライなど |
 | ERROR | 50 | エラー情報。タスク失敗など |
-| CRITICAL | 60 | 重大エラー（現在の内蔵コールバックではこのレベルは使用されません） |
+| CRITICAL | 60 | 重大エラー（現在の内蔵イベント処理ではこのレベルは使用されません） |
+
+## LogRecord
+
+```python
+@dataclass(frozen=True, slots=True)
+class LogRecord:
+    timestamp: str
+    level: str
+    message: str
+```
+
+| フィールド | 説明 |
+|------|------|
+| `timestamp` | フォーマット済みタイムスタンプ（`%Y-%m-%d %H:%M:%S`） |
+| `level` | 大文字化済みのログレベル |
+| `message` | ログメッセージ |
 
 ## LogSpout
 
 `LogSpout` は `BaseSpout` を継承し、ログファイルの設定と書き込みスレッドの管理を担当します。
 
-### 初期化
+### 初期化と起動
 
 ```python
+from celestialflow.persist import LogSpout
+
 spout = LogSpout()
 spout.start()
+print(spout.log_path)  # logs/flow_log(2026-11-13).log
+spout.stop()
 ```
 
-起動後、ログは `logs/flow_log({date}).log` ファイルに書き込まれ、行バッファリング（`buffering=1`）方式で開かれるため、読み取り側が新規ログを速やかに確認できます。
+- `log_path` は `start()` 前は `None`；
+- 起動後、ログは `logs/flow_log({date}).log` へ書き込まれ、追記モード（`"a"`）と UTF-8 で開かれます；
+- 行バッファリング（`buffering=1`）を使用するため、読み取り側は新規ログを速やかに確認できます；
+- `_handle_record()` はレコードを `"{timestamp} {level} {message}\n"` に連結してファイルへ書き込みます；ファイルハンドルが未初期化の場合は `InitializationError` を送出；
+- `_after_stop()` はファイルハンドルを閉じます。
 
 ### ファイルパス
 
 ```text
 logs/
-└── flow_log(2026-10-09).log
+└── flow_log(2026-11-13).log
 ```
 
 ## LogInlet
 
-`LogInlet` は `BaseInlet, Observer` を継承し、オブザーバーとしてすべてのイベントを消費し、ログをキュー経由で spout に渡してディスクへ書き込みます。
-
-### 初期化
-
 ```python
-inlet = LogInlet(metrics_view).bind_spout(log_spout)
+class LogInlet(BaseInlet):
+    def send(self, record: LogRecord) -> None: ...
 ```
 
-- `metrics_view`：指標の読み取り専用ビュー（`MetricsView`）。ノードの起動停止時にノード集計を記録するために使用します。
-- `log_level`：最低ログレベル。このレベル未満のログは記録されません。デフォルトは `runtime.util_log_level.DEFAULT_LOG_LEVEL`（現在は `"INFO"`）で、渡された値はまず `upper()` され、不正なレベルは `InvalidOptionError` を送出します。
+- `BaseInlet` のみを継承し、**もはや `Observer` ではありません**。イベントを消費しません；
+- `send()` は `BaseInlet.send()` に転送してレコードをバインド済み spout のキューへ入れます；spout が未バインドの場合は `InitializationError` を送出；
+- `bind_spout(spout)` でバインドし、チェーン呼び出しを可能にするため `self` を返します。
 
-### イベントコールバックとログレベル
+```python
+log_inlet = LogInlet().bind_spout(log_spout)
+```
 
-すべてのメソッドはイベントドメイン別に以下のように分類されます：
+## LogObserver
+
+```python
+class LogObserver(Observer):
+    def __init__(
+        self,
+        metrics_view: MetricsView,
+        log_level: str = DEFAULT_LOG_LEVEL,
+    ) -> None: ...
+
+    @property
+    def log_path(self) -> Path | None: ...
+    def start(self) -> None: ...
+    def stop(self) -> None: ...
+    def on_event(self, event: Event) -> None: ...
+```
+
+### 構築パラメータ
+
+| パラメータ | 型 | 説明 |
+|------|------|------|
+| `metrics_view` | `MetricsView` | **必須**。指標の読み取り専用ビューで、ノードの起動停止時にノード集計を記録するために使用 |
+| `log_level` | `str` | 最低ログレベル。デフォルトは `runtime.util_log_level.DEFAULT_LOG_LEVEL`（`"INFO"`）；渡された値は `upper()` されるだけで、不正なレベルは `InvalidOptionError` を送出 |
+
+`__init__` は `LogSpout` と `LogInlet().bind_spout(spout)` を作成します。`log_level` は `strip()` されないため、正規化が必要な場合は組み立てエントリで `normalize_log_level()` を呼び出してください。
+
+### イベント処理とログレベル
+
+`on_event()` はイベント型ごとにディスパッチし、関心のないイベントは `case _: pass` に落ちます：
 
 #### タスクグラフ (Graph)
 
-| コールバック | ログレベル | 説明 |
+| イベント | ログレベル | 説明 |
 |------|---------|------|
-| `on_graph_start(event)` | INFO | タスクグラフの起動と構造情報を記録（`util_render` でレンダリング） |
-| `on_graph_end(event)` | INFO | タスクグラフの終了と経過時間を記録 |
+| `GraphStartEvent` | INFO | タスクグラフの起動と構造情報を記録（`util_render` でレンダリングし、行ごとに書き込み） |
+| `GraphEndEvent` | INFO | タスクグラフの終了と経過時間を記録（`Use {elapsed:.2f}s.`） |
 
 #### ノード (Node)
 
-| コールバック | ログレベル | 説明 |
+| イベント | ログレベル | 説明 |
 |------|---------|------|
-| `on_node_start(event)` | INFO | ノード起動を記録し、実行するタスク数と実行モードを出力 |
-| `on_node_end(event)` | INFO | ノード終了を記録し、成功 / 失敗 / スキップ数と経過時間を出力 |
+| `NodeStartEvent` | INFO | ノード起動を記録し、`metrics_view` から入力タスク数を読み取り、実行モードと並行数を出力 |
+| `NodeEndEvent` | INFO | ノード終了を記録し、`metrics_view` から成功 / 失敗 / スキップの統計と経過時間を出力 |
 
 #### タスク (Task)
 
-| コールバック | ログレベル | 説明 |
+| イベント | ログレベル | 説明 |
 |------|---------|------|
-| `on_task_input(event)` | DEBUG | タスクが入力キューに入ったこととソースを記録 |
-| `on_task_success(event)` | SUCCESS | タスク成功完了を記録 |
-| `on_task_skip(event)` | SUCCESS | タスクがスキップされたことを記録 |
-| `on_task_retry(event)` | WARNING | タスク失敗だがリトライがトリガーされたことを記録 |
-| `on_task_fail(event)` | ERROR | タスク失敗かつリトライ不可能を記録 |
-
-> 分割（Split）とルーティング（Router）には専用のログがなくなりました：`TaskSplitter` / `TaskRouter` の入力配分は一律 `on_task_input`、成功は一律 `on_task_success` を通ります。
+| `TaskInputEvent` | DEBUG | タスクが入力キューに入ったこととソースを記録（`from_node` が `None` の場合は `external` と表記） |
+| `TaskSuccessEvent` | SUCCESS | タスクの成功完了と結果、経過時間を記録 |
+| `TaskSkipEvent` | SUCCESS | タスクがスキップされたことを記録 |
+| `TaskRetryEvent` | WARNING | タスク失敗だがリトライがトリガーされたことを記録（リトライ済み回数を含む） |
+| `TaskFailEvent` | ERROR | タスク失敗かつリトライ不可能であることを記録（例外メッセージ内の改行は空白に置換） |
 
 #### 終了シグナル (Termination)
 
-| コールバック | ログレベル | 説明 |
+| イベント | ログレベル | 説明 |
 |------|---------|------|
-| `on_termination_input(event)` | DEBUG | 終了シグナル入力を記録 |
-| `on_termination_merge(event)` | TRACE | 終了シグナルマージを記録 |
+| `TerminationInputEvent` | DEBUG | 終了シグナル入力を記録 |
+| `TerminationMergeEvent` | TRACE | 終了シグナルのマージを記録（親 ID リストを含む） |
 
-### 使用例
+> ログ内のタスクと結果はいずれもイベントが持つ `task_repr` / `result_repr` を使用します；イベント ID は `[task_id->success_id*]` の形式で末尾に付され、ctree イベントとの関連付けが容易になります。
+
+## 使用例
+
+### 観測者ファサード経由（推奨）
 
 ```python
-from celestialflow.persist import LogSpout, LogInlet
-from celestialflow.observer import MetricsObserver
+from celestialflow.observer import MetricsObserver, NodeStartEvent
+from celestialflow.persist import LogObserver
 
 metrics_view = MetricsObserver()
-log_spout = LogSpout()
-log_spout.start()
+log = LogObserver(metrics_view, log_level="DEBUG")
+log.start()
+try:
+    log.on_event(NodeStartEvent(node="NodeA", execution_mode="thread", max_workers=4, start_time=1.0))
+finally:
+    log.stop()
 
-inlet = LogInlet(metrics_view).bind_spout(log_spout)
-# inlet をノードの ObserverHub に登録し、イベントを消費してログを記録
-# hub.on_node_start(NodeStartEvent(node="NodeA", ...)) -> ログへ書き込み
-
-log_spout.stop()
+print(log.log_path)  # logs/flow_log(2026-11-13).log
 ```
 
-オブザーバーコールバック（汎用の `info()` / `debug()` ではなく）でログを記録することで、生成されるログが構造化され、読みやすく、機械解析が容易であることを保証します。
+実際の使用では、`LogObserver` は `assembly/core_run.py` の `run_graph_resources` / `run_node_resources` によって hub に登録され、一括で起動・停止されます。
+
+### 手動でレコードを送出
+
+```python
+from celestialflow.persist import LogInlet, LogRecord, LogSpout
+
+spout = LogSpout()
+spout.start()
+inlet = LogInlet().bind_spout(spout)
+
+inlet.send(LogRecord(timestamp="2026-11-13 10:00:00", level="INFO", message="hello"))
+
+spout.stop()
+```
+
+イベント駆動（汎用の `info()` / `debug()` ではなく）でログを記録することで、生成されるログが構造化され、読みやすく、機械解析が容易であることを保証します。
 
 ## 注意事項
 
-1. **コンストラクタに `metrics_view` が必要**：`LogInlet(metrics_view, log_level)` は指標の読み取り専用ビューを渡す必要があり、ノード起動停止時の集計出力に使用されます。
-2. **オブザーバーコールバック駆動**：`task_input` / `node_start` などの手動呼び出しメソッドは提供されず、`on_*` イベントコールバックを通じてログを記録します。
-3. **行バッファリング書き込み**：ログファイルは `buffering=1` で開かれ、書き込み後すぐに確認できます。
+1. **構築に `metrics_view` が必要**：`LogObserver(metrics_view, log_level)` は指標の読み取り専用ビューを必ず渡す必要があり、ノード起動停止時の集計出力に使用されます。
+2. **イベント消費は観測者層**：`LogInlet` は `send(record)` のみを提供します；`on_graph_*` / `on_node_*` / `on_task_*` などの個別コールバックはもはや存在せず、すべてのロジックが `LogObserver.on_event()` に集約されています。
+3. **`log_level` は大文字化のみ**：構築時に `strip()` しません；大文字小文字と前後の空白を無視する必要がある場合は、先に `normalize_log_level()` を使用してください。
+4. **行バッファリング書き込み**：ログファイルは `buffering=1` で開かれ、書き込み後すぐに確認できます。

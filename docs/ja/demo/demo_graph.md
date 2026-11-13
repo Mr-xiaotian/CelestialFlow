@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -56,7 +56,7 @@ AsyncDouble ──> AsyncToStr
 
 ## 主要設定
 
-- 各 Stage は `TaskExecutor(..., execution_mode="thread" | "async")` で実行モードを明示的に指定
+- 各ノードは `TaskExecutor(..., execution_mode="thread" | "async")` で実行モードを明示的に指定
 - ETL パイプラインと非同期パイプラインはそれぞれ `TaskGraph(..., graph_mode="thread")` と `graph_mode="async"` でグラフモードを指定
 - `execution_mode="async"` はコルーチンタスク関数（`async_double`、`async_to_str`）に使用
 

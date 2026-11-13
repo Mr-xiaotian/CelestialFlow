@@ -1,8 +1,8 @@
 # src/celestialflow/node/util_callable.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
-`util_callable.py` provides lightweight validation of executor function signatures. It currently exposes a single utility function, `validate_executor_func_signature`, which `BaseTaskNode._set_func` calls when registering a callback.
+`util_callable.py` provides lightweight validation of executor function signatures. It currently exposes a single utility function, `validate_executor_func_signature`, which `BaseTaskNode._set_func` and `BaseTaskNode.set_skip_func` call when registering a callback / skip decision function.
 
 ## Public Functions
 
@@ -24,7 +24,7 @@ Behavior:
 3. If a parameter kind not in the allowed list is found, such as `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD`, raise `CallableParameterKindError` (defined in `celestialflow.runtime.util_errors`);
 4. Return the total parameter count `len(parameters)`.
 
-> The caller (`BaseTaskNode._set_func`) further checks `parameter_count != 1` and raises `ConfigurationError`, thereby guaranteeing that the callback accepts only one positional task argument.
+> The caller (`BaseTaskNode._set_func` / `BaseTaskNode.set_skip_func`) further checks `parameter_count != 1` and raises `ConfigurationError`, thereby guaranteeing that the callback accepts only one positional task argument.
 
 ## Parameters
 

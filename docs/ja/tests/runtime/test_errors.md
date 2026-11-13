@@ -1,6 +1,6 @@
 # tests/runtime/test_errors.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `celestialflow.runtime.util_errors` のカスタム例外体系を検証し、例外の継承関係、デフォルトメッセージ、追加フィールドが期待通りであることを確認します。
@@ -25,9 +25,12 @@
 | タスクとロジック | 1 | `TerminationMergeError` |
 | **合計** | **17** | |
 
+> **本ファイルでカバーしない例外クラス**：`CallableParameterKindError`（現在どのテストも直接インスタンス化していない）、`NodeNotFoundError`（`tests/graph/test_graph.py` がカバー）、`InvalidStructureError`（`tests/graph/test_structure.py` がカバー）、`PersistedError`（`tests/node/test_nodes.py` がカバー）。本ファイルは上表の 13 個の例外クラスについて、構築・継承・メッセージの契約のみを保証します。
+
 ## 主要シナリオ
 - 例外が正しい親クラスから継承されているかをチェック（`InvalidOptionError → ConfigurationError → CelestialFlowError` のような多重継承チェーンの検証）。
-- `field`、`value`、`allowed` などの追加フィールドが保存されているかをチェック。
+- `field`、`value`、`allowed` などの追加フィールドが保存されているかをチェック；`allowed` は `tuple` に正規化されます。
+- デフォルトメッセージの形式 `"{prefix} {field}: {value}. Valid options are {allowed}."`、および `prefix="Bad"` のときのカスタムプレフィックスをチェック。
 - 異なる不正フィールド値（`execution_mode`、`graph_mode`、`log_level` など）がすべて `InvalidOptionError` によって統一的に処理され、フィールド情報が公開されることをチェック。
 - デフォルト文言とカスタムエラーメッセージが読み取り可能であるかをチェック。
 

@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 
@@ -8,8 +8,8 @@ Validates the `clone_executor` and `clone_graph` clone functions in `celestialfl
 
 ## Core Test Objects
 
-- `clone_executor`: Copies `TaskExecutor`, preserving `name`, `func`, and `execution_mode`; it also applies to `TaskExecutor` instances used as graph nodes.
-- `clone_graph`: Copies `TaskGraph`, preserving the complete DAG structure (nodes, edges) and `graph_mode`, with nodes independent of each other.
+- `clone_executor`: Copies `TaskExecutor`, preserving `name`, `func`, `execution_mode`, `max_workers`, `max_retries`, and `max_info`, and re-registers `retry_exceptions`; it also applies to `TaskExecutor` instances used as graph nodes.
+- `clone_graph`: Copies `TaskGraph`, preserving the complete DAG structure (nodes, edges), `graph_mode`, and an independent event client, with nodes independent of each other. This utility is for benchmark scenarios only and supports only graphs composed of `TaskExecutor`; it raises `ConfigurationError` for other node types.
 - `LocalEventClient`: The default local event client; after cloning, its instances should remain independent.
 
 ## Key Test Scenarios

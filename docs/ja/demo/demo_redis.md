@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -168,7 +168,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
 | `get_redis()` | `REDIS_HOST` / `REDIS_PASSWORD` 環境変数に基づいて `redis.Redis(port=6379, db=0, decode_responses=True)` を構築して返す。クライアントのキャッシュは行わない |
 | `_normalize_result(result)` | リモートが書き戻した `result` を正規化する：文字列/バイトはそのまま返す。単一要素リストは唯一の要素を取り出す。複数要素リストはタプルに変換する。その他の型はそのまま返す |
 | `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | 各シナリオの `Start` ノードタスク：1 秒 sleep した後に `(key, payload)` タプルを返す。`key` はそれぞれ `testFibonacci` / `testSum` / `testDownload` / `testReport` |
-| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | ローカル直算ブランチ：`(key, payload)` タプルから `payload` を取り出し、それぞれ `fibonacci` / `sum_int` / `download_to_file` を呼び出す |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | ローカル直算ブランチ：`(key, payload)` タプルから `payload` を取り出し、それぞれ `fibonacci` / `sum_int` / `download_to_file` を呼び出す（`download_to_file_wrapper` は現在 `url` のみを渡しており、`download_to_file(task: tuple[str, str])` のシグネチャと一致しない。「発生しうる問題」を参照） |
 
 > `redis_push` のソース上のシグネチャは `int` を返すと注記しているが、実際には `(key, task_id)` タプルを返し、下流の `redis_wait` はこのタプルに依存している。
 
@@ -246,7 +246,7 @@ flowchart TB
 
 - `demo_redis_ack_0`：CPU 集約型フィボナッチ
 - `demo_redis_ack_1`：軽量な合計計算
-- `demo_redis_ack_2`：実際のダウンロード I/O
+- `demo_redis_ack_2`：実際のダウンロード I/O（ローカルブランチは現在、パラメータの形態が一致しないため失敗する。「発生しうる問題」の 8 番目を参照）
 
 これらは共通のパターンを使用する：
 
@@ -319,6 +319,7 @@ python demo/demo_redis.py
 5. **アサーションなし**：これは統合デモであり、ビジネス結果の正しさを検証しない。
 6. **ローカル task_id のスコープ**：`redis_push` の `task_id` は現在のプロセス内で増加する値であり、デモや単一端の協調には適しているが、グローバルな分散一意 ID とは等しくない。
 7. **一回限りの消費**：`redis_wait` は結果を取得した直後に `HDEL` するため、同一結果はデフォルトで 2 回読み取られない。
+8. **`download_to_file_wrapper` のパラメータ形態の不一致**：この関数はタスクタプルから `url` を取り出して `download_to_file(url)` を呼び出すが、`demo_utils.download_to_file` のシグネチャは `download_to_file(task: tuple[str, str])` である。文字列を 2 要素タプルとしてアンパックしようとすると `ValueError` を送出するため、`demo_redis_ack_2` のローカル `Download` ブランチは実際にはファイルをダウンロードせず、リモートブランチの挙動のみが外部 Worker に依存する。
 
 ## 注意事項
 

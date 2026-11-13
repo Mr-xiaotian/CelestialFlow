@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_errors.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 TaskErrors モジュールは CelestialFlow フレームワークで使用される完全な例外クラス体系を定義します。
 
@@ -184,7 +184,7 @@ class DuplicateNodeError(GraphStructureError):
 
 ### UnknownNodeError
 
-不明なノード名（終了シグナルソースの検証時に発生）。
+不明なノード名（終了シグナルのソースを検証するときに発生し、`TaskGraph.inject_tasks()` / `inject_terminations()` が注入対象ノードを検証するときにも発生します）。
 
 ```python
 class UnknownNodeError(GraphStructureError):
@@ -294,7 +294,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-`TaskGraph._finish_start()` の後処理フェーズで全ノードを走査し `drain_task_queue()` を呼び出した結果、キューの残余タスクが検出された場合、それらは `UnconsumedError` としてマークされ、`get_lifecycle_inlet()` / `LifecycleSpout` を介して日付別に整理された lifecycle sqlite データベースに永続化されます。
+`TaskGraph._finish_start()` の後処理フェーズで全ノードを走査し `drain_task_queue()` を呼び出した結果、キューの残余タスクが検出された場合、それらは `UnconsumedError` としてマークされ、観測者 `LifecycleInlet` / `LifecycleSpout` を介して日付別に整理された lifecycle sqlite データベースに永続化されます。
 
 ### TerminationMergeError
 
@@ -439,6 +439,6 @@ except RemoteWorkerError as e:
 
 1. ノードのタスクキューをクリアし、残存タスクを取り出します。
 2. 各残存タスクに対して `handle_task_fail(source, UnconsumedError())` を呼び出します。
-3. 失敗情報は `get_lifecycle_inlet()` を介して `LifecycleSpout`（`task_fail()` が pending レコードを failed に昇格）に書き込まれ、最終的に日付別に整理された lifecycle sqlite データベース（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）に永続化されます。
+3. 失敗情報は `TaskFailEvent` として観測者 hub へ配信され、`LifecycleObserver.on_event()` によって `PromoteFailedRecord` に変換され、`LifecycleInlet` を介して `LifecycleSpout` に書き込まれ（pending レコードを failed に昇格）、最終的に日付別に整理された lifecycle sqlite データベース（`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`）に永続化されます。
 
 したがって、未消費タスクの「永続化」は `util_errors.py` 自身が行うのではなく、Graph / Node 層のライフサイクル（lifecycle）永続化機構に依存します。

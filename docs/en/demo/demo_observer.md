@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -25,12 +25,9 @@ The roles of the two observer types:
 ```mermaid
 flowchart TB
     Input["Input tasks<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
-    Progress["TaskProgress"] -.monitor.-> Executor
-    Custom["PrintObserver<br/>celestialflow built-in"] -.monitor.-> Executor
-    Executor --> NodeStart["on_node_start"]
-    Executor --> TaskInput["on_task_input"]
-    Executor --> Success["on_task_success"]
-    Executor --> NodeEnd["on_node_end"]
+    Executor -->|"Event objects<br/>NodeStart / NodeEnd / TaskInput / TaskSuccess ..."| Hub["ObserverHub"]
+    Hub --> Progress["TaskProgress<br/>on_event + match"]
+    Hub --> Print["PrintObserver<br/>on_event + match"]
 ```
 
 ## Key Configuration
@@ -45,24 +42,27 @@ Observer overview:
 | Observer | Source | Purpose |
 |----------|------|------|
 | `TaskProgress` | Locally defined in this file | Display execution progress using `tqdm`, suitable for CLI interactive scenarios |
-| `PrintObserver` | Built into `celestialflow` | Output each callback's count using `print`, with the constructor argument `name` as the output prefix |
+| `PrintObserver` | Built into `celestialflow` (`celestialflow.observer.core_print`) | Outputs each event's count in `on_event`, with the constructor argument `name` as the output prefix |
 
-`PrintObserver` implements the following callbacks (`name` is the prefix passed at construction); all callbacks receive the corresponding event `dataclass` from `core_event.py`:
+`PrintObserver` only implements the unified `on_event(event)`, using `match event` to maintain counts by event type and print them (`name` is the prefix passed at construction):
 
-| Callback | Output / Purpose |
+| Event | Output / Purpose |
 |------|------|
-| `on_node_start` | Prints `[{name}] start total={total}` |
-| `on_task_input` | Accumulates the total and prints `[{name}] total={total}(+1)` |
-| `on_task_success` | Counts successes and prints `[{name}] succeeded={n}(+1), total={total}` |
-| `on_task_fail` | Counts failures and prints `[{name}] failed={n}(+1), total={total}` |
-| `on_task_skip` | Counts skips and prints `[{name}] skipped={n}(+1), total={total}` |
-| `on_node_end` | Prints `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+| `NodeStartEvent` | Prints `[{name}] start total={total}` |
+| `TaskInputEvent` | Accumulates `total` and prints `[{name}] total={total}(+1)` |
+| `TaskSuccessEvent` | Accumulates successes and prints `[{name}] succeeded={n}(+1), total={total}` |
+| `TaskFailEvent` | Accumulates failures and prints `[{name}] failed={n}(+1), total={total}` |
+| `TaskSkipEvent` | Accumulates skips and prints `[{name}] skipped={n}(+1), total={total}` |
+| `NodeEndEvent` | Prints `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` |
+
+`TaskRetryEvent`, termination signal events, and graph events are not among the branches above and are ignored by the `match` fallback branch.
+The `Observer` base class currently only provides `on_event` and `handle_exception`; there are no per-event callbacks anymore.
 
 ## Potential Issues
 
 1. **`__main__` runs both `demo_progress_observer` and `demo_print_observer`**: Both observers execute in sequence, first showing the tqdm progress bar, then outputting logs.
-2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see `on_task_input`, `on_node_start`, `on_task_success`, and `on_node_end`.
-3. **`on_task_input` arrives before `on_node_start`**: `run()` injects all tasks before starting the executor, so by the time `on_node_start` fires, `total` has already accumulated to its final value (`PrintObserver` prints several `total=...(+1)` lines first, then `start total=7`). `TaskProgress` also relies on this, using the accumulated `_total` to create the progress bar in `on_node_start`.
+2. **Current example only shows the success path**: `test_task` is currently `range(25, 32)`, so runtime will typically only see output corresponding to `TaskInputEvent`, `NodeStartEvent`, `TaskSuccessEvent`, and `NodeEndEvent`.
+3. **Order of `TaskInputEvent` and `NodeStartEvent`**: `run()` injects all tasks before starting the executor, so by the time `NodeStartEvent` arrives, `total` has already accumulated to its final value (`PrintObserver` prints several `total=...(+1)` lines first, then `start total=7`). `TaskProgress` also relies on this, creating the progress bar from the accumulated `_total` on `NodeStartEvent`.
 4. **No assertions**: This is a demo script. It does not validate result values; it only demonstrates observer invocation timing.
 5. **Computation time varies with input**: The current Fibonacci is iterative O(n); single-task time grows linearly with `n`, but the difference between `fibonacci(31)` and `fibonacci(25)` is still at the microsecond level and will not significantly affect total duration.
 
@@ -107,10 +107,10 @@ If you want to observe events such as failures, skips, and retries, you can chan
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-This makes it easier to trigger `on_task_fail` / `on_task_skip`; but note:
+This makes it easier to trigger `TaskFailEvent` / `TaskSkipEvent`; but note:
 
-- `TaskProgress` only implements `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end`, and has no retry callback.
-- `PrintObserver` only implements `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip`, and likewise **does not implement `on_task_retry`**. Although the `Observer` base class provides the `on_task_retry` callback, neither of this demo's observers produces output for it.
+- `TaskProgress`'s `on_event` only `match`es `NodeStartEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `NodeEndEvent`, and does not handle `TaskRetryEvent`.
+- `PrintObserver`'s `on_event` likewise only handles `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent`, and its fallback branch ignores `TaskRetryEvent`. The `Observer` base class itself only provides `on_event` and `handle_exception`, so neither of this demo's observers produces output for retry events.
 
 ## Dependencies
 

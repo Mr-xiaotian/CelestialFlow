@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `core_node.py` は CelestialFlow ノード層のコア基底クラス `BaseTaskNode[T, R, Y]` を定義します。これは「キュー通信 / タスクスケジューリング / イベント追跡 / 観測者コールバック」などのランタイム関心を 1 つのオブジェクトに集約し、上位の `TaskExecutor` / `TaskSplitter` / `TaskRouter` が再利用するための `run` / `start` などのエントリメソッドを公開します。
 
@@ -28,7 +28,8 @@
 | `max_info` | `int` | ログ内の各タスク文字列の最大長（デフォルト `50`） |
 | `skip_func` | `Callable[[T], bool] | None` | タスクスキップ判定関数。デフォルト `None` はスキップしないことを意味 |
 | `_name` | `str` | ノード / マネージャ名 |
-| `_lifecycle_db_path` | `Path | None` | 単独実行時に生成される lifecycle データベースパス。グラフスケジューリング時は `None` |
+
+> ノードは lifecycle データベースパスのフィールドを**保持しません**。永続化された結果を読み取る必要がある場合、`_find_lifecycle_db_path()` が `self.observers.find(LifecycleObserver)` を通じて observer hub（ネストされたグラフレベルの hub も貫通可能）を再帰的に探索し、その `db_path` を取得します。
 
 ```mermaid
 classDiagram
@@ -93,7 +94,7 @@ def __init__(
 4. `max_workers / max_retries / max_queue_size / max_info` を初期化：`max_workers` の省略時は `min(32, (os.cpu_count() or 1) + 4)`；`max_retries` は `max(max_retries, 0)` でクランプされ、負値は `0` として扱われます；その後 `retry_exceptions` を空タプルにプリセット；
 5. デフォルトで `LocalEventClient()` をインストール。後で `set_ctree(...)` で置換可能；
 6. `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)` をインスタンス化し、`TaskInQueue`（`out_name` はノード名）/ `TaskOutQueue`（`in_name` はノード名）/ `ObserverHub` を新規作成；
-7. `_lifecycle_db_path` を `None` に初期化し、単独実行時に組み立てエントリが書き込みます。
+7. lifecycle パスのフィールドは一切設定しません：永続化観測者は `run_node_resources`（単独実行）またはグラフレベルの観測者（グラフスケジューリング）が `observers` に登録し、結果の読み取り時に `observers.find(...)` で位置を特定します。
 
 ## 設定 setter
 
@@ -123,10 +124,10 @@ def __init__(
 - `_get_class_name() -> str`：現在のノードクラス名を返します。
 - `get_meta() -> dict[str, Any]`：構築期メタ情報 `{"class_name", "execution_mode", "max_workers"}` を返します。グラフ構造とともに一度だけ報告されます。
 - `get_retry_error_type_names() -> set[str]`：`retry_exceptions` 内の各クラスの `__name__` 集合を返します。`restore_db` がエラータイプでフィルタリングするために使用します。
-- `get_success_pairs() -> list[tuple[T, R]]`：単独実行で生成した lifecycle ライブラリから成功 `(task, result)` レコードを読み取ります。単独実行していない（またはグラフスケジューリングの）場合は空リストを返します。
-- `get_error_pairs() -> list[tuple[T, PersistedError]]`：単独実行で生成した lifecycle ライブラリから失敗 `(task, PersistedError)` レコードを読み取ります。単独実行していない（またはグラフスケジューリングの）場合は空リストを返します。
+- `get_success_pairs() -> list[tuple[T, R]]`：`_find_lifecycle_db_path()` で lifecycle ライブラリを特定し、成功した `(task, result)` レコードを読み取ります。**単独実行でもグラフスケジューリング下でも使用可能**；`LifecycleObserver` が見つからない（またはその `db_path` がまだ準備できていない）場合のみ空リストを返します。
+- `get_error_pairs() -> list[tuple[T, PersistedError]]`：同様に lifecycle ライブラリから失敗レコードを読み取り、`PersistedError` でラップします。使用可能条件は `get_success_pairs()` と同じです。
 
-> ノードは `get_snapshot()` / `get_lifecycle_path()` / `start_time` などの旧インターフェースを**提供しなくなりました**。実行時状態は `MetricsObserver` のスナップショットビュー（`MetricsView.get_node_metrics()`）が提供し、lifecycle パスは組み立てエントリが `run` / `run_async` のコンテキストで生成します。
+> ノードは `get_snapshot()` / `get_lifecycle_path()` / `start_time` などの旧インターフェースを**提供しなくなりました**。実行時状態は `MetricsObserver` のスナップショットビュー（`MetricsView.get_node_metrics()`）が提供し、lifecycle ライブラリのパスは観測者 hub の再帰探索（`_find_lifecycle_db_path()`）で取得します。
 
 ## 下流のバインド
 
@@ -138,7 +139,7 @@ def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
     next_node.task_queue.add_source_name(self.get_name())
 ```
 
-バインドはノードとキューの間のデータパスのみを確立します。上流・下流の伝送カウントは**カウンタオブジェクトを共有せず**、`MetricsObserver` が `on_task_input` イベント配信時に導出します（上流の配信は受信側の上流カウントと発信元側の下流カウントの両方に加算）。したがって `connect_to` はバインドのみを行い、カウンティングには参加しません。
+バインドはノードとキューの間のデータパスのみを確立します。上流・下流の伝送カウントは**カウンタオブジェクトを共有せず**、`MetricsObserver` が `TaskInputEvent` を受信したときに導出します（上流の配信は受信側の上流カウントと発信元側の下流カウントの両方に加算）。したがって `connect_to` はバインドのみを行い、カウンティングには参加しません。
 
 ## タスク注入
 
@@ -162,10 +163,7 @@ def run(
 ) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(
-            self.observers, log_level=log_level
-        ) as lifecycle_db_path:
-            self._lifecycle_db_path = lifecycle_db_path
+        with run_node_resources(self.observers, log_level=log_level):
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
@@ -183,9 +181,9 @@ def run(
 |------|------|--------|------|
 | `task_source` | `Iterable[T]` | 必須 | 注入するタスクソース |
 | `if_put_signal` | `bool` | `True` | タスク注入後に自動で `put_signal()` するかどうか |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` のログフィルタレベル。そのまま `run_node_resources` へ透過 |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogObserver` のログフィルタレベル。そのまま `run_node_resources` へ透過 |
 
-`run_node_resources`（`celestialflow.assembly` に配置）は単一ノードの実行時リソースを組み立てます：`MetricsObserver` を作成し、`LifecycleInlet` / `LogInlet` 観測者と対応する spout を注入して一括で起動・停止します。lifecycle データベースパスを生成します。`log_level` は `normalize_log_level` で正規化され（大文字小文字と前後の空白を無視）、不正なレベルは `InvalidOptionError`、文字列以外は `ConfigurationError` を送出します。
+`run_node_resources`（`celestialflow.assembly` に配置）は単一ノードの実行時リソースの組み立てを担当します：`MetricsObserver` を作成して登録し、`LifecycleObserver` / `LogObserver` を組み立てます（それぞれが spout を保持し、起動・停止します）。このコンテキストマネージャは進入時に引き続き lifecycle データベースパスを生成しますが、`BaseTaskNode.run` はそれをキャッシュしなくなりました——`get_success_pairs()` / `get_error_pairs()` が必要時に `observers.find(LifecycleObserver)` で取得し直します。`log_level` は `normalize_log_level` で正規化され（大文字小文字と前後の空白を無視）、不正なレベルは `InvalidOptionError`、文字列以外は `ConfigurationError` を送出します。
 
 ### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
@@ -219,8 +217,9 @@ sqlite データベースから前回の未完了タスクを読み込み、リ�
 | `process_task_success(envelope, result, start_perf)` | 抽象フック。成功処理はサブクラスが実装 |
 | `handle_task_fail(envelope, exception)` | `ctree_client.emit(CTreeEvent.TASK_ERROR, parents=[task_id])` で `error_id` を生成し、`TaskFailEvent` をブロードキャスト |
 | `handle_task_skip(envelope)` | `ctree_client.emit(CTreeEvent.TASK_SKIP, parents=[task_id])` で `skip_id` を生成し、`TaskSkipEvent` をブロードキャスト |
-| `log_task_retry(envelope, exception, fail_times)` | `TaskRetryEvent`（`retry_times` を含む）をブロードキャスト；lifecycle 状態更新は `LifecycleInlet` がイベントに応答して実施 |
+| `log_task_retry(envelope, exception, fail_times)` | `observers.on_event(TaskRetryEvent(...))`（`retry_times` を含む）をブロードキャスト；lifecycle 状態の更新は `LifecycleObserver` がイベントに応答して実施 |
 | `_get_repr(task) -> str` | `format_repr(task, self.max_info)` で可読な文字列を生成 |
+| `_find_lifecycle_db_path() -> Path | None` | `observers.find(LifecycleObserver)` を通じて再帰的に探索し、その `db_path` を返します；見つからない場合は `None` |
 
 ## 主要なデータフロー
 
@@ -246,13 +245,13 @@ flowchart LR
     PTS --> CT
 
     Hub --> Metrics[MetricsObserver]
-    Hub --> Lifecycle[LifecycleInlet]
-    Hub --> Log[LogInlet]
+    Hub --> Lifecycle[LifecycleObserver]
+    Hub --> Log[LogObserver]
     Lifecycle --> SQLite[(sqlite 永続化)]
-    Log --> LogStore[(ログ spout)]
+    Log --> LogStore[(ログファイル)]
 ```
 
-`ObserverHub` はノードイベントブロードキャストの出力側です：ノードはイベント発生時に該当する `on_*` コールバックを呼び出すと、登録済みの `MetricsObserver` / `LifecycleInlet` / `LogInlet` などがそれぞれそれに応じてカウント更新、書き込み、ログ出力を行います。これらの観測者は `run_node_resources`（単独実行）またはグラフレベルクライアントの組み立てで注入されます。
+`ObserverHub` はノードイベントブロードキャストの出口側です：ノードはイベント発生時に `self.observers.on_event(SomeEvent(...))` を統一的に呼び出し、登録済みの `MetricsObserver` / `LifecycleObserver` / `LogObserver` などがそれぞれそれに応じてカウント更新、データベース書き込み、ログ出力を行います。これらの観測者は `run_node_resources`（単独実行）またはグラフレベルクライアントの組み立てによって注入されます；グラフスケジューリング時にはノードの hub にグラフレベルの hub がネストされるため、`observers.find(...)` は貫通して探索できます。
 
 ## 使用例
 
@@ -273,7 +272,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
         task_id = task_envelope.get_id()
 
         result_id = self.ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -290,7 +289,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
             downstream_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT, parents=[result_id]
             )
-            self.observers.on_task_input(
+            self.observers.on_event(
                 TaskInputEvent(
                     node=target,
                     task=result,
@@ -322,6 +321,6 @@ node.run([1, 2, 3, 4])
 
 1. **ワンタイム `start`**：`start()` / `start_async()` はワンタイム呼び出しです。**実行完了後にインスタンスを安全にリセットして再利用できることは保証されません**；繰り返し実行する場合は新しいノードを作成してください。
 2. **setter の呼び出しタイミング**：すべての setter は `start` 前に完了させる必要があり、実行期間中に `func` を置き換えないでください。
-3. **実行時リソースは組み立てエントリが管理**：`MetricsObserver` / `LifecycleInlet` / `LogInlet` は `run_node_resources`（単独実行）またはグラフレベルクライアントが組み立て、`BaseTaskNode` 自身は spout / inlet を直接保持しません。
+3. **実行時リソースは組み立てエントリが管理**：`MetricsObserver` / `LifecycleObserver` / `LogObserver` は `run_node_resources`（単独実行）またはグラフレベルクライアントが組み立て、`BaseTaskNode` 自身は spout / inlet を直接保持しません；`get_success_pairs()` / `get_error_pairs()` はグラフスケジューリング下でも同様に使用できます。
 4. **ctree クライアント**：デフォルトの `LocalEventClient()` は内部でイベント ID をインクリメントします。`set_ctree(...)` でいつでも `celestialtree` に接続するクライアントに置き換えることができます。
 5. **削除された機能**：ノード層は `TaskMetrics` を保持せず、`get_snapshot()` / `get_lifecycle_path()` / `remove_observer()` などの旧インターフェースも提供しません。カウント統計は `MetricsObserver` がイベントに基づいて一元的に維持します。

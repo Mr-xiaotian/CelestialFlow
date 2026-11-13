@@ -1,6 +1,6 @@
 # tests/runtime/test_envelope.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `celestialflow.runtime.core_envelope` モジュールの `TaskEnvelope` クラスを検証し、タスクデータと ID がエンベロープによって正しく保存され Getter で復元できること、同時に `__slots__` のメモリ制約が有効であることを確認します。

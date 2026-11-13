@@ -1,10 +1,10 @@
 # bench/bench_queue.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-In a single-process environment, compare the put/get/qsize/empty operation performance of various queue implementations, including thread queues, multiprocessing queues, Manager queues, and Redis queues.
+In a single-process environment, compare the put/get/qsize/empty operation performance of various queue implementations, including thread queues, multiprocessing queues, Manager queues, and Redis queues. The framework currently uses a thread-level `queue.Queue` internally; this script is mainly used to compare the cost differences of different queue implementations side by side.
 
 ## Test Content
 
@@ -55,7 +55,7 @@ In a single-process environment, compare the put/get/qsize/empty operation perfo
 
 **Key Takeaways**:
 - ThreadQueue is **40x** faster than MPQueue get, and **100x+** faster than Manager().Queue
-- MPQueue's get is the biggest bottleneck (3s vs 0.07s); if the framework's internal queue can degrade to thread mode, the gains are enormous
+- MPQueue's get is the biggest bottleneck (3s vs 0.07s); the framework's internal queue already uses a thread-level `queue.Queue`, so there is no need to pay this cost for a cross-process queue
 - Redis queues are suitable for cross-device/cross-network scenarios; they should never be considered for local IPC
 
 ### 2026/06/16 - Local queues and Redis retest

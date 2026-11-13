@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_log_level.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 `runtime/util_log_level.py` provides the default log level and normalization validation, **for internal use by the run entry points only**; it does not belong to the public configuration API.
 
@@ -26,7 +26,7 @@ The default value used when a run entry point does not explicitly specify a log 
 |----------|------|
 | `log_level` of `TaskGraph.run()` / `run_async()` / `restore_db()` | Graph-level run entry |
 | `log_level` of nodes such as `BaseTaskNode.run()` | Single-node run entry |
-| `LogInlet.__init__()` | Default value for the log filter construction |
+| `LogObserver.__init__()` | Default value of the log observer constructor |
 | `assembly.core_run.run_graph_resources()` / `run_node_resources()` | Runtime resource assembly |
 
 ### normalize_log_level

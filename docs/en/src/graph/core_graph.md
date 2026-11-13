@@ -1,6 +1,6 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 `TaskGraph` is CelestialFlow's core scheduler, responsible for managing a set of task nodes (`BaseTaskNode` derivative objects; the public API includes `TaskExecutor`, `TaskSplitter`, `TaskRouter`), their dependency relationships, execution flow, and lifecycle.
 
@@ -189,15 +189,6 @@ Behavior highlights:
 
 > This method is an idempotent "cache rebuild entry point" and should not be called directly from outside; for public reads use `get_source_nodes()` / `is_dag()` / `get_layers()`.
 
-### put_source_signal
-
-```python
-def put_source_signal(self) -> None:
-    """Put the termination signal into the queue of all source nodes."""
-```
-
-Iterates over `_source_names` and calls `put_signal()` on the corresponding node in `node_dict`. Since `run()` / `run_async()` / `start()` have already triggered `_build_analysis()`, the source node list read here is a valid cache.
-
 ## Starting Execution
 
 ### run
@@ -205,7 +196,7 @@ Iterates over `_source_names` and calls `put_signal()` on the corresponding node
 ```python
 def run(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,  # default "INFO"
@@ -215,8 +206,8 @@ def run(
     Run the task graph. Flow:
     1. Call _build_analysis() to build (or reuse) the graph analysis cache
     2. Call _inject_observers() to inject the graph-level observer hub
-    3. Within the run_graph_resources context, inject each task in init_tasks_dict into its node (node.put_task)
-    4. When if_put_signal=True, automatically inject termination signals into source nodes
+    3. Within the run_graph_resources context, call inject_tasks(init_tasks_dict) to inject the initial tasks
+    4. When if_put_signal=True, call inject_terminations(self._source_names) to inject termination signals into source nodes
     5. Call start() to launch execution
     """
 ```
@@ -225,13 +216,14 @@ Parameter descriptions:
 
 | Parameter | Type | Default | Description |
 |-----------|------|:-------:|-------------|
-| `init_tasks_dict` | `dict[str, Iterable[Any]]` | required | Keys are node names, values are iterables of tasks for that node |
-| `if_put_signal` | `bool` | `True` | Whether to automatically send the termination signal to source nodes after injecting tasks |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL` (`"INFO"`) | Log filter level for `LogInlet`; case-insensitive, leading/trailing whitespace is ignored |
+| `init_tasks_dict` | `Mapping[str, Iterable[Any]]` | required | Keys are node names, values are iterables of tasks for that node; each value is iterated only once |
+| `if_put_signal` | `bool` | `True` | Whether to automatically send termination signals to source nodes (`_source_names`) after injecting tasks |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL` (`"INFO"`) | Log filter level for `LogObserver`; case-insensitive, leading/trailing whitespace is ignored |
 | `report` | `ReportConfig \| None` | `None` | Remote reporting configuration; `None` means no reporting |
 
+- The injection phase is handled by `inject_tasks()` / `inject_terminations()`: both first make a best effort to inject into nodes that exist in the graph, and then uniformly raise `UnknownNodeError` for unknown nodes, so a single unknown node will not cause data already injected into the other nodes to be discarded.
 - `raises InvalidOptionError`: When `log_level` is not in the allowed set of levels (raised by `normalize_log_level()` inside `run_graph_resources`).
-- Runtime exceptions are collected into `error_list` and finally raised as `ExceptionGroup("Errors occurred during run", ...)`.
+- Runtime exceptions (including the `UnknownNodeError` raised during the injection phase, execution-phase exceptions, and teardown-phase exceptions) are collected into `error_list` and finally raised as `ExceptionGroup("Errors occurred during run", ...)`.
 
 ```python
 from celestialflow import TaskExecutor, TaskGraph
@@ -255,7 +247,7 @@ Runtime observer injection, global funnel observer registration, and the start/s
 ```python
 async def run_async(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,
@@ -349,7 +341,7 @@ async def start_async(self) -> None:
 ```python
 def _prepare_start(self) -> None:
     """
-    Pre-start preparation: broadcast the on_graph_start event to the graph-level observer hub.
+    Pre-start preparation: broadcast GraphStartEvent to the graph-level observer hub (observers.on_event(...)).
     start_time takes time.time() at the moment of the call; is_dag is fetched on the fly via self.is_dag().
     """
 
@@ -357,11 +349,11 @@ def _prepare_start(self) -> None:
 def _finish_start(self, start_perf: float) -> list[Exception]:
     """
     Post-start finalization: iterates over all nodes calling drain_task_queue() to collect unconsumed tasks,
-    broadcasts the on_graph_end event, cleans up thread references, and returns the collected exception list.
+    broadcasts GraphEndEvent, cleans up thread references, and returns the collected exception list.
     """
 ```
 
-The `GraphStartEvent` fields broadcast by `_prepare_start()`: `graph`, `graph_mode`, `start_time` (`time.time()`), `is_dag` (`self.is_dag()`), `nodes`, `edges`, `source_nodes`, `node_meta`. The event does **not** contain `class_name`; the node class name only appears in each item of `node_meta`. `start_time` is taken via `time.time()` only when execution actually begins, and `TaskGraph` no longer maintains a `self.start_time` instance field.
+The `GraphStartEvent` fields broadcast by `_prepare_start()` via `observers.on_event()`: `graph`, `graph_mode`, `start_time` (`time.time()`), `is_dag` (`self.is_dag()`), `nodes`, `edges`, `source_nodes`, `node_meta`. The event does **not** contain `class_name`; the node class name only appears in each item of `node_meta`. `start_time` is taken via `time.time()` only when execution actually begins, and `TaskGraph` no longer maintains a `self.start_time` instance field.
 
 In `_finish_start()`, `elapsed` is computed as `time.perf_counter() - start_perf`, and `self.threads` is cleared after finishing.
 
@@ -433,11 +425,12 @@ print(graph.get_layers())  # {0: ['A'], 1: ['B']}
 ### Injection Interface
 
 ```python
-def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
     """
-    Write injected tasks into the pending queue by node name. First best-effort inject tasks into
-    existing nodes, then uniformly report errors for unknown nodes.
+    Write injected tasks into the pending queue by node name. First best-effort inject into existing nodes,
+    then uniformly report errors for unknown nodes.
 
+    :param tasks: Mapping from node names to task iterables; each value is iterated only once
     :raises UnknownNodeError: There exists a target node not present in the graph
     """
 
@@ -469,7 +462,7 @@ Returns build-time metadata for each node. These fields are fixed during runtime
 
 ### Graph-Level Events (Observers)
 
-`TaskGraph` broadcasts `GraphStartEvent` and `GraphEndEvent` to the observer hub during `_prepare_start()` / `_finish_start()`. The graph analysis information (graph name, mode, start time, `is_dag`, node/edge/source node lists, node metadata, etc.) is reported all at once in the start event; for runtime monitoring, it is recommended to register graph-level observers via `add_observer()` rather than relying on polling individual nodes.
+`TaskGraph` broadcasts `GraphStartEvent` and `GraphEndEvent` to the observer hub via `observers.on_event(...)` during `_prepare_start()` / `_finish_start()`. The graph analysis information (graph name, mode, start time, `is_dag`, node/edge/source node lists, node metadata, etc.) is reported all at once in the start event; for runtime monitoring, it is recommended to register graph-level observers via `add_observer()` rather than relying on polling individual nodes.
 
 | Event | Fields |
 |-------|--------|
@@ -494,8 +487,8 @@ flowchart TD
     DRAIN --> END[Graph execution complete]
 
     RUN[run / run_async] -->|_build_analysis + _inject_observers| RES[run_graph_resources]
-    RES -->|Inject initial tasks| PUT[node.put_task]
-    RES -->|Inject termination signal| SIGNAL[put_source_signal]
+    RES -->|inject_tasks| PUT[node.put_task]
+    RES -->|inject_terminations| SIGNAL[Source node termination signals]
 ```
 
 ## Graph Execution Modes in Detail

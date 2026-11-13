@@ -1,8 +1,8 @@
 # src/celestialflow/node/util_callable.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
-`util_callable.py` は実行器関数のシグネチャに対する軽量な検証を提供します。現在公開されているツール関数は `validate_executor_func_signature` のみで、`BaseTaskNode._set_func` がコールバックを登録する際に呼び出します。
+`util_callable.py` は実行器関数のシグネチャに対する軽量な検証を提供します。現在公開されているツール関数は `validate_executor_func_signature` のみで、`BaseTaskNode._set_func` と `BaseTaskNode.set_skip_func` がコールバック / スキップ判定関数を登録する際に呼び出します。
 
 ## 公開関数
 
@@ -24,7 +24,7 @@ def validate_executor_func_signature(func: Callable[..., Any]) -> int:
 3. `VAR_POSITIONAL` / `KEYWORD_ONLY` / `VAR_KEYWORD` など、許可リストにない引数種類が検出された場合、`CallableParameterKindError`（`celestialflow.runtime.util_errors` 内）を送出；
 4. 引数の総数 `len(parameters)` を返します。
 
-> 呼び出し側（`BaseTaskNode._set_func`）が `parameter_count != 1` を再チェックして `ConfigurationError` を送出するため、コールバックは必ず 1 つの位置タスク引数のみを受け取る必要があります。
+> 呼び出し側（`BaseTaskNode._set_func` / `BaseTaskNode.set_skip_func`）が `parameter_count != 1` を再チェックして `ConfigurationError` を送出するため、コールバックは必ず 1 つの位置タスク引数のみを受け取る必要があります。
 
 ## パラメータ
 

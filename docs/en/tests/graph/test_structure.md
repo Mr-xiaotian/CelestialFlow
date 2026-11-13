@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Verifies the dedicated analysis capabilities of two predefined cyclic graph structures, `TaskLoop` and `TaskWheel`, as well as the input validation for various predefined graph structures (`TaskChain`, `TaskCross`, `TaskGrid`, `TaskLoop`, `TaskWheel`, `TaskComplete`), ensuring that empty/illegal inputs do not cause silent construction or crashes.
@@ -51,22 +51,23 @@ Covers empty/illegal input boundaries for all 6 predefined graph structures:
 - **Non-DAG Recognition**: Ensures cyclic structures are not incorrectly treated as DAGs.
 - **Level Consistency**: Verifies that logical level assignments still match physical intuition in the presence of circular dependencies.
 - **Source Node Specialization**: Source node lookup logic optimized for specific structures.
-- **Boundary Validation**: Ensures that all predefined graph structures strictly reject empty/illegal inputs, rather than silently constructing an empty graph.
+- **Boundary Validation**: Ensures that all predefined graph structures strictly reject empty/illegal inputs, rather than silently constructing an empty graph; the assertions only check the exception type `InvalidStructureError` and do not verify the message text.
+- **Assertion Carriers**: The structure analysis cases only read the return values of `is_dag()` / `get_layers()` / `get_source_nodes()` and do not inspect task execution metrics.
 
 ## How to Run
 
 ```bash
 # Run all
-pytest tests/graph/test_structure.py -v
+uv run pytest tests/graph/test_structure.py -v
 
 # TaskLoop tests only
-pytest tests/graph/test_structure.py::TestTaskLoop -v
+uv run pytest tests/graph/test_structure.py::TestTaskLoop -v
 
 # TaskWheel tests only
-pytest tests/graph/test_structure.py::TestTaskWheel -v
+uv run pytest tests/graph/test_structure.py::TestTaskWheel -v
 
 # Input validation tests only
-pytest tests/graph/test_structure.py::TestStructureValidation -v
+uv run pytest tests/graph/test_structure.py::TestStructureValidation -v
 ```
 
 ## Performance Reference

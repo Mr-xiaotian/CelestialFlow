@@ -1,10 +1,10 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目的
 
-より複雑な生産者-消費者トポロジ（SPSC、MPSC、SPMC）において、`multiprocessing.Queue` と `shared_memory` ベースのカスタムリングバッファの性能を比較する。CelestialFlow の高スループットシナリオにおける IPC 最適化に詳細なデータを提供する。
+より複雑な生産者-消費者トポロジ（SPSC、MPSC、SPMC）において、`multiprocessing.Queue` と `shared_memory` ベースのカスタムリングバッファの性能を比較し、高スループットのクロスプロセス通信シナリオの選定参考を提供する。
 
 > **注意**：フレームワークは既に `process` グラフモードおよび内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
 

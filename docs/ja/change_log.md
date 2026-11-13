@@ -1,6 +1,6 @@
 # 更新ログ（Change Log）
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 - 2021: マルチスレッドとシングルスレッド処理関数をサポートするクラスを構築
 - 2023: GPT-4 の支援でマルチプロセスとコルーチン実行モードを追加
@@ -532,3 +532,13 @@
     - 一部の不要な sqlite 関数を削除
   - fix:
     - グラフ分析キャッシュの問題を修正
+- 3.3.4
+  - feat:
+    - `ObserverHub` に `find` メソッドを追加し、指定した型の observer を検索できるようにした
+  - refactor:
+    - observer 内の各イベント処理メソッドを `on_event` に統合
+    - `log` と `lifecycle` で混在していた `observer/inlet` を分離
+      - 現在は個別の `*Observer` を設けて `spout/inlet` を統括
+    - `lifecycle` で `dict[str, Any]` を明確な dataclass に置き換え
+    - `graph` と `node` で `_lifecycle_db_path` を保持しなくなった
+    - `graph.run` と `graph.inject_tasks` の入力引数型を正規化

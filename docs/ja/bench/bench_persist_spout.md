@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -20,8 +20,8 @@
 
 | テスト項目 | 説明 | 計測範囲 |
 |--------|------|----------|
-| `LogSpout` | ログレコードを事前生成してキューに投入し、その後 `spout` を起動してキューを消化 | `start()` から `stop()` まで |
-| `LifecycleSpout` | `insert` レコードを事前生成してキューに投入し、その後 `spout` を起動してキューを消化 | `start()` から `stop()` まで |
+| `LogSpout` | `LogRecord` dataclass を事前構築してキューに投入し、その後 `spout` を起動してキューを空にする | `start()` から `stop()` まで |
+| `LifecycleSpout` | `InsertRecord` dataclass を事前構築してキューに投入し、その後 `spout` を起動してキューを空にする | `start()` から `stop()` まで |
 
 スクリプトが採用するモデルは：
 
@@ -29,7 +29,20 @@
 preload queue -> start spout -> drain all queued records
 ```
 
-したがって、テスト結果は「バックグラウンド書き込み側の限界処理速度」により近く、呼び出し側がリアルタイムでデータを生成するコストは含まれません。
+したがって、テスト結果は「バックグラウンド書き込み側の限界処理速度」により近く、呼び出し側がリアルタイムでデータを生成するコストは含まれず、`LogObserver` / `LifecycleObserver` によるイベント変換や `LogInlet` / `LifecycleInlet.send()` によるエンキューコストも含まれない。
+
+```mermaid
+flowchart LR
+    Event["Event<br/>on_event"] --> Obs["LifecycleObserver / LogObserver"]
+    Obs -->|"send(record)"| Inlet["LifecycleInlet / LogInlet<br/>BaseInlet のみ継承"]
+    Inlet --> Queue["queue.Queue"]
+    Queue --> Spout["LifecycleSpout / LogSpout"]
+
+    Bench["本 benchmark<br/>dataclass を直接構築"] -.->|"最初の 3 段を迂回"| Queue
+```
+
+実際の実行チェーンでは、オブザーバーがイベントを消費し、レコードを構築して Inlet 経由でエンキューする。本スクリプトはレコードを直接
+`spout.get_queue()` に投入し、キュー + spout の区間のみを残している。
 
 ## 主要設定
 
@@ -40,6 +53,7 @@ preload queue -> start spout -> drain all queued records
 - 2 つの spout はそれぞれ `BenchLogSpout` / `BenchLifecycleSpout` サブクラスがソース内の `LogSpout` / `LifecycleSpout` を継承し、`_before_start()` をオーバーライドして出力パスを一時ディレクトリに向ける：`BenchLogSpout` はテキストファイルのハンドルを開き、`BenchLifecycleSpout` は `connect_db()` で SQLite 接続を確立する
 - 一時ディレクトリは `tempfile.TemporaryDirectory()`（プレフィックス `cf_bench_log_` / `cf_bench_lifecycle_`）で作成され、`with` ブロックを抜けると自動的にクリーンアップされる
 - `LifecycleSpout` は現在のプロジェクト実装、すなわち「各有効変更後に直接 `commit()`」を使用
+- レコードモデルはすべて frozen dataclass に変更済み：`build_log_records()` は `LogRecord(timestamp, level, message)` を、`build_lifecycle_insert_records()` は `InsertRecord(event_id, ts, node, task)` を生成する。スクリプトは dataclass インスタンスを直接 `spout.get_queue()` に投入し、オブザーバーや Inlet を経由しない
 
 ## 出力指標
 
@@ -62,6 +76,9 @@ preload queue -> start spout -> drain all queued records
 ## ベンチマーク結果（実測）
 
 > 🟢 本セクションの各表の所要時間/スループットはすべて過去の実測データであり、ソースコードからは検証できないため、手動での確認が必要である。
+>
+> 過去のデータはレコードがまだ `dict` であったバージョンで収集されたものである。現在は frozen dataclass に変更されており、spout の消費ホットパスはほぼ同一だが、
+> 正確なベースラインが必要な場合はローカルで再実行することを推奨する。
 
 ### 2026/06/17 - Windows ローカル初回実測
 

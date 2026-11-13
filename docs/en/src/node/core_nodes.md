@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_nodes.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 `core_nodes.py` provides the three concrete node classes that CelestialFlow exposes publicly:
 
@@ -70,7 +70,7 @@ The general-purpose executor: maps a single input to a single result and is resp
 1. Take `task = envelope.get_task()` and `task_id = envelope.get_id()`;
 2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
 3. Compute `elapsed = time.perf_counter() - start_perf`;
-4. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))`;
+4. Broadcast the success event via `observers.on_event(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))`;
 5. For each downstream target (`self.yield_queue.get_target_names()`): emit a `TASK_INPUT` event to obtain `downstream_input_id`, broadcast `TaskInputEvent` (`from_node=self.get_name()`), and `yield_queue.put_target(target_name, TaskEnvelope(task=result, id=downstream_input_id))`.
 
 ### Example
@@ -103,7 +103,7 @@ for task, result in executor.get_success_pairs():
 
 1. `result_list = list(result)` to materialize the result (supports generators);
 2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
-3. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(..., result=result_list, result_repr=...))` (with `result` materialized as a list);
+3. Broadcast the success event via `observers.on_event(TaskSuccessEvent(..., result=result_list, result_repr=...))` (with `result` materialized as a list);
 4. For each downstream target and each `item in result_list`: emit a `TASK_INPUT` event, broadcast `TaskInputEvent`, and `yield_queue.put_target(target_name, TaskEnvelope(item, downstream_input_id))`.
 
 > An empty iterable legitimately produces 0 sub-tasks (it does not raise); a generator input is fully materialized by `list()` before dispatch.
@@ -149,7 +149,7 @@ graph.run({"Splitter": [["a", "b", "c"]]})
 
 1. Validate whether each target name in `result` is registered in `self.yield_queue.get_target_names()`; if an unregistered target exists, raise `InvalidOptionError("Unknown target", unknown[0], known_targets)`;
 2. Call `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` to obtain `result_id`;
-3. Broadcast the success event via `observers.on_task_success(TaskSuccessEvent(..., result=result, result_repr=...))`;
+3. Broadcast the success event via `observers.on_event(TaskSuccessEvent(..., result=result, result_repr=...))`;
 4. For each `(target, yie)` in `result.items()`: emit a `TASK_INPUT` event, broadcast `TaskInputEvent`, and `yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))` — what the downstream receives is the **payload corresponding to that target** `yie`, not the router's input task.
 
 ### Example
@@ -190,5 +190,5 @@ graph.run({router.get_name(): ["hi", "hello world", "ok"]})
 3. **Router targets must be pre-bound**: The target string returned by `func` must appear in `self.yield_queue.get_target_names()` (i.e. registered at least via `graph.connect` / `connect_to`); otherwise an `InvalidOptionError` is raised.
 4. **Each router target receives its own payload**: A single routing can return multiple targets, and each downstream receives only the value of the corresponding key.
 5. **Runtime components are automatically initialized**: All three node classes automatically initialize `task_queue` / `yield_queue` / `dispatch` / `observers` etc. through `BaseTaskNode.__init__`, with no need to re-create them.
-6. **Result broadcasting and persistence**: The node itself only broadcasts `TaskSuccessEvent` / `TaskInputEvent`; `MetricsObserver` / `LifecycleInlet` / `LogInlet` update counts and write to disk based on these events; the node no longer writes lifecycle / log directly.
+6. **Result broadcasting and persistence**: The node itself only broadcasts `TaskSuccessEvent` / `TaskInputEvent` via `observers.on_event(...)`; `MetricsObserver` / `LifecycleObserver` / `LogObserver` update counts and write to disk based on these events; the node no longer writes lifecycle / log directly.
 7. **No more `split_item` / `split_counter` / `_split` / `route_counters` / `_route`**: The split and route logic is now entirely handled by the passed-in `func`; the classes themselves only dispatch the result of `func` downstream.

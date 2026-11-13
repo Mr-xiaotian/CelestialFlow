@@ -1,6 +1,6 @@
 # tests/graph/test_structure.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `TaskLoop` と `TaskWheel` の2つの事前定義循環グラフ構造の専用解析能力を検証し、ならびに各種事前定義グラフ構造（`TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete`）の入力検証を行い、空入力や不正入力で静的に構築されたりクラッシュが発生したりしないことを確認します。
@@ -47,26 +47,27 @@
 | `test_complete_single_node_raises` | `TaskComplete` の単一ノードが `InvalidStructureError` をスロー |
 | `test_complete_empty_nodes_raises` | `TaskComplete` の空 nodes が `InvalidStructureError` をスロー |
 
-## テストの重点
+## テストの重点とアサーション
 - **非 DAG 識別**: 循環構造が誤って DAG として処理されないことを確認。
 - **階層の一貫性**: 循環依存が存在する場合でも、論理階層の区分が物理的直感に合致することを検証。
 - **ソースノード特化**: 特定構造向けに最適化されたソースノード検索ロジック。
-- **境界検証**: すべての事前定義グラフ構造が空/不正入力を厳密に拒否し、空グラフを静的に構築したりしないことを確認。
+- **境界検証**: すべての事前定義グラフ構造が空/不正入力を厳密に拒否し、空グラフを静的に構築したりしないことを確認。アサーションは例外型 `InvalidStructureError` のみを検査し、メッセージ本文は検証しません。
+- **アサーションの対象**: 構造解析のテストケースは `is_dag()` / `get_layers()` / `get_source_nodes()` の戻り値のみを読み取り、タスク実行の指標は検査しません。
 
 ## 実行方法
 
 ```bash
-# 全部実行
-pytest tests/graph/test_structure.py -v
+# すべて実行
+uv run pytest tests/graph/test_structure.py -v
 
 # TaskLoop テストのみ
-pytest tests/graph/test_structure.py::TestTaskLoop -v
+uv run pytest tests/graph/test_structure.py::TestTaskLoop -v
 
 # TaskWheel テストのみ
-pytest tests/graph/test_structure.py::TestTaskWheel -v
+uv run pytest tests/graph/test_structure.py::TestTaskWheel -v
 
 # 入力検証テストのみ
-pytest tests/graph/test_structure.py::TestStructureValidation -v
+uv run pytest tests/graph/test_structure.py::TestStructureValidation -v
 ```
 
 ## パフォーマンス参考

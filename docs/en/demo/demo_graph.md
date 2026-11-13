@@ -1,6 +1,6 @@
 # demo/demo_graph.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -56,7 +56,7 @@ AsyncDouble ──> AsyncToStr
 
 ## Key Configuration
 
-- Each Stage explicitly specifies its execution mode via `TaskExecutor(..., execution_mode="thread" | "async")`
+- Each node explicitly specifies its execution mode via `TaskExecutor(..., execution_mode="thread" | "async")`
 - The ETL and async pipelines specify graph mode via `TaskGraph(..., graph_mode="thread")` and `graph_mode="async"` respectively
 - `execution_mode="async"` is used for coroutine task functions (`async_double`, `async_to_str`)
 

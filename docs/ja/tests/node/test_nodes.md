@@ -1,6 +1,6 @@
 # tests/node/test_nodes.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 
@@ -16,12 +16,13 @@
 | `TaskSkip`（`skip_func` / `handle_task_skip`） | 被テスト挙動 | スキップ判定がタスク関数を呼び出さず、`skipped` のみを計上し、リトライを消費せず、上書き可能であること；`task.skip` イベントと `skipped` ライフサイクル記録の完全なチェーン |
 | `_insert_records` / `connect_db` / `insert_record` | ユーティリティ | `connect_db` で接続した後に `insert_record` を 1 件ずつ呼び出して failed / pending レコードを書き込み（重複する `event_id` はスキップ）、リプレイテストに使用 |
 | `load_task_error_records` / `load_task_result_records` | ユーティリティ | sqlite 内の task-error / task-result ペアを読み取り、ライフサイクル永続化の結果をアサートする |
+| `lifecycle_db_of` | ユーティリティ（`conftest`） | ノードまたはタスクグラフの hub から `LifecycleObserver` を探し、その `db_path` を返して sqlite を直接クエリできるようにする |
 | `build_result_dict` | ユーティリティ | `get_success_pairs` と `get_error_pairs` を集約して `{task: result_or_error_str}` を構築 |
 | `_counts` | ユーティリティ | `metrics_of(node).get_node_metrics(name)` で `NodeMetrics` を取得し、`tasks_input` / `tasks_succeeded` / `tasks_failed` / `tasks_skipped` / `tasks_processed` / `tasks_pending` の 6 キーの辞書にマッピングする |
 
 ## 主要テストシナリオ
 
-### `TestTaskExecutor` — エグゼキュータ（15 ケース）
+### `TestTaskExecutor` — エグゼキュータ（16 ケース）
 
 | ケース | カバレッジ目標 |
 |------|---------|
@@ -36,6 +37,7 @@
 | `test_restore_db_filters_error_type_when_enabled` | `filter_by_error_type=True` + `set_retry_exceptions(RuntimeError)` 時、RuntimeError のみリプレイ |
 | `test_restore_db_filter_keeps_pending_records` | フィルタ有効時でも `pending` レコードは常に保持される |
 | `test_success_persist` | 成功結果が永続化された後、`get_success_pairs()` から読み戻せる |
+| `test_graph_run_node_reads_lifecycle_through_nested_hub` | グラフ実行時のノードはネストした hub からグラフレベルの `LifecycleObserver` を見つけ、成功結果を読み戻せる |
 | `test_rejects_zero_argument_func` | 0 引数関数は `ConfigurationError` を送出する |
 | `test_rejects_multi_argument_func` | 多引数関数は `ConfigurationError` を送出する |
 | `test_name_and_execution_mode` | `get_name()` と `execution_mode` が正しく公開される |
@@ -119,11 +121,11 @@ flowchart LR
 
 | テストクラス | ケース数 | カバレッジ目標 |
 |--------|--------|---------|
-| `TestTaskExecutor` | 15 | 3 つの実行モード、retry ヒット / 非ヒット、sqlite リプレイ（error_type フィルタ含む）、永続化、コールバックシグネチャ検証、扇出ペイロードの意味論 |
+| `TestTaskExecutor` | 16 | 3 つの実行モード、retry ヒット / 非ヒット、sqlite リプレイ（error_type フィルタ含む）、永続化、ネストした hub の探索、コールバックシグネチャ検証、扇出ペイロードの意味論 |
 | `TestTaskSkip` | 9 | デフォルトではスキップしない、直列/スレッド/非同期のスキップ、スキップがリトライを消費しないこと、`set_skip_func(None)`、シグネチャ検証、handler の上書き、`task.skip` イベントと lifecycle 記録 |
 | `TestTaskSplitter` | 5 | デフォルトパラメータ、グラフ統合、空イテラブル、ジェネレータ、カスタム分割関数 |
 | `TestTaskRouter` | 6 | デフォルトパラメータ、`func` の返すマッピング、グラフ統合、未知 target エラー、ペイロード別配送、紐付けのモード横断的な安定 |
-| **合計** | **35** | |
+| **合計** | **36** | |
 
 ## 実行方法
 
@@ -159,6 +161,7 @@ pytest tests/node/test_nodes.py -k "restore_db" -v
 ## 注意事項
 
 - `test_restore_db*` ケースは本ファイルの `_insert_records` 補助関数で sqlite に書き込みます。まず `connect_db` で接続を確立し、次に `insert_record` を 1 件ずつ呼び出し（重複する `event_id` で `sqlite3.IntegrityError` が発生した場合はスキップ）、最後にまとめて `commit()` して接続を閉じます。レコードの `node` フィールドはノード名です。
+- `test_graph_run_node_reads_lifecycle_through_nested_hub` はグラフ実行時の `ObserverHub` のネスト注入を検証します。グラフレベルの `LifecycleObserver` を `graph.add_observer(...)` で登録すると、ノードは `observers.find(LifecycleObserver)` で再帰的にそれを見つけ、成功結果を読み戻せます。
 - `test_skip_full_chain` は `executor.set_ctree(ctree)` で最小のイベントクライアントを注入し、`CTreeEvent.TASK_SKIP` が 2 回現れることをアサートし、さらに `records` テーブルを直接クエリして状態列が `skipped / success / skipped` であることを確認します。
 - `test_router_unknown_target_fails_with_hint` は `load_task_error_records` と `get_node_metrics(...).failed / processed` で未知 target の失敗をアサートします。エラー message に `Unknown target: <name>` と許可 target の一覧が含まれ、router 層で例外を送出しません。
 - `test_router_binding_survives_mode_switch` と `test_connect_to_binding_survives_execution_mode_switch`（test_node.md 参照）はどちらも回帰テストで、紐付けが複数モードで安定する意味論をカバーします。

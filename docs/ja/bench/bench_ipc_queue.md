@@ -1,10 +1,10 @@
 # bench/bench_ipc_queue.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目的
 
-実際のクロスプロセスシナリオにおいて、複数の Python IPC（プロセス間通信）メカニズム（MPQueue、SimpleQueue、Pipe、Manager().Queue）の性能を比較する。CelestialFlow のマルチプロセスモードにおけるキュー選定にデータを提供する。
+実際のクロスプロセスシナリオにおいて、複数の Python IPC（プロセス間通信）メカニズム（MPQueue、SimpleQueue、Pipe、Manager().Queue）の性能を比較し、クロスプロセス通信が必要なシナリオの選定参考を提供する。
 
 > **注意**：フレームワークは既に `process` グラフモードおよび内部の multiprocessing 依存を削除している（change log を参照）。したがって本スクリプトの結果は現在のフレームワーク内部動作を反映せず、クロスプロセス IPC 性能の歴史的な参考としてのみ位置づけられる。
 
@@ -53,7 +53,7 @@
 
 **主要な結論**：
 - **Pipe が最速**：MPQueue より 32% 高速、かつキュー抽象レイヤー不要
-- **SimpleQueue が次点**：ロックフリー実装、MPQueue より 21% 高速、ただし単一生産者単一消費者のみ対応
+- **SimpleQueue が次点**：feeder スレッドを持たない簡略実装で、MPQueue より 21% 高速、ただし単一生産者単一消費者のみ対応
 - **Manager().Queue が最遅**：MPQueue の 17% のスループットのみ、Manager サーバープロセスが絶対的ボトルネック
 - CelestialFlow のマルチプロセスキュー選定において、Pipe と SimpleQueue は高スループットシナリオの最適解（トポロジが許容する場合）
 

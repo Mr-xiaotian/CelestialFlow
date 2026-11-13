@@ -1,6 +1,6 @@
 # demo/demo_observer.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -25,12 +25,9 @@ CelestialFlow において `TaskExecutor` に異なるタイプの observer を�
 ```mermaid
 flowchart TB
     Input["入力タスク<br/>range(25, 32)"] --> Executor["TaskExecutor<br/>FibonacciSerial2 / serial"]
-    Progress["TaskProgress"] -.監視.-> Executor
-    Custom["PrintObserver<br/>celestialflow 組み込み"] -.監視.-> Executor
-    Executor --> NodeStart["on_node_start"]
-    Executor --> TaskInput["on_task_input"]
-    Executor --> Success["on_task_success"]
-    Executor --> NodeEnd["on_node_end"]
+    Executor -->|"Event オブジェクト<br/>NodeStart / NodeEnd / TaskInput / TaskSuccess ..."| Hub["ObserverHub"]
+    Hub --> Progress["TaskProgress<br/>on_event + match"]
+    Hub --> Print["PrintObserver<br/>on_event + match"]
 ```
 
 ## 主要設定
@@ -45,24 +42,27 @@ observer 一覧：
 | observer | 提供元 | 役割 |
 |----------|------|------|
 | `TaskProgress` | 本ファイルでローカル定義 | `tqdm` で実行進捗を表示。CLI インタラクションシーンに適している |
-| `PrintObserver` | `celestialflow` 組み込み | `print` で各コールバックのカウントを出力。構築パラメータ `name` が出力プレフィックスとなる |
+| `PrintObserver` | `celestialflow` 組み込み（`celestialflow.observer.core_print`） | `on_event` で各イベントのカウントを出力。構築パラメータ `name` が出力プレフィックスとなる |
 
-`PrintObserver` は以下のコールバックを実装している（`name` は構築時に渡されるプレフィックス）。すべてのコールバックは `core_event.py` 内の対応するイベント `dataclass` を受け取る：
+`PrintObserver` は統一された `on_event(event)` のみを実装し、`match event` でイベント種別ごとにカウントを維持して出力する（`name` は構築時に渡されるプレフィックス）：
 
-| コールバック | 出力 / 役割 |
+| イベント | 出力 / 役割 |
 |------|------|
-| `on_node_start` | `[{name}] start total={total}` を出力 |
-| `on_task_input` | 総数を加算し `[{name}] total={total}(+1)` を出力 |
-| `on_task_success` | 成功数を集計し `[{name}] succeeded={n}(+1), total={total}` を出力 |
-| `on_task_fail` | 失敗数を集計し `[{name}] failed={n}(+1), total={total}` を出力 |
-| `on_task_skip` | スキップ数を集計し `[{name}] skipped={n}(+1), total={total}` を出力 |
-| `on_node_end` | `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` を出力 |
+| `NodeStartEvent` | `[{name}] start total={total}` を出力 |
+| `TaskInputEvent` | `total` を加算し `[{name}] total={total}(+1)` を出力 |
+| `TaskSuccessEvent` | 成功数を加算し `[{name}] succeeded={n}(+1), total={total}` を出力 |
+| `TaskFailEvent` | 失敗数を加算し `[{name}] failed={n}(+1), total={total}` を出力 |
+| `TaskSkipEvent` | スキップ数を加算し `[{name}] skipped={n}(+1), total={total}` を出力 |
+| `NodeEndEvent` | `[{name}] finish total=..., skipped=..., succeeded=..., failed=...` を出力 |
+
+`TaskRetryEvent`、終了シグナルイベント、グラフイベントは上記の分岐には含まれず、`match` のフォールバック分岐によって無視される。
+`Observer` 基底クラスは現在 `on_event` と `handle_exception` のみを提供し、イベントごとのコールバックは存在しない。
 
 ## 発生しうる問題
 
 1. **`__main__` は `demo_progress_observer` と `demo_print_observer` を同時に実行する**：2 つの observer が順次実行され、まず tqdm プログレスバーが表示され、その後ログが出力される。
-2. **現在のサンプルは成功パスのみを表示**：`test_task` は現在 `range(25, 32)` であるため、実行時には通常 `on_task_input`、`on_node_start`、`on_task_success`、`on_node_end` のみが表示される。
-3. **`on_task_input` と `on_node_start` の順序**：`run()` はまずすべてのタスクを注入してから executor を起動するため、`on_node_start` が発火した時点で `total` はすでに最終値まで累加されている（`PrintObserver` は先に数件の `total=...(+1)` を出力した後に `start total=7` を出力する）。`TaskProgress` もまさにこの性質に依存しており、`on_node_start` 時に累加された `_total` でプログレスバーを作成する。
+2. **現在のサンプルは成功パスのみを表示**：`test_task` は現在 `range(25, 32)` であるため、実行時には通常 `TaskInputEvent`、`NodeStartEvent`、`TaskSuccessEvent`、`NodeEndEvent` に対応する出力のみが表示される。
+3. **`TaskInputEvent` と `NodeStartEvent` の順序**：`run()` はまずすべてのタスクを注入してから executor を起動するため、`NodeStartEvent` が到達した時点で `total` はすでに最終値まで累加されている（`PrintObserver` は先に数件の `total=...(+1)` を出力した後に `start total=7` を出力する）。`TaskProgress` もまさにこの性質に依存しており、`NodeStartEvent` 時に累加された `_total` でプログレスバーを作成する。
 4. **アサーションなし**：これはデモスクリプトであり、結果の数値を検証せず、observer の呼び出しタイミングを示すためだけに使用される。
 5. **計算所要時間は入力に影響される**：現在は反復 O(n) フィボナッチであり、単一タスクの所要時間は `n` に比例して線形増加するが、`fibonacci(31)` と `fibonacci(25)` の差は依然としてマイクロ秒レベルであり、合計所要時間に顕著な影響を与えない。
 
@@ -107,10 +107,10 @@ python demo/demo_observer.py
 test_task = list(range(25, 32)) + [0, 27, None, 0, ""]
 ```
 
-これにより `on_task_fail` / `on_task_skip` が発火しやすくなる。ただし注意点がある：
+これにより `TaskFailEvent` / `TaskSkipEvent` が発火しやすくなる。ただし注意点がある：
 
-- `TaskProgress` は `on_node_start` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` / `on_node_end` のみを実装しており、リトライ用コールバックはない。
-- `PrintObserver` も `on_node_start` / `on_node_end` / `on_task_input` / `on_task_success` / `on_task_fail` / `on_task_skip` のみを実装しており、同様に **`on_task_retry` は実装していない**。`Observer` 基底クラスは `on_task_retry` コールバックを提供しているが、本デモの 2 つの observer はいずれもそれに対して出力を生成しない。
+- `TaskProgress` の `on_event` は `NodeStartEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` / `NodeEndEvent` のみを `match` し、`TaskRetryEvent` は処理しない。
+- `PrintObserver` の `on_event` も同様に `NodeStartEvent` / `NodeEndEvent` / `TaskInputEvent` / `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` のみを処理し、そのフォールバック分岐は `TaskRetryEvent` を無視する。`Observer` 基底クラス自体も `on_event` と `handle_exception` のみを提供するため、本デモの 2 つの observer はいずれもリトライイベントに対して出力を生成しない。
 
 ## 依存関係
 

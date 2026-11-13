@@ -1,6 +1,6 @@
 # CelestialFlow —— 軽量で並列処理可能なグラフ構造ベースの Python タスクスケジューリングフレームワーク
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -201,13 +201,16 @@ flowchart TD
     class TRC execution;
 ```
 
-以下5篇は補足資料として参照できます：
+以下 8 篇は補足資料として参照できます：
 
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
 - [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
 - [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
 - [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
+- [Ticker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/ticker/core_ticker.md)
+- [Reporter.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/reporter/core_push.md)
+- [Assembly.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/assembly/core_run.md)
 
 完全なケースを通じてフレームワークの動作を理解したい場合は、TaskGraph を使ってゼロからプロジェクトを構築するこのチュートリアルを参照してください：
 
@@ -247,12 +250,12 @@ flowchart TD
 ## ファイル構造（File Structure）
 
 ```
-📁 CelestialFlow	(560MB 757KB 428B)
-    📁 bench           	(316KB 409B)
-        📁 [1項除外のディレクトリ]                  	(193KB 163B)
+📁 CelestialFlow	(594MB 775KB 69B)
+    📁 bench           	(356KB 464B)
+        📁 [1項除外のディレクトリ]                  	(233KB 797B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
-        🐍 bench_funnel_vs_lock.py          	(21KB 888B)
+        🐍 bench_funnel_vs_lock.py          	(21KB 885B)
         🐍 bench_futures_memory.py          	(2KB 269B)
         🐍 bench_gil_vs_nogil.py            	(10KB 552B)
         🐍 bench_graph_mode.py              	(6KB 614B)
@@ -263,29 +266,29 @@ flowchart TD
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
-        🐍 bench_observer.py                	(7KB 58B)
-        🐍 bench_persist_spout.py           	(4KB 323B)
+        🐍 bench_observer.py                	(6KB 657B)
+        🐍 bench_persist_spout.py           	(4KB 172B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(811KB 650B)
-        📁 [4項除外のディレクトリ]   	(755KB 996B)
+    📁 demo            	(809KB 719B)
+        📁 [4項除外のディレクトリ]   	(754KB 603B)
         🐍 demo_executor.py  	(1KB 557B)
-        🐍 demo_funnel.py    	(2KB 289B)
+        🐍 demo_funnel.py    	(2KB 286B)
         🐍 demo_graph.py     	(2KB 975B)
         🐍 demo_network.py   	(3KB 756B)
         🐍 demo_nodes.py     	(3KB 915B)
-        🐍 demo_observer.py  	(2KB 1004B)
+        🐍 demo_observer.py  	(2KB 445B)
         🐍 demo_redis.py     	(8KB 595B)
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
         🐍 demo_web.py       	(8KB 734B)
-    📁 docs            	(2MB 88KB 855B)
-        📁 en[折り畳み]   	(678KB 928B)
-        📁 ja[折り畳み]   	(778KB 854B)
-        📁 zh-CN[折り畳み]	(679KB 97B)
+    📁 docs            	(2MB 424KB 355B)
+        📁 en[折り畳み]   	(759KB 226B)
+        📁 ja[折り畳み]   	(874KB 132B)
+        📁 zh-CN[折り畳み]	(838KB 1021B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -294,50 +297,49 @@ flowchart TD
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 661KB 60B)
-        📁 celestialflow[折り畳み]	(1MB 641KB 309B)
-        📁 [1項除外のディレクトリ]      	(19KB 775B)
-    📁 tests           	(3MB 65KB 73B)
-        📁 assembly[折り畳み]   	(42KB 929B)
-        📁 benchmark[折り畳み]  	(41KB 377B)
-        📁 funnel[折り畳み]     	(96KB 339B)
-        📁 graph[折り畳み]      	(803KB 239B)
-        📁 node[折り畳み]       	(510KB 93B)
-        📁 observer[折り畳み]   	(122KB 937B)
-        📁 persist[折り畳み]    	(186KB 828B)
-        📁 persistence[折り畳み]	(381KB 89B)
-        📁 reporter[折り畳み]   	(173KB 986B)
-        📁 runtime[折り畳み]    	(189KB 800B)
-        📁 ticker[折り畳み]     	(54KB 761B)
-        📁 [3項除外のディレクトリ]    	(532KB 170B)
-        🐍 conftest.py        	(1KB 693B)
-    📁 [13項除外のディレクトリ]	(546MB 860KB 667B)
+    📁 src             	(1MB 660KB 11B)
+        📁 celestialflow[折り畳み]	(1MB 640KB 713B)
+        📁 [1項除外のディレクトリ]      	(19KB 322B)
+    📁 tests           	(3MB 662KB 157B)
+        📁 assembly[折り畳み]   	(76KB 371B)
+        📁 benchmark[折り畳み]  	(75KB 37B)
+        📁 funnel[折り畳み]     	(119KB 944B)
+        📁 graph[折り畳み]      	(1MB 22KB 263B)
+        📁 node[折り畳み]       	(704KB 568B)
+        📁 observer[折り畳み]   	(229KB 814B)
+        📁 persist[折り畳み]    	(269KB 262B)
+        📁 reporter[折り畳み]   	(248KB 570B)
+        📁 runtime[折り畳み]    	(327KB 569B)
+        📁 ticker[折り畳み]     	(98KB 313B)
+        📁 [3項除外のディレクトリ]    	(536KB 268B)
+        🐍 conftest.py        	(2KB 298B)
+    📁 [12項除外のディレクトリ]	(579MB 932KB 150B)
     ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
     📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
     ⚙️ pyproject.toml  	(2KB 624B)
-    📝 README.md       	(16KB 321B)
-    🔒 uv.lock         	(126KB 837B)
+    📝 README.md       	(16KB 802B)
+    🔒 uv.lock         	(126KB 855B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.3</em>
+  <em>celestial-flow 3.3.4</em>
 </p>
 
 （このビューは、私の別プロジェクト [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault) の inst_file.FileTree.print_tree() によって生成されました。画像への変換は [Carbon](https://carbon.now.sh) を使用しています。）
 
 ## バージョン履歴（Version Log）
-- 3.3.3
+- 3.3.4
   - feat:
-    - `GraphEndEvent` / `NodeEndEvent` に `end_time` を追加
-    - `GraphStartEvent` から `class_name` を削除
+    - `ObserverHub` に `find` メソッドを追加し、指定した型の observer を検索できるようにした
   - refactor:
-    - `on_worker_crash` など一部の不要な observer イベントを削除
-    - log と reporter の設定を `.toml` からランタイム設定に移動
-    - 一部の不要な sqlite 関数を削除
-  - fix:
-    - グラフ分析キャッシュの問題を修正
+    - observer 内の各イベント処理メソッドを `on_event` に統合
+    - `log` と `lifecycle` で混在していた `observer/inlet` を分離
+      - 現在は個別の `*Observer` を設けて `spout/inlet` を統括
+    - `lifecycle` で `dict[str, Any]` を明確な dataclass に置き換え
+    - `graph` と `node` で `_lifecycle_db_path` を保持しなくなった
+    - `graph.run` と `graph.inject_tasks` の入力引数型を正規化
 
 過去のログの詳細は以下をご覧ください：
 

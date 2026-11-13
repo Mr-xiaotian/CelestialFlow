@@ -1,6 +1,6 @@
 # demo/ デモ概要
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 説明
 
@@ -25,6 +25,7 @@
 | `demo_observer.md` | `demo/demo_observer.py` | `TaskExecutor` に組み込み `PrintObserver` とカスタムオブザーバーを登録 | 不要 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | タスクグラフから独立して、`BaseInlet` / `BaseSpout` でイベント収集パイプラインを構築 | 不要 |
 | `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` のファンアウト/ファンイン ETL と非同期ステージ型パイプライン | CelestialTree（オプション） |
+| `demo_skip_dedup.md` | `demo/demo_skip_dedup.py` | `skip_func` によりノード入口で重複タスクをスキップ | 不要 |
 | `demo_web.md` | `demo/demo_web.py` | 森林 DAG と Splitter/Router を含む複雑トポロジ；`ReportConfig` で `celestialflow-web` に報告 | `celestialflow-web`（オプション） |
 | `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` とチェーン/循環グラフ構造 | CelestialTree（オプション） |
 | `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` などの定義済みトポロジ | CelestialTree（オプション） |
@@ -42,6 +43,7 @@
 |------|------|
 | `demo_executor.md` | `TaskExecutor` のシリアル / スレッド / 非同期実行デモ |
 | `demo_graph.md` | DAG タスクグラフ、ETL フロー、非同期パイプラインデモ |
+| `demo_skip_dedup.md` | `skip_func` による重複排除とスキップのセマンティクスデモ |
 | `demo_structure.md` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop` などの構造化グラフラッパーデモ |
 | `demo_nodes.md` | `TaskSplitter`、`TaskRouter` などの構造型ノードとチェーン/循環グラフ能力の説明 |
 | `demo_network.md` | `TaskCross` 多層ニューラルネットワークトポロジとパラメータ化ノードのデモ |

@@ -1,8 +1,14 @@
 # src/celestialflow/persist/__init__.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
-The `persist` module is CelestialFlow's **persistence module**, providing the recording, writing, and querying of task Lifecycle and runtime Logs. Among them, `LifecycleInlet` / `LogInlet` consume task events as observers and write them to queues, while `LifecycleSpout` / `LogSpout` take records from the queues in background threads and persist them to disk.
+The `persist` module is CelestialFlow's **persistence module**, providing the recording, writing, and querying of task Lifecycle and runtime Logs.
+
+The module uses a three-layer "**observer + inlet + listener**" structure:
+
+- `LifecycleObserver` / `LogObserver` are `Observer` subclasses that consume observed events and translate them into records, and are also responsible for starting/stopping spouts and exposing paths;
+- `LifecycleInlet` / `LogInlet` inherit only from `BaseInlet`, providing `send(record)` to put records into the queue of a bound spout;
+- `LifecycleSpout` / `LogSpout` take records from the queues in background threads and persist them to disk.
 
 ## Exported Symbols
 
@@ -10,32 +16,50 @@ The module-level `__all__` exports the following in full:
 
 ```python
 __all__ = [
+    "InsertRecord",
     "LifecycleInlet",
+    "LifecycleObserver",
+    "LifecycleRecord",
     "LifecycleSpout",
     "LogInlet",
+    "LogObserver",
+    "LogRecord",
     "LogSpout",
+    "PromoteFailedRecord",
+    "PromoteSkippedRecord",
+    "PromoteSuccessRecord",
+    "UpdateRetryRecord",
 ]
 ```
 
 | Exported Symbol | Source Module | Description |
 |---------|---------|------|
-| `LifecycleSpout` | `core_lifecycle` | Lifecycle record listener, writes task lifecycle to the SQLite database |
-| `LifecycleInlet` | `core_lifecycle` | Consumes task events as an observer, writes lifecycle operations into the queue (bound to a spout) |
-| `LogSpout` | `core_log` | Log listening thread, writes logs to text files in the `logs/` directory |
-| `LogInlet` | `core_log` | Consumes events as an observer, writes log messages into the queue (bound to a spout) |
+| `LifecycleObserver` | `core_lifecycle` | Lifecycle observer (facade) that translates events into lifecycle records, manages spout start/stop, and exposes `db_path` |
+| `LifecycleInlet` | `core_lifecycle` | Lifecycle record inlet; `send(record)` delivers to the bound spout |
+| `LifecycleSpout` | `core_lifecycle` | Lifecycle listener that writes records to SQLite in a background thread |
+| `LifecycleRecord` | `core_lifecycle` | Union type of lifecycle records (a `type` alias for the five kinds such as `InsertRecord`) |
+| `InsertRecord` | `core_lifecycle` | The pending record written when a new task enters a node |
+| `PromoteSuccessRecord` | `core_lifecycle` | Promote a pending record to `success` and write the result |
+| `PromoteFailedRecord` | `core_lifecycle` | Promote a pending record to `failed` |
+| `PromoteSkippedRecord` | `core_lifecycle` | Promote a pending record to `skipped` |
+| `UpdateRetryRecord` | `core_lifecycle` | Update a pending record's retry count and latest error |
+| `LogObserver` | `core_log` | Log observer (facade) that translates events into log records, manages spout start/stop, and exposes `log_path` |
+| `LogInlet` | `core_log` | Log record inlet; `send(record)` delivers to the bound spout |
+| `LogSpout` | `core_log` | Log listener that writes logs to text files under the `logs/` directory |
+| `LogRecord` | `core_log` | A single log record (`timestamp` / `level` / `message`) |
 
 > The module `__init__` only exports symbols from `core_*` files; the utility functions `util_payload` / `util_sqlite` / `util_render` are not exported here and must be imported from the corresponding modules as needed.
 
 ## File Descriptions
 
-1. **core_lifecycle.py** (`LifecycleSpout`, `LifecycleInlet`)
+1. **core_lifecycle.py** (`LifecycleObserver` / `LifecycleInlet` / `LifecycleSpout` / record types)
    - **Purpose**: Persistence of task lifecycle, uniformly recording the task's pending / success / failed / skipped states and retry information.
-   - **Write method**: `LifecycleInlet` inherits `BaseInlet, Observer`, overrides the `on_task_*` event callbacks, and puts lifecycle operation dictionaries into the queue; `LifecycleSpout` inherits `BaseSpout`, executing the corresponding SQLite write operations by `__op__` in a background thread.
+   - **Write method**: `LifecycleObserver.on_event()` constructs a `LifecycleRecord` dataclass according to the event type and enqueues it via `LifecycleInlet.send()`; `LifecycleSpout._handle_record()` executes the corresponding SQLite write operation according to the record type.
    - **Storage format**: SQLite database (WAL mode), files located under the `lifecycles/` directory.
 
-2. **core_log.py** (`LogSpout`, `LogInlet`)
+2. **core_log.py** (`LogObserver` / `LogInlet` / `LogSpout` / `LogRecord`)
    - **Purpose**: Runtime log collection and persistence.
-   - **Write method**: `LogInlet` inherits `BaseInlet, Observer`, overrides all event callbacks (graph / node / task / termination signal) to record logs, and writes node summaries based on `metrics_view`; `LogSpout` inherits `BaseSpout`, writing logs to text files under the `logs/` directory.
+   - **Write method**: `LogObserver.on_event()` handles graph / node / task / termination-signal events and generates `LogRecord`s, writes node summaries based on `metrics_view`, and then enqueues them via `LogInlet.send()`; `LogSpout` writes logs to text files under the `logs/` directory.
    - **Log format**: Each line contains `timestamp level message`.
 
 3. **util_payload.py**
@@ -53,12 +77,14 @@ __all__ = [
 ## Module Relationships
 
 ### Internal Relationships
-- `LifecycleInlet` / `LogInlet` inherit from `funnel.BaseInlet` and `observer.Observer`, writing records into the spout queue via `_funnel()`.
+- `LifecycleObserver` / `LogObserver` inherit from `observer.Observer`, each internally creating and binding an inlet and a spout, and putting records into the spout queue.
+- `LifecycleInlet` / `LogInlet` inherit only from `funnel.BaseInlet` and provide only `send(record)`; they no longer consume events directly.
 - `LifecycleSpout` / `LogSpout` inherit from `funnel.BaseSpout`, consuming the queue and persisting to disk.
 
 ### External Relationships
-- **With the Observer module**: `LifecycleInlet` / `LogInlet` are `Observer` subclasses, often registered on `ObserverHub`, and assembled by `run_graph_resources` / `run_node_resources` (`assembly/core_run.py`).
-- **With the Runtime module**: `LogInlet` references `runtime.util_constant.LEVEL_DICT` for level filtering and `runtime.util_types.MetricsView` to read node summaries.
+- **With the Observer module**: `LifecycleObserver` / `LogObserver` are `Observer` subclasses, registered into `ObserverHub` and started/stopped uniformly by `run_graph_resources` / `run_node_resources` (`assembly/core_run.py`).
+- **With the Node module**: `BaseTaskNode.get_success_pairs()` / `get_error_pairs()` obtain `db_path` via `observers.find(LifecycleObserver)` before reading records, so they work both when running independently and under graph scheduling.
+- **With the Runtime module**: `LogObserver` references `runtime.util_constant.LEVEL_DICT` for level filtering and `runtime.util_types.MetricsView` to read node summaries.
 - **With the Funnel module**: Reuses the `BaseInlet` / `BaseSpout` base classes to implement thread-safe queues and consuming threads.
 
 ## Architecture Features
@@ -67,19 +93,24 @@ __all__ = [
 
 ```mermaid
 flowchart LR
-    subgraph Producer[Observers - Inlet]
-        LogInlet[LogInlet]
-        LifecycleInlet[LifecycleInlet]
+    subgraph EventBus[Observer Layer]
+        Hub[ObserverHub] --> LifecycleObs[LifecycleObserver]
+        Hub --> LogObs[LogObserver]
     end
 
-    LogInlet -->|_funnel| LogQueue[Log Queue<br/>queue.Queue]
-    LifecycleInlet -->|_funnel| LifecycleQueue[Lifecycle Queue<br/>queue.Queue]
+    subgraph Producer[Record Inlets]
+        LifecycleObs -->|send record| LifecycleInlet[LifecycleInlet]
+        LogObs -->|send record| LogInlet[LogInlet]
+    end
 
-    LogQueue -->|background thread polling| LogSpout[LogSpout]
+    LifecycleInlet -->|queue.Queue| LifecycleQueue[Lifecycle Queue]
+    LogInlet -->|queue.Queue| LogQueue[Log Queue]
+
     LifecycleQueue -->|background thread polling| LifecycleSpout[LifecycleSpout]
+    LogQueue -->|background thread polling| LogSpout[LogSpout]
 
+    LifecycleSpout -->|_handle_record| SQLiteFile[lifecycles/**/*.sqlite3]
     LogSpout -->|_handle_record| LogFile[logs/*.log]
-    LifecycleSpout -->|SQLite operations| SQLiteFile[lifecycles/**/*.sqlite3]
 ```
 
 ### File Naming Convention
@@ -92,35 +123,53 @@ flowchart LR
 ### Batch Refresh Strategy
 
 - Log files are written with **line buffering** (`buffering=1`), so readers can see newly appended logs in a timely manner.
-- Lifecycle SQLite writes use **immediate commit**: `LifecycleSpout._handle_record()` calls `commit()` immediately after each operation actually modifies a record, with `_after_stop()` performing one more `commit()` as a safety net.
-- Global spouts do not start/stop with individual executors; instead they are started and stopped uniformly by `run_graph_resources` / `run_node_resources` (or inside `TaskGraph.run()`) for the entire runtime, avoiding frequent file handle opens/closes.
+- Lifecycle SQLite writes use **immediate commit**: `LifecycleSpout._handle_record()` calls `commit()` immediately after a record actually changes, with `_after_stop()` performing one more `commit()` as a safety net.
+- Global spouts do not start/stop with individual executors; instead they are started and stopped uniformly by `run_graph_resources` / `run_node_resources` for the entire runtime, avoiding frequent file handle opens/closes.
 
 ## Usage Example
 
-### Assembling onto an Observer Hub
+### Assembling onto an Observer Hub (Recommended)
 
 ```python
-from celestialflow.observer import ObserverHub, MetricsObserver
-from celestialflow.persist import LifecycleInlet, LifecycleSpout, LogInlet, LogSpout
+from celestialflow.observer import MetricsObserver, ObserverHub
+from celestialflow.persist import LifecycleObserver, LogObserver
 
 metrics_view = MetricsObserver()
 hub = ObserverHub()
 hub.add_observer(metrics_view)
 
-lifecycle_spout = LifecycleSpout()
-log_spout = LogSpout()
-hub.add_observer(LifecycleInlet().bind_spout(lifecycle_spout))
-hub.add_observer(LogInlet(metrics_view, "INFO").bind_spout(log_spout))
+lifecycle = LifecycleObserver()
+log = LogObserver(metrics_view, log_level="INFO")
+hub.add_observer(lifecycle)
+hub.add_observer(log)
 
-lifecycle_spout.start()
-log_spout.start()
-# ... run the task graph ...
-log_spout.stop()
-lifecycle_spout.stop()
+lifecycle.start()
+log.start()
+try:
+    # ... run the task graph or a single node ...
+    print(lifecycle.db_path, log.log_path)
+finally:
+    log.stop()
+    lifecycle.stop()
+```
+
+### Using Only the Record Inlets
+
+```python
+from celestialflow.persist import InsertRecord, LifecycleInlet, LifecycleSpout
+
+spout = LifecycleSpout()
+spout.start()
+inlet = LifecycleInlet().bind_spout(spout)
+
+inlet.send(InsertRecord(event_id=1, ts=0.0, node="StageA", task="hello"))
+
+spout.stop()
 ```
 
 ## Notes
 
-1. **Observers consume events**: `LifecycleInlet` / `LogInlet` no longer provide manual invocation methods such as `task_input` / `task_success`; instead they record in the corresponding observer callbacks (`on_task_*` / `on_graph_*`, etc.).
-2. **Constructor parameters**: `LogInlet` requires `metrics_view` (`MetricsView`) and an optional `log_level` (default `runtime.util_log_level.DEFAULT_LOG_LEVEL`, currently `"INFO"`) at construction time.
-3. **`__all__` only contains core classes**: utility functions are located in `util_*` files and must be imported from `celestialflow.persist.util_xxx` as needed.
+1. **Event consumption happens at the observer layer**: `LifecycleInlet` / `LogInlet` no longer consume events; they only provide `send(record)`. Translating events into records is the responsibility of `LifecycleObserver` / `LogObserver`.
+2. **Constructor parameters**: `LogObserver` requires `metrics_view` (`MetricsView`) and an optional `log_level` (default `runtime.util_log_level.DEFAULT_LOG_LEVEL`) at construction time.
+3. **Path exposure**: `LifecycleObserver.db_path` / `LogObserver.log_path` are `None` before the spout starts.
+4. **`__all__` only contains core symbols**: utility functions are located in `util_*` files and must be imported from `celestialflow.persist.util_xxx` as needed.

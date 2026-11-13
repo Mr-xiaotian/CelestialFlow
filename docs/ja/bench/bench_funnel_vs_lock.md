@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目的
 
@@ -28,7 +28,7 @@
 | `lock` | `ValueWrapper` + 共有 `Lock` | プロデューサーがロックを保持して更新し、書き込みは同期的に可視化される。`MetricsObserver` で `threading.Lock` により共有カウンターを保護する用法に対応 |
 | `nolock` | `ValueWrapper`、ロックなし | 意図的にロックしないベースライン。正しさのデモではなく、ロック自体のオーバーヘッドを定量化するために使用（下記「発生し得る問題」を参照） |
 | `sharded` | プロデューサーごとにロックなしの `ValueWrapper` | 最後に集計する。スレッド間の競合は一切ないが、集約可能な負荷にのみ適用でき、共有レコードストリームを表現できない |
-| `funnel` | `BaseInlet` + `BaseSpout` | プロデューサーは `emit` を呼び出してエンキューする。`CountingSpout` が単一スレッドで直列に消費して状態を更新 |
+| `funnel` | `BaseInlet` + `BaseSpout` | プロデューサーは `CountingInlet.emit()`（内部で `BaseInlet.send()` に転送）を呼び出してエンキューする。`CountingSpout` が単一スレッドで直列に消費して状態を更新 |
 
 `funnel` シナリオのレコードは `(producer_id, seq)` の形をとり、`CountingSpout` は消費時に同一プロデューサー内で `seq` が厳密に連続しているかを検証する。したがって `order_violations` はファネルの「順序付き単一書き込みストリーム」という保証の実測検証である。
 `lock` / `nolock` / `sharded` はレコードストリームをモデル化しないため、この次元は `n/a` となる：ロックは単一更新の原子性のみを保証し、プロデューサー間の FIFO 順序を得るには追加の設計（シャーディング + マージなど）が必要である。

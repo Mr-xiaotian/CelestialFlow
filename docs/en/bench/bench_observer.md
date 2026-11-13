@@ -1,6 +1,6 @@
 # bench/bench_observer.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -15,18 +15,19 @@ Help users choose an appropriate observation strategy based on task scale and re
 | Scenario | Observer | Description |
 |------|--------|------|
 | **No observer** | `None` | Bare executor with no callback output, used as the baseline |
-| **print logging** | `PrintObserver` | Prints a `name`-prefixed statistics line on the node start/end and task input / success / fail / skip callbacks, simulating simple log output |
-| **tqdm progress bar** | `TqdmObserver` | Updates the `tqdm` progress bar on the node start/end and task input / success / fail / skip callbacks, providing visual feedback |
+| **print logging** | `PrintObserver` | In the unified `on_event`, prints a `name`-prefixed statistics line for each event type (node start/end, task input / success / fail / skip), simulating simple log output |
+| **tqdm progress bar** | `TqdmObserver` | In the unified `on_event`, updates the `tqdm` progress bar for the same set of event types, providing visual feedback |
 
 ### Task Workload
 
 Two Fibonacci task sets with different computation amounts:
 
 ```python
-# Light tasks: fib(20~29), 10 tasks in total, small per-task computation
+# Light tasks: fib(20~29), 10 tasks in total
 light_tasks = list(range(20, 30))
 
-# Heavy tasks: fib(50, 55, 60, 65, 70, 75, 80), 7 tasks in total, larger per-task computation
+# "Heavier" tasks: fib(50, 55, 60, 65, 70, 75, 80), 7 tasks in total
+# Note that fibonacci is an iterative O(n) implementation; even fib(80) only takes about 80 loops, so a single task is still at the microsecond level
 heavy_tasks = [50, 55, 60, 65, 70, 75, 80]
 ```
 
@@ -58,14 +59,18 @@ if an `observer` is passed, it calls `executor.add_observer(observer)`, then wra
 
 ### `TqdmObserver`
 
-`TqdmObserver` inherits from the framework's `Observer` base class and only overrides the progress-related callbacks:
+`TqdmObserver` inherits from the framework's `Observer` base class and overrides only the unified entry point `on_event(event: Event)`, dispatching by event type with `match event` (`handle_exception` keeps the base class default implementation):
 
-| Callback | Behavior |
+| Event | Behavior |
 |------|------|
-| `on_node_start` | Creates `tqdm(total=...)` using the currently accumulated `_total` |
-| `on_task_input` | `_total += 1`; if the progress bar has already been created, expands `total` accordingly and calls `refresh()` |
-| `on_task_success` / `on_task_fail` / `on_task_skip` | Advances progress via the shared `_advance(1)` |
-| `on_node_end` | Closes the progress bar |
+| `NodeStartEvent` | Creates `tqdm(total=...)` using the currently accumulated `_total` |
+| `TaskInputEvent` | `_total += 1`; if the progress bar has already been created, expands `total` accordingly and calls `refresh()` |
+| `TaskSuccessEvent` / `TaskFailEvent` / `TaskSkipEvent` | Advances progress via the shared `_advance(1)` |
+| `NodeEndEvent` | Closes the progress bar |
+
+The unlisted `TaskRetryEvent`, termination-signal events, and graph events match no branch and are naturally ignored by `match`.
+The `Observer` base class currently provides only `on_event` and `handle_exception`; there are no longer
+per-event callbacks such as `on_node_start` / `on_task_success`.
 
 ### Worker Functions
 
@@ -75,13 +80,16 @@ if an `observer` is passed, it calls `executor.add_observer(observer)`, then wra
 ## Potential Issues
 
 1. **TTY buffering of print**: `print()` defaults to line-buffered; when output goes to a real terminal, screen refresh may be triggered, which is slower than redirecting to a file. The overhead of `print` may differ across terminal environments.
-2. **`tqdm`'s deferred `total` creation**: `TqdmObserver` creates the progress bar in the `on_node_start` callback and accumulates the total in the `on_task_input` callback (that callback may arrive before `on_node_start`, so `on_task_input` only accumulates the total when the progress bar is not yet created). Since `run()` injects all tasks before starting the node, `total` at `on_node_start` already includes the tasks injected before startup; if further `on_task_input` events arrive afterward, the progress bar expands dynamically, but this does not affect the correctness of the benchmark results.
+2. **`tqdm`'s deferred `total` creation**: `TqdmObserver` creates the progress bar upon receiving `NodeStartEvent` and accumulates the total upon receiving `TaskInputEvent` (that event may arrive before `NodeStartEvent`, so when the progress bar has not been created, only `_total` is accumulated). Since `run()` injects all tasks before starting the node, `total` at the time `NodeStartEvent` arrives already includes the tasks injected before startup; if further `TaskInputEvent` events arrive afterward, the progress bar expands dynamically, but this does not affect the correctness of the benchmark results.
 3. **Warm-up effect**: The first run may be affected by bytecode cache warm-up, import initialization, or system cache, making subsequent rounds faster. `bench_observer_multirun()` mitigates this by averaging across multiple rounds.
-4. **Fibonacci computation itself is already small enough**: For light tasks, the I/O overhead of observer callbacks may dominate; the absolute numbers from benchmarks will vary by machine, but the **relative ratios** should remain consistent across platforms.
+4. **The Fibonacci workload itself is too light**: `fibonacci` is an iterative `O(n)` implementation, so the per-task time of both `light_fib` and `heavy_fib` is at the microsecond level, and the measured total time mainly consists of framework scheduling, event dispatch, and observer I/O rather than computation. The difference between the two data sets comes mostly from the task count (10 vs 7), and `heavy_fib` cannot be interpreted as "computation dominates". To observe how observer overhead decays as per-task time grows, you need a genuinely millisecond-level workload (e.g. recursive fib or adding `time.sleep`).
 
 ## Benchmark Results (Measured)
 
 > 🟢 All timing data in the tables of this section is historical measured data and cannot be verified from source code; manual confirmation is required.
+>
+> These data were collected from an older version in which observers still used per-event callbacks; the current implementation has been unified to `on_event` + `match`,
+> so event dispatch overhead and relative ratios may have changed. It is recommended to re-run locally before citing them.
 
 ### 2026/07/30 - Local Measurement
 
@@ -110,10 +118,10 @@ if an `observer` is passed, it calls `executor.add_observer(observer)`, then wra
 
 **Key Conclusions**:
 
-- In serial mode, the additional overhead of observers is closely related to the computation amount of the task itself.
-- In **light tasks**, the I/O overhead of tqdm and print is relatively noticeable, and the gap among the three schemes can reach ~50%.
-- In **heavy tasks** (fib 50~80), computation time dominates; the absolute time of the three schemes is nearly identical, and observer overhead is negligible.
-- When a single task takes more than **1ms**, choosing print or tqdm has minimal impact on overall performance; pick based on needs.
+- In serial mode, the measured values are mainly composed of the framework's own scheduling and event dispatch overhead; `fibonacci` is an iterative `O(n)` implementation and `fib(50~80)` also takes only a few dozen loops, so the per-task computation difference between the "light" and "heavier" groups is at the microsecond level.
+- In **light tasks**, the **relative difference** introduced by observers is more noticeable (up to ~50% in the historical single-round data), but the direction is not stable (print even showed a negative value); the absolute time is only at the millisecond level, and single-round values are dominated by measurement noise, so multi-round averages should be used.
+- The total time of the 7 tasks in **heavier tasks** (fib 50~80) is instead lower, mainly because there are fewer tasks, not because "computation time dominates"; both workloads in this script are too light, so no conclusion such as "observer overhead becomes negligible once a single task exceeds 1ms" can be drawn from them.
+- To evaluate observer overhead under realistic business workloads, switch to a per-task time of at least the millisecond level and then compare the three scenarios.
 
 ## How to Run
 

@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -13,7 +13,7 @@
 ```mermaid
 flowchart LR
     Caller["呼び出し側<br/>demo_funnel_jsonl"] --> Inlet["EventInlet<br/>emit / info / metric"]
-    Inlet -->|_funnel| Queue["queue.Queue"]
+    Inlet -->|send| Queue["queue.Queue"]
     Queue --> Spout["JsonlSpout<br/>バックグラウンドスレッド消費"]
     Spout --> File["temp/demo_funnel/events.jsonl"]
 ```
@@ -27,7 +27,7 @@ flowchart LR
   - `_after_stop()` でファイルを閉じる
 - `EventInlet`
   - `BaseInlet` を継承
-  - `_funnel()` を軽量にラップし、`emit()` / `info()` / `metric()` の 3 つのビジネスメソッドを提供
+  - 基底クラスの `send()` を軽量にラップし、`emit()` / `info()` / `metric()` の 3 つのビジネスメソッドを提供
   - `EventInlet().bind_spout(spout)` で対応する `JsonlSpout` にバインドする
 - `demo_funnel_jsonl()`
   - `JsonlSpout` と `EventInlet` を作成
@@ -39,7 +39,7 @@ flowchart LR
 
 - `funnel` が `persist` の低層実装であるだけでなく、独立した生産者-消費者チャネルの構築にも直接使用できることを示している
 - `BaseSpout` の完全なライフサイクルをカバーしている：`start()`、`_before_start()`、`_handle_record()`、`stop()`、`_after_stop()`
-- `BaseInlet` の典型的な使い方も示している：ビジネス側はキューを直接操作せず、カスタムメソッドを通じてレコードを `_funnel()` に送信する
+- `BaseInlet` の典型的な使い方も示している：ビジネス側はキューを直接操作せず、カスタムメソッドを通じてレコードを `send()` に送信する
 
 ## 主要実装
 

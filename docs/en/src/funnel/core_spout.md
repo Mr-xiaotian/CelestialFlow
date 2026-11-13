@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/core_spout.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 `BaseSpout` is the base class for all outlet classes, providing the common functionality of listening to a queue in a background thread and processing records.
 
@@ -26,8 +26,9 @@ def start(self):
 ```
 
 Flow:
-1. Calls the `_before_start()` hook
-2. If the thread is not running, creates and starts a daemon thread executing the `_spout()` method
+1. If `_thread` is not `None` and `is_alive()` is true, the background thread is already running, so **return immediately** (`start()` is idempotent; `_before_start()` is not called again in this case)
+2. Otherwise, call the `_before_start()` hook
+3. Create and start a daemon thread executing the `_spout()` method
 
 ### stop
 
@@ -112,6 +113,7 @@ stateDiagram-v2
     }
     Starting --> Running
     Running --> Running: _handle_record()
+    Running --> Running: start() (thread already alive, returns immediately)
     Running --> Stopping: stop()
     state Stopping {
         [*] --> SignalSent: Send TERMINATION_SIGNAL
@@ -232,4 +234,5 @@ print(f"Processed {spout.count} records")  # 100
 3. **Graceful Stop**: Notifies the thread to stop via `TerminationSignal`, `join(timeout=5)` waits up to 5 seconds; a timeout raises `RuntimeStateError`.
 4. **Exception Isolation**: Single record processing failure prints traceback and continues, does not terminate the thread.
 5. **Queue Cleanup**: Remaining records in the queue are not cleaned up when stopping.
-6. **Pending Counter**: The counter is incremented before `_funnel()` enqueueing and decremented after `_spout()` processing completes; it can be used to determine whether all data has been consumed.
+6. **Pending Counter**: The counter is incremented before `BaseInlet.send()` enqueueing and decremented after `_spout()` processing completes; it can be used to determine whether all data has been consumed.
+7. **`start()` is idempotent**: Repeated calls to `start()` while the thread is alive will not create a new thread or trigger `_before_start()` again.

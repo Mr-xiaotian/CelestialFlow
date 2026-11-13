@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_log_level.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `runtime/util_log_level.py` はログレベルのデフォルト値と正規化・検証を提供します。**ランタイムエントリ内部でのみ使用され**、対外的な設定 API には属しません。
 
@@ -26,7 +26,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 |----------|------|
 | `TaskGraph.run()` / `run_async()` / `restore_db()` の `log_level` | グラフレベルのランタイムエントリ |
 | `BaseTaskNode.run()` などノードの `log_level` | 単一ノードのランタイムエントリ |
-| `LogInlet.__init__()` | ログフィルター構築時のデフォルト値 |
+| `LogObserver.__init__()` | ログ観測者の構築時のデフォルト値 |
 | `assembly.core_run.run_graph_resources()` / `run_node_resources()` | 実行時のリソース組み立て |
 
 ### normalize_log_level

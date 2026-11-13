@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_node.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 `core_node.py` defines the core base class `BaseTaskNode[T, R, Y]` of the CelestialFlow node layer. It centralizes runtime concerns such as "queue communication / task scheduling / event tracing / observer callbacks" into a single object, and exposes entry methods like `run` / `start` for reuse by upper-layer `TaskExecutor` / `TaskSplitter` / `TaskRouter`.
 
@@ -28,7 +28,8 @@ The three generic parameters respectively represent: the input task type `T`, th
 | `max_info` | `int` | Maximum string length of each task in logs (default `50`) |
 | `skip_func` | `Callable[[T], bool] | None` | Task-skip decision function, default `None` means never skip |
 | `_name` | `str` | Node / manager name |
-| `_lifecycle_db_path` | `Path | None` | Lifecycle database path produced when running independently; `None` when participating in graph scheduling |
+
+> The node **does not hold** a lifecycle database path field: when persisted results need to be read, `_find_lifecycle_db_path()` recursively searches the observer hub through `self.observers.find(LifecycleObserver)` (which can look through nested graph-level hubs) and takes its `db_path`.
 
 ```mermaid
 classDiagram
@@ -93,7 +94,7 @@ Key behaviors of `__init__`:
 4. Initialize `max_workers / max_retries / max_queue_size / max_info`: `max_workers` defaults to `min(32, (os.cpu_count() or 1) + 4)`; `max_retries` is clamped via `max(max_retries, 0)`, so negative values are treated as `0`; then `retry_exceptions` is preset to an empty tuple;
 5. Install `LocalEventClient()` by default, replaceable via `set_ctree(...)` later;
 6. Instantiate `TaskDispatch(cast(BaseTaskNode[T, R, Y], self), self.func, self.max_workers)`, and create new `TaskInQueue` (with `out_name` as the node name) / `TaskOutQueue` (with `in_name` as the node name) / `ObserverHub`;
-7. `_lifecycle_db_path` is initialized to `None`, to be written by the assembly entry when running independently.
+7. No lifecycle path field is set: persistence observers are registered into `observers` by `run_node_resources` (independent run) or by graph-level observers (graph scheduling), and are located via `observers.find(...)` when results need to be read.
 
 ## Configuration Setters
 
@@ -123,10 +124,10 @@ Helper query methods:
 - `_get_class_name() -> str`: Returns the current node class name.
 - `get_meta() -> dict[str, Any]`: Returns the build-time metadata `{"class_name", "execution_mode", "max_workers"}`, reported once along with the graph structure.
 - `get_retry_error_type_names() -> set[str]`: Returns the set of `__name__` of each class in `retry_exceptions`, used by `restore_db` to filter by error type.
-- `get_success_pairs() -> list[tuple[T, R]]`: Reads successful `(task, result)` records from the lifecycle database produced when running independently; returns an empty list when not running independently (or when scheduled by a graph).
-- `get_error_pairs() -> list[tuple[T, PersistedError]]`: Reads failed `(task, PersistedError)` records from the lifecycle database produced when running independently; returns an empty list when not running independently (or when scheduled by a graph).
+- `get_success_pairs() -> list[tuple[T, R]]`: Locates the lifecycle database via `_find_lifecycle_db_path()` and reads successful `(task, result)` records. **Available both when running independently and under graph scheduling**; returns an empty list only when no `LifecycleObserver` is found (or its `db_path` is not ready yet).
+- `get_error_pairs() -> list[tuple[T, PersistedError]]`: Likewise reads failure records from the lifecycle database and wraps them as `PersistedError`; the conditions for availability are the same as `get_success_pairs()`.
 
-> The node **no longer provides** legacy interfaces such as `get_snapshot()` / `get_lifecycle_path()` / `start_time`. Runtime state is provided by the snapshot view of `MetricsObserver` (`MetricsView.get_node_metrics()`), and the lifecycle path is produced by the assembly entry through the `run` / `run_async` context.
+> The node **no longer provides** legacy interfaces such as `get_snapshot()` / `get_lifecycle_path()` / `start_time`. Runtime state is provided by the snapshot view of `MetricsObserver` (`MetricsView.get_node_metrics()`), and the lifecycle database path is obtained by recursively searching the observer hub (`_find_lifecycle_db_path()`).
 
 ## Binding Downstream
 
@@ -138,7 +139,7 @@ def connect_to(self, next_node: BaseTaskNode[Any, Any, Any]) -> None:
     next_node.task_queue.add_source_name(self.get_name())
 ```
 
-Binding only establishes the data path between nodes and queues. Upstream/downstream transport counts **no longer share counter objects**; instead, `MetricsObserver` derives them when the `on_task_input` event is delivered (an upstream delivery is counted into both the receiver's upstream count and the source's downstream count). Therefore `connect_to` only does binding and does not participate in counting.
+Binding only establishes the data path between nodes and queues. Upstream/downstream transport counts **no longer share counter objects**; instead, `MetricsObserver` derives them when it receives `TaskInputEvent` (an upstream delivery is counted into both the receiver's upstream count and the source's downstream count). Therefore `connect_to` only does binding and does not participate in counting.
 
 ## Task Injection
 
@@ -162,10 +163,7 @@ def run(
 ) -> None:
     error_list: list[Exception] = []
     try:
-        with run_node_resources(
-            self.observers, log_level=log_level
-        ) as lifecycle_db_path:
-            self._lifecycle_db_path = lifecycle_db_path
+        with run_node_resources(self.observers, log_level=log_level):
             for task in task_source:
                 self.put_task(task)
             if if_put_signal:
@@ -183,9 +181,9 @@ Parameters:
 |-----------|------|---------|-------------|
 | `task_source` | `Iterable[T]` | required | Task source to inject |
 | `if_put_signal` | `bool` | `True` | Whether to automatically call `put_signal()` after injecting tasks |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL` (`"INFO"`) | Log filter level for `LogInlet`, passed through unchanged to `run_node_resources` |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL` (`"INFO"`) | Log filter level for `LogObserver`, passed through unchanged to `run_node_resources` |
 
-`run_node_resources` (located in `celestialflow.assembly`) is responsible for assembling the runtime resources of a single node: creating `MetricsObserver`, injecting the `LifecycleInlet` / `LogInlet` observers and corresponding spouts, and coordinating their start/stop. It produces the lifecycle database path. `log_level` is normalized by `normalize_log_level` (ignoring case and leading/trailing whitespace); an invalid level raises `InvalidOptionError`, and a non-string raises `ConfigurationError`.
+`run_node_resources` (located in `celestialflow.assembly`) is responsible for assembling the runtime resources of a single node: creating and registering `MetricsObserver`, and assembling `LifecycleObserver` / `LogObserver` (each holding and starting/stopping its spout). When this context manager is entered it still produces the lifecycle database path, but `BaseTaskNode.run` no longer caches it—`get_success_pairs()` / `get_error_pairs()` retrieve it on demand via `observers.find(LifecycleObserver)`. `log_level` is normalized by `normalize_log_level` (ignoring case and leading/trailing whitespace); an invalid level raises `InvalidOptionError`, and a non-string raises `ConfigurationError`.
 
 ### `async run_async(task_source, *, if_put_signal=True, log_level=DEFAULT_LOG_LEVEL)`
 
@@ -202,25 +200,26 @@ Load and replay unfinished tasks from the sqlite database:
 
 ### `start()`
 
-- The preparation phase `_prepare_start` broadcasts `NodeStartEvent` (including `execution_mode` / `max_workers` / `start_time=time.time()`);
+- The preparation phase `_prepare_start` broadcasts the start event via `observers.on_event(NodeStartEvent(...))` (including `execution_mode` / `max_workers` / `start_time=time.time()`);
 - Selects `dispatch.dispatch_serial()` / `dispatch.dispatch_thread()` based on `execution_mode`; `async` goes through `start_async`, otherwise throws `InvalidOptionError`;
-- The cleanup phase `_finish_start` broadcasts `NodeEndEvent` (including `elapsed` and `end_time=time.time()`);
+- The cleanup phase `_finish_start` broadcasts the end event via `observers.on_event(NodeEndEvent(...))` (including `elapsed` and `end_time=time.time()`);
 - Any exceptions in any phase are finally aggregated as `ExceptionGroup("Errors occurred during execution", ...)` thrown.
 
 ### `async start_async()`
 
 - Only valid when `execution_mode == "async"`, otherwise throws `InvalidOptionError`;
-- Internally `await self.dispatch.dispatch_async()`; the cleanup phase broadcasts `NodeEndEvent` (likewise carrying `end_time`).
+- Internally `await self.dispatch.dispatch_async()`; the cleanup phase likewise broadcasts via `observers.on_event(NodeEndEvent(...))` (carrying `end_time`).
 
 ## Results / Events / Error Handling
 
 | Method | Purpose |
 |------|------|
 | `process_task_success(envelope, result, start_perf)` | Abstract hook; subclasses implement successful handling |
-| `handle_task_fail(envelope, exception)` | Use `ctree_client.emit(CTreeEvent.TASK_ERROR, parents=[task_id])` to generate `error_id`, broadcast `TaskFailEvent` |
-| `handle_task_skip(envelope)` | Use `ctree_client.emit(CTreeEvent.TASK_SKIP, parents=[task_id])` to generate `skip_id`, broadcast `TaskSkipEvent` |
-| `log_task_retry(envelope, exception, fail_times)` | Broadcast `TaskRetryEvent` (including `retry_times`); the lifecycle status update is completed by `LifecycleInlet` responding to the event |
+| `handle_task_fail(envelope, exception)` | Use `ctree_client.emit(CTreeEvent.TASK_ERROR, parents=[task_id])` to generate `error_id`, then `observers.on_event(TaskFailEvent(...))` |
+| `handle_task_skip(envelope)` | Use `ctree_client.emit(CTreeEvent.TASK_SKIP, parents=[task_id])` to generate `skip_id`, then `observers.on_event(TaskSkipEvent(...))` |
+| `log_task_retry(envelope, exception, fail_times)` | `observers.on_event(TaskRetryEvent(...))` (including `retry_times`); the lifecycle status update is completed by `LifecycleObserver` in response to the event |
 | `_get_repr(task) -> str` | Generate a readable string via `format_repr(task, self.max_info)` |
+| `_find_lifecycle_db_path() -> Path | None` | Recursively locate and return the observer's `db_path` via `observers.find(LifecycleObserver)`; `None` when not found |
 
 ## Key Data Flow
 
@@ -246,13 +245,13 @@ flowchart LR
     PTS --> CT
 
     Hub --> Metrics[MetricsObserver]
-    Hub --> Lifecycle[LifecycleInlet]
-    Hub --> Log[LogInlet]
+    Hub --> Lifecycle[LifecycleObserver]
+    Hub --> Log[LogObserver]
     Lifecycle --> SQLite[(sqlite persistence)]
-    Log --> LogStore[(log spout)]
+    Log --> LogStore[(log file)]
 ```
 
-`ObserverHub` is the export end of node event broadcasting: when an event occurs, the node invokes the corresponding `on_*` callback, and the registered `MetricsObserver` / `LifecycleInlet` / `LogInlet` etc. respectively update counts, write to the database, and write logs. These observers are injected and assembled by `run_node_resources` (for independent running) or the graph-level client.
+`ObserverHub` is the export end of node event broadcasting: when an event occurs, nodes uniformly call `self.observers.on_event(SomeEvent(...))`, and the registered `MetricsObserver` / `LifecycleObserver` / `LogObserver` etc. respectively update counts, write to the database, and write logs. These observers are assembled and injected by `run_node_resources` (for independent running) or the graph-level client; during graph scheduling, a graph-level hub is nested inside the node's hub, so `observers.find(...)` can look through it.
 
 ## Usage Example
 
@@ -273,7 +272,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
         task_id = task_envelope.get_id()
 
         result_id = self.ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])
-        self.observers.on_task_success(
+        self.observers.on_event(
             TaskSuccessEvent(
                 node=self.get_name(),
                 task=task,
@@ -290,7 +289,7 @@ class SquareNode(BaseTaskNode[int, int, int]):
             downstream_id = self.ctree_client.emit(
                 CTreeEvent.TASK_INPUT, parents=[result_id]
             )
-            self.observers.on_task_input(
+            self.observers.on_event(
                 TaskInputEvent(
                     node=target,
                     task=result,
@@ -322,6 +321,6 @@ node.run([1, 2, 3, 4])
 
 1. **One-time `start`**: `start()` / `start_async()` are one-time calls and **not guaranteed** to be safely reset and reused after execution; if repeat execution is needed, create a new node.
 2. **Setter timing**: All setters must be completed before `start`; do not replace `func` during runtime.
-3. **Runtime resources are managed by the assembly entry**: `MetricsObserver` / `LifecycleInlet` / `LogInlet` are assembled by `run_node_resources` (for independent running) or the graph-level client; `BaseTaskNode` itself does not directly hold spouts / inlets.
+3. **Runtime resources are managed by the assembly entry**: `MetricsObserver` / `LifecycleObserver` / `LogObserver` are assembled by `run_node_resources` (for independent running) or the graph-level client; `BaseTaskNode` itself does not directly hold spouts / inlets; `get_success_pairs()` / `get_error_pairs()` are likewise available under graph scheduling.
 4. **ctree client**: The default `LocalEventClient()` auto-increments event IDs internally; it can be replaced at any time via `set_ctree(...)` with a client that connects to `celestialtree`.
 5. **Removed capabilities**: The node layer no longer carries `TaskMetrics`, nor does it provide legacy interfaces such as `get_snapshot()` / `get_lifecycle_path()` / `remove_observer()`; count statistics are uniformly maintained by `MetricsObserver` based on events.

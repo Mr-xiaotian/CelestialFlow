@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_sqlite.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `persist/util_sqlite.py` は SQLite データベースの接続管理とレコードの読み書きツールを提供し、`LifecycleSpout` の基盤となるストレージエンジンです。
 
@@ -234,4 +234,4 @@ results = load_task_result_records(db_path, node="StageA")  # [(task, result)]
 3. **フィルタリング規則**：`normalize_record` は `event_id` を欠くレコードを除外し（`None` を返す）、`insert_record` はそのまま `False` を返します。
 4. **JSON フィールド**：`task_json` と `result_json` はデータベース内では `json.dumps` 後の文字列です。`row_to_record_dict` と各 `load_*` 関数は読み取り時に `json.loads` で復元します。
 5. **`retry_times`**：`update_retry_by_event_id` によって維持され、タスクが昇格する前のリトライ回数を記録します。
-6. **ビジネスフィールドの明示的な書き込み**：`node` と `status` はビジネスフィールドであり、呼び出し側（`LifecycleInlet` など）がレコード書き込み時に明示的に提供する必要があります。`normalize_record` はデフォルトの推定を行いません。
+6. **ビジネスフィールドの明示的な書き込み**：`node` と `status` はビジネスフィールドであり、呼び出し側（`LifecycleObserver` が構築するレコードなど）がレコード書き込み時に明示的に提供する必要があります。`normalize_record` はデフォルトの推定を行いません。

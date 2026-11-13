@@ -1,6 +1,6 @@
 # demo/demo_redis.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -168,7 +168,7 @@ def redis_wait(task: tuple[str, int]) -> Any:
 | `get_redis()` | Constructs and returns `redis.Redis(port=6379, db=0, decode_responses=True)` from the `REDIS_HOST` / `REDIS_PASSWORD` environment variables; the client is not cached |
 | `_normalize_result(result)` | Normalizes the `result` written back by the remote end: strings/bytes are returned as-is; a single-element list yields its only element; a multi-element list becomes a tuple; other types are returned as-is |
 | `sleep_1_fibonacci` / `sleep_1_sum` / `sleep_1_download` / `sleep_1_report` | The `Start` node task for each scenario: sleeps 1 second and returns a `(key, payload)` tuple, where `key` is `testFibonacci` / `testSum` / `testDownload` / `testReport` respectively |
-| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | Local direct-computation branches: extract `payload` from the `(key, payload)` tuple and then call `fibonacci` / `sum_int` / `download_to_file` respectively |
+| `fibonacci_wrapper` / `sum_int_wrapper` / `download_to_file_wrapper` | Local direct-computation branches: extract `payload` from the `(key, payload)` tuple and then call `fibonacci` / `sum_int` / `download_to_file` respectively (`download_to_file_wrapper` currently passes only `url`, which does not match the `download_to_file(task: tuple[str, str])` signature; see "Potential Issues") |
 
 > The `redis_push` source signature declares an `int` return type, but it actually returns a `(key, task_id)` tuple, which the downstream `redis_wait` depends on.
 
@@ -246,7 +246,7 @@ The three scenarios differ only in the local direct-computation stage:
 
 - `demo_redis_ack_0`: CPU-intensive Fibonacci
 - `demo_redis_ack_1`: Lightweight summation
-- `demo_redis_ack_2`: Real download I/O
+- `demo_redis_ack_2`: Real download I/O (the local branch currently fails due to a parameter-shape mismatch, see item 8 of "Potential Issues")
 
 They share the same pattern:
 
@@ -319,6 +319,7 @@ You can also directly open [demo_redis.py](https://github.com/Mr-xiaotian/Celest
 5. **No assertions**: This is an integration demo; it does not validate business result correctness.
 6. **Local `task_id` scope**: `redis_push`'s `task_id` is an incrementing value within the current process, suitable for demos and single-end collaboration, but not equivalent to a globally distributed unique ID.
 7. **Single consumption**: `redis_wait` immediately calls `HDEL` after retrieving a result, so the same result is not read twice by default.
+8. **`download_to_file_wrapper` parameter-shape mismatch**: This function extracts `url` from the task tuple and calls `download_to_file(url)`, while the signature of `demo_utils.download_to_file` is `download_to_file(task: tuple[str, str])`. Unpacking a string as a two-element tuple raises `ValueError`, so the local `Download` branch of `demo_redis_ack_2` never actually downloads the file; only the remote branch's behavior depends on the external Worker.
 
 ## Notes
 

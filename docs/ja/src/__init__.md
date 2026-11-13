@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 概要
 
@@ -63,7 +63,7 @@
 
 | エクスポートシンボル | 説明 |
 |----------|------|
-| `Observer` | オブザーバー基底クラス。on_node_start / on_task_success / on_task_fail などのコールバックインターフェースを定義 |
+| `Observer` | オブザーバー基底クラス。統一エントリ `on_event(event: Event)` と `handle_exception()` のみを定義；すべてのイベント型は `Event` サブクラスで区別される |
 | `ObserverHub` | オブザーバーハブ。イベントを一連の子オブザーバーにブロードキャスト |
 | `PrintObserver` | print ベースのコンソール進捗オブザーバー。構築時に名称プレフィックスを渡す必要がある；カウンタはスレッドセーフ |
 
@@ -116,6 +116,19 @@ Ticker ベースの定時タスクイベント駆動能力を提供する。
 | `TerminationSignal` | 終了シグナル。グラフ実行フローの終了を制御 |
 
 ---
+
+## パッケージルートからエクスポートされない常用シンボル
+
+パッケージルートの `__all__` には上表の 25 シンボルのみが含まれる。以下のサブパッケージの常用シンボルは個別にインポートできるが、`from celestialflow import ...` には**現れない**：
+
+| サブパッケージ | 常用シンボル | インポート方法 | 説明 |
+|------|----------|----------|------|
+| `assembly` | `run_graph_resources` / `run_node_resources` | `from celestialflow.assembly import ...` | 実行期リソース装配コンテキスト。通常は `TaskGraph.run()` / `TaskExecutor.run()` の内部で呼び出される |
+| `reporter` | `PushInlet` / `PushSpout` / `NullPushSpout` / `PushSnapshotHandler` / `InjectionHandler` / `InjectionTarget` | `from celestialflow.reporter import ...` | リモート報告、状態スナップショット、タスク注入 |
+| `persist` | `LifecycleObserver` / `LogObserver` / `LifecycleSpout` / `LogSpout` など | `from celestialflow.persist import ...` | タスクライフサイクルと実行ログの永続化 |
+| `observer` | `MetricsObserver`、`Event` およびすべてのイベント型 | `from celestialflow.observer import ...` | 指標オブザーバーとイベント DTO |
+
+> パッケージルートの `benchmark_executor` / `benchmark_graph` / `format_table` / `TerminationSignal` / `load_tasks_grouped_by_node` は**ファイル単位で直接インポート**される例外である。この 5 シンボルを除き、その他の `util_*` ユーティリティ関数と型は引き続き具体的なモジュールパスからインポートすべきであり、パッケージレベルの公開 API には属さない。
 
 ## `__all__` リスト
 
@@ -308,7 +321,7 @@ graph TD
     Init --> R
 ```
 
-> 依存方向について：`ReportConfig` は `celestialflow.runtime` からの再エクスポートである。`benchmark_*`、`format_table`、`TerminationSignal`、`load_tasks_grouped_by_node` はパッケージルートがファイル単位で直接インポートしており、対応するサブパッケージの `__init__.py` を経由しない。`benchmark` は依存チェーンの最上位にあり、他のサブモジュールからインポートされることはない。
+> 依存方向について：`ReportConfig` は `celestialflow.runtime` からの再エクスポートである。`benchmark_*`、`format_table`、`TerminationSignal`、`load_tasks_grouped_by_node` はパッケージルートがファイル単位で直接インポートしており、対応するサブパッケージの `__init__.py` を経由しない。`benchmark` は依存チェーンの最上位にあり、他のサブモジュールからインポートされることはない。`assembly` と `reporter` はパッケージルートからインポートされないため上図には現れず、`graph` / `node` の実行エントリが内部で使用する。
 
 ## 注意事項
 

@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_metrics.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 `core_metrics.py` defines the **graph-level metrics observer** `MetricsObserver`. It simultaneously plays the two roles of "write model" and "read-only view": as an observer it writes each node's counts, status, and run start time from events, and it exposes an immutable `NodeMetrics` snapshot through a read-only view.
 
@@ -10,12 +10,7 @@
 class MetricsObserver(Observer):
     def __init__(self) -> None: ...
 
-    def on_node_start(self, event: NodeStartEvent) -> None: ...
-    def on_node_end(self, event: NodeEndEvent) -> None: ...
-    def on_task_input(self, event: TaskInputEvent) -> None: ...
-    def on_task_success(self, event: TaskSuccessEvent) -> None: ...
-    def on_task_fail(self, event: TaskFailEvent) -> None: ...
-    def on_task_skip(self, event: TaskSkipEvent) -> None: ...
+    def on_event(self, event: Event) -> None: ...
 
     def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
     def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
@@ -25,16 +20,16 @@ A single instance serves one run scope: the entire task graph, or a single indep
 
 ## Event Write Logic
 
-`MetricsObserver` only cares about the following events to maintain metrics:
+`on_event` dispatches with `match`, handling only metric-related events; all other events (graph-level, termination signals, etc.) fall into `case _: pass` and are ignored:
 
 | Event | Write Behavior |
 |------|---------|
-| `on_node_start` | Set the node status to `RUNNING`, write the `start_time` carried by the event into `_start_time`, and reset `_end_time` to `0.0` |
-| `on_node_end` | Set the node status to `STOPPED`, write the `end_time` carried by the event into `_end_time` |
-| `on_task_input` | Distinguish the source: when `from_node is None`, accumulate the external-injection count; otherwise accumulate both the receiver's upstream count and the source's downstream count |
-| `on_task_success` | Accumulate the node's success count |
-| `on_task_fail` | Accumulate the node's fail count |
-| `on_task_skip` | Accumulate the node's skip count |
+| `NodeStartEvent` | Set the node status to `RUNNING`, write the `start_time` carried by the event into `_start_time`, and reset `_end_time` to `0.0` |
+| `NodeEndEvent` | Set the node status to `STOPPED`, write the `end_time` carried by the event into `_end_time` |
+| `TaskInputEvent` | Distinguish the source: when `from_node is None`, accumulate the external-injection count; otherwise accumulate both the receiver's upstream count and the source's downstream count |
+| `TaskSuccessEvent` | Accumulate the node's success count |
+| `TaskFailEvent` | Accumulate the node's fail count |
+| `TaskSkipEvent` | Accumulate the node's skip count |
 
 A storage cell is **created on demand** (`_ensure`, idempotent) with the first event, and edge counts are also written incrementally by the actual task flow, so it does not depend on graph-construction structure events; an upstream delivery writes both the receiver's upstream count and the source's downstream count, so no counter objects need to be shared between nodes, and no per-node-type specialized statistics logic is needed.
 
@@ -73,19 +68,23 @@ metrics = MetricsObserver()
 hub = ObserverHub()
 hub.add_observer(metrics)
 
-# ... task graph runs ...
+# ... after the task graph runs ...
 
 for node_name, nm in metrics.get_graph_metrics().items():
     print(node_name, nm.succeeded, nm.failed, nm.skipped, nm.pending)
+
+single = metrics.get_node_metrics("StageA")
+print(single.input_total if single is not None else None)
 ```
 
 ## Relationship with Node / Assembly
 
 - `BaseTaskNode` **no longer** holds counts and `TaskMetrics` itself; node counts are uniformly maintained by `MetricsObserver` based on events.
-- During assembly (`assembly/core_run.py`), a `MetricsObserver` is created and registered into the node's `ObserverHub`; its read-only view is cross-provided to `LogInlet` and the snapshot handler for use.
+- During assembly (`assembly/core_run.py`), `run_graph_resources` / `run_node_resources` create a `MetricsObserver` and register it into the observer hub; its read-only view is cross-provided to `LogObserver` and the snapshot handler for use.
 
 ## Notes
 
 1. **Single-scope instance**: one `MetricsObserver` serves one run scope, avoiding count cross-talk from reuse across different graphs / nodes.
 2. **Thread safety**: all internal storage access is under the protection of `_lock`.
 3. **Structure is event-driven**: it does not depend on graph-construction structure events; any node can establish its storage cell as soon as a task event appears.
+4. **Observe only, never intercept**: `NodeEndEvent` only updates the status and end time, and does not automatically reset counts.

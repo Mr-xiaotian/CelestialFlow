@@ -1,6 +1,6 @@
 # src/celestialflow/runtime/util_errors.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 The TaskErrors module defines the complete exception class system used in the CelestialFlow framework.
 
@@ -184,7 +184,7 @@ class DuplicateNodeError(GraphStructureError):
 
 ### UnknownNodeError
 
-Unknown node name (triggered during termination signal source validation).
+Unknown node name (triggered during termination signal source validation; it is also triggered by `TaskGraph.inject_tasks()` / `inject_terminations()` when validating the injection target node).
 
 ```python
 class UnknownNodeError(GraphStructureError):
@@ -294,7 +294,7 @@ class UnconsumedError(CelestialFlowError):
     pass
 ```
 
-When `TaskGraph._finish_start()` finds remaining tasks in queues during the finalization phase, they are marked as `UnconsumedError` and persisted to a date-organized lifecycle sqlite database via the observer `LifecycleInlet` / `LifecycleSpout`.
+When the `TaskGraph._finish_start()` finalization phase iterates over all nodes and calls `drain_task_queue()` and finds remaining tasks in the queues, they are marked as `UnconsumedError` and persisted to a date-organized lifecycle sqlite database via the observers `LifecycleInlet` / `LifecycleSpout`.
 
 ### TerminationMergeError
 
@@ -439,6 +439,6 @@ except RemoteWorkerError as e:
 
 1. Drain the node's task queue, collecting remaining tasks.
 2. For each remaining task, call `handle_task_fail(source, UnconsumedError())`.
-3. Failure information is written to `LifecycleSpout` via the observer `LifecycleInlet` (`on_task_fail()` promotes pending records to failed), and ultimately persisted to a date-organized lifecycle sqlite database (`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`).
+3. Failure information is delivered to the observer hub as a `TaskFailEvent`, translated by `LifecycleObserver.on_event()` into a `PromoteFailedRecord`, and written to `LifecycleSpout` through `LifecycleInlet` (promoting pending records to failed), and ultimately persisted to a date-organized lifecycle sqlite database (`./lifecycles/YYYY-MM-DD/flow_lifecycle(...).sqlite3`).
 
 Thus, the "persistence" of unconsumed tasks is not performed by `util_errors.py` itself, but relies on the lifecycle persistence mechanism at the Graph / Node layer.

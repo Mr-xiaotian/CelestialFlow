@@ -1,6 +1,6 @@
 # demo/demo_network.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -44,7 +44,7 @@ flowchart LR
 - **Input layer**: `A1(x) = 0.5x`, `A2(x) = 2.0x`, each receiving different input ranges
 - **Hidden layer**: `B1..B3(x) = 1.0x`, three nodes process the Fan-in results from both input layers in parallel
 - **Output layer**: `C(x) = 1.0x`, aggregating all results from B1~B3
-- After running, `C.get_success_pairs()` is used to collect the first 10 `(input → output)` pairs and print them; this method is only available when the node **runs standalone** (`executor.run(...))`. Under graph-level scheduling via `TaskCross.run(...)`, records go to the graph-level lifecycle store, and the node itself has no lifecycle store path, so it actually returns an empty list
+- After running, `C.get_success_pairs()` is used to collect the first 10 `(input → output)` pairs and print them; this method recursively searches the node's observer hub for the graph-level `LifecycleObserver`, so even after graph-level scheduling via `TaskCross.run(...)` finishes, it can read C's success records from the lifecycle sqlite database
 
 #### Core Function
 
@@ -66,8 +66,8 @@ def linear(w: float, b: float):
 | B1~B3 | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | Fan-in from A1/A2 |
 | C | `linear(1.0, 0.0)` | 1.0 | 0.0 | 2 | Fan-in from B1~B3 |
 
-- All Stages use `execution_mode="thread"`, and `TaskCross` as a whole uses `graph_mode="thread"`
-- Output layer C calls `get_success_pairs()` after running; because this demo schedules via `TaskCross.run(...)`, the method returns an empty list (see above and "Potential Issues")
+- All nodes use `execution_mode="thread"`, and `TaskCross` as a whole uses `graph_mode="thread"`
+- Output layer C calls `get_success_pairs()` after running; the lifecycle observer of graph-level execution is injected into every node, so the method can read C's 30 success records
 
 ## Design Intent
 
@@ -82,7 +82,7 @@ This file is positioned as **Step 1**—keeping the 2-3-1 topology of `demo_netw
 1. **No assertions**: This is a demo script; successful execution only means the graph construction and scheduling are correct, and does not verify the weights or computation results.
 2. **No sample pairing**: A1's and A2's tasks are processed independently, and the "same original sample being processed by A1 and A2 separately and then aggregated at the same B node" pairing logic has not been implemented yet.
 3. **No sleep**: The `linear` function contains no delay, so execution is very fast (microsecond-level), with no noticeable waiting like other demos.
-4. **Limited result collection**: A1 (5 tasks) × 3 hidden nodes + A2 (5 tasks) × 3 hidden nodes = 30 hidden layer outputs, all of which are processed by C, but `C.get_success_pairs()` returns an empty list under graph-level scheduling, so the terminal prints "C received 0 tasks in total" and the `(input → output)` details are empty. If you need C's results, you can add `PrintObserver` to C, or switch to standalone execution / query the graph-level lifecycle store.
+4. **Result collection works but order is not guaranteed**: A1 (5 tasks) × 3 hidden nodes + A2 (5 tasks) × 3 hidden nodes = 30 hidden-layer outputs, all of which are processed by C, and `C.get_success_pairs()` returns these 30 successful pairs. Pairs are sorted by the `id` of the lifecycle record in ascending order, but A1/A2 and the B nodes all run in thread mode, so the first-arriving input is not fixed; therefore the exact order of the first 10 entries varies with scheduling. The terminal prints "C received 30 tasks in total" and 10 `(input → output)` details.
 
 ## How to Run
 
@@ -102,13 +102,22 @@ After running, the script prints node configuration information and the input �
   B1..B3(x) = 1.0 * x
   C(x) = 1.0 * x
   Running...
-  C received 0 tasks in total
+  C received 30 tasks in total
 
   C's (input → output), first 10 entries:
+       0.5  →  0.5
+       0.5  →  0.5
+       1.0  →  1.0
+       0.5  →  0.5
+       1.0  →  1.0
+       1.5  →  1.5
+       2.5  →  2.5
+       1.5  →  1.5
+       2.5  →  2.5
+       1.0  →  1.0
 ```
 
-> `C received 0 tasks in total` is the actual output of the current source code under `TaskCross` graph-level scheduling: C actually processed 30 tasks, but `get_success_pairs()` only reads the node's own lifecycle store, and that path is empty under graph-level scheduling, so it returns an empty list and prints no `(input → output)` lines.
-> Since all hidden nodes have a weight of 1.0, C's output values normally equal the input values (e.g., `0.5 → 0.5`).
+> C actually processed 30 tasks: A1's 5 outputs and A2's 5 outputs fan out to B1~B3 respectively, each B node produces 10 entries, and 30 in total enter C. Since every node has a weight of 1.0, C's output values equal its input values; the 10 distinct input values each appear 3 times, the example above is only one possible arrangement, and the actual order and repetition distribution of the first 10 entries vary with thread scheduling.
 
 ## Dependencies
 

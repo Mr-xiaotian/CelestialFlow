@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_payload.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 `persist/util_payload.py` は、タスクデータの永続化シリアライゼーションツールを提供し、任意の Python オブジェクトを再帰的に JSON フレンドリーな構造に変換します。
 
@@ -73,28 +73,23 @@ result = to_persisted_payload(MyTask())
 print(result)  # "MyTask(id=1)"
 ```
 
-### LifecycleInlet での使用
+### LifecycleObserver での使用
 
-`to_persisted_payload` は主に `LifecycleInlet` 内部で自動的に呼び出され、タスクデータを SQLite に保存可能な JSON 文字列に変換します：
+`to_persisted_payload` は `LifecycleObserver.on_event()` から自動的に呼び出されます：`TaskInputEvent` を処理する際は `to_persisted_payload(event.task)` で `InsertRecord.task` を埋め、`TaskSuccessEvent` を処理する際は `to_persisted_payload(event.result)` で `PromoteSuccessRecord.result` を埋めます。したがってタスクと結果は最終的に JSON フレンドリーな形式で SQLite へ保存されます。
 
 ```python
-# LifecycleInlet.on_task_input 内部フロー（オブザーバーコールバック）：
-from datetime import datetime
+from celestialflow.persist.util_payload import to_persisted_payload
 
-pending_item = {
-    "__op__": "insert",
-    "record": {
-        "event_id": event.input_id,
-        "ts": datetime.now().timestamp(),
-        "node": event.node,
-        "status": "pending",
-        "task_json": to_persisted_payload(event.task),  # 自動シリアライズ
-    },
-}
+payload = to_persisted_payload({"x": 1, "obj": object()})
+print(payload["x"])  # 1
+print(type(payload["obj"]))  # <class 'str'>
 ```
+
+> 通常の使用では手動で呼び出す必要はありません：`LifecycleObserver` を `ObserverHub` に登録するか、その `on_event()` に直接イベントを送出するだけです。
 
 ## 注意事項
 
 - シリアライゼーション戦略は**ベストエフォート**：直接 JSON シリアライズできないオブジェクトは `str()` による文字列表現にフォールバックします。
-- 関数の結果は最終的に `LifecycleSpout` により `util_sqlite` 層で `json.dumps` 形式に変換され、SQLite の `task_json` フィールドに書き込まれます。
+- 変換結果は最終的に `LifecycleSpout` が `util_sqlite` 層を通じて `json.dumps` 形式で SQLite の `task_json` / `result_json` フィールドへ書き込みます。
 - 本モジュールはデータフォーマット変換のみを担当し、ファイル読み書きには関与しません。
+- 変換結果自体は依然としてネスト構造であり得ます；`dict` の key は一律 `str` に変換され、`set` の順序は保証されません。

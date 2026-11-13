@@ -1,6 +1,6 @@
 # tests/runtime/test_log_level.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Validates the input normalization and error branches of `celestialflow.runtime.util_log_level.normalize_log_level`: level names are case-insensitive with leading/trailing whitespace ignored; unknown levels and non-string inputs raise `InvalidOptionError` and `ConfigurationError` respectively.
@@ -53,13 +53,13 @@ except ConfigurationError as error:
 
 ```bash
 # Run all
-pytest tests/runtime/test_log_level.py -v
+uv run pytest tests/runtime/test_log_level.py -v
 
 # Run only the normalization case
-pytest tests/runtime/test_log_level.py -k "uppercases" -v
+uv run pytest tests/runtime/test_log_level.py -k "uppercases" -v
 
 # Run only the error branch cases
-pytest tests/runtime/test_log_level.py -k "rejects" -v
+uv run pytest tests/runtime/test_log_level.py -k "rejects" -v
 ```
 
 ## Important Details

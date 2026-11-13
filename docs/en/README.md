@@ -1,6 +1,6 @@
 # CelestialFlow — A Lightweight, Parallel, Graph-Based Python Task Scheduling Framework
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -201,13 +201,16 @@ flowchart TD
     class TRC execution;
 ```
 
-The following five can serve as supplementary reading:
+The following eight can serve as supplementary reading:
 
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
 - [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
 - [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
 - [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
+- [Ticker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/ticker/core_ticker.md)
+- [Reporter.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/reporter/core_push.md)
+- [Assembly.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/assembly/core_run.md)
 
 If you prefer to understand the framework's operation through a complete case study, refer to this tutorial on building a project from scratch with TaskGraph:
 
@@ -247,12 +250,12 @@ If you want to view bench content, this data also serves as the basis for some o
 ## File Structure
 
 ```
-📁 CelestialFlow	(560MB 757KB 428B)
-    📁 bench           	(316KB 409B)
-        📁 [1 excluded directory]                  	(193KB 163B)
+📁 CelestialFlow	(594MB 775KB 69B)
+    📁 bench           	(356KB 464B)
+        📁 [1 excluded directory]                  	(233KB 797B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
-        🐍 bench_funnel_vs_lock.py          	(21KB 888B)
+        🐍 bench_funnel_vs_lock.py          	(21KB 885B)
         🐍 bench_futures_memory.py          	(2KB 269B)
         🐍 bench_gil_vs_nogil.py            	(10KB 552B)
         🐍 bench_graph_mode.py              	(6KB 614B)
@@ -263,29 +266,29 @@ If you want to view bench content, this data also serves as the basis for some o
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
-        🐍 bench_observer.py                	(7KB 58B)
-        🐍 bench_persist_spout.py           	(4KB 323B)
+        🐍 bench_observer.py                	(6KB 657B)
+        🐍 bench_persist_spout.py           	(4KB 172B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(811KB 650B)
-        📁 [4 excluded directories]   	(755KB 996B)
+    📁 demo            	(809KB 719B)
+        📁 [4 excluded directories]   	(754KB 603B)
         🐍 demo_executor.py  	(1KB 557B)
-        🐍 demo_funnel.py    	(2KB 289B)
+        🐍 demo_funnel.py    	(2KB 286B)
         🐍 demo_graph.py     	(2KB 975B)
         🐍 demo_network.py   	(3KB 756B)
         🐍 demo_nodes.py     	(3KB 915B)
-        🐍 demo_observer.py  	(2KB 1004B)
+        🐍 demo_observer.py  	(2KB 445B)
         🐍 demo_redis.py     	(8KB 595B)
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
         🐍 demo_web.py       	(8KB 734B)
-    📁 docs            	(2MB 88KB 855B)
-        📁 en[collapsed]   	(678KB 928B)
-        📁 ja[collapsed]   	(778KB 854B)
-        📁 zh-CN[collapsed]	(679KB 97B)
+    📁 docs            	(2MB 424KB 355B)
+        📁 en[collapsed]   	(759KB 226B)
+        📁 ja[collapsed]   	(874KB 132B)
+        📁 zh-CN[collapsed]	(838KB 1021B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -294,51 +297,50 @@ If you want to view bench content, this data also serves as the basis for some o
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 661KB 60B)
-        📁 celestialflow[collapsed]	(1MB 641KB 309B)
-        📁 [1 excluded directory]      	(19KB 775B)
-    📁 tests           	(3MB 65KB 73B)
-        📁 assembly[collapsed]   	(42KB 929B)
-        📁 benchmark[collapsed]  	(41KB 377B)
-        📁 funnel[collapsed]     	(96KB 339B)
-        📁 graph[collapsed]      	(803KB 239B)
-        📁 node[collapsed]       	(510KB 93B)
-        📁 observer[collapsed]   	(122KB 937B)
-        📁 persist[collapsed]    	(186KB 828B)
-        📁 persistence[collapsed]	(381KB 89B)
-        📁 reporter[collapsed]   	(173KB 986B)
-        📁 runtime[collapsed]    	(189KB 800B)
-        📁 ticker[collapsed]     	(54KB 761B)
-        📁 [3 excluded directories]    	(532KB 170B)
-        🐍 conftest.py        	(1KB 693B)
-    📁 [13 excluded directories]	(546MB 860KB 667B)
+    📁 src             	(1MB 660KB 11B)
+        📁 celestialflow[collapsed]	(1MB 640KB 713B)
+        📁 [1 excluded directory]      	(19KB 322B)
+    📁 tests           	(3MB 662KB 157B)
+        📁 assembly[collapsed]   	(76KB 371B)
+        📁 benchmark[collapsed]  	(75KB 37B)
+        📁 funnel[collapsed]     	(119KB 944B)
+        📁 graph[collapsed]      	(1MB 22KB 263B)
+        📁 node[collapsed]       	(704KB 568B)
+        📁 observer[collapsed]   	(229KB 814B)
+        📁 persist[collapsed]    	(269KB 262B)
+        📁 reporter[collapsed]   	(248KB 570B)
+        📁 runtime[collapsed]    	(327KB 569B)
+        📁 ticker[collapsed]     	(98KB 313B)
+        📁 [3 excluded directories]    	(536KB 268B)
+        🐍 conftest.py        	(2KB 298B)
+    📁 [12 excluded directories]	(579MB 932KB 150B)
     ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
     📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
     ⚙️ pyproject.toml  	(2KB 624B)
-    📝 README.md       	(16KB 321B)
-    🔒 uv.lock         	(126KB 837B)
+    📝 README.md       	(16KB 802B)
+    🔒 uv.lock         	(126KB 855B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.3</em>
+  <em>celestial-flow 3.3.4</em>
 </p>
 
 (This view was generated by `inst_file.FileTree.print_tree()` from my other project [CelestialVault](https://github.com/Mr-xiaotian/CelestialVault). Conversion to an image was done with [Carbon](https://carbon.now.sh).)
 
 ## Version Log
 
-- 3.3.3
+- 3.3.4
   - feat:
-    - Added `end_time` to `GraphEndEvent` / `NodeEndEvent`
-    - Removed `class_name` from `GraphStartEvent`
+    - Added a `find` method to `ObserverHub`, used to find observers of a specified type
   - refactor:
-    - Removed some useless observer events, such as `on_worker_crash`
-    - Moved log and reporter settings from `.toml` to runtime configuration
-    - Removed some useless sqlite functions
-  - fix:
-    - Fixed the issue with graph analysis caching
+    - Moved the individual event handling methods in observers under `on_event`
+    - Separated the tangled `observer/inlet` in `log` and `lifecycle`
+      - Standalone `*Observer` classes are now established to coordinate `spout/inlet`
+    - Replaced `dict[str, Any]` with explicit dataclasses in `lifecycle`
+    - `graph` and `node` no longer store `_lifecycle_db_path`
+    - Normalized the input parameter types of `graph.run` and `graph.inject_tasks`
 
 For more past logs, see:
 

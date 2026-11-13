@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -29,7 +29,7 @@ flowchart TD
 **Graph structure**: Cyclic graph (`Parser → GenURLs`)
 
 ### `demo_splitter_1`
-Demonstrates large batch splitting: input `range(100_000)` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once.
+Demonstrates large batch splitting: input `range(100_000)` is wrapped in a list and passed to `TaskSplitter`, with downstream receiving items one by one, avoiding loading too many tasks into memory at once. This scenario is currently not called by `__main__`; like `demo_splitter_0`, `TaskSplitter("Splitter")` is missing the required `func`, so calling it directly raises `TypeError` first.
 
 ### `demo_router_0`
 Demonstrates `TaskRouter` dispatching tasks to different downstream nodes based on parity.
@@ -53,7 +53,7 @@ Routing logic: The `Origin` stage only outputs the original input integer as-is;
 
 ## Potential Issues
 
-1. **`demo_splitter_0` currently fails to construct**: In the source, `TaskSplitter("Splitter")` does not pass a `func`, while `BaseTaskNode.__init__` requires the positional argument `func`. Therefore `python demo/demo_nodes.py` raises `TypeError: ... missing 1 required positional argument: 'func'` during graph construction, and the subsequent `graph.set_nodes(...)` and `graph.run(...)` are never executed. You must supply a splitting function for `TaskSplitter` (e.g., `lambda urls: urls`) before it can run.
+1. **Both `demo_splitter_0` and `demo_splitter_1` currently fail to construct**: In the source, both `TaskSplitter("Splitter")` calls omit `func`, while `BaseTaskNode.__init__` requires the positional argument `func`. Therefore `python demo/demo_nodes.py` raises `TypeError: ... missing 1 required positional argument: 'func'` during graph construction, and the subsequent `set_nodes(...)` and `run(...)` are never executed. Only after supplying a splitting function for `TaskSplitter` (e.g., `lambda items: items`) can it run.
 2. **Long runtime**: Stages in `demo_splitter_0` contain 4-6 seconds of random sleep; full execution may exceed 1 minute.
 3. **Contains a loopback, may not auto-terminate**: `demo_splitter_0` has a `Parser → GenURLs` loopback, and `graph.run(..., if_put_signal=False)` does not inject an automatic termination signal; some URLs (e.g., successfully parsed `url_1_1`) will keep producing new URLs and continue looping. If there is no new output for a long time, it is recommended to manually terminate with **Ctrl+C**.
 4. **No assertions**: Demo script; does not verify result correctness.
@@ -69,7 +69,7 @@ python demo/demo_nodes.py
 # e.g., replace demo_splitter_0() with demo_router_0()
 ```
 
-> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called (`demo_router_0()` is commented out in the source). You need to execute them manually inside `__main__` or uncomment them to run. In addition, `demo_splitter_0()` currently raises `TypeError` because `TaskSplitter` is missing `func` (see item 1 of "Potential Issues").
+> **Note**: The current `__main__` only calls `demo_splitter_0()` by default; neither `demo_splitter_1()` nor `demo_router_0()` is called (`demo_router_0()` is commented out in the source). You need to execute them manually inside `__main__` or uncomment them to run. In addition, `demo_splitter_0()` and `demo_splitter_1()` both currently raise `TypeError` because `TaskSplitter` is missing `func` (see item 1 of "Potential Issues").
 
 ## Expected Behavior
 

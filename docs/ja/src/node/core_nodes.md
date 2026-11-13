@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_nodes.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 `core_nodes.py` は CelestialFlow が外部に公開する 3 つの具体的なノードクラスを提供します:
 
@@ -70,7 +70,7 @@ def __init__(
 1. `task = envelope.get_task()`、`task_id = envelope.get_id()` を取得；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` で `result_id` を取得；
 3. `elapsed = time.perf_counter() - start_perf` を計算；
-4. `observers.on_task_success(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))` で成功イベントをブロードキャスト；
+4. `observers.on_event(TaskSuccessEvent(node, task, task_repr, result, result_repr, elapsed, task_id, success_id))` で成功イベントをブロードキャスト；
 5. 各下流ターゲット (`self.yield_queue.get_target_names()`) に対し：`TASK_INPUT` イベントを発行して `downstream_input_id` を取得し、`TaskInputEvent`（`from_node=self.get_name()`）をブロードキャストし、`yield_queue.put_target(target_name, TaskEnvelope(task=result, id=downstream_input_id))` を実行。
 
 ### 例
@@ -103,7 +103,7 @@ for task, result in executor.get_success_pairs():
 
 1. `result_list = list(result)` で結果を実体化（ジェネレータをサポート）；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` で `result_id` を取得；
-3. `observers.on_task_success(TaskSuccessEvent(..., result=result_list, result_repr=...))` で成功イベントをブロードキャスト（`result` はリストに実体化）；
+3. `observers.on_event(TaskSuccessEvent(..., result=result_list, result_repr=...)` で成功イベントをブロードキャスト（`result` はリストに実体化）；
 4. 各下流ターゲットと各 `item in result_list` に対し：`TASK_INPUT` イベントを発行し、`TaskInputEvent` をブロードキャストし、`yield_queue.put_target(target_name, TaskEnvelope(item, downstream_input_id))` を実行。
 
 > 空の反復可能オブジェクトは正当に 0 個のサブタスクを生成します（例外は送出されません）；ジェネレータ入力は `list()` で完全に実体化した後に配信されます。
@@ -149,7 +149,7 @@ graph.run({"Splitter": [["a", "b", "c"]]})
 
 1. `result` 内の各ターゲット名が既に `self.yield_queue.get_target_names()` に登録されているかを検証；未登録のターゲットが存在する場合は `InvalidOptionError("Unknown target", unknown[0], known_targets)` を送出；
 2. `ctree_client.emit(CTreeEvent.TASK_SUCCESS, parents=[task_id])` で `result_id` を取得；
-3. `observers.on_task_success(TaskSuccessEvent(..., result=result, result_repr=...))` で成功イベントをブロードキャスト；
+3. `observers.on_event(TaskSuccessEvent(..., result=result, result_repr=...)` で成功イベントをブロードキャスト；
 4. `result.items()` 内の各 `(target, yie)` に対し：`TASK_INPUT` イベントを発行し、`TaskInputEvent` をブロードキャストし、`yield_queue.put_target(target, TaskEnvelope(yie, downstream_input_id))` を実行——下流が受け取るのは**そのターゲットに対応するペイロード** `yie` であり、ルーターの入力タスクではない。
 
 ### 例
@@ -190,5 +190,5 @@ graph.run({router.get_name(): ["hi", "hello world", "ok"]})
 3. **ルーターのターゲットは事前バインドが必要**：`func` が返すターゲット文字列は `self.yield_queue.get_target_names()` に存在する必要があります（少なくとも `graph.connect` / `connect_to` で登録済み）；そうでない場合は `InvalidOptionError` を送出します。
 4. **ルーターの各ターゲットはそれぞれのペイロードを受け取る**：1 回のルーティングで複数のターゲットを返すことができ、各下流は対応する key の value のみを受け取ります。
 5. **ランタイムコンポーネントは自動初期化**：3 つのノードクラスはすべて `BaseTaskNode.__init__` を通じて `task_queue` / `yield_queue` / `dispatch` / `observers` などのコンポーネントを自動初期化し、重複作成は不要です。
-6. **結果のブロードキャストと永続化**：ノード自身は `TaskSuccessEvent` / `TaskInputEvent` のみをブロードキャストします；`MetricsObserver` / `LifecycleInlet` / `LogInlet` がこれらのイベントに基づいてカウントを更新しディスクに書き込むため、ノードが直接 lifecycle / log を書き込むことはなくなりました。
+6. **結果のブロードキャストと永続化**：ノード自身は `observers.on_event(...)` を通じて `TaskSuccessEvent` / `TaskInputEvent` のみをブロードキャストします；`MetricsObserver` / `LifecycleObserver` / `LogObserver` がこれらのイベントに基づいてカウントを更新しディスクに書き込むため、ノードが直接 lifecycle / log を書き込むことはなくなりました。
 7. **`split_item` / `split_counter` / `_split` / `route_counters` / `_route` はもうない**：分割とルーティングのロジックは現在、渡された `func` が完全に担い、クラス自体は `func` の結果を下流に配信する役割のみを持ちます。

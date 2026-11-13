@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 
@@ -94,9 +94,9 @@ router = TaskRouter("LengthRouter", route_by_length)
 - **`core_node`**: Defines the base class `BaseTaskNode` and internal scheduler `TaskDispatch`, which serve as the runtime skeleton for all nodes.
 - **`core_nodes`**: Provides the three public node classes.
 - **`runtime`**: Nodes depend on `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` for queue and event communication.
-- **`observer`**: Nodes broadcast events through `ObserverHub`; `MetricsObserver` maintains counts based on events.
-- **`persist`**: `LifecycleInlet` / `LogInlet` consume events as observers, persisting task lifecycle and logs.
-- **`assembly`**: When a single node runs independently, `run_node_resources` assembles the `MetricsObserver` / `LifecycleInlet` / `LogInlet` observers and spouts.
+- **`observer`**: Nodes broadcast events through `ObserverHub` (the unified entry point is `observers.on_event(event)`); `MetricsObserver` maintains counts based on events.
+- **`persist`**: `LifecycleObserver` / `LogObserver` consume events as observers, persisting task lifecycle and logs (each internally holds `LifecycleInlet` / `LifecycleSpout` and `LogInlet` / `LogSpout`).
+- **`assembly`**: When a single node runs independently, `run_node_resources` assembles `MetricsObserver` / `LifecycleObserver` / `LogObserver` and starts/stops them together.
 
 ## Notes
 

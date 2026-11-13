@@ -1,6 +1,6 @@
 # bench/bench_persist_spout.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -20,8 +20,8 @@ Where:
 
 | Test Item | Description | Timing Scope |
 |--------|------|----------|
-| `LogSpout` | Pre-build log records and push them into the queue, then start `spout` to drain the queue | `start()` to `stop()` |
-| `LifecycleSpout` | Pre-build `insert` records and push them into the queue, then start `spout` to drain the queue | `start()` to `stop()` |
+| `LogSpout` | Pre-build `LogRecord` dataclass instances and push them into the queue, then start `spout` to drain the queue | `start()` to `stop()` |
+| `LifecycleSpout` | Pre-build `InsertRecord` dataclass instances and push them into the queue, then start `spout` to drain the queue | `start()` to `stop()` |
 
 The script uses the following model:
 
@@ -29,7 +29,21 @@ The script uses the following model:
 preload queue -> start spout -> drain all queued records
 ```
 
-Thus the test results are closer to "peak processing speed of the background writer", excluding the cost of real-time data production by the caller.
+Thus the test results are closer to "peak processing speed of the background writer"; they exclude both the cost of real-time data production by the caller and the cost of event translation by
+`LogObserver` / `LifecycleObserver` and enqueueing via `LogInlet` / `LifecycleInlet.send()`.
+
+```mermaid
+flowchart LR
+    Event["Event<br/>on_event"] --> Obs["LifecycleObserver / LogObserver"]
+    Obs -->|"send(record)"| Inlet["LifecycleInlet / LogInlet<br/>inherits BaseInlet only"]
+    Inlet --> Queue["queue.Queue"]
+    Queue --> Spout["LifecycleSpout / LogSpout"]
+
+    Bench["This benchmark<br/>builds dataclass directly"] -.->|"bypasses the first three stages"| Queue
+```
+
+In the production run chain, observers consume events, build records, and enqueue them through Inlets; this script instead pushes records directly into
+`spout.get_queue()`, keeping only the queue + spout segment.
 
 ## Key Configuration
 
@@ -40,6 +54,7 @@ Thus the test results are closer to "peak processing speed of the background wri
 - The two spouts are respectively inherited by the `BenchLogSpout` / `BenchLifecycleSpout` subclasses from the source `LogSpout` / `LifecycleSpout`, and override `_before_start()` to point the output path at a temporary directory: `BenchLogSpout` opens a text file handle, while `BenchLifecycleSpout` establishes a SQLite connection via `connect_db()`
 - The temporary directory is created by `tempfile.TemporaryDirectory()` (prefixes `cf_bench_log_` / `cf_bench_lifecycle_`) and is cleaned up automatically when the `with` block exits
 - `LifecycleSpout` uses the current project implementation, i.e., "direct `commit()` after each valid change"
+- The record models have all been switched to frozen dataclasses: `build_log_records()` produces `LogRecord(timestamp, level, message)`, and `build_lifecycle_insert_records()` produces `InsertRecord(event_id, ts, node, task)`; the script pushes dataclass instances directly into `spout.get_queue()`, bypassing observers and Inlets
 
 ## Output Metrics
 
@@ -62,6 +77,9 @@ Thus the test results are closer to "peak processing speed of the background wri
 ## Benchmark Results (Measured)
 
 > 🟢 The timing/throughput in the tables of this section are all historical measured data and cannot be verified from source code; manual confirmation is required.
+>
+> The historical data were collected from a version in which records were still `dict`s; they have since been changed to frozen dataclasses, and the spout consumption hot path is basically the same,
+> but if an accurate baseline is needed, it is recommended to re-run locally.
 
 ### 2026/06/17 - Windows local first measurement
 

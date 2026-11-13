@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_render.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 `util_render.py`（旧 `graph/util_render.py`、`persist` に移行済み）は、**グラフ構造のレンダリングツール**を提供します。現在は `render_structure_list` という関数のみを含み、グラフ構造（ノード、隣接リスト、ソースノード）を**枠付きのツリー型テキストリスト**にレンダリングします。タスクグラフの起動時に図構造の概要を出力するためにログモジュールが使用します。
 
@@ -66,7 +66,7 @@ for line in lines:
 
 ## 呼び出し元
 
-`LogInlet`（`persist/core_log.py`）は `on_graph_start` で本関数を呼び出し、`GraphStartEvent` が保持するグラフメタ情報（`nodes` / `edges` / `source_nodes`）を構造テキストにレンダリングして行ごとにログへ書き込みます。
+`LogObserver`（`persist/core_log.py`）は `GraphStartEvent` を処理する際に本関数を呼び出し、イベントが持つグラフメタ情報（`nodes` / `edges` / `source_nodes`）を構造テキストにレンダリングして行ごとにログへ書き込みます。
 
 ## 注意事項
 

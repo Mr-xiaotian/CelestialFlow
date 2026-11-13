@@ -1,6 +1,6 @@
 # demo/demo_nodes.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
@@ -29,7 +29,7 @@ flowchart TD
 **グラフ構造**：循環グラフ（`Parser → GenURLs`）
 
 ### `demo_splitter_1`
-大規模データ分割のデモ：入力 `range(100_000)` がリストにラップされて `TaskSplitter` に渡され、下流が 1 つずつ受信処理することで、一度に大量のタスクをメモリにロードするのを回避する。
+大規模データ分割のデモ：入力 `range(100_000)` がリストにラップされて `TaskSplitter` に渡され、下流が 1 つずつ受信処理することで、一度に大量のタスクをメモリにロードするのを回避する。このシナリオは現在 `__main__` から呼び出されておらず、また `demo_splitter_0` と同様に `TaskSplitter("Splitter")` に必須の `func` が欠けているため、直接呼び出すとまず `TypeError` を送出する。
 
 ### `demo_router_0`
 `TaskRouter` が偶奇性に基づいてタスクを異なる下流ノードに振り分けるデモ。
@@ -53,7 +53,7 @@ flowchart LR
 
 ## 発生しうる問題
 
-1. **`demo_splitter_0` は現在構築に失敗する**：ソース内の `TaskSplitter("Splitter")` に `func` が渡されていないが、`BaseTaskNode.__init__` は位置引数 `func` を要求するため、`python demo/demo_nodes.py` はグラフ構築段階で `TypeError: ... missing 1 required positional argument: 'func'` を送出し、後続の `graph.set_nodes(...)` と `graph.run(...)` は実行されない。`TaskSplitter` に分割関数（例えば `lambda urls: urls`）を補ってからでないと実行できない。
+1. **`demo_splitter_0` と `demo_splitter_1` は現在どちらも構築に失敗する**：ソース内の 2 箇所の `TaskSplitter("Splitter")` はいずれも `func` を渡しておらず、`BaseTaskNode.__init__` は位置引数 `func` を要求するため、`python demo/demo_nodes.py` はグラフ構築段階で `TypeError: ... missing 1 required positional argument: 'func'` を送出し、後続の `set_nodes(...)` と `run(...)` は実行されない。`TaskSplitter` に分割関数（例えば `lambda items: items`）を補ってからでないと実行できない。
 2. **長時間実行**：`demo_splitter_0` の各ノードには 4〜6 秒のランダム sleep が含まれ、完全な実行には 1 分以上かかる可能性がある。
 3. **ループバックが含まれ、自動的に終了しない可能性がある**：`demo_splitter_0` には `Parser → GenURLs` のループバックが存在し、`graph.run(..., if_put_signal=False)` は自動終了シグナルを注入しない。一部の URL（解析に成功した `url_1_1` など）は新しい URL を生成し続けてループするため、長時間新しい出力がない場合は **Ctrl+C** で手動終了することを推奨。
 4. **アサーションなし**：デモスクリプトであり、結果の正確性は検証しない。
@@ -65,11 +65,11 @@ flowchart LR
 # デフォルトデモ（demo_splitter_0）を実行
 python demo/demo_nodes.py
 
-# main() を変更した後、他のシナリオを実行可能
+# __main__ を変更した後、他のシナリオを実行可能
 # 例：demo_splitter_0() を demo_router_0() に置き換え
 ```
 
-> **注意**：現在の `__main__` はデフォルトで `demo_splitter_0()` のみを呼び出す。`demo_splitter_1()` と `demo_router_0()` はいずれも呼び出されない（`demo_router_0()` はソース内でコメントアウトされている）。実行するには、`__main__` 内で手動で呼び出すか、コメントを解除する必要がある。なお `demo_splitter_0()` は現在 `TaskSplitter` に `func` がないため `TypeError` を送出する（「発生しうる問題」の 1 番目を参照）。
+> **注意**：現在の `__main__` はデフォルトで `demo_splitter_0()` のみを呼び出す。`demo_splitter_1()` と `demo_router_0()` はいずれも呼び出されない（`demo_router_0()` はソース内でコメントアウトされている）。実行するには、`__main__` 内で手動で呼び出すか、コメントを解除する必要がある。なお `demo_splitter_0()` と `demo_splitter_1()` は現在どちらも `TaskSplitter` に `func` がないため `TypeError` を送出する（「発生しうる問題」の 1 番目を参照）。
 
 ## 期待される動作
 

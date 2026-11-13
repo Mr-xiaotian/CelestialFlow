@@ -1,6 +1,6 @@
 # demo/demo_funnel.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -13,7 +13,7 @@ Demonstrate that the `funnel` module can be used independently of `TaskGraph` an
 ```mermaid
 flowchart LR
     Caller["Caller<br/>demo_funnel_jsonl"] --> Inlet["EventInlet<br/>emit / info / metric"]
-    Inlet -->|_funnel| Queue["queue.Queue"]
+    Inlet -->|send| Queue["queue.Queue"]
     Queue --> Spout["JsonlSpout<br/>background thread consumer"]
     Spout --> File["temp/demo_funnel/events.jsonl"]
 ```
@@ -27,7 +27,7 @@ This demo consists of two custom classes and one entry point:
   - Closes the file in `_after_stop()`
 - `EventInlet`
   - Inherits `BaseInlet`
-  - Provides a lightweight wrapper over `_funnel()`, offering three business methods: `emit()` / `info()` / `metric()`
+  - Provides a lightweight wrapper over the base class's `send()`, offering three business methods: `emit()` / `info()` / `metric()`
   - Binds to the corresponding `JsonlSpout` via `EventInlet().bind_spout(spout)`
 - `demo_funnel_jsonl()`
   - Creates `JsonlSpout` and `EventInlet`
@@ -39,7 +39,7 @@ This demo consists of two custom classes and one entry point:
 
 - It demonstrates that `funnel` is not just the low-level implementation of `persist`, but can also be directly used to build independent producer-consumer channels.
 - It covers the full lifecycle of `BaseSpout`: `start()`, `_before_start()`, `_handle_record()`, `stop()`, `_after_stop()`.
-- It also shows typical usage of `BaseInlet`: the business side does not directly operate the queue, but instead sends records into `_funnel()` through custom methods.
+- It also shows typical usage of `BaseInlet`: the business side does not directly operate the queue, but instead sends records into `send()` through custom methods.
 
 ## Key Implementation
 

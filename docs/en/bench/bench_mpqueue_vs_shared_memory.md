@@ -1,10 +1,10 @@
 # bench/bench_mpqueue_vs_shared_memory.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the performance of `multiprocessing.Queue` against a custom ring buffer based on `shared_memory`. Provide in-depth data for CelestialFlow's IPC optimization in high-throughput scenarios.
+Under more complex producer-consumer topologies (SPSC, MPSC, SPMC), compare the performance of `multiprocessing.Queue` against a custom ring buffer based on `shared_memory`, providing a selection reference for high-throughput cross-process communication scenarios.
 
 > **Note**: The framework has removed `process` graph mode and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 

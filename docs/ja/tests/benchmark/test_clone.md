@@ -1,6 +1,6 @@
 # tests/benchmark/test_clone.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 
@@ -8,8 +8,8 @@
 
 ## コアテスト対象
 
-- `clone_executor`: `TaskExecutor` をコピーし、`name`、`func`、`execution_mode` を保持。グラフノードとして使用される `TaskExecutor` インスタンスにも同様に適用可能。
-- `clone_graph`: `TaskGraph` をコピーし、完全な DAG 構造（ノード、エッジ）と `graph_mode` を保持し、ノード間が相互に独立。
+- `clone_executor`: `TaskExecutor` をコピーし、`name`、`func`、`execution_mode`、`max_workers`、`max_retries`、`max_info` を保持し、`retry_exceptions` を再登録します。グラフノードとして使用される `TaskExecutor` インスタンスにも同様に適用可能です。
+- `clone_graph`: `TaskGraph` をコピーし、完全な DAG 構造（ノード、エッジ）、`graph_mode`、独立したイベントクライアントを保持し、ノード間も相互に独立しています。このツールは benchmark シナリオ専用であり、`TaskExecutor` から構成されるグラフのみをサポートし、他のノード型に遭遇した場合は `ConfigurationError` を送出します。
 - `LocalEventClient`: デフォルトのローカルイベントクライアント。クローン後もインスタンスが独立していること。
 
 ## 主要テストシナリオ

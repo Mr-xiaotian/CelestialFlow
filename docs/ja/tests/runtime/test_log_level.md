@@ -1,6 +1,6 @@
 # tests/runtime/test_log_level.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `celestialflow.runtime.util_log_level.normalize_log_level` の入力正規化とエラー分岐を検証します。レベル名は大文字小文字を区別せず、先頭・末尾の空白を無視します。また、未知のレベルと非文字列の入力はそれぞれ `InvalidOptionError` と `ConfigurationError` を送出します。

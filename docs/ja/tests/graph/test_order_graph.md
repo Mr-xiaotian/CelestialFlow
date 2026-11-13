@@ -1,6 +1,6 @@
 # tests/graph/test_order_graph.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `celestialflow.graph.util_order_graph` の基礎グラフ解析能力を検証します。`OrderGraph` 構築、階層計算（`compute_node_levels`）、ソースノード検索（`source_nodes`）、SCC 分割（`tarjan_scc`）、および深さが Python のデフォルト再帰上限（約 1000）を超える場合の反復アルゴリズムのリグレッションを含みます。
@@ -44,28 +44,29 @@
 - `_make_ring(size)`: `size` ノードの閉ループを構築。
 
 ## テストの重点
-- **OrderGraph 構築**: 内部の順序付きグラフ構造と隣接関係が正しいことを確認。
+- **OrderGraph 構築**: 内部の順序付きグラフ構造と隣接関係が正しいことを確認（`add_edge` は不足する端点を自動補完し、重複エッジは無視される）。
 - **階層の一貫性**: 複雑なトポロジ（尾付き循環など）における階層計算の堅牢性。
 - **SCC 処理**: 循環参照が無限ループや誤った階層/ソースノード分布を引き起こさないことを確認。
 - **再帰安全性**: `tarjan_scc` はかつて再帰実装であり、深鎖/深環で `RecursionError` をトリガーしていました。反復実装への移行後、超深グラフでも解析が正常に完了するはず。
+- **アサーションの対象**: `OrderGraph.nodes` / `out_edges` / `successors` と 3 つの解析関数の戻り値を直接アサートします。本ファイルは pytest fixture も monkeypatch も使用しません。
 
 ## 実行方法
 
 ```bash
 # すべて実行
-pytest tests/graph/test_order_graph.py -v
+uv run pytest tests/graph/test_order_graph.py -v
 
 # グラフ構築テストのみ
-pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
+uv run pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
 
 # 階層計算テストのみ
-pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
+uv run pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
 
 # ソースノード検索テストのみ
-pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
+uv run pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
 
 # 深グラフリグレッションテストのみ
-pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
+uv run pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 ```
 
 ## パフォーマンス参考

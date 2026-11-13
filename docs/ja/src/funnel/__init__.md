@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/__init__.py
 
-> 📅 最終更新日: 2026/09/24
+> 📅 最終更新日: 2026/11/13
 
 Funnel モジュールは CelestialFlow のキュー通信インフラストラクチャを提供し、Persistence モジュールの `LogSpout`/`LogInlet` および `LifecycleSpout`/`LifecycleInlet` の基底クラスです。
 
@@ -19,7 +19,7 @@ Funnel モジュールは CelestialFlow のキュー通信インフラストラ�
 
 1. **core_inlet.py** (`BaseInlet`)
    - **役割**: すべての入口クラスの基底クラス。キュー書き込み機能を提供
-   - **主要機能**: `bind_spout()` による spout との関連付け、`_funnel()` によるキュー書き込み
+   - **主要機能**: `bind_spout()` による spout との関連付け、公開メソッド `send()` によるキュー書き込み
 
 2. **core_spout.py** (`BaseSpout`)
    - **役割**: すべての出口クラスの基底クラス。バックグラウンドスレッドによる監視とキュー消費機能を提供
@@ -48,7 +48,7 @@ classDiagram
     }
     class BaseInlet {
         +bind_spout(spout) Self
-        +_funnel(record) None
+        +send(record) None
     }
     class PendingCounter {
         +increment() int
@@ -93,27 +93,32 @@ class PrintSpout(BaseSpout):
         print(f"Spout 受信: {record}")
 
 
-# 2. カスタム Inlet：書き込みインターフェースをカプセル化
-class PrintInlet(BaseInlet):
-    def send(self, data):
-        self._funnel(data)
-
-
-# 3. Spout と Inlet を作成し、関連付け
+# 2. Spout を作成し、BaseInlet を直接使用する：send() はすでに公開メソッド
 spout = PrintSpout()
-inlet = PrintInlet().bind_spout(spout)
+inlet = BaseInlet().bind_spout(spout)
 
-# 4. バックグラウンド監視スレッドを起動
+# 3. バックグラウンド監視スレッドを起動
 spout.start()
 
-# 5. Inlet 経由でレコードを送信
+# 4. Inlet 経由でレコードを送信
 inlet.send("Hello, World!")
 inlet.send({"key": "value"})
 inlet.send(42)
 
-# 6. Spout を停止
+# 5. Spout を停止
 spout.stop()
 print("Spout が停止しました")
+```
+
+> `BaseInlet` を継承して意味付けされたメソッドを追加することもできるが、`send()` をオーバーライドして `self.send(...)` を呼び直しては**ならない**。無限再帰になる。正しい書き方は、新しいメソッドを追加して `self.send(...)` に委譲することである：
+
+```python
+from celestialflow.funnel import BaseInlet
+
+
+class EventInlet(BaseInlet):
+    def graph_start(self, graph_name: str) -> None:
+        self.send({"type": "graph_start", "graph": graph_name})
 ```
 
 ### BaseSpout のカスタムフックを使用
@@ -149,3 +154,4 @@ spout.stop()
 1. **関連付け方式**: `BaseInlet` は `bind_spout()` を通じて `BaseSpout` と関連付けられ、キューを直接保持するのではありません。
 2. **待処理カウント**: `BaseSpout` は内部で `PendingCounter` を維持し、`get_pending_count()` で未処理完了のレコード数を確認できます。
 3. **例外分離**: 単一レコードの処理失敗時は traceback を出力して続行し、バックグラウンドスレッドは終了しません。
+4. **`start()` は冪等**: バックグラウンドスレッドがすでに生存している場合、`BaseSpout.start()` は即座に戻り、スレッドを重複作成せず、`_before_start()` も再度呼び出しません。

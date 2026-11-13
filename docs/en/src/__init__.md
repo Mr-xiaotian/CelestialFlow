@@ -1,6 +1,6 @@
 # src/celestialflow/__init__.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Introduction
 
@@ -63,7 +63,7 @@ Provides observer pattern support for monitoring task execution. The package roo
 
 | Exported Symbol | Description |
 |-----------------|-------------|
-| `Observer` | Observer base class, defines on_node_start / on_task_success / on_task_fail and other callback interfaces |
+| `Observer` | Observer base class, defining only the unified entry point `on_event(event: Event)` and `handle_exception()`; all event types are distinguished by `Event` subclasses |
 | `ObserverHub` | Observer hub, broadcasts events to a group of child observers |
 | `PrintObserver` | print-based console progress observer; a name prefix must be passed at construction; counters are thread-safe |
 
@@ -116,6 +116,19 @@ Provides runtime helper types, configuration objects, and utility functions.
 | `TerminationSignal` | Termination signal, used to control the end of graph execution flow |
 
 ---
+
+## Commonly Used Symbols Not Exported Through the Package Root
+
+The package root's `__all__` only contains the 25 symbols listed in the tables above. The commonly used symbols in the following subpackages can be imported independently, but **will not** appear in `from celestialflow import ...`:
+
+| Subpackage | Common Symbols | Import Method | Description |
+|------|----------|----------|------|
+| `assembly` | `run_graph_resources` / `run_node_resources` | `from celestialflow.assembly import ...` | Runtime resource assembly context, usually called internally by `TaskGraph.run()` / `TaskExecutor.run()` |
+| `reporter` | `PushInlet` / `PushSpout` / `NullPushSpout` / `PushSnapshotHandler` / `InjectionHandler` / `InjectionTarget` | `from celestialflow.reporter import ...` | Remote reporting, status snapshots, and task injection |
+| `persist` | `LifecycleObserver` / `LogObserver` / `LifecycleSpout` / `LogSpout`, etc. | `from celestialflow.persist import ...` | Task lifecycle and runtime log persistence |
+| `observer` | `MetricsObserver`, `Event`, and all event types | `from celestialflow.observer import ...` | Metrics observer and event DTOs |
+
+> The package root's `benchmark_executor` / `benchmark_graph` / `format_table` / `TerminationSignal` / `load_tasks_grouped_by_node` are exceptions that are **imported directly by file**; apart from these 5 symbols, other `util_*` utility functions and types should still be imported through concrete module paths and are not part of the package-level public API.
 
 ## `__all__` List
 
@@ -308,7 +321,7 @@ graph TD
     Init --> R
 ```
 
-> Dependency direction note: `ReportConfig` comes from the re-export of `celestialflow.runtime`; `benchmark_*`, `format_table`, `TerminationSignal`, and `load_tasks_grouped_by_node` are imported directly by the package root file by file, without going through the corresponding subpackage's `__init__.py`. `benchmark` sits at the top of the dependency chain and is not imported by any other submodule.
+> Dependency direction note: `ReportConfig` comes from the re-export of `celestialflow.runtime`; `benchmark_*`, `format_table`, `TerminationSignal`, and `load_tasks_grouped_by_node` are imported directly by the package root file by file, without going through the corresponding subpackage's `__init__.py`. `benchmark` sits at the top of the dependency chain and is not imported by any other submodule. `assembly` and `reporter` are not imported by the package root, so they do not appear in the diagram above; they are used internally by the run entries of `graph` / `node`.
 
 ## Notes
 

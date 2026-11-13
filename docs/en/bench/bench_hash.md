@@ -1,10 +1,10 @@
 # bench/bench_hash.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-Systematically compare 9 object→hash string serialization + hashing strategies to select the optimal approach for `TaskEnvelope` deduplication and tracking ID generation. The dimensions this script actually measures are **speed** (`mean` / `std` / `vs_best`) and **runnability** (`verify_methods()` checks that every method returns `str` for every case); stability and cross-language compatibility are qualitative judgments, and the script itself does not collect collision statistics.
+Systematically compare 9 object→hash string serialization + hashing strategies. The framework removed the built-in duplicate-detection (`duplicate`) mechanism in 3.3.1, and there are no longer any consumers of `TaskEnvelope.hash` or `processed_set` in the source code; this script is retained as a **general reference for serialization / hashing selection** and no longer reflects the framework's current internal implementation. The dimensions this script actually measures are **speed** (`mean` / `std` / `vs_best`) and **runnability** (`verify_methods()` checks that every method returns `str` for every case); stability and cross-language compatibility are qualitative judgments, and the script itself does not collect collision statistics.
 
 ## Test Strategies
 

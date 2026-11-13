@@ -1,6 +1,6 @@
 # tests/runtime/test_types.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Verifies the value objects, context manager, optional-locking value wrapper, lifecycle status enum, and event constants in `celestialflow.runtime.util_types`, ensuring they are correctly used at runtime by the various nodes/queues.
@@ -35,10 +35,11 @@ Verifies the value objects, context manager, optional-locking value wrapper, lif
 ## How to Run
 
 ```bash
-pytest tests/runtime/test_types.py -v
-pytest tests/runtime/test_types.py -k "value_wrapper or noop" -v
-pytest tests/runtime/test_types.py -k "termination" -v
+uv run pytest tests/runtime/test_types.py -v
+uv run pytest tests/runtime/test_types.py -k "value_wrapper or noop" -v
+uv run pytest tests/runtime/test_types.py -k "termination" -v
 ```
 
 ## Notes
 - The test code is located at `tests/runtime/test_types.py`, and the corresponding implementation is at `src/celestialflow/runtime/util_types.py`.
+- This file does not assert `CTreeEvent.TASK_SKIP` (it only covers `TASK_INPUT` / `TASK_SUCCESS` / `TASK_ERROR` / `TASK_RETRY_PREFIX` / the two termination constants), nor does it cover `NodeMetrics` and `MetricsView` in the same module (the former is constructed and used in `tests/reporter/test_snapshot.py`).

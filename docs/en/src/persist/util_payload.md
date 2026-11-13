@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_payload.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 `persist/util_payload.py` provides a persistence serialization utility for task data, recursively converting arbitrary Python objects into JSON-friendly structures.
 
@@ -73,28 +73,23 @@ result = to_persisted_payload(MyTask())
 print(result)  # "MyTask(id=1)"
 ```
 
-### Usage in LifecycleInlet
+### Usage in LifecycleObserver
 
-`to_persisted_payload` is mainly called internally by `LifecycleInlet` to convert task data into JSON strings storable in SQLite:
+`to_persisted_payload` is called automatically by `LifecycleObserver.on_event()`: when handling `TaskInputEvent` it fills `InsertRecord.task` with `to_persisted_payload(event.task)`, and when handling `TaskSuccessEvent` it fills `PromoteSuccessRecord.result` with `to_persisted_payload(event.result)`. The task and result therefore end up in SQLite in a JSON-friendly form.
 
 ```python
-# Internal flow of LifecycleInlet.on_task_input (observer callback):
-from datetime import datetime
+from celestialflow.persist.util_payload import to_persisted_payload
 
-pending_item = {
-    "__op__": "insert",
-    "record": {
-        "event_id": event.input_id,
-        "ts": datetime.now().timestamp(),
-        "node": event.node,
-        "status": "pending",
-        "task_json": to_persisted_payload(event.task),  # auto-serialized
-    },
-}
+payload = to_persisted_payload({"x": 1, "obj": object()})
+print(payload["x"])  # 1
+print(type(payload["obj"]))  # <class 'str'>
 ```
+
+> Normal usage requires no manual call: just register `LifecycleObserver` on the `ObserverHub`, or deliver events directly to its `on_event()`.
 
 ## Notes
 
 - The serialization strategy is **best-effort**: for objects that cannot be directly JSON-serialized, it falls back to `str()` string representation.
-- The function result is finally written by `LifecycleSpout` via the `util_sqlite` layer as `json.dumps` into the SQLite `task_json` field.
+- The conversion result is finally written by `LifecycleSpout` via the `util_sqlite` layer as `json.dumps` into the SQLite `task_json` / `result_json` fields.
 - This module is only responsible for data format conversion; it does not involve any file I/O.
+- The conversion result may itself still be a nested structure; `dict` keys are uniformly converted to `str`, and the order of `set` is not guaranteed.

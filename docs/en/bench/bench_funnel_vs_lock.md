@@ -1,6 +1,6 @@
 # bench/bench_funnel_vs_lock.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
@@ -28,7 +28,7 @@ The script runs both mechanisms under the **same workload** (same number of prod
 | `lock` | `ValueWrapper` + shared `Lock` | Producers hold the lock to update; writes are synchronously visible. Corresponds to the usage in `MetricsObserver` where a `threading.Lock` protects a shared counter |
 | `nolock` | `ValueWrapper`, no lock | A baseline deliberately without locking, used to quantify the cost of the lock itself rather than to demonstrate correctness (see "Potential Issues" below) |
 | `sharded` | One lock-free `ValueWrapper` per producer | Aggregated at the end. No cross-thread contention at all, but only applicable to aggregatable workloads and cannot express a shared record stream |
-| `funnel` | `BaseInlet` + `BaseSpout` | Producers call `emit` to enqueue; `CountingSpout` consumes serially on a single thread and updates state |
+| `funnel` | `BaseInlet` + `BaseSpout` | Producers call `CountingInlet.emit()` (which internally delegates to `BaseInlet.send()`) to enqueue; `CountingSpout` consumes serially on a single thread and updates state |
 
 In the `funnel` scenario, records have the form `(producer_id, seq)`, and `CountingSpout` verifies on consumption whether `seq` is strictly consecutive within the same producer, so `order_violations` is an empirical verification of the funnel's "ordered single-writer stream" guarantee.
 `lock` / `nolock` / `sharded` do not model a record stream, so that dimension is `n/a`: locking only guarantees the atomicity of a single update, and obtaining a cross-producer FIFO order requires additional design (e.g. sharding + merging).

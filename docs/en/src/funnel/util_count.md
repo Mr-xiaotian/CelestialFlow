@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/util_count.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/11/13
 
 `funnel/util_count.py` provides a thread-safe pending counter, `PendingCounter`, used to count the number of records corresponding to a `BaseSpout` that have not yet finished processing.
 
@@ -54,5 +54,5 @@ print(f"Pending after stop: {spout.get_pending_count()}")
 ## Notes
 
 1. **Counting Scope**: `BaseSpout._spout()` dequeues a record, calls `_handle_record()`, and only calls `decrement()` after processing completes (including on exception). Therefore, `get_pending_count()` includes records that have been dequeued but are still being processed.
-2. **Rollback Mechanism**: `BaseInlet._funnel()` calls `increment()` before enqueueing; if enqueueing fails, it immediately calls `decrement()` to roll back the count.
+2. **Rollback Mechanism**: `BaseInlet.send()` calls `increment()` before enqueueing; if enqueueing fails, it immediately calls `decrement()` to roll back the count.
 3. **Thread Safety**: All operations are protected by `Lock`, making them safe in multi-producer / single-consumer scenarios.

@@ -1,6 +1,6 @@
 # src/celestialflow/node/core_dispatch.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `core_dispatch.py` は `TaskDispatch[T, R, Y]` を定義します。これは `BaseTaskNode` が保持する「タスクスケジューラ」コンポーネントです。ノードオブジェクトの入力キューから `TaskEnvelope` / 終了シグナルを取得し、`execution_mode` に応じてシリアル / スレッド / 非同期のいずれかでノードコールバックを呼び出します。さらに、終了シグナルのマージ、スレッドプールの初期化 / 解放、そして worker の最外層で捕捉された例外をホストの `handle_task_fail` に返して一元的に処理することを担当します。
 
@@ -108,9 +108,18 @@ yield_queue.put(termination_signal)
 | `_call_async(task) -> R` | 非同期コールバックを呼び出す；戻り値が awaitable でない場合は `ConfigurationError` を送出 |
 | `_worker(envelope) -> None` | 単一タスクを同期実行：まず `skip_func` を判定し、次に `for fail_times in range(1, max_retries + 2)` でリトライループ；`retry_exceptions` に該当する場合は `task_node.log_task_retry` を呼び出し、リトライ上限に達するか非リトライ可能例外なら `handle_task_fail` を呼び出し；成功時は `process_task_success` を呼び出し。最外層の `try` が未処理例外を捕捉した場合も同様に `task_node.handle_task_fail(task_envelope, exception)` でフォールバック |
 | `_async_worker(envelope) -> None` | 非同期版 `_worker`、`await self._call_async(task)` を使用。最外層の例外も同様に `handle_task_fail` に委ねてフォールバック |
-| `_process_termination_signal(pool) -> TerminationSignal` | `TerminationIdPool.ids` 内のすべての id を `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` により単一の `TerminationSignal(source=task_node.get_name())` にマージし、`TerminationMergeEvent` をブロードキャスト |
+| `_process_termination_signal(pool) -> TerminationSignal` | `TerminationIdPool.ids` 内のすべての id を `ctree_client.emit(CTreeEvent.TERMINATION_MERGE, parents=...)` により単一の `TerminationSignal(source=task_node.get_name())` にマージし、`task_node.observers.on_event(TerminationMergeEvent(...))` を通じてブロードキャスト |
 | `_init_pool(execution_mode)` | `execution_mode == "thread"` かつ `_pool is None` の場合のみ `ThreadPoolExecutor(max_workers=self.max_workers)` を構築 |
 | `_release_pool()` | `_pool` をシャットダウンしてクリア（スレッドモード終了時に呼び出し） |
+
+### リトライ回数のセマンティクス
+
+`_worker` / `_async_worker` はいずれもホストから `task_node.max_retries` を読み取ります（構築時に `max(max_retries, 0)` でクランプ済みのため、常に `>= 0`）：
+
+- `max_retries = 0`：`range(1, max_retries + 2)` は 1 回の反復しか生成せず、つまり**リトライしない**；
+- `max_retries = n`：最大 `n + 1` 回実行します（元の 1 回 + `n` 回のリトライ）。
+
+リトライするかどうかは、例外が `task_node.retry_exceptions` に該当するかにも依存します。該当しない場合は直ちに `handle_task_fail` に進みます。
 
 ### `_worker` リトライループの詳細
 

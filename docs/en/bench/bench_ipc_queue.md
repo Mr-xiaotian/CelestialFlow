@@ -1,10 +1,10 @@
 # bench/bench_ipc_queue.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-Compare the performance of various Python IPC (Inter-Process Communication) mechanisms in real cross-process scenarios: MPQueue, SimpleQueue, Pipe, Manager().Queue. Provide data to support queue selection for CelestialFlow's multiprocessing mode.
+Compare the performance of various Python IPC (Inter-Process Communication) mechanisms in real cross-process scenarios: MPQueue, SimpleQueue, Pipe, Manager().Queue, providing a selection reference for scenarios that require cross-process communication.
 
 > **Note**: The framework has removed `process` graph mode and its internal multiprocessing dependency (see change log), so the results of this script no longer reflect the framework's current internal behavior; they serve only as a historical reference for cross-process IPC performance.
 

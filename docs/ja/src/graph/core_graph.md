@@ -1,6 +1,6 @@
 # src/celestialflow/graph/core_graph.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `TaskGraph` は CelestialFlow のコアスケジューラであり、一連のタスクノード（`BaseTaskNode` 派生オブジェクト、パブリック API は `TaskExecutor`、`TaskSplitter`、`TaskRouter`）の依存関係、実行フロー、ライフサイクルを管理します。
 
@@ -187,15 +187,6 @@ def _build_analysis(self) -> None:
 
 > このメソッドは冪等な「キャッシュ再構築エントリ」であり、外部から直接呼び出すべきではありません。公開読み取りには `get_source_nodes()` / `is_dag()` / `get_layers()` を使用してください。
 
-### put_source_signal
-
-```python
-def put_source_signal(self) -> None:
-    """すべてのソースノードのキューに終了シグナルを入れます。"""
-```
-
-`_source_names` を反復し、`node_dict` 内の対応するノードに対して `put_signal()` を呼び出します。`run()` / `run_async()` / `start()` がすでに `_build_analysis()` をトリガーしているため、ここで読み取るソースノードリストは有効なキャッシュです。
-
 ## 起動実行
 
 ### run
@@ -203,7 +194,7 @@ def put_source_signal(self) -> None:
 ```python
 def run(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,  # デフォルト "INFO"
@@ -213,8 +204,8 @@ def run(
     タスクグラフを実行します。フロー：
     1. _build_analysis() を呼び出してグラフ分析キャッシュを構築（または再利用）
     2. _inject_observers() を呼び出してグラフレベル観測者 hub を注入
-    3. run_graph_resources コンテキスト内で、init_tasks_dict 内の各タスクを対応するノードに注入（node.put_task）
-    4. if_put_signal=True の場合、ソースノードに自動的に終了シグナルを注入
+    3. run_graph_resources コンテキスト内で inject_tasks(init_tasks_dict) を呼び出して初期タスクを注入
+    4. if_put_signal=True の場合、inject_terminations(self._source_names) を呼び出してソースノードに終了シグナルを注入
     5. start() を呼び出して実行を起動
     """
 ```
@@ -223,13 +214,14 @@ def run(
 
 | パラメータ | 型 | デフォルト値 | 説明 |
 |------|------|:------:|------|
-| `init_tasks_dict` | `dict[str, Iterable[Any]]` | 必須 | キーはノード名、値はそのノードのタスクの反復可能オブジェクト |
-| `if_put_signal` | `bool` | `True` | タスク注入後にソースノードへ自動的に終了シグナルを補送するかどうか |
-| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogInlet` のログフィルタレベル。大文字小文字を区別せず、前後の空白は無視されます |
+| `init_tasks_dict` | `Mapping[str, Iterable[Any]]` | 必須 | キーはノード名、値はそのノードのタスクの反復可能オブジェクト。各値は 1 回だけ走査される |
+| `if_put_signal` | `bool` | `True` | タスク注入後にソースノード（`_source_names`）へ自動的に終了シグナルを補送するかどうか |
+| `log_level` | `str` | `DEFAULT_LOG_LEVEL`（`"INFO"`） | `LogObserver` のログフィルタレベル。大文字小文字を区別せず、前後の空白は無視されます |
 | `report` | `ReportConfig \| None` | `None` | リモートレポート設定。`None` はレポートなし |
 
+- 注入フェーズは `inject_tasks()` / `inject_terminations()` が担います。どちらもまずグラフ内に存在するノードへ尽力して注入し、その後で未知ノードを一括して `UnknownNodeError` にします。そのため単一の未知ノードがあっても、その他のノードへ注入済みのデータが破棄されることはありません。
 - `raises InvalidOptionError`: `log_level` が許可されたレベルの集合に含まれない場合（`run_graph_resources` 内部の `normalize_log_level()` によって送出）。
-- 実行期の例外は `error_list` に収集され、最終的に `ExceptionGroup("Errors occurred during run", ...)` として送出されます。
+- 実行期の例外（注入フェーズで送出された `UnknownNodeError`、実行フェーズの例外、収尾フェーズの例外を含む）は `error_list` に収集され、最終的に `ExceptionGroup("Errors occurred during run", ...)` として送出されます。
 
 ```python
 from celestialflow import TaskExecutor, TaskGraph
@@ -253,7 +245,7 @@ graph.run(
 ```python
 async def run_async(
     self,
-    init_tasks_dict: dict[str, Iterable[Any]],
+    init_tasks_dict: Mapping[str, Iterable[Any]],
     *,
     if_put_signal: bool = True,
     log_level: str = DEFAULT_LOG_LEVEL,
@@ -430,10 +422,11 @@ print(graph.get_layers())  # {0: ['A'], 1: ['B']}
 ### 注入インターフェース
 
 ```python
-def inject_tasks(self, tasks: Mapping[str, Sequence[Any]]) -> None:
+def inject_tasks(self, tasks: Mapping[str, Iterable[Any]]) -> None:
     """
     ノード名ごとに注入タスクを実行待ちキューに書き込みます。存在するノードへまず尽力して注入し、その後で未知ノードを一括でエラーにします。
 
+    :param tasks: ノード名からタスクの反復可能オブジェクトへのマッピング。各値は 1 回だけ走査されます
     :raises UnknownNodeError: グラフ内に存在しない対象ノードがある場合
     """
 
@@ -489,8 +482,8 @@ flowchart TD
     DRAIN --> END[グラフ実行完了]
 
     RUN[run / run_async] -->|_build_analysis + _inject_observers| RES[run_graph_resources]
-    RES -->|初期タスクを注入| PUT[node.put_task]
-    RES -->|終了シグナルを注入| SIGNAL[put_source_signal]
+    RES -->|inject_tasks| PUT[node.put_task]
+    RES -->|inject_terminations| SIGNAL[ソースノードの終了シグナル]
 ```
 
 ## グラフ実行モード詳解

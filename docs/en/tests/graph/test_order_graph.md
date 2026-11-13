@@ -1,6 +1,6 @@
 # tests/graph/test_order_graph.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Validates the basic graph analysis functions in `celestialflow.graph.util_order_graph`, including `OrderGraph` construction, level computation (`compute_node_levels`), source node lookup (`source_nodes`), SCC partitioning (`tarjan_scc`), and regression tests for iterative algorithms when depth exceeds Python's default recursion limit (approximately 1000).
@@ -44,28 +44,29 @@ Validates the basic graph analysis functions in `celestialflow.graph.util_order_
 - `_make_ring(size)`: Constructs a closed ring of `size` nodes.
 
 ## Test Focus
-- **OrderGraph Construction**: Ensures the internal ordered graph structure and adjacency relationships are correct.
+- **OrderGraph Construction**: Ensures the internal ordered graph structure and adjacency relationships are correct (`add_edge` automatically fills in missing endpoints, and duplicate edges are ignored).
 - **Level Consistency**: Robustness of level computation under complex topologies such as cycles with tails.
 - **SCC Handling**: Ensures circular references do not cause infinite loops or incorrect level/source node distribution.
 - **Recursion Safety**: `tarjan_scc` was previously a recursive implementation; deep chains/rings would trigger `RecursionError`. After being changed to an iterative implementation, ultra-deep graphs should be able to complete analysis normally.
+- **Assertion Carriers**: Directly asserts `OrderGraph.nodes` / `out_edges` / `successors` and the return values of the three analysis functions; this file uses no pytest fixture or monkeypatch.
 
 ## How to Run
 
 ```bash
 # Run all
-pytest tests/graph/test_order_graph.py -v
+uv run pytest tests/graph/test_order_graph.py -v
 
 # Run graph construction tests only
-pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
+uv run pytest tests/graph/test_order_graph.py::TestBuildOrderGraph -v
 
 # Run level computation tests only
-pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
+uv run pytest tests/graph/test_order_graph.py::TestComputeNodeLevels -v
 
 # Run source node lookup tests only
-pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
+uv run pytest tests/graph/test_order_graph.py::TestFindSourceNodes -v
 
 # Run deep-graph regression tests only
-pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
+uv run pytest tests/graph/test_order_graph.py::TestDeepGraphRegression -v
 ```
 
 ## Performance Reference

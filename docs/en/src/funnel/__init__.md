@@ -1,6 +1,6 @@
 # src/celestialflow/funnel/__init__.py
 
-> 📅 Last Updated: 2026/09/24
+> 📅 Last Updated: 2026/11/13
 
 The Funnel module provides CelestialFlow's queue communication infrastructure, serving as the underlying base class for `LogSpout`/`LogInlet` and `LifecycleSpout`/`LifecycleInlet` in the Persistence module.
 
@@ -19,7 +19,7 @@ It is not only usable as low-level infrastructure, but can also be used independ
 
 1. **core_inlet.py** (`BaseInlet`)
    - **Purpose**: Base class for all inlet classes, providing queue write functionality
-   - **Key Features**: Associates with a spout via `bind_spout()`, writes to the queue using `_funnel()`
+   - **Key Features**: Associates with a spout via `bind_spout()`, writes to the queue using the public method `send()`
 
 2. **core_spout.py** (`BaseSpout`)
    - **Purpose**: Base class for all spout classes, providing background thread listening and queue consumption
@@ -48,7 +48,7 @@ classDiagram
     }
     class BaseInlet {
         +bind_spout(spout) Self
-        +_funnel(record) None
+        +send(record) None
     }
     class PendingCounter {
         +increment() int
@@ -93,27 +93,32 @@ class PrintSpout(BaseSpout):
         print(f"Spout received: {record}")
 
 
-# 2. Custom Inlet: wrap the write interface
-class PrintInlet(BaseInlet):
-    def send(self, data):
-        self._funnel(data)
-
-
-# 3. Create Spout and Inlet, and bind
+# 2. Create a Spout and use BaseInlet directly: send() is already a public method
 spout = PrintSpout()
-inlet = PrintInlet().bind_spout(spout)
+inlet = BaseInlet().bind_spout(spout)
 
-# 4. Start background listening thread
+# 3. Start the background listening thread
 spout.start()
 
-# 5. Send records through Inlet
+# 4. Send records through the Inlet
 inlet.send("Hello, World!")
 inlet.send({"key": "value"})
 inlet.send(42)
 
-# 6. Stop Spout
+# 5. Stop the Spout
 spout.stop()
 print("Spout stopped")
+```
+
+> You can also subclass `BaseInlet` to add semantic methods, but **do not** override `send()` and then call back into `self.send(...)`, as that causes infinite recursion; the correct approach is to add a new method that delegates to `self.send(...)`:
+
+```python
+from celestialflow.funnel import BaseInlet
+
+
+class EventInlet(BaseInlet):
+    def graph_start(self, graph_name: str) -> None:
+        self.send({"type": "graph_start", "graph": graph_name})
 ```
 
 ### Using BaseSpout Custom Hooks
@@ -149,3 +154,4 @@ spout.stop()
 1. **Binding Style**: `BaseInlet` associates with `BaseSpout` via `bind_spout()`, rather than holding the queue directly.
 2. **Pending Counter**: `BaseSpout` internally maintains a `PendingCounter`; `get_pending_count()` can query the number of records that have not yet finished processing.
 3. **Exception Isolation**: A single record processing failure prints the traceback and continues, without terminating the background thread.
+4. **`start()` is idempotent**: When the background thread is already alive, `BaseSpout.start()` returns immediately; it neither creates a new thread nor calls `_before_start()` again.

@@ -1,6 +1,6 @@
 # tests/runtime/test_config.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Purpose
 Validates the construction checks and address normalization of `celestialflow.runtime.ReportConfig`: the default address fallback, stripping of leading/trailing whitespace and trailing slashes, and whether invalid inputs such as non-strings, empty strings, and illegal schemes are rejected via `ConfigurationError`. It also verifies that the configuration object is immutable.

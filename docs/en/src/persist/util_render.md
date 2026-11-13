@@ -1,6 +1,6 @@
 # src/celestialflow/persist/util_render.py
 
-> 📅 Last Updated: 2026/10/09
+> 📅 Last Updated: 2026/11/13
 
 `util_render.py` (formerly `graph/util_render.py`, migrated to `persist`) provides a **graph structure rendering utility**. It currently contains a single function `render_structure_list`, which renders a graph structure (nodes, adjacency list, source nodes) as a **framed, tree-shaped text list**, used by the log module to output a graph-structure overview when a task graph starts.
 
@@ -66,7 +66,7 @@ for line in lines:
 
 ## Callers
 
-`LogInlet` (`persist/core_log.py`) calls this function in `on_graph_start`, rendering the graph metadata carried by the `GraphStartEvent` (`nodes` / `edges` / `source_nodes`) into structural text, which is then written to the log line by line.
+`LogObserver` (`persist/core_log.py`) calls this function when handling `GraphStartEvent`, rendering the graph metadata carried by the event (`nodes` / `edges` / `source_nodes`) into structural text, which is then written to the log line by line.
 
 ## Notes
 

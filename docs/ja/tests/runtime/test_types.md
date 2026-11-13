@@ -1,6 +1,6 @@
 # tests/runtime/test_types.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 `celestialflow.runtime.util_types` の値オブジェクト、コンテキストマネージャ、オプションのロック付き値ラッパー、ライフサイクル状態列挙、イベント定数を検証し、それらが実行時に各種ノード/キューで正しく使用されることを確認します。
@@ -42,3 +42,4 @@ pytest tests/runtime/test_types.py -k "termination" -v
 
 ## 注意事項
 - テストコードは `tests/runtime/test_types.py` にあり、対応する実装は `src/celestialflow/runtime/util_types.py` にあります。
+- 本ファイルは `CTreeEvent.TASK_SKIP` をアサートしておらず（`TASK_INPUT` / `TASK_SUCCESS` / `TASK_ERROR` / `TASK_RETRY_PREFIX` / 2 つの終了定数のみをカバー）、同モジュールの `NodeMetrics` と `MetricsView` もカバーしていません（前者は `tests/reporter/test_snapshot.py` 内で構築して使用されています）。

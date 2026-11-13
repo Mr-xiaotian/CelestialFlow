@@ -1,16 +1,16 @@
 # demo/demo_web.py
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ## Objective
 
-This file contains two demos: `demo_forest()` (two independent tree-shaped DAGs) and `demo_topology_topology()` (a 6-layer complex task graph with fan-out/fan-in, `TaskSplitter`, and `TaskRouter`). Both explicitly pass `report=ReportConfig(...)` when calling `graph.run(...)`, so the framework pushes status, structure, errors, and lifecycle data to celestialflow-web on a fixed cadence for observing task execution.
+This file contains two demos: `demo_forest()` (two mutually unconnected DAG components within the same `TaskGraph`) and `demo_topology_topology()` (a 6-layer complex task graph with fan-out/fan-in, `TaskSplitter`, and `TaskRouter`). Both explicitly pass `report=ReportConfig(...)` when calling `graph.run(...)`, so the framework pushes status, structure, errors, and lifecycle data to celestialflow-web on a fixed cadence for observing task execution.
 
 ## Demo Scenarios
 
 ### Forest (`demo_forest`)
 
-Two mutually non-interfering tree-shaped DAGs coexist in the same `TaskGraph`:
+Two mutually non-interfering DAG components coexist in the same `TaskGraph`:
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ graph.run({"Ingest": seeds}, report=ReportConfig("http://localhost:5005/"))
 
 ## Key Configuration
 
-- Each Stage explicitly specifies its execution mode via `TaskExecutor(..., execution_mode="thread" | "serial")`
+- Each node explicitly specifies its execution mode via `TaskExecutor(..., execution_mode="thread" | "serial")`
 - `normalize.set_retry_exceptions(ValueError)` specifies retryable exceptions; `max_retries=2` provides two retry opportunities
 - `Ingest` injects 24 seed tasks, of which `3`, `5`, `8`, and `12` duplicate earlier seed values; since the demo does not configure `skip_func`, these duplicate values are not deduplicated and still enter each node as ordinary tasks
 - The graph mode is `graph_mode="thread"`, allowing mixed execution modes inside nodes

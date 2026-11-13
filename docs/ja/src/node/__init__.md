@@ -1,6 +1,6 @@
 # src/celestialflow/node/__init__.py
 
-> 📅 最終更新日: 2026/10/09
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 
@@ -94,9 +94,9 @@ router = TaskRouter("LengthRouter", route_by_length)
 - **`core_node`**: 基底クラス `BaseTaskNode` と内部スケジューラ `TaskDispatch` を定義し、すべてのノードのランタイム骨格です。
 - **`core_nodes`**: 3 つの公共ノードクラスを提供します。
 - **`runtime`**: ノードは `TaskEnvelope` / `TaskInQueue` / `TaskOutQueue` / `EventClient` / `TerminationSignal` / `CTreeEvent` を通じてキューとイベントの通信を行います。
-- **`observer`**: ノードは `ObserverHub` を通じてイベントをブロードキャストし、`MetricsObserver` がイベントに基づいてカウントを維持します。
-- **`persist`**: `LifecycleInlet` / `LogInlet` は観測者としてイベントを消費し、タスクのライフサイクルとログをディスクに永続化します。
-- **`assembly`**: 単一ノードが単独で動作する場合、`run_node_resources` が `MetricsObserver` / `LifecycleInlet` / `LogInlet` の観測者と spout を組み立てます。
+- **`observer`**: ノードは `ObserverHub` を通じてイベントをブロードキャストします（統一エントリは `observers.on_event(event)`）。`MetricsObserver` がイベントに基づいてカウントを維持します。
+- **`persist`**: `LifecycleObserver` / `LogObserver` が観測者としてイベントを消費し、タスクのライフサイクルとログをディスクに永続化します（内部でそれぞれ `LifecycleInlet` / `LifecycleSpout`、`LogInlet` / `LogSpout` を保持）。
+- **`assembly`**: 単一ノードの独立実行時は `run_node_resources` が `MetricsObserver` / `LifecycleObserver` / `LogObserver` を組み立て、一括で起動・停止します。
 
 ## 注意事項
 

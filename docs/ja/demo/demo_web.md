@@ -1,16 +1,16 @@
 # demo/demo_web.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 目標
 
-本ファイルには 2 つのデモが含まれる：`demo_forest()`（2 つの独立したツリー状 DAG）と `demo_topology_topology()`（6 層で、扇出/扇入、`TaskSplitter`、`TaskRouter` を含む複雑なタスクグラフ）。どちらも `graph.run(...)` 呼び出し時に `report=ReportConfig(...)` を明示的に渡し、フレームワークが一定のテンポで状態・構造・エラー・ライフサイクルデータを celestialflow-web にプッシュして、タスクの実行状況を観察できるようにする。
+本ファイルには 2 つのデモが含まれる：`demo_forest()`（同一の `TaskGraph` 内にある、互いに接続されていない 2 つの DAG コンポーネント）と `demo_topology_topology()`（6 層で、扇出/扇入、`TaskSplitter`、`TaskRouter` を含む複雑なタスクグラフ）。どちらも `graph.run(...)` 呼び出し時に `report=ReportConfig(...)` を明示的に渡し、フレームワークが一定のテンポで状態・構造・エラー・ライフサイクルデータを celestialflow-web にプッシュして、タスクの実行状況を観察できるようにする。
 
 ## デモシナリオ
 
 ### 森林（`demo_forest`）
 
-互いに干渉しない 2 つのツリー状 DAG が同じ `TaskGraph` 内に共存する：
+互いに干渉しない 2 つの DAG コンポーネントが同一の `TaskGraph` 内に共存する：
 
 ```mermaid
 flowchart LR
@@ -106,7 +106,7 @@ graph.run({"Ingest": seeds}, report=ReportConfig("http://localhost:5005/"))
 
 ## 主要設定
 
-- 各 Stage は `TaskExecutor(..., execution_mode="thread" | "serial")` で実行モードを明示的に指定
+- 各ノードは `TaskExecutor(..., execution_mode="thread" | "serial")` で実行モードを明示的に指定
 - `normalize.set_retry_exceptions(ValueError)` でリトライ可能な例外を指定；`max_retries=2` で 2 回のリトライ機会を提供
 - `Ingest` は 24 個のシードタスクを注入し、うち `3`、`5`、`8`、`12` は先行するシード値と重複する。demo は `skip_func` を設定していないため、これらの重複値は重複排除されず、通常のタスクとして各ノードに入る
 - グラフモードは `graph_mode="thread"` で、ノード内部は実行モードを混在できる

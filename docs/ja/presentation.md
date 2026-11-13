@@ -1,6 +1,6 @@
 # CelestialFlow 技術共有
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ---
 
@@ -93,7 +93,7 @@ graph TB
     subgraph ランタイム基盤
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[NodeMetrics 指標]
-        I --> L[LogInlet / LifecycleInlet]
+        I --> L[LogObserver / LifecycleObserver]
         I --> M[CelestialTree イベント]
     end
 
@@ -258,7 +258,7 @@ graph TD
   - `processed`：`succeeded + failed + skipped`
   - `pending`：`input_total - processed`
 
-- **状態と時刻**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）は `on_node_start`/`on_node_end` が維持；`start_time` / `end_time` は対応するイベントが運ぶタイムスタンプをそのまま採用し、指標オブザーバーはもはや独自にシステム時刻をサンプリングしない
+- **状態と時刻**：`NodeStatus`（`NOT_STARTED`/`RUNNING`/`STOPPED`）は `MetricsObserver.on_event()` が `NodeStartEvent` / `NodeEndEvent` を受信したときに維持する；`start_time` / `end_time` は対応するイベントが運ぶタイムスタンプをそのまま採用し、指標オブザーバーはもはや独自にシステム時刻をサンプリングしない
 - **終了判定**：`is_tasks_finished()` が入力と処理済みカウントを比較
 
 ---
@@ -320,21 +320,34 @@ sequenceDiagram
 
 ```mermaid
 graph LR
+    subgraph イベントソース
+        E["イベント<br/>GraphStartEvent / TaskSuccessEvent / ..."]
+    end
+
+    subgraph オブザーバー層
+        S1[LogObserver] --> A[LogInlet]
+        S2[LifecycleObserver] --> C[LifecycleInlet]
+    end
+
     subgraph 生産側
-        A[LogInlet] -->|Queue| B[LogSpout]
-        C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
+        A -->|Queue| B[LogSpout]
+        C -->|Queue| D[LifecycleSpout]
     end
 
     subgraph 消費側
-        B --> E["logs/task_logger(DATE).log"]
-        D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
+        B --> E2["logs/flow_log(DATE).log"]
+        D --> F["lifecycles/DATE/flow_lifecycle(HH-MM-SS-ms).sqlite3"]
     end
+
+    E --> S1
+    E --> S2
 ```
 
-- **Spout-Inlet パターン**：
-  - Inlet 端（スレッドセーフ）：レコードをフォーマットし、共有キューに書き込み
-  - Spout 端（デーモンスレッド）：キューから消費し、ストレージに書き込み
-  - `TerminationSignal` で優雅に停止
+- **Observer → Inlet → Spout の 3 層**：
+  - Observer 側（スレッドセーフ）：統一された `on_event(event)` でイベントを `LogRecord` / `LifecycleRecord`（`InsertRecord` などの frozen dataclass）に変換する
+  - Inlet 側（スレッドセーフ）：`BaseInlet` のみを継承し、`send(record)` でレコードを共有キューに書き込む
+  - Spout 側（デーモンスレッド）：キューから消費してストレージに書き込む
+  - オブザーバーの `start()` / `stop()` が inlet と spout の起動・停止を対で行い、`TerminationSignal` で優雅に停止する
 
 - **ログレベル**：`TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 

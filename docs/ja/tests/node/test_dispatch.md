@@ -1,6 +1,6 @@
 # tests/node/test_dispatch.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 ## 役割
 
@@ -14,8 +14,8 @@
 | `TaskExecutor` | ホスト | スケジューラのホストとして最小限動作する実行器を構築 |
 | `_CtreeStub` / `_SequentialCtreeStub` | モック | `ctree_client.emit` をインクリメンタル整数に置き換え、sqlite のユニーク制約との衝突を回避 |
 | `MetricsObserver` | 指標オブザーバー | `_make_executor` が `e.observers.add_observer(...)` で登録、指標はイベントに追従して更新。テストは `metrics_of(executor)` で読み取り |
-| `_CrashOnFailObserver` | 模擬 Observer | `on_task_fail` 内で例外を投げ、observer hub の異常分離を検証 |
-| `_CrashOnRetryObserver` | 模擬 Observer | `on_task_retry` 内で例外を投げ、リトライ処理チェーンクラッシュのフォールバックを検証 |
+| `_CrashOnFailObserver` | 模擬 Observer | `on_event` で `TaskFailEvent` を受信した際に例外を投げ、observer hub の異常分離を検証 |
+| `_CrashOnRetryObserver` | 模擬 Observer | `on_event` で `TaskRetryEvent` を受信した際に例外を投げ、リトライ処理チェーンクラッシュのフォールバックを検証 |
 | `_make_executor` / `_put` / `_put_termination` / `_collect_results` / `_run_dispatch` | ユーティリティ関数 | 実行器の構築、タスク / 終了シグナルの注入、結果の収集、モードごとのスケジューラ実行 |
 
 `_make_executor` の主要構成：
@@ -36,7 +36,7 @@
 | `test_retry_exhausted` | 継続してエラーを送出する場合、出力は終了シグナルのみ |
 | `test_termination_single_id` | 単一の終了 ID が結果キューに正しく伝達される |
 | `test_termination_multi_id` | 複数の終了 ID をマージし、終了シグナル 1 個のみ出力 |
-| `test_success_fanout_creates_distinct_downstream_ids` | 成功 fanout 時に各実際の下流ノードに対して独立した `TaskEnvelope.get_id()` を生成し、`LifecycleSpout` で永続化後に `get_success_pairs()` から結果を読み戻せる |
+| `test_success_fanout_creates_distinct_downstream_ids` | 成功 fanout 時に各実際の下流ノードに対して独立した `TaskEnvelope.get_id()` を生成する。ケースは `LifecycleObserver` を登録して起動し、その内部の `LifecycleInlet` / `LifecycleSpout` で永続化した後、`get_success_pairs()` から結果を読み戻せる |
 
 ### `TestDispatchThread` — スレッドスケジューリング
 
@@ -48,15 +48,15 @@
 
 | ケース | カバレッジ目標 |
 |------|---------|
-| `test_basic_async` | 10 タスク・4 コルーチンの並列処理、結果数 = 10 |
+| `test_basic_async` | 10 タスク、`max_workers=4` のコルーチン並行処理、結果数 = 10 |
 | `test_async_retry_then_succeed` | 非同期リトライ：最初の 2 回はエラー、3 回目で成功、`func.calls == 3` |
 
 ### `TestHandlerCrashKeepsTerminationSignal` — 処理チェーンクラッシュのフォールバック（3 モードパラメータ化）
 
 | ケース | カバレッジ目標 |
 |------|---------|
-| `test_fail_handler_crash_keeps_termination` | `_CrashOnFailObserver` の `on_task_fail` が `RuntimeError` を投げ、例外は observer hub により分離され（スケジューリング経路へ漏れない）；`observer.calls == 1`、`handle_task_fail` は通常通り失敗の記録を完了し（`failed == 1`）、結果キューには終了シグナルのみが残る |
-| `test_retry_handler_crash_keeps_termination` | `_CrashOnRetryObserver` の `on_task_retry` が例外を投げた場合も同様に hub により分離され；スケジューリングはリトライ枯渇まで継続し、`observer.calls == 1`、最終的に 1 回の失敗として計上され、終了シグナルは通常通り送出される |
+| `test_fail_handler_crash_keeps_termination` | `_CrashOnFailObserver` が `on_event(TaskFailEvent)` 内で `RuntimeError` を投げ、例外は observer hub により分離され（スケジューリング経路へ漏れない）；`max_retries=0` はリトライしないことを意味し、タスクは 1 回だけ実行される；`observer.calls == 1`、`handle_task_fail` は通常通り失敗の記録を完了し（`failed == 1`）、結果キューには終了シグナルのみが残る |
+| `test_retry_handler_crash_keeps_termination` | `_CrashOnRetryObserver` が `on_event(TaskRetryEvent)` 内で例外を投げた場合も同様に hub により分離され；`max_retries=1` のときスケジューリングはリトライ枯渇まで継続し、`observer.calls == 1`、最終的に 1 回の失敗として計上され、終了シグナルは通常通り送出される |
 
 ### `TestDispatchCoreBehavior` — クロスモードパラメータ化
 
@@ -131,8 +131,10 @@ pytest tests/node/test_dispatch.py -k "CoreBehavior" -v
 
 - 終了シグナルは公開 API `executor.task_queue.put(TerminationSignal(_id=..., source="input"))` で注入され、スケジューラの `_process_termination_signal()` がマージした後にループを終了します。内部の終了 ID プールを直接操作しません。
 - `_CtreeStub` の開始 ID はデフォルト 42 で、sqlite のユニーク制約との衝突を避けます。`test_success_fanout_creates_distinct_downstream_ids` では別途 `_SequentialCtreeStub`（開始 100）を使い、各下流の ID を区別します。
-- `test_success_fanout_creates_distinct_downstream_ids` は dispatch を（`node.run` を経由せず）直接駆動するため、`LifecycleSpout` / `LifecycleInlet` を手動で組み立て、executor に登録して永続化のリグレッションを模擬します。
+- `test_success_fanout_creates_distinct_downstream_ids` は dispatch を（`node.run` を経由せず）直接駆動するため、`LifecycleObserver` を手動で生成し、`executor.add_observer(...)` で登録して `start()` を呼び、永続化のリグレッションを模擬します。オブザーバーは内部で自ら `LifecycleInlet` / `LifecycleSpout` をバインドします。
 - 公開 API（`task_queue.put` / `yield_queue.add_queue`）経由でテストフィクスチャを注入し、`executor` の内部状態を直接変更することを避けます。結果収集キューは弱参照辞書で遡及します。
 - 失敗 / リトライ observer が投げた例外は observer hub 層で分離されるため（当該オブザーバー自身の `handle_exception` へ引き渡される）、`handle_task_fail` は依然として失敗の記録を正常に完了して復帰し、スケジューリングループは終了シグナルを消費するまで継続します。
+- リトライ回数の意味論：`BaseTaskNode` は `max(max_retries, 0)` で設定値をクランプし、スケジューリングループは `range(1, max_retries + 2)` で実行するため、`max_retries=0` はリトライなし・最大 1 回の実行を意味し、`max_retries=n` は最大 `n+1` 回の実行を意味します。
+- `thread` / `async` スケジューリングはいずれも `pending` 集合で実行中タスク数を制限します。`max_workers` に達した場合はまず少なくとも 1 件の完了を待ってから次のタスクを受け入れるため、並行上限は `max_workers` によって厳密に制約されつつ、ストリーム状に到着するタスクにも対応できます。
 - `TestHandlerCrashKeepsTerminationSignal` の 2 ケースはいずれも `observer.calls == 1` と `results == [TerminationSignal]` をアサートし、失敗シナリオではさらに `metrics_of(executor).get_node_metrics(name).failed == 1` をアサートします。
 - 関連実装は `src/celestialflow/node/core_dispatch.py` および `src/celestialflow/node/core_node.py` にあります。

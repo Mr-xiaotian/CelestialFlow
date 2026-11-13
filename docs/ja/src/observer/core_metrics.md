@@ -1,6 +1,6 @@
 # src/celestialflow/observer/core_metrics.py
 
-> 📅 最終更新日: 2026/10/30
+> 📅 最終更新日: 2026/11/13
 
 `core_metrics.py` は**グラフレベル指標観測者** `MetricsObserver` を定義します。これは「書き込みモデル」と「読み取り専用ビュー」の 2 つの役割を同時に担います：観測者としてイベントから各ノードのカウント、状態、実行開始時間を書き込み、読み取り専用ビューを通じて不変の `NodeMetrics` スナップショットを公開します。
 
@@ -10,12 +10,7 @@
 class MetricsObserver(Observer):
     def __init__(self) -> None: ...
 
-    def on_node_start(self, event: NodeStartEvent) -> None: ...
-    def on_node_end(self, event: NodeEndEvent) -> None: ...
-    def on_task_input(self, event: TaskInputEvent) -> None: ...
-    def on_task_success(self, event: TaskSuccessEvent) -> None: ...
-    def on_task_fail(self, event: TaskFailEvent) -> None: ...
-    def on_task_skip(self, event: TaskSkipEvent) -> None: ...
+    def on_event(self, event: Event) -> None: ...
 
     def get_node_metrics(self, node: str) -> NodeMetrics | None: ...
     def get_graph_metrics(self) -> dict[str, NodeMetrics]: ...
@@ -25,16 +20,16 @@ class MetricsObserver(Observer):
 
 ## イベント書き込みロジック
 
-MetricsObserver は以下のイベントのみに関心を持って指標を維持します：
+`on_event` は `match` でディスパッチし、指標に関係するイベントのみを処理します。それ以外のイベント（グラフレベル、終了シグナルなど）は `case _: pass` に落ちて無視されます：
 
 | イベント | 書き込み動作 |
 |------|---------|
-| `on_node_start` | そのノードの状態を `RUNNING` に設定し、イベントが持つ `start_time` を `_start_time` に書き込み、`_end_time` を `0.0` にリセット |
-| `on_node_end` | そのノードの状態を `STOPPED` に設定し、イベントが持つ `end_time` を `_end_time` に書き込み |
-| `on_task_input` | 発生源を区別：`from_node is None` の場合は外部注入カウントを加算；それ以外は受信側の上流カウントと発信元側の下流カウントの両方を加算 |
-| `on_task_success` | そのノードの成功カウントを加算 |
-| `on_task_fail` | そのノードの失敗カウントを加算 |
-| `on_task_skip` | そのノードのスキップカウントを加算 |
+| `NodeStartEvent` | そのノードの状態を `RUNNING` に設定し、イベントが持つ `start_time` を `_start_time` に書き込み、`_end_time` を `0.0` にリセット |
+| `NodeEndEvent` | そのノードの状態を `STOPPED` に設定し、イベントが持つ `end_time` を `_end_time` に書き込み |
+| `TaskInputEvent` | 発生源を区別：`from_node is None` の場合は外部注入カウントを加算；それ以外は受信側の上流カウントと発信元側の下流カウントの両方を加算 |
+| `TaskSuccessEvent` | そのノードの成功カウントを加算 |
+| `TaskFailEvent` | そのノードの失敗カウントを加算 |
+| `TaskSkipEvent` | そのノードのスキップカウントを加算 |
 
 ストレージセルは最初のイベントで**オンデマンドに確立**され（`_ensure`、冪等）、辺カウントも実際のタスクフローによってインクリメンタルに書き込まれるため、グラフ構築期の構造イベントには依存しません。上流の配信は受信側の上流カウントと発信元側の下流カウントの両方に書き込むため、ノード間でカウンタオブジェクトを共有する必要も、ノードタイプごとに統計ロジックを特化する必要もありません。
 
@@ -77,15 +72,19 @@ hub.add_observer(metrics)
 
 for node_name, nm in metrics.get_graph_metrics().items():
     print(node_name, nm.succeeded, nm.failed, nm.skipped, nm.pending)
+
+single = metrics.get_node_metrics("StageA")
+print(single.input_total if single is not None else None)
 ```
 
 ## ノード / 組み立てとの関係
 
 - `BaseTaskNode` はカウントと `TaskMetrics` を**自力では保持しません**。ノードカウントは `MetricsObserver` がイベントに基づいて一元的に維持します。
-- 組み立てフェーズ（`assembly/core_run.py`）で `MetricsObserver` を作成してノードの `ObserverHub` に登録し、その読み取り専用ビューを `LogInlet` とスナップショットハンドラに横断的に提供します。
+- 組み立てフェーズ（`assembly/core_run.py`）の `run_graph_resources` / `run_node_resources` が `MetricsObserver` を作成して観測者 hub に登録し、その読み取り専用ビューを `LogObserver` とスナップショットハンドラに横断的に提供します。
 
 ## 注意事項
 
 1. **単一スコープのインスタンス**：1 つの `MetricsObserver` は 1 つの実行スコープにサービスします。異なるグラフ / ノード間での再利用を避けてカウントの串刺しを防止します。
 2. **スレッドセーフ**：内部のすべてのストレージアクセスは `_lock` の保護下で行われます。
 3. **構造はイベント駆動**：グラフ構築期の構造イベントには依存せず、タスクイベントが発生したノードに即座にストレージセルを確立できます。
+4. **観測のみで傍受しない**：`NodeEndEvent` は状態と終了時間を更新するだけで、カウントを自動的にクリアしません。

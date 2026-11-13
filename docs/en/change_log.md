@@ -1,6 +1,6 @@
 # Change Log
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 - 2021: Built a class supporting both multi-threaded and single-threaded processing functions
 - 2023: Added multi-process and coroutine execution modes with GPT-4's help
@@ -531,3 +531,13 @@
     - Removed some useless sqlite functions
   - fix:
     - Fixed the issue with graph analysis caching
+- 3.3.4
+  - feat:
+    - Added a `find` method to `ObserverHub`, used to find observers of a specified type
+  - refactor:
+    - Moved the individual event handling methods in observers under `on_event`
+    - Separated the tangled `observer/inlet` in `log` and `lifecycle`
+      - Standalone `*Observer` classes are now established to coordinate `spout/inlet`
+    - Replaced `dict[str, Any]` with explicit dataclasses in `lifecycle`
+    - `graph` and `node` no longer store `_lifecycle_db_path`
+    - Normalized the input parameter types of `graph.run` and `graph.inject_tasks`

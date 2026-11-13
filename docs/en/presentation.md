@@ -1,6 +1,6 @@
 # CelestialFlow Technical Presentation
 
-> 📅 Last Updated: 2026/10/30
+> 📅 Last Updated: 2026/11/13
 
 ---
 
@@ -93,7 +93,7 @@ graph TB
     subgraph Runtime Infrastructure
         I --> J[TaskInQueue / TaskOutQueue]
         I --> K[NodeMetrics]
-        I --> L[LogInlet / LifecycleInlet]
+        I --> L[LogObserver / LifecycleObserver]
         I --> M[CelestialTree Events]
     end
 
@@ -258,7 +258,7 @@ Each node holds its own `TaskDispatch`, so node-level `async` is also available 
   - `processed`: `succeeded + failed + skipped`
   - `pending`: `input_total - processed`
 
-- **Status & Time**: `NodeStatus` (`NOT_STARTED`/`RUNNING`/`STOPPED`) is maintained by `on_node_start`/`on_node_end`; `start_time` / `end_time` are taken directly from the timestamps carried by the corresponding events, so the metrics observer no longer samples the system time itself
+- **Status & Time**: `NodeStatus` (`NOT_STARTED`/`RUNNING`/`STOPPED`) is maintained by `MetricsObserver.on_event()` upon receiving `NodeStartEvent` / `NodeEndEvent`; `start_time` / `end_time` are taken directly from the timestamps carried by the corresponding events, so the metrics observer no longer samples the system time itself
 - **Termination Judgment**: `is_tasks_finished()` compares input and processed counts
 
 ---
@@ -320,21 +320,34 @@ sequenceDiagram
 
 ```mermaid
 graph LR
+    subgraph Event Source
+        E["Event<br/>GraphStartEvent / TaskSuccessEvent / ..."]
+    end
+
+    subgraph Observer Layer
+        S1[LogObserver] --> A[LogInlet]
+        S2[LifecycleObserver] --> C[LifecycleInlet]
+    end
+
     subgraph Producer Side
-        A[LogInlet] -->|Queue| B[LogSpout]
-        C[LifecycleInlet] -->|Queue| D[LifecycleSpout]
+        A -->|Queue| B[LogSpout]
+        C -->|Queue| D[LifecycleSpout]
     end
 
     subgraph Consumer Side
-        B --> E["logs/task_logger(DATE).log"]
-        D --> F["lifecycle/task_lifecycle.db<br/>(SQLite)"]
+        B --> E2["logs/flow_log(DATE).log"]
+        D --> F["lifecycles/DATE/flow_lifecycle(HH-MM-SS-ms).sqlite3"]
     end
+
+    E --> S1
+    E --> S2
 ```
 
-- **Spout-Inlet Pattern**:
-  - Inlet side (thread-safe): Formats records, writes to shared queue
-  - Spout side (daemon thread): Consumes from queue, writes to storage
-  - Graceful stop via `TerminationSignal`
+- **Observer → Inlet → Spout three layers**:
+  - Observer side (thread-safe): translates events into `LogRecord` / `LifecycleRecord` (`InsertRecord` and other frozen dataclasses) in the unified `on_event(event)`
+  - Inlet side (thread-safe): inherits only `BaseInlet` and writes records into the shared queue via `send(record)`
+  - Spout side (daemon thread): consumes from the queue and writes to storage
+  - The observer's `start()` / `stop()` are responsible for starting and stopping the inlet and spout in pairs, stopping gracefully via `TerminationSignal`
 
 - **Log Levels**: `TRACE(0) → DEBUG(10) → SUCCESS(20) → INFO(30) → WARNING(40) → ERROR(50) → CRITICAL(60)`
 
