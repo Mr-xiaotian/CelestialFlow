@@ -40,12 +40,12 @@ async def benchmark_executor(
             cloned_executor = clone_executor(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
-        start = time.perf_counter()
+        start_perf = time.perf_counter()
         if mode == "async":
             await cloned_executor.run_async(task_list)
         else:
             cloned_executor.run(task_list)
-        use_time.append([time.perf_counter() - start])
+        use_time.append([time.perf_counter() - start_perf])
 
     use_time_table: str = format_table(use_time, execution_modes, ["Time"])
     print(f"Use time:\n{use_time_table}\n")

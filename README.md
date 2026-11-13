@@ -1,6 +1,6 @@
 # CelestialFlow ——一个轻量级、可并行、基于图结构的 Python 任务调度框架
 
-> 📅 最后更新日期: 2026/10/30
+> 📅 最后更新日期: 2026/11/13
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Mr-xiaotian/CelestialFlow/main/img/logo.png" width="1080" alt="CelestialFlow Logo">
@@ -201,13 +201,16 @@ flowchart TD
     class TRC execution;
 ```
 
-以下五篇可以作为补充阅读:
+以下八篇可以作为补充阅读:
 
 - [UtilTypes.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_types.md)
 - [UtilErrors.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_errors.md)
 - [UtilFormat.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/runtime/util_format.md)
 - [Lifecycle.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_lifecycle.md)
 - [Log.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/persist/core_log.md)
+- [Ticker.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/ticker/core_ticker.md)
+- [Reporter.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/reporter/core_push.md)
+- [Assembly.md](https://github.com/Mr-xiaotian/CelestialFlow/blob/main/docs/zh-CN/src/assembly/core_run.md)
 
 如果你更喜欢通过完整案例理解框架的运行方式，可以参考这篇利用 TaskGraph 从零开始构建项目的教程：
 
@@ -247,12 +250,12 @@ flowchart TD
 ## 文件结构（File Structure）
 
 ```
-📁 CelestialFlow	(560MB 757KB 428B)
-    📁 bench           	(316KB 409B)
-        📁 [1项排除的目录]                  	(193KB 163B)
+📁 CelestialFlow	(594MB 775KB 69B)
+    📁 bench           	(356KB 464B)
+        📁 [1项排除的目录]                  	(233KB 797B)
         🐍 bench_datastructures.py          	(6KB 690B)
         🐍 bench_execution_mode.py          	(2KB 707B)
-        🐍 bench_funnel_vs_lock.py          	(21KB 888B)
+        🐍 bench_funnel_vs_lock.py          	(21KB 885B)
         🐍 bench_futures_memory.py          	(2KB 269B)
         🐍 bench_gil_vs_nogil.py            	(10KB 552B)
         🐍 bench_graph_mode.py              	(6KB 614B)
@@ -263,29 +266,29 @@ flowchart TD
         🐍 bench_ipc_queue.py               	(7KB 104B)
         🐍 bench_lock_overhead.py           	(9KB 421B)
         🐍 bench_mpqueue_vs_shared_memory.py	(13KB 127B)
-        🐍 bench_observer.py                	(7KB 58B)
-        🐍 bench_persist_spout.py           	(4KB 323B)
+        🐍 bench_observer.py                	(6KB 657B)
+        🐍 bench_persist_spout.py           	(4KB 172B)
         🐍 bench_queue.py                   	(5KB 857B)
         🐍 bench_requests.py                	(6KB 813B)
         🐍 bench_tqdm.py                    	(1KB 235B)
         🐍 bench_utils.py                   	(543B)
-    📁 demo            	(811KB 650B)
-        📁 [4项排除的目录]   	(755KB 996B)
+    📁 demo            	(809KB 719B)
+        📁 [4项排除的目录]   	(754KB 603B)
         🐍 demo_executor.py  	(1KB 557B)
-        🐍 demo_funnel.py    	(2KB 289B)
+        🐍 demo_funnel.py    	(2KB 286B)
         🐍 demo_graph.py     	(2KB 975B)
         🐍 demo_network.py   	(3KB 756B)
         🐍 demo_nodes.py     	(3KB 915B)
-        🐍 demo_observer.py  	(2KB 1004B)
+        🐍 demo_observer.py  	(2KB 445B)
         🐍 demo_redis.py     	(8KB 595B)
         🐍 demo_skip_dedup.py	(6KB 286B)
         🐍 demo_structure.py 	(8KB 448B)
         🐍 demo_utils.py     	(6KB 263B)
         🐍 demo_web.py       	(8KB 734B)
-    📁 docs            	(2MB 88KB 855B)
-        📁 en[已折叠]   	(678KB 928B)
-        📁 ja[已折叠]   	(778KB 854B)
-        📁 zh-CN[已折叠]	(679KB 97B)
+    📁 docs            	(2MB 424KB 355B)
+        📁 en[已折叠]   	(759KB 226B)
+        📁 ja[已折叠]   	(874KB 132B)
+        📁 zh-CN[已折叠]	(838KB 1021B)
     📁 experiments     	(3KB 21B)
         🐍 experiment_networkx.py	(1KB 908B)
         🐍 experiment_tqdm.py    	(1KB 137B)
@@ -294,50 +297,49 @@ flowchart TD
         📷 logo(old).png       	(836KB 542B)
         📷 logo.png            	(122KB 747B)
         📷 scc_condensation.svg	(17KB 1B)
-    📁 src             	(1MB 661KB 60B)
-        📁 celestialflow[已折叠]	(1MB 641KB 309B)
-        📁 [1项排除的目录]      	(19KB 775B)
-    📁 tests           	(3MB 65KB 73B)
-        📁 assembly[已折叠]   	(42KB 929B)
-        📁 benchmark[已折叠]  	(41KB 377B)
-        📁 funnel[已折叠]     	(96KB 339B)
-        📁 graph[已折叠]      	(803KB 239B)
-        📁 node[已折叠]       	(510KB 93B)
-        📁 observer[已折叠]   	(122KB 937B)
-        📁 persist[已折叠]    	(186KB 828B)
-        📁 persistence[已折叠]	(381KB 89B)
-        📁 reporter[已折叠]   	(173KB 986B)
-        📁 runtime[已折叠]    	(189KB 800B)
-        📁 ticker[已折叠]     	(54KB 761B)
-        📁 [3项排除的目录]    	(532KB 170B)
-        🐍 conftest.py        	(1KB 693B)
-    📁 [13项排除的目录]	(546MB 860KB 667B)
+    📁 src             	(1MB 660KB 11B)
+        📁 celestialflow[已折叠]	(1MB 640KB 713B)
+        📁 [1项排除的目录]      	(19KB 322B)
+    📁 tests           	(3MB 662KB 157B)
+        📁 assembly[已折叠]   	(76KB 371B)
+        📁 benchmark[已折叠]  	(75KB 37B)
+        📁 funnel[已折叠]     	(119KB 944B)
+        📁 graph[已折叠]      	(1MB 22KB 263B)
+        📁 node[已折叠]       	(704KB 568B)
+        📁 observer[已折叠]   	(229KB 814B)
+        📁 persist[已折叠]    	(269KB 262B)
+        📁 reporter[已折叠]   	(248KB 570B)
+        📁 runtime[已折叠]    	(327KB 569B)
+        📁 ticker[已折叠]     	(98KB 313B)
+        📁 [3项排除的目录]    	(536KB 268B)
+        🐍 conftest.py        	(2KB 298B)
+    📁 [12项排除的目录]	(579MB 932KB 150B)
     ❓ .env            	(484B)
     ❓ .gitignore      	(1KB 315B)
     📝 AGENTS.md       	(2KB 800B)
     ❓ LICENSE         	(1KB 65B)
     ❓ Makefile        	(149B)
     ⚙️ pyproject.toml  	(2KB 624B)
-    📝 README.md       	(16KB 321B)
-    🔒 uv.lock         	(126KB 837B)
+    📝 README.md       	(16KB 802B)
+    🔒 uv.lock         	(126KB 855B)
 ```
 <p align="center">
-  <em>celestial-flow 3.3.3</em>
+  <em>celestial-flow 3.3.4</em>
 </p>
 
 (该视图由我的另一个项目[CelestialVault](https://github.com/Mr-xiaotian/CelestialVault)中inst_file.FileTree.print_tree()生成。转换为图片则借助[Carbon](https://carbon.now.sh)。)
 
 ## 版本日志（Version Log）
-- 3.3.3
+- 3.3.4
   - feat:
-    - 在 `GraphEndEvent` / `NodeEndEvent` 中添加 `end_time`
-    - 在 `GraphStartEvent` 中删除 `class_name`
+    - 在 `ObserverHub` 中添加 `find` 方法, 用于查找指定类型的observer
   - refactor:
-    - 移除部分无用的observer事件, 如 `on_worker_crash`
-    - 将log与reporter设置从 `.toml` 中移到运行时配置中
-    - 删除部分无用的sqlite函数
-  - fix:
-    - 修复图分析缓存的问题
+    - 将observer中各个事件处理方法归于 `on_event`
+    - 将 `log` 与 `lifecycle` 中混乱的 `observer/inlet` 拆开
+      - 现在建立单独的 `*Observer` 来统筹 `spout/inlet`
+    - 在 `lifecycle` 中用明确的dataclass取代 `dict[str, Any]`
+    - `graph` 与 `node` 中不再存储 `_lifecycle_db_path`
+    - 归一化 `graph.run` 与 `graph.inject_tasks` 的输入参数类型
 
 更多过往日志可看:
 
