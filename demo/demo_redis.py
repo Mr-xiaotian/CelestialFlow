@@ -3,6 +3,7 @@ import os
 import random
 import time
 from itertools import count
+from pathlib import Path
 from typing import Any, cast
 
 import redis
@@ -56,10 +57,10 @@ def sum_int_wrapper(task: tuple[str, tuple[int, ...]]) -> Any:
     return sum_int(nums)
 
 
-def download_to_file_wrapper(task: tuple[str, str]) -> Any:
-    """下载文件到本地"""
-    url = task[1]
-    return download_to_file(url)
+def download_to_file_wrapper(task: tuple[str, tuple[str, str]]) -> Any:
+    """从 ``(key, (url, file_path))`` 任务中取出下载参数并下载文件。"""
+    _, (url, file_path) = task
+    return download_to_file((url, file_path))
 
 
 def get_redis() -> redis.Redis:
@@ -74,8 +75,8 @@ def get_redis() -> redis.Redis:
     return redis_client
 
 
-def redis_push(task: Any) -> int:
-    """将任务推送到 Redis 中"""
+def redis_push(task: Any) -> tuple[str, int]:
+    """将任务推送到 Redis 中，返回 ``(key, task_id)`` 供下游确认。"""
     key, task_payload = task
     redis_client: redis.Redis = get_redis()
     task_id = next(_task_ids)
@@ -248,14 +249,15 @@ def demo_redis_ack_2() -> None:
     graph.connect([start_stage], [transport_stage, download_stage])
     graph.connect([transport_stage], [ack_stage])
 
+    download_dir = Path("temp/download")
     download_links: list[tuple[str, str]] = [
         (
             "https://img.4khd.com/-IaKPu2ONWz8/aEhVCP-4Wsl/AAAAAAADirM/2Fg5CujCaKk7PqPY3I6DELSmidZE3ofqgCNcBGAsHYQ/w1300-rw/orts-shoes-4khd.com-001.webp?w=1300",
-            "X:/Download/download_py/orts-shoes-4khd.com-001.png",
+            str(download_dir / "orts-shoes-4khd.com-001.png"),
         ),
         (
             "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/2949210/ss_a2792205c92812f5be3321f2e685135b402e5a72.600x338.jpg?t=1714466877",
-            "X:/Download/download_py/steam_2949210.jpg",
+            str(download_dir / "steam_2949210.jpg"),
         ),
     ]
     graph.run({"Start": download_links})

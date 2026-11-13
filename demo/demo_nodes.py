@@ -1,6 +1,3 @@
-import os
-
-from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
     download_sleep,
     generate_urls_sleep,
@@ -10,7 +7,6 @@ from demo_utils import (
     router_even,
     sleep_1,
 )
-from dotenv import load_dotenv
 
 from celestialflow import (
     TaskChain,
@@ -18,18 +14,6 @@ from celestialflow import (
     TaskGraph,
     TaskRouter,
     TaskSplitter,
-)
-
-load_dotenv()
-
-ctree_host: str = os.getenv("CTREE_HOST", "")
-ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
-ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
-
-ctree_client = CelestialTreeClient(
-    host=ctree_host,
-    http_port=ctree_http_port,
-    grpc_port=ctree_grpc_port,
 )
 
 
@@ -47,6 +31,7 @@ def demo_splitter_0() -> None:
     )
     splitter = TaskSplitter(
         "Splitter",
+        no_op,
     )
     download_node = TaskExecutor(
         "Downloader",
@@ -70,9 +55,10 @@ def demo_splitter_0() -> None:
 
     graph.set_graph_mode("thread")
     graph.set_node_execution_mode("thread")
-    # graph.set_ctree(ctree_client)
 
     # 运行入口：从 GenURLs 注入初始种子任务，观察 split 与回环效果。
+    # 该图含环（Parser -> GenURLs），不注入终止信号，会持续回环运行，
+    # 需要手动 Ctrl+C 终止。
     graph.run(
         {"GenURLs": [*list(range(10)), 1, 2, 3, 6, 7, 8, 9]},
         if_put_signal=False,
@@ -81,18 +67,21 @@ def demo_splitter_0() -> None:
 
 def demo_splitter_1() -> None:
     # 节点定义：用 Splitter 把一个大 iterable 拆成大量细粒度任务。
-    task_splitter = TaskSplitter("Splitter")
-    process_node = TaskExecutor("Process", no_op, execution_mode="thread", max_workers=50)
+    task_splitter = TaskSplitter("Splitter", no_op)
+    process_node = TaskExecutor(
+        "Process", no_op, execution_mode="thread", max_workers=50
+    )
 
     # 链式结构：这里不需要手动 connect，直接用 TaskChain 串起两个节点。
     chain = TaskChain(
         "demo_splitter_1",
         [task_splitter, process_node],
     )
-    chain.set_ctree(ctree_client)
 
-    # 运行入口：把 range(100_000) 包成单个任务送进 Splitter。
-    chain.run({"Splitter": [range(100_000)]})
+    # 运行入口：把一个大 range 包成单个任务送进 Splitter，由下游逐个消费。
+    # 注意：每个任务都会产生 lifecycle 记录（SQLite 单条提交约 6k 条/秒），
+    # 而 spout 收尾等待上限为 5 秒，因此这里用 5_000 而非更大的规模。
+    chain.run({"Splitter": [range(5_000)]})
 
 
 def demo_router_0() -> None:
@@ -130,7 +119,6 @@ def demo_router_0() -> None:
     )
     graph.connect([source_node], [router])
     graph.connect([router], [node_a, node_b])
-    # graph.set_ctree(ctree_client)
 
     # 运行入口：输入一组整数，观察 Router 按规则把奇偶任务分发到不同下游。
     graph.run({"Origin": list(range(20))})

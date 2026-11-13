@@ -105,10 +105,10 @@ def metrics_of(target: Any):
     """取回运行对象 hub 上的指标观察者（图/节点自身不再持有 ``metrics`` 字段）。"""
     from celestialflow.observer import MetricsObserver
 
-    for observer in target.observers._snapshot():
-        if isinstance(observer, MetricsObserver):
-            return observer
-    raise RuntimeError("metrics observer not found on hub")
+    metrics = target.observers.find(MetricsObserver)
+    if metrics is None:
+        raise RuntimeError("metrics observer not found on hub")
+    return metrics
 
 
 def measure_executor(

@@ -1,12 +1,10 @@
 import asyncio
-import os
 import random
 from time import sleep
 from typing import Any
 
 from celestialflow import (
     TaskGraph,
-    TaskSplitter,
     TaskExecutor,
     benchmark_graph,
 )

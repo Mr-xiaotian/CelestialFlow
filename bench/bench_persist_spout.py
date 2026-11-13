@@ -12,8 +12,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from celestialflow.persist.core_lifecycle import InsertRecord, LifecycleSpout
-from celestialflow.persist.core_log import LogRecord, LogSpout
+from celestialflow.persist import InsertRecord, LifecycleSpout, LogRecord, LogSpout
 from celestialflow.persist.util_sqlite import connect_db
 
 
@@ -57,7 +56,7 @@ def build_lifecycle_insert_records(count: int) -> list[InsertRecord]:
     ]
 
 
-def run_spout_bench(spout: Any, records: list[dict[str, Any]]) -> dict[str, float]:
+def run_spout_bench(spout: Any, records: list[Any]) -> dict[str, float]:
     queue = spout.get_queue()
     for record in records:
         queue.put(record)

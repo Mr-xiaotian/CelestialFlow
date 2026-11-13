@@ -1,8 +1,6 @@
 import asyncio
-import os
 from typing import Any
 
-from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
     async_double,
     async_to_str,
@@ -11,23 +9,10 @@ from demo_utils import (
     transform_enrich,
     transform_normalize,
 )
-from dotenv import load_dotenv
 
 from celestialflow import (
     TaskGraph,
     TaskExecutor,
-)
-
-load_dotenv()
-
-ctree_host: str = os.getenv("CTREE_HOST", "")
-ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
-ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
-
-ctree_client = CelestialTreeClient(
-    host=ctree_host,
-    http_port=ctree_http_port,
-    grpc_port=ctree_grpc_port,
 )
 
 
@@ -69,7 +54,6 @@ def demo_etl_fan_out_fan_in() -> None:
     )
 
     graph = TaskGraph("demo_etl_fan_out_fan_in", graph_mode="thread")
-    # graph.set_ctree(ctree_client)
     graph.set_nodes(
         nodes=[extract, normalize, enrich, load],
     )
@@ -104,7 +88,6 @@ async def demo_async_pipeline() -> None:
     )
 
     graph = TaskGraph("demo_async_pipeline", graph_mode="async")
-    # graph.set_ctree(ctree_client)
     graph.set_nodes(
         nodes=[double_node, to_str_node],
     )

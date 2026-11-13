@@ -14,15 +14,9 @@ from celestialflow import (
     ReportConfig,
 )
 
-
-def _metrics_of(target: Any):
-    """取回运行对象 hub 上的指标观察者（图/节点自身不再持有 ``metrics`` 字段）。"""
-    from celestialflow.observer import MetricsObserver
-
-    for observer in target.observers._snapshot():
-        if isinstance(observer, MetricsObserver):
-            return observer
-    raise RuntimeError("metrics observer not found on hub")
+REPORT_URL: str | None = None
+"""上报地址。设为 ``"http://localhost:5005"`` 时会向 celestialflow-web 上报；
+保持 ``None`` 时 demo 完全离线运行。"""
 
 
 # ==== 任务函数 ====
@@ -188,8 +182,6 @@ def demo_forest() -> None:
     graph.connect([node_g], [node_i])
     graph.connect([node_h], [node_j])
 
-    # graph.set_ctree(ctree_client)
-
     # 初始任务
     init_tasks: dict[str, list[int]] = {
         node_a.get_name(): list(range(1, 11)),
@@ -199,7 +191,7 @@ def demo_forest() -> None:
 
     graph.run(
         init_tasks,
-        report=ReportConfig("http://localhost:5005/")
+        report=ReportConfig(REPORT_URL) if REPORT_URL else None,
     )
 
 
@@ -296,14 +288,14 @@ def demo_topology_topology() -> None:
     graph.connect([router], [stage_a, stage_b, stage_c])
     graph.connect([stage_a, stage_b, stage_c], [collect])
 
-    # 上报到 web（可选）：调用 graph.run 时传入
-    # report=ReportConfig(url=...)，框架会自动推送状态并拉取注入。
+    # 上报到 web（可选）：把模块顶部的 REPORT_URL 设为 web 地址即可启用，
+    # 框架会自动推送状态并拉取注入。
 
     # 输入：24 个任务（其中 3 / 5 / 8 / 12 与前面的值重复）。
     seeds = [*range(1, 21), 3, 5, 8, 12]
     graph.run(
         {"Ingest": seeds},
-        report=ReportConfig("http://localhost:5005/")
+        report=ReportConfig(REPORT_URL) if REPORT_URL else None,
     )
 
 

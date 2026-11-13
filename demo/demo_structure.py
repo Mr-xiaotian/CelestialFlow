@@ -1,14 +1,11 @@
-import os
-
-from celestialtree import Client as CelestialTreeClient
 from demo_utils import (
     add_5,
     add_10,
     add_15,
     add_one_sleep,
+    sleep_1,
     square,
 )
-from dotenv import load_dotenv
 
 from celestialflow import (
     TaskChain,
@@ -19,18 +16,6 @@ from celestialflow import (
     TaskLoop,
     TaskExecutor,
     TaskWheel,
-)
-
-load_dotenv()
-
-ctree_host: str = os.getenv("CTREE_HOST", "")
-ctree_http_port: int = int(os.getenv("CTREE_HTTP_PORT", "0"))
-ctree_grpc_port: int = int(os.getenv("CTREE_GRPC_PORT", "0"))
-
-ctree_client = CelestialTreeClient(
-    host=ctree_host,
-    http_port=ctree_http_port,
-    grpc_port=ctree_grpc_port,
 )
 
 
@@ -48,9 +33,8 @@ def demo_chain() -> None:
         "demo_chain",
         [node_a, node_b, node_c, node_d, node_e],
     )
-    # chain.set_ctree(ctree_client)
 
-    chain.run({"NodeA": list(range(20))}, if_put_signal=False)
+    chain.run({"NodeA": list(range(20))})
 
 
 def demo_cross() -> None:
@@ -68,7 +52,6 @@ def demo_cross() -> None:
         "demo_cross",
         [[node_a, node_b, node_c], [node_d], [node_e, node_f, node_g]],
     )
-    # cross.set_ctree(ctree_client)
 
     # 初始任务
     init_tasks = {
@@ -95,7 +78,6 @@ def demo_network() -> None:
 
     # 构建任务图
     cross = TaskCross("demo_network", [[A1, A2], [B1, B2, B3], [C]])
-    # cross.set_ctree(ctree_client)
 
     # 初始任务（输入层）
     init_tasks = {
@@ -118,7 +100,6 @@ def demo_star() -> None:
         "demo_star",
         [[core], [side1, side2, side3]],
     )
-    # star.set_ctree(ctree_client)
 
     star.run({"Core": list(range(1, 11))})
 
@@ -135,7 +116,6 @@ def demo_fanin() -> None:
         "demo_fanin",
         [[source1, source2, source3], [merge]],
     )
-    # fainin.set_ctree(ctree_client)
 
     fainin.run(
         {
@@ -160,7 +140,6 @@ def demo_grid() -> None:
 
     # 2. 构建 TaskGrid 实例
     task_grid = TaskGrid("demo_grid", grid)
-    # task_grid.set_ctree(ctree_client)
 
     # 3. 初始化任务字典，只放左上角一个任务
     init_dict: dict[str, list[int]] = {grid[0][0].get_name(): list(range(10))}
@@ -171,12 +150,12 @@ def demo_grid() -> None:
 
 # ========有环图========
 def demo_loop() -> None:
-    node_a = TaskExecutor("NodeA", add_one_sleep, execution_mode="serial")
-    node_b = TaskExecutor("NodeB", add_one_sleep, execution_mode="serial")
-    node_c = TaskExecutor("NodeC", add_one_sleep, execution_mode="serial")
+    # 有环图不会自动终止，任务会持续在环内流转，需要手动 Ctrl+C。
+    node_a = TaskExecutor("NodeA", sleep_1, execution_mode="serial")
+    node_b = TaskExecutor("NodeB", sleep_1, execution_mode="serial")
+    node_c = TaskExecutor("NodeC", sleep_1, execution_mode="serial")
 
     loop = TaskLoop("demo_loop", [node_a, node_b, node_c])
-    # loop.set_ctree(ctree_client)
 
     # 要测试的任务列表
     test_task_0 = range(10)
@@ -186,29 +165,29 @@ def demo_loop() -> None:
 
 
 def demo_wheel() -> None:
+    # 有环图不会自动终止，任务会持续在轮环上流转，需要手动 Ctrl+C。
     # 定义核心与边节点函数
-    core = TaskExecutor("Core", square)
-    side1 = TaskExecutor("Side1", add_one_sleep)
-    side2 = TaskExecutor("Side2", add_one_sleep)
-    side3 = TaskExecutor("Side3", add_one_sleep)
-    side4 = TaskExecutor("Side4", add_one_sleep)
+    core = TaskExecutor("Core", sleep_1)
+    side1 = TaskExecutor("Side1", sleep_1)
+    side2 = TaskExecutor("Side2", sleep_1)
+    side3 = TaskExecutor("Side3", sleep_1)
+    side4 = TaskExecutor("Side4", sleep_1)
 
     # 构造 TaskCross
     wheel = TaskWheel("demo_wheel", core, [side1, side2, side3, side4])
-    # wheel.set_ctree(ctree_client)
 
     wheel.run({"Core": list(range(1, 11))}, if_put_signal=False)
 
 
 def demo_complete() -> None:
-    # 创建 3 个节点，每个节点有不同偏移
-    n1 = TaskExecutor("Node1", add_5, execution_mode="serial", max_workers=5)
-    n2 = TaskExecutor("Node2", add_10, execution_mode="serial", max_workers=5)
-    n3 = TaskExecutor("Node3", square, execution_mode="serial", max_workers=5)
+    # 完全图中每个节点都互相连接，任务会持续在全图流转，需要手动 Ctrl+C。
+    # 使用不会抛异常的函数，保证图能持续循环。
+    n1 = TaskExecutor("Node1", sleep_1, execution_mode="serial", max_workers=5)
+    n2 = TaskExecutor("Node2", sleep_1, execution_mode="serial", max_workers=5)
+    n3 = TaskExecutor("Node3", sleep_1, execution_mode="serial", max_workers=5)
 
     # 构造 TaskComplete
     complete = TaskComplete("demo_complete", [n1, n2, n3])
-    # complete.set_ctree(ctree_client)
 
     complete.run(
         {
@@ -228,27 +207,17 @@ def demo_multi_cycle() -> None:
     连接: A2 -> B1, A2 -> C1
     """
 
+    # 有环图不会自动终止，任务会持续在多个环之间流转，需要手动 Ctrl+C。
+    # 使用不会抛异常的函数，保证图能持续循环。
     # 定义节点
-    A1 = TaskExecutor(
-        "A1", add_one_sleep, execution_mode="thread", max_workers=2
-    )
-    A2 = TaskExecutor(
-        "A2", add_one_sleep, execution_mode="thread", max_workers=2
-    )
+    A1 = TaskExecutor("A1", sleep_1, execution_mode="thread", max_workers=2)
+    A2 = TaskExecutor("A2", sleep_1, execution_mode="thread", max_workers=2)
 
-    B1 = TaskExecutor(
-        "B1", add_one_sleep, execution_mode="thread", max_workers=2
-    )
-    B2 = TaskExecutor(
-        "B2", add_one_sleep, execution_mode="thread", max_workers=2
-    )
+    B1 = TaskExecutor("B1", sleep_1, execution_mode="thread", max_workers=2)
+    B2 = TaskExecutor("B2", sleep_1, execution_mode="thread", max_workers=2)
 
-    C1 = TaskExecutor(
-        "C1", add_one_sleep, execution_mode="thread", max_workers=2
-    )
-    C2 = TaskExecutor(
-        "C2", add_one_sleep, execution_mode="thread", max_workers=2
-    )
+    C1 = TaskExecutor("C1", sleep_1, execution_mode="thread", max_workers=2)
+    C2 = TaskExecutor("C2", sleep_1, execution_mode="thread", max_workers=2)
 
     graph = TaskGraph("demo_multi_cycle", graph_mode="thread")
     graph.set_nodes(
@@ -271,16 +240,15 @@ def demo_multi_cycle() -> None:
     graph.connect([C1], [C2])
     graph.connect([C2], [C1])
 
-    # graph.set_ctree(ctree_client)
-
     graph.run({"A1": list(range(1, 11))}, if_put_signal=False)
 
 
 if __name__ == "__main__":
+    # 前三个为 DAG，会自动结束。
     demo_chain()
     demo_cross()
     demo_grid()
+    # 以下为有环图，会持续循环，需要手动 Ctrl+C 终止。
     demo_loop()
     demo_complete()
     demo_multi_cycle()
-    pass

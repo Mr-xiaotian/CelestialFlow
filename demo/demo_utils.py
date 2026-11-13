@@ -1,14 +1,12 @@
-"""
-Shared helper functions and classes used across test files.
-"""
+"""demo/ 下各演示脚本共享的任务函数与辅助工具。"""
 
 from __future__ import annotations
 
 import asyncio
-import math
 import random
 import re
 from collections.abc import Iterable
+from pathlib import Path
 from time import sleep
 from typing import Any
 
@@ -55,14 +53,6 @@ def sum_int(num: Iterable[int]) -> int:
     return sum(num)
 
 
-def add_one(num: Any) -> Any:
-    return num + 1
-
-
-def sqrt(num: float | int) -> float:
-    return num**0.5
-
-
 def square(x: Any) -> Any:
     sleep(1)
     return x * x
@@ -87,66 +77,16 @@ def add_15(x: Any) -> Any:
     return add_offset(x, 15)
 
 
-def add_20(x: Any) -> Any:
-    return add_offset(x, 20)
-
-
-def add_25(x: Any) -> Any:
-    return add_offset(x, 25)
-
-
-def neuron_activation(x: float | int) -> float:
-    if not isinstance(x, (int, float)):
-        raise ValueError("Invalid input type")
-    sleep(1)
-    return 1 / (1 + math.exp(-x))
-
-
 # =========================
 # sleep 变体
-#   sleep_1       — 纯延迟，有返回值（demo_executor 用）
-#   sleep_1_async — 纯延迟，有返回值的异步版本（demo_executor 用）
+#   sleep_1       — 纯延迟，有返回值（demo_nodes / demo_redis 用）
+#   add_one_sleep — 带延迟与异常分支的加一（demo_structure / demo_web 用）
 # =========================
 
 
 def sleep_1(n: Any) -> Any:
     sleep(1)
     return n
-
-
-async def sleep_1_async(n: Any) -> Any:
-    await asyncio.sleep(1)
-    return n
-
-
-# =========================
-# 带 sleep 的运算函数（demo_structure 用）
-# =========================
-
-
-def operate_sleep(a: Any, b: Any) -> tuple[Any, Any]:
-    sleep(1)
-    return a + b, a * b
-
-
-def operate_sleep_A(a: Any, b: Any) -> tuple[Any, Any]:
-    return operate_sleep(a, b)
-
-
-def operate_sleep_B(a: Any, b: Any) -> tuple[Any, Any]:
-    return operate_sleep(a, b)
-
-
-def operate_sleep_C(a: Any, b: Any) -> tuple[Any, Any]:
-    return operate_sleep(a, b)
-
-
-def operate_sleep_D(a: Any, b: Any) -> tuple[Any, Any]:
-    return operate_sleep(a, b)
-
-
-def operate_sleep_E(a: Any, b: Any) -> tuple[Any, Any]:
-    return operate_sleep(a, b)
 
 
 def add_one_sleep(n: Any) -> Any:
@@ -161,7 +101,7 @@ def add_one_sleep(n: Any) -> Any:
 
 
 # =========================
-# URL 处理函数（demo_stages 用）
+# URL 处理函数（demo_nodes 用）
 # =========================
 
 
@@ -214,20 +154,18 @@ def parse_sleep(url: str) -> int:
 
 
 def download_to_file(task: tuple[str, str]) -> str:
+    """下载 ``url`` 并写入 ``file_path``，父目录不存在时会自动创建。"""
     url, file_path = task
+    path = Path(file_path)
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
-        with open(file_path, "wb") as f:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as f:
             f.write(response.content)
         return f"Downloaded {url} → {file_path}"
     except Exception as e:
         raise RuntimeError(f"Download failed: {e}")
-
-
-# =========================
-# 其他
-# =========================
 
 
 # =========================

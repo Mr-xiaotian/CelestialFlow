@@ -24,7 +24,7 @@ ctree_grpc_port = int(os.getenv("CTREE_GRPC_PORT", "7778"))
 
 def bench_no_ctree() -> None:
     # 定义任务节点
-    task_splitter = TaskSplitter("splitter")
+    task_splitter = TaskSplitter("splitter", no_op)
     process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
@@ -33,17 +33,16 @@ def bench_no_ctree() -> None:
         "bench_no_ctree",
         [task_splitter, process_node],
     )
-    # chain.set_ctree(False)
 
     start_perf = time.perf_counter()
-    chain.run({"splitter": [range(int(1e4))]})
+    chain.run({"splitter": [range(10_000)]})
     end_time = time.perf_counter()
     print(f"bench_no_ctree: {end_time - start_perf}")
 
 
 def bench_http_ctree() -> None:
     # 定义任务节点
-    task_splitter = TaskSplitter("splitter")
+    task_splitter = TaskSplitter("splitter", no_op)
     process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
@@ -61,14 +60,14 @@ def bench_http_ctree() -> None:
     chain.set_ctree(http_ctree_client)
 
     start_perf = time.perf_counter()
-    chain.run({"splitter": [range(int(1e4))]})
+    chain.run({"splitter": [range(10_000)]})
     end_time = time.perf_counter()
     print(f"bench_http_ctree: {end_time - start_perf}")
 
 
 def bench_grpc_ctree() -> None:
     # 定义任务节点
-    task_splitter = TaskSplitter("splitter")
+    task_splitter = TaskSplitter("splitter", no_op)
     process_node = TaskExecutor(
         "ProcessNoOp", no_op, execution_mode="thread", max_workers=50
     )
@@ -86,7 +85,7 @@ def bench_grpc_ctree() -> None:
     chain.set_ctree(grpc_ctree_client)
 
     start_perf = time.perf_counter()
-    chain.run({"splitter": [range(int(1e4))]})
+    chain.run({"splitter": [range(10_000)]})
     end_time = time.perf_counter()
     print(f"bench_grpc_ctree: {end_time - start_perf}")
 
