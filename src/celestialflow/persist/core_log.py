@@ -194,7 +194,9 @@ class LogObserver(Observer):
                 )
             case NodeStartEvent():
                 node_metrics = self._metrics_view.get_node_metrics(event.node)
-                node_inputs = node_metrics.input_total if node_metrics is not None else 0
+                node_inputs = (
+                    node_metrics.input_total if node_metrics is not None else 0
+                )
                 text = (
                     f"Node '{event.node}' start; "
                     + f"execute {node_inputs} tasks by "
