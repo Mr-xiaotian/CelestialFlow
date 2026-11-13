@@ -5,10 +5,11 @@ import asyncio
 import threading
 import time
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
 
-from ..assembly import run_graph_resources
+from ..assembly import run_local_resources, run_reporting_resources
 from ..node.util_types import AnyTaskNode
 from ..observer import (
     GraphEndEvent,
@@ -243,6 +244,30 @@ class TaskGraph:
 
     # ==== 执行 ====
 
+    def _run_resources(
+        self,
+        log_level: str,
+        report: ReportConfig | None,
+    ) -> AbstractContextManager[None]:
+        """
+        按是否持有上报配置选择运行期资源入口。
+
+        ``report is None`` 时装配本地资源；否则装配带上报的资源，并以图自身
+        作为远程任务注入目标。
+
+        :param log_level: :class:`LogObserver` 的日志过滤级别
+        :param report: 远程上报配置；``None`` 表示不上报
+        :return: 可直接用于 ``with`` 的运行期资源上下文
+        """
+        if report is None:
+            return run_local_resources(self.observers, log_level=log_level)
+        return run_reporting_resources(
+            self.observers,
+            self,
+            log_level=log_level,
+            report=report,
+        )
+
     def run(
         self,
         init_tasks_dict: Mapping[str, Iterable[Any]],
@@ -254,9 +279,8 @@ class TaskGraph:
         """
         运行任务链，注入初始任务并启动执行。
 
-        本方法负责实例化运行期资源：注入图级观察者、注册全局 funnel 观察者、
-        启动全局 ``lifecycle`` / ``log`` spout，注入任务后交由 :meth:`start` 处理，
-        最后统一收尾。
+        本方法负责实例化运行期资源：注入图级观察者，并按 ``report`` 选择是否
+        装配上报通道；注入任务后交由 :meth:`start` 处理，最后统一收尾。
 
         :param init_tasks_dict: 节点名到任务序列的映射；未知节点名会被拒绝
         :param if_put_signal: 是否注入终止信号，默认 True
@@ -273,12 +297,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(
-                self.observers,
-                self,
-                log_level=log_level,
-                report=report,
-            ):
+            with self._run_resources(log_level, report):
                 self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
                     self.inject_terminations(self._source_names)
@@ -317,12 +336,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with run_graph_resources(
-                self.observers,
-                self,
-                log_level=log_level,
-                report=report,
-            ):
+            with self._run_resources(log_level, report):
                 self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
                     self.inject_terminations(self._source_names)

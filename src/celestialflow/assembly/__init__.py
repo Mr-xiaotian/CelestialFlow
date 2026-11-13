@@ -5,9 +5,9 @@
 并统一管理其 spout 的启停。
 """
 
-from .core_run import run_graph_resources, run_node_resources
+from .core_run import run_local_resources, run_reporting_resources
 
 __all__ = [
-    "run_graph_resources",
-    "run_node_resources",
+    "run_local_resources",
+    "run_reporting_resources",
 ]

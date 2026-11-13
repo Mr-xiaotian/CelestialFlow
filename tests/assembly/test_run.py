@@ -1,9 +1,7 @@
-from pathlib import Path
-
 import pytest
 
 from celestialflow.assembly import core_run
-from celestialflow.assembly.core_run import run_graph_resources, run_node_resources
+from celestialflow.assembly.core_run import run_local_resources, run_reporting_resources
 from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleObserver
 from celestialflow.persist.core_log import LogObserver
@@ -14,7 +12,7 @@ from celestialflow.ticker import Ticker
 
 
 class _InjectionTarget:
-    """满足图入口注入目标参数要求的最简替身。"""
+    """满足上报入口注入目标参数要求的最简替身。"""
 
     def inject_tasks(self, tasks) -> None:
         """忽略注入任务。"""
@@ -45,7 +43,7 @@ def _patch_recording_observers(monkeypatch, stopped: list[str]) -> None:
 def _patch_recording_push_spouts(
     monkeypatch, used: list[str], urls: list[str] | None = None
 ) -> None:
-    """将图入口引用的推送 spout 替换为记录构造函数调用的子类。"""
+    """将上报入口引用的推送 spout 替换为记录构造与停止调用的子类。"""
 
     class _RecordingPushSpout(PushSpout):
         def __init__(self, session_id, base_url, timeout=3.0) -> None:
@@ -54,11 +52,15 @@ def _patch_recording_push_spouts(
             if urls is not None:
                 urls.append(base_url)
 
+        def stop(self) -> None:
+            super().stop()
+            used.append('push-stop')
+
     monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
 
 
 def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
-    """将图入口引用的 ticker 替换为记录启停调用的子类。"""
+    """将上报入口引用的 ticker 替换为记录启停调用的子类。"""
 
     class _RecordingTicker(Ticker):
         def start(self) -> None:
@@ -72,78 +74,75 @@ def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
     monkeypatch.setattr(core_run, 'Ticker', _RecordingTicker)
 
 
-class TestGraphRunResources:
-    def test_yields_db_path_and_registers_observers(self, tmp_path, monkeypatch):
-        """图入口进入时应启动 spout、产出数据库路径并注入 lifecycle / log 观察者。"""
+class TestReportingResources:
+    def test_registers_observers(self, tmp_path, monkeypatch):
+        """上报入口进入时应启动 spout 并注册全部观察者。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_graph_resources(observers, _InjectionTarget()) as db_path:
-            assert db_path is not None
-            assert Path(db_path).exists()
-            # 指标观察者 + lifecycle + log；默认不启用上报。
-            assert len(observers._snapshot()) == 3
+        with run_reporting_resources(
+            observers,
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
+            # 指标观察者 + lifecycle + log + 快照处理器 + PushInlet
+            assert len(observers._snapshot()) == 5
 
-    def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
-        """图入口退出时应停止 lifecycle / log 持久化观察者。"""
+    def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
+        """上报入口退出时应停止 lifecycle / log 持久化观察者。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
         _patch_recording_observers(monkeypatch, stopped)
 
-        with run_graph_resources(ObserverHub(), _InjectionTarget()):
-            pass
-
-        assert set(stopped) == {'lifecycle', 'log'}
-
-    def test_cleans_up_when_body_raises(self, tmp_path, monkeypatch):
-        """图入口上下文体内抛出异常时，异常应向外传播且持久化观察者仍被回收。"""
-        monkeypatch.chdir(tmp_path)
-        stopped: list[str] = []
-        _patch_recording_observers(monkeypatch, stopped)
-
-        with pytest.raises(RuntimeError, match='boom'):
-            with run_graph_resources(ObserverHub(), _InjectionTarget()):
-                raise RuntimeError('boom')
-
-        assert set(stopped) == {'lifecycle', 'log'}
-
-    def test_uses_push_spout_when_report_enabled(self, tmp_path, monkeypatch):
-        """传入 ``ReportConfig`` 时图入口使用 ``PushSpout`` 并采用其地址。"""
-        monkeypatch.chdir(tmp_path)
-        used: list[str] = []
-        urls: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, used, urls)
-
-        with run_graph_resources(
+        with run_reporting_resources(
             ObserverHub(),
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
             pass
 
-        assert used == ['push']
-        assert urls == ['http://127.0.0.1:9000']
+        assert set(stopped) == {'lifecycle', 'log'}
 
-    def test_no_push_spout_when_report_disabled(self, tmp_path, monkeypatch):
-        """未传 ``report`` 时图入口不创建任何推送通道。"""
+    def test_cleans_up_when_body_raises(self, tmp_path, monkeypatch):
+        """上下文体内抛出异常时，异常应向外传播且持久化观察者仍被回收。"""
+        monkeypatch.chdir(tmp_path)
+        stopped: list[str] = []
+        _patch_recording_observers(monkeypatch, stopped)
+
+        with pytest.raises(RuntimeError, match='boom'):
+            with run_reporting_resources(
+                ObserverHub(),
+                _InjectionTarget(),
+                report=ReportConfig(url='http://127.0.0.1:9000'),
+            ):
+                raise RuntimeError('boom')
+
+        assert set(stopped) == {'lifecycle', 'log'}
+
+    def test_uses_report_url_for_push_spout(self, tmp_path, monkeypatch):
+        """推送通道应采用 ``ReportConfig`` 中给定的地址。"""
         monkeypatch.chdir(tmp_path)
         used: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, used)
+        urls: list[str] = []
+        _patch_recording_push_spouts(monkeypatch, used, urls)
 
-        with run_graph_resources(ObserverHub(), _InjectionTarget()):
+        with run_reporting_resources(
+            ObserverHub(),
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
             pass
 
-        assert used == []
+        assert used == ['push', 'push-stop']
+        assert urls == ['http://127.0.0.1:9000']
 
-    def test_uses_default_url_when_report_enabled_without_url(
-        self, tmp_path, monkeypatch
-    ):
+    def test_uses_default_url_when_report_has_no_url(self, tmp_path, monkeypatch):
         """``ReportConfig()`` 使用默认地址构建 ``PushSpout``。"""
         monkeypatch.chdir(tmp_path)
         urls: list[str] = []
         _patch_recording_push_spouts(monkeypatch, [], urls)
 
-        with run_graph_resources(
+        with run_reporting_resources(
             ObserverHub(),
             _InjectionTarget(),
             report=ReportConfig(),
@@ -153,11 +152,11 @@ class TestGraphRunResources:
         assert urls == [DEFAULT_REPORT_URL]
 
     def test_registers_snapshot_handler_before_push_inlet(self, tmp_path, monkeypatch):
-        """启用上报时，快照处理器应注册在 PushInlet 之前，保证终态快照先于下线通知入队。"""
+        """快照处理器应注册在 PushInlet 之前，保证终态快照先于下线通知入队。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_graph_resources(
+        with run_reporting_resources(
             observers,
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
@@ -169,30 +168,33 @@ class TestGraphRunResources:
         assert isinstance(snapshot[kinds.index('PushInlet')], PushInlet)
         assert kinds.index('PushSnapshotHandler') < kinds.index('PushInlet')
 
-    def test_starts_and_stops_snapshot_ticker_when_report_enabled(
-        self, tmp_path, monkeypatch
-    ):
-        """启用上报时应启动快照节拍器，并在退出时停止。"""
+    def test_ticker_stops_before_push_spout(self, tmp_path, monkeypatch):
+        """退出时应先停节拍器再停推送通道，避免其在会话关闭后继续发请求。"""
         monkeypatch.chdir(tmp_path)
         events: list[str] = []
         _patch_recording_push_spouts(monkeypatch, events)
         _patch_recording_ticker(monkeypatch, events)
 
-        with run_graph_resources(
+        with run_reporting_resources(
             ObserverHub(),
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
             pass
 
-        assert events == ['push', 'ticker-start', 'ticker-stop']
+        assert events == ['push', 'ticker-start', 'ticker-stop', 'push-stop']
 
     def test_log_level_argument(self, tmp_path, monkeypatch):
-        """图入口应按 ``log_level`` 参数构造 ``LogObserver``，并规范化为大写。"""
+        """上报入口应按 ``log_level`` 参数构造 ``LogObserver``，并规范化为大写。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_graph_resources(observers, _InjectionTarget(), log_level='error'):
+        with run_reporting_resources(
+            observers,
+            _InjectionTarget(),
+            log_level='error',
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
             log_observers = [
                 observer
                 for observer in observers._snapshot()
@@ -207,20 +209,22 @@ class TestGraphRunResources:
         monkeypatch.chdir(tmp_path)
 
         with pytest.raises(InvalidOptionError):
-            with run_graph_resources(
-                ObserverHub(), _InjectionTarget(), log_level='VERBOSE'
+            with run_reporting_resources(
+                ObserverHub(),
+                _InjectionTarget(),
+                log_level='VERBOSE',
+                report=ReportConfig(url='http://127.0.0.1:9000'),
             ):
                 pass
 
 
-class TestNodeRunResources:
-    def test_registers_metrics_and_inlets(self, tmp_path, monkeypatch):
-        """节点入口应内部创建指标观察者，并注入 lifecycle / log 观察者。"""
+class TestLocalResources:
+    def test_registers_metrics_and_persistence(self, tmp_path, monkeypatch):
+        """本地入口应内部创建指标观察者，并注入 lifecycle / log 观察者。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_node_resources(observers) as db_path:
-            assert db_path is not None
+        with run_local_resources(observers):
             snapshot = observers._snapshot()
             # 指标观察者 + lifecycle + log
             assert len(snapshot) == 3
@@ -231,7 +235,7 @@ class TestNodeRunResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_node_resources(observers, log_level='error'):
+        with run_local_resources(observers, log_level='error'):
             log_observers = [
                 observer
                 for observer in observers._snapshot()
@@ -245,16 +249,16 @@ class TestNodeRunResources:
         monkeypatch.chdir(tmp_path)
 
         with pytest.raises(InvalidOptionError):
-            with run_node_resources(ObserverHub(), log_level='VERBOSE'):
+            with run_local_resources(ObserverHub(), log_level='VERBOSE'):
                 pass
 
-    def test_stops_spouts_on_exit(self, tmp_path, monkeypatch):
-        """节点入口退出时应停止 lifecycle / log 持久化观察者。"""
+    def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
+        """本地入口退出时应停止 lifecycle / log 持久化观察者。"""
         monkeypatch.chdir(tmp_path)
         stopped: list[str] = []
         _patch_recording_observers(monkeypatch, stopped)
 
-        with run_node_resources(ObserverHub()):
+        with run_local_resources(ObserverHub()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}

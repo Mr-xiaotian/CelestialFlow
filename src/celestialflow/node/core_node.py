@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
 
-from ..assembly import run_node_resources
+from ..assembly import run_local_resources
 from ..observer import (
     NodeEndEvent,
     NodeStartEvent,
@@ -58,7 +58,7 @@ class BaseTaskNode[T, R, Y]:
       ``add_observer`` 等）允许在 start 之前多次调用。
     - 任务输入/结果队列与 ctree 客户端由节点自身持有；指标观察者与全局
       ``LifecycleObserver`` / ``LogObserver`` 的装配与启停，独立运行时由
-      :func:`~celestialflow.assembly.run_node_resources` 统一负责，参与图调度时
+      :func:`~celestialflow.assembly.run_local_resources` 统一负责，参与图调度时
       由图级观察者统一维护。BaseTaskNode 自身不直接持有持久化观察者实例。
     """
 
@@ -450,7 +450,7 @@ class BaseTaskNode[T, R, Y]:
         """
         执行任务。
 
-        本方法通过 :func:`~celestialflow.assembly.run_node_resources` 装配单节点
+        本方法通过 :func:`~celestialflow.assembly.run_local_resources` 装配单节点
         运行期资源（指标观察者、全局 funnel 观察者与 ``lifecycle`` / ``log``
         spout），注入任务后交由 :meth:`start` 处理，最后统一收尾。
 
@@ -463,7 +463,7 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            with run_node_resources(
+            with run_local_resources(
                 self.observers,
                 log_level=log_level,
             ):
@@ -499,7 +499,7 @@ class BaseTaskNode[T, R, Y]:
         error_list: list[Exception] = []
 
         try:
-            with run_node_resources(
+            with run_local_resources(
                 self.observers,
                 log_level=log_level,
             ):
