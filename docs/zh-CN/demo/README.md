@@ -4,7 +4,7 @@
 
 ## 说明
 
-本目录收集 `demo/` 下各类演示脚本的中文说明文档，帮助你快速了解 CelestialFlow 的核心能力、图结构表达方式、执行模式、观察者、Redis 集成与常用工具函数。
+本目录收集 `demo/` 下各类演示脚本的中文说明文档，帮助你快速了解 CelestialFlow 的核心能力、图结构表达方式、执行模式、观察者、CelestialTree 追踪、Redis 集成与常用工具函数。
 
 这些 demo 更偏向“上手体验”和“能力展示”，与 `bench/` 的性能对比、`tests/` 的行为校验定位不同。
 
@@ -24,11 +24,12 @@
 | `demo_executor.md` | `demo/demo_executor.py` | `TaskExecutor` 的 serial / thread / async 三种执行模式 | 否 |
 | `demo_observer.md` | `demo/demo_observer.py` | 为 `TaskExecutor` 注册内置 `PrintObserver` 与自定义观察者 | 否 |
 | `demo_funnel.md` | `demo/demo_funnel.py` | 脱离任务图，单独使用 `BaseInlet` / `BaseSpout` 构建事件采集管道 | 否 |
-| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` 的扇出/扇入 ETL 与异步分阶段流水线 | CelestialTree（可选） |
+| `demo_graph.md` | `demo/demo_graph.py` | `TaskGraph` 的扇出/扇入 ETL 与异步分阶段流水线 | 否 |
+| `demo_ctree.md` | `demo/demo_ctree.py` | 用 `CelestialTreeClient` 替代默认 `LocalEventClient`，并演示事件溯源查询 | CelestialTree |
 | `demo_skip_dedup.md` | `demo/demo_skip_dedup.py` | 通过 `skip_func` 在节点入口跳过重复任务 | 否 |
 | `demo_web.md` | `demo/demo_web.py` | 森林 DAG 与含 Splitter/Router 的复杂拓扑；通过 `ReportConfig` 上报到 `celestialflow-web` | `celestialflow-web`（可选） |
-| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | CelestialTree（可选） |
-| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` 等预定义拓扑 | CelestialTree（可选） |
+| `demo_nodes.md` | `demo/demo_nodes.py` | `TaskSplitter`、`TaskRouter` 与链式/环状图结构 | 否 |
+| `demo_structure.md` | `demo/demo_structure.py` | `TaskChain`、`TaskCross`、`TaskGrid`、`TaskLoop`、`TaskWheel`、`TaskComplete` 等预定义拓扑 | 否 |
 | `demo_redis.md` | `demo/demo_redis.py` | 用普通 `TaskExecutor` 实现 Redis 任务投递、结果确认与外部任务源 | Redis（可选） |
 | `demo_network.md` | `demo/demo_network.py` | 用 `TaskCross` 构建神经网络拓扑与参数化线性节点 | 否 |
 | `demo_utils.md` | `demo/demo_utils.py` | 各演示脚本共享的辅助函数与任务函数 | 否 |
@@ -54,6 +55,7 @@
 |------|------|
 | `demo_observer.md` | 观察者、进度上报与生命周期事件演示 |
 | `demo_funnel.md` | Inlet / Spout 管道行为与数据流转演示 |
+| `demo_ctree.md` | `LocalEventClient` → `CelestialTreeClient` 切换与 provenance / ancestors / descendants 查询 |
 | `demo_web.md` | 复杂拓扑通过 `ReportConfig` 上报状态到 `celestialflow-web` 的演示 |
 | `demo_redis.md` | Redis 相关集成示例 |
 
