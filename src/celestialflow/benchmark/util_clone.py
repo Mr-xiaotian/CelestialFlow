@@ -26,7 +26,9 @@ def _get_clone_init_kwargs[T, R](
         "execution_mode": executor.execution_mode,
         "max_workers": executor.max_workers,
         "max_retries": executor.max_retries,
+        "max_queue_size": executor.max_queue_size,
         "max_info": executor.max_info,
+        "skip_func": executor.skip_func,
     }
 
 

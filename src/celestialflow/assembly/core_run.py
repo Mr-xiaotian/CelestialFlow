@@ -59,6 +59,7 @@ def run_reporting_resources(
     metrics_view = MetricsObserver()
     lifecycle = LifecycleObserver()
     log = LogObserver(metrics_view, log_level)
+
     observers.add_observer(metrics_view)
     observers.add_observer(lifecycle)
     observers.add_observer(log)
@@ -124,10 +125,10 @@ def run_local_resources(
     log_level = normalize_log_level(log_level)
 
     metrics_view = MetricsObserver()
-    observers.add_observer(metrics_view)
-
     lifecycle = LifecycleObserver()
     log = LogObserver(metrics_view, log_level)
+
+    observers.add_observer(metrics_view)
     observers.add_observer(lifecycle)
     observers.add_observer(log)
 
