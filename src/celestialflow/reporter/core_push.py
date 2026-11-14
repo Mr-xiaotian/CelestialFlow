@@ -101,19 +101,37 @@ class PushSpout(BaseSpout):
 
     # ==== 处理 ====
 
+    def _push(self, endpoint: str, payload: dict[str, Any], action: str) -> None:
+        """
+        向指定端点推送一条记录，失败时抛出 :class:`ReporterError`。
+
+        :param endpoint: 端点路径（以 ``/`` 开头）
+        :param payload: JSON 请求体
+        :param action: 失败提示中的动作描述
+        :raises ReporterError: 响应状态非 2xx 时
+        """
+        session = self._session
+        if session is None:
+            return
+
+        res = session.post(
+            f"{self.base_url}{endpoint}",
+            json=payload,
+            timeout=self.timeout,
+        )
+        if not res.ok:
+            raise ReporterError(f"Failed to {action}: {res.status_code}")
+
     def _handle_record(self, record: PushRecord) -> None:
         """
         按记录类型推送到对应端点。
 
         :param record: 队列中取出的记录
         """
-        if self._session is None:
-            return
-
         if record.kind == "graph_start":
-            res = self._session.post(
-                f"{self.base_url}/api/push_graph_meta",
-                json={
+            self._push(
+                "/api/push_graph_meta",
+                {
                     "session_id": self.session_id,
                     "graph": record.graph,
                     "graph_mode": record.graph_mode,
@@ -124,22 +142,18 @@ class PushSpout(BaseSpout):
                     "source_nodes": record.source_nodes,
                     "node_meta": record.node_meta,
                 },
-                timeout=self.timeout,
+                "push graph meta",
             )
-            if not res.ok:
-                raise ReporterError(f"Failed to push graph meta: {res.status_code}")
         elif record.kind == "graph_end":
-            res = self._session.post(
-                f"{self.base_url}/api/shutdown_session",
-                json={"session_id": self.session_id},
-                timeout=self.timeout,
+            self._push(
+                "/api/shutdown_session",
+                {"session_id": self.session_id},
+                "notify shutdown",
             )
-            if not res.ok:
-                raise ReporterError(f"Failed to notify shutdown: {res.status_code}")
         elif record.kind == "task_fail":
-            res = self._session.post(
-                f"{self.base_url}/api/push_error",
-                json={
+            self._push(
+                "/api/push_error",
+                {
                     "session_id": self.session_id,
                     "event_id": record.event_id,
                     "node": record.node,
@@ -148,22 +162,18 @@ class PushSpout(BaseSpout):
                     "error_message": record.error_message,
                     "ts": record.ts,
                 },
-                timeout=self.timeout,
+                "push error",
             )
-            if not res.ok:
-                raise ReporterError(f"Failed to push error: {res.status_code}")
         elif record.kind == "snapshot":
-            res = self._session.post(
-                f"{self.base_url}/api/push_snapshot",
-                json={
+            self._push(
+                "/api/push_snapshot",
+                {
                     "session_id": self.session_id,
                     "snapshot": record.snapshot,
                     "timestamp": time.time(),
                 },
-                timeout=self.timeout,
+                "push snapshot",
             )
-            if not res.ok:
-                raise ReporterError(f"Failed to push snapshot: {res.status_code}")
 
 
 class NullPushSpout(BaseSpout):

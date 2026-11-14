@@ -161,16 +161,12 @@ class TestUtilTypes:
         assert CTreeEvent.TASK_INPUT == "task.input"
         assert CTreeEvent.TASK_SUCCESS == "task.success"
         assert CTreeEvent.TASK_ERROR == "task.error"
-        assert CTreeEvent.TASK_RETRY_PREFIX == "task.retry."
+        assert CTreeEvent.TASK_SKIP == "task.skip"
 
     def test_ctree_event_termination_values(self):
         """终止相关常量"""
         assert CTreeEvent.TERMINATION_INPUT == "termination.input"
         assert CTreeEvent.TERMINATION_MERGE == "termination.merge"
-
-    def test_ctree_event_retry_prefix_ends_with_dot(self):
-        """重试前缀以点结尾"""
-        assert CTreeEvent.TASK_RETRY_PREFIX.endswith(".")
 
 
 # 运行方式：

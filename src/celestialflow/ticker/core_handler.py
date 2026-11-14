@@ -7,6 +7,19 @@ from ..runtime.util_errors import ConfigurationError
 from .core_event import TickEvent
 
 
+def _ensure_tick_period(tick_period: int) -> None:
+    """
+    校验 ``tick_period`` 合法（不小于 1）。
+
+    :param tick_period: 待校验的节拍周期
+    :raises ConfigurationError: ``tick_period`` 小于 1
+    """
+    if tick_period < 1:
+        raise ConfigurationError(
+            f"tick_period must be a positive integer, got {tick_period}"
+        )
+
+
 class TickHandler:
     """时钟节拍处理器基类。
 
@@ -44,10 +57,7 @@ class TickHandler:
         :param tick_period: 每隔多少拍触发一次，必须为正整数
         :raises ConfigurationError: ``tick_period`` 小于 1
         """
-        if tick_period < 1:
-            raise ConfigurationError(
-                f"tick_period must be a positive integer, got {tick_period}"
-            )
+        _ensure_tick_period(tick_period)
         self.tick_period = tick_period
 
     def on_tick(self, event: TickEvent) -> None:
@@ -81,7 +91,4 @@ def validate_tick_period(handler: TickHandler) -> None:
     :param handler: 待校验的处理器
     :raises ConfigurationError: ``tick_period`` 小于 1
     """
-    if handler.tick_period < 1:
-        raise ConfigurationError(
-            f"tick_period must be a positive integer, got {handler.tick_period}"
-        )
+    _ensure_tick_period(handler.tick_period)

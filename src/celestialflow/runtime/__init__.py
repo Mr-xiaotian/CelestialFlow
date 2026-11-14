@@ -1,7 +1,7 @@
 # runtime/__init__.py
 """CelestialFlow 运行时模块。
 
-提供信封（Envelope）、队列（Queue）与指标视图（Metrics）等运行期核心基础设施。
+提供上报配置（ReportConfig）、任务信封（Envelope）与队列（Queue）等运行期核心基础设施。
 """
 
 from .core_config import DEFAULT_REPORT_URL, ReportConfig

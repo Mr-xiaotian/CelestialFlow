@@ -123,7 +123,7 @@ class TaskGraph:
 
         self._analysis_dirty = True
 
-    def connect[R](
+    def connect(
         self,
         from_nodes: list[AnyTaskNode],
         to_nodes: list[AnyTaskNode],
@@ -377,7 +377,7 @@ class TaskGraph:
             if name not in self.node_dict:
                 continue
             node = self.node_dict[name]
-            if filter_by_error_type and name in self.node_dict:
+            if filter_by_error_type:
                 retry_error_type_names = node.get_retry_error_type_names()
                 records = [
                     record

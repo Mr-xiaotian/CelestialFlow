@@ -148,7 +148,6 @@ class LifecycleSpout(BaseSpout):
 
         :param record: 生命周期记录
         :raises InitializationError: 数据库尚未初始化
-        :raises CelestialFlowError: 收到不支持的生命周期记录类型
         """
         if self._conn is None:
             raise InitializationError("lifecycle database is not initialized")
@@ -203,10 +202,6 @@ class LifecycleSpout(BaseSpout):
                     record.skip_id,
                     ts=record.ts,
                 )
-            # case _:
-            #     raise CelestialFlowError(
-            #         f"unsupported lifecycle record: {type(record).__name__}"
-            #     )
         if changed:
             self._conn.commit()
 

@@ -416,7 +416,7 @@ class BaseTaskNode[T, R, Y]:
         task_envelope: TaskEnvelope[T],
         exception: Exception,
         fail_times: int,
-    ):
+    ) -> None:
         """
         为重试任务生成新的信封 ID 并记录日志
 
@@ -534,7 +534,6 @@ class BaseTaskNode[T, R, Y]:
         statuses = ["failed", "pending"] if statuses is None else statuses
         grouped_tasks = load_tasks_grouped_by_node(db_path, statuses)
         records = grouped_tasks.get(self.get_name(), [])
-        tasks: Iterable[T] = []
 
         if filter_by_error_type:
             retry_error_type_names = self.get_retry_error_type_names()
