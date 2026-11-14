@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any
 
 import requests
 
@@ -12,58 +12,79 @@ from ..observer import Event, GraphEndEvent, GraphStartEvent, Observer, TaskFail
 from ..persist.util_payload import to_persisted_payload
 from ..runtime.util_errors import ReporterError
 
-type PushKind = Literal["graph_start", "graph_end", "task_fail", "snapshot"]
-"""推送记录类型：``"graph_start"`` 为图元信息，``"graph_end"`` 为图结束（会话下线通知），``"task_fail"`` 为任务失败，``"snapshot"`` 为图级状态快照。"""
+
+@dataclass(frozen=True, slots=True)
+class GraphStartRecord:
+    """任务图元信息推送记录。
+
+    :param graph: 任务图名称
+    :param graph_mode: 任务图运行模式
+    :param start_time: 任务图启动时间
+    :param is_dag: 是否为 DAG 任务图
+    :param nodes: 任务图节点名称列表
+    :param edges: 任务图边邻接表
+    :param source_nodes: 源节点名称列表
+    :param node_meta: 各节点的构建期元信息
+    """
+
+    graph: str
+    graph_mode: str
+    start_time: float
+    is_dag: bool
+    nodes: list[str]
+    edges: dict[str, list[str]]
+    source_nodes: list[str]
+    node_meta: dict[str, dict[str, Any]]
 
 
 @dataclass(frozen=True, slots=True)
-class PushRecord:
-    """
-    一条待推送的上报记录。
+class GraphEndRecord:
+    """任务图结束（会话下线）推送记录。
 
-    ``kind`` 决定推送目标与生效字段：``"graph_start"`` 使用图元信息字段，
-    ``"graph_end"`` 使用图结束字段，``"task_fail"`` 使用任务失败字段，
-    ``"snapshot"`` 使用状态快照字段；与当前 ``kind`` 无关的字段保持默认值。
+    会话下线通知只需会话标识，该标识由推送 spout 统一附加，故记录本身不携带字段。
     """
 
-    kind: PushKind
 
-    # GraphStartEvent
-    graph: str = ""
-    graph_mode: str = ""
-    start_time: float = 0.0
-    is_dag: bool = False
-    nodes: list[str] = field(default_factory=list[str])
-    edges: dict[str, list[str]] = field(default_factory=dict[str, list[str]])
-    source_nodes: list[str] = field(default_factory=list[str])
-    node_meta: dict[str, dict[str, Any]] = field(
-        default_factory=dict[str, dict[str, Any]]
-    )
+@dataclass(frozen=True, slots=True)
+class TaskFailRecord:
+    """任务失败推送记录。
 
-    # GraphEndEvent
-    end_time: float = 0.0
-    elapsed: float = 0.0
+    :param event_id: 错误事件 ID
+    :param node: 节点名称
+    :param task_json: 失败任务的 JSON 友好载荷
+    :param error_type: 异常类型名称
+    :param error_message: 异常消息
+    :param ts: 记录时间戳
+    """
 
-    # TaskFailEvent
-    event_id: int = 0
-    node: str = ""
-    task_json: Any = None
-    error_type: str = ""
-    error_message: str = ""
-    ts: float = 0.0
+    event_id: int
+    node: str
+    task_json: Any
+    error_type: str
+    error_message: str
+    ts: float
 
-    # push_snapshot
-    snapshot: dict[str, dict[str, Any]] = field(
-        default_factory=dict[str, dict[str, Any]]
-    )
+
+@dataclass(frozen=True, slots=True)
+class SnapshotRecord:
+    """图级状态快照推送记录。
+
+    :param snapshot: 节点名称到状态字典的映射
+    """
+
+    snapshot: dict[str, dict[str, Any]]
+
+
+# 推送记录联合类型，由 PushSpout 按具体类型分发到对应端点。
+type PushRecord = GraphStartRecord | GraphEndRecord | TaskFailRecord | SnapshotRecord
 
 
 class PushSpout(BaseSpout):
     """
     在后台线程中把上报记录推送到远程服务的推送通道。
 
-    每条记录按自身 ``kind`` 分发到对应端点并立即推送；单条推送失败不会中断
-    线程（异常被捕获并打印），该条记录会被丢弃。
+    每条记录按自身类型分发到对应端点并立即推送；单条推送失败不会中断线程
+    （异常被捕获并打印），该条记录会被丢弃。
     """
 
     def __init__(
@@ -128,52 +149,53 @@ class PushSpout(BaseSpout):
 
         :param record: 队列中取出的记录
         """
-        if record.kind == "graph_start":
-            self._push(
-                "/api/push_graph_meta",
-                {
-                    "session_id": self.session_id,
-                    "graph": record.graph,
-                    "graph_mode": record.graph_mode,
-                    "start_time": record.start_time,
-                    "is_dag": record.is_dag,
-                    "nodes": record.nodes,
-                    "edges": record.edges,
-                    "source_nodes": record.source_nodes,
-                    "node_meta": record.node_meta,
-                },
-                "push graph meta",
-            )
-        elif record.kind == "graph_end":
-            self._push(
-                "/api/shutdown_session",
-                {"session_id": self.session_id},
-                "notify shutdown",
-            )
-        elif record.kind == "task_fail":
-            self._push(
-                "/api/push_error",
-                {
-                    "session_id": self.session_id,
-                    "event_id": record.event_id,
-                    "node": record.node,
-                    "task_json": record.task_json,
-                    "error_type": record.error_type,
-                    "error_message": record.error_message,
-                    "ts": record.ts,
-                },
-                "push error",
-            )
-        elif record.kind == "snapshot":
-            self._push(
-                "/api/push_snapshot",
-                {
-                    "session_id": self.session_id,
-                    "snapshot": record.snapshot,
-                    "timestamp": time.time(),
-                },
-                "push snapshot",
-            )
+        match record:
+            case GraphStartRecord():
+                self._push(
+                    "/api/push_graph_meta",
+                    {
+                        "session_id": self.session_id,
+                        "graph": record.graph,
+                        "graph_mode": record.graph_mode,
+                        "start_time": record.start_time,
+                        "is_dag": record.is_dag,
+                        "nodes": record.nodes,
+                        "edges": record.edges,
+                        "source_nodes": record.source_nodes,
+                        "node_meta": record.node_meta,
+                    },
+                    "push graph meta",
+                )
+            case GraphEndRecord():
+                self._push(
+                    "/api/shutdown_session",
+                    {"session_id": self.session_id},
+                    "notify shutdown",
+                )
+            case TaskFailRecord():
+                self._push(
+                    "/api/push_error",
+                    {
+                        "session_id": self.session_id,
+                        "event_id": record.event_id,
+                        "node": record.node,
+                        "task_json": record.task_json,
+                        "error_type": record.error_type,
+                        "error_message": record.error_message,
+                        "ts": record.ts,
+                    },
+                    "push error",
+                )
+            case SnapshotRecord():
+                self._push(
+                    "/api/push_snapshot",
+                    {
+                        "session_id": self.session_id,
+                        "snapshot": record.snapshot,
+                        "timestamp": time.time(),
+                    },
+                    "push snapshot",
+                )
 
 
 class NullPushSpout(BaseSpout):
@@ -191,18 +213,58 @@ class NullPushSpout(BaseSpout):
         return None
 
 
-class PushInlet(BaseInlet, Observer):
-    """
-    推送观察者：把观测到的图启动、图结束与任务失败事件转换为上报记录并入队，
-    交由推送 spout 发送。
+class PushInlet(BaseInlet):
+    """推送记录入口。
 
-    另提供不经过观察者事件的 :meth:`push_snapshot`，供时间驱动的节拍处理器
-    按拍直接把图级状态快照入队。
+    将推送记录投递到绑定的 spout，具体推送目标由 :class:`PushSpout` 按记录类型决定。
     """
+
+    def send(self, record: PushRecord) -> None:
+        """
+        将一条推送记录送入 spout 队列。
+
+        :param record: 推送记录
+        """
+        super().send(record)
+
+
+class PushObserver(Observer):
+    """上报推送观察者（门面）。
+
+    将观测事件翻译为推送记录，经 :class:`PushInlet` 投递到后台 :class:`PushSpout`
+    异步推送；同时管理 spout 的启停。
+
+    仅处理图级事件与外部的 :meth:`push_snapshot`，其余事件类型在 :meth:`on_event`
+    中被忽略。图级状态快照由时间驱动的节拍处理器按拍调用 :meth:`push_snapshot`。
+    """
+
+    def __init__(
+        self,
+        session_id: str,
+        base_url: str,
+        timeout: float = 3.0,
+    ) -> None:
+        """
+        创建并绑定推送 spout 与 inlet。
+
+        :param session_id: 上报会话标识，随记录一并提交给服务端
+        :param base_url: 远程服务基础地址
+        :param timeout: 单次推送请求的超时时间（秒），默认 3.0
+        """
+        self._spout = PushSpout(session_id, base_url, timeout)
+        self._inlet = PushInlet().bind_spout(self._spout)
+
+    def start(self) -> None:
+        """启动后台推送循环并创建 HTTP 会话。"""
+        self._spout.start()
+
+    def stop(self) -> None:
+        """停止后台推送循环并关闭 HTTP 会话。"""
+        self._spout.stop()
 
     def on_event(self, event: Event) -> None:
         """
-        接收并处理观测事件，按事件类型将对应上报记录入队。
+        接收并处理观测事件，按事件类型将对应推送记录入队。
 
         - ``GraphStartEvent``：图元信息；
         - ``GraphEndEvent``：会话下线通知，服务端收到后把本会话标记为已结束，
@@ -213,9 +275,8 @@ class PushInlet(BaseInlet, Observer):
         """
         match event:
             case GraphStartEvent():
-                self.send(
-                    PushRecord(
-                        kind="graph_start",
+                self._inlet.send(
+                    GraphStartRecord(
                         graph=event.graph,
                         graph_mode=event.graph_mode,
                         start_time=event.start_time,
@@ -227,18 +288,10 @@ class PushInlet(BaseInlet, Observer):
                     )
                 )
             case GraphEndEvent():
-                self.send(
-                    PushRecord(
-                        kind="graph_end",
-                        graph=event.graph,
-                        end_time=event.end_time,
-                        elapsed=event.elapsed,
-                    )
-                )
+                self._inlet.send(GraphEndRecord())
             case TaskFailEvent():
-                self.send(
-                    PushRecord(
-                        kind="task_fail",
+                self._inlet.send(
+                    TaskFailRecord(
                         event_id=event.error_id,
                         node=event.node,
                         task_json=to_persisted_payload(event.task),
@@ -260,4 +313,4 @@ class PushInlet(BaseInlet, Observer):
 
         :param snapshot: 节点名称到状态字典的映射
         """
-        self.send(PushRecord(kind="snapshot", snapshot=snapshot))
+        self._inlet.send(SnapshotRecord(snapshot=snapshot))

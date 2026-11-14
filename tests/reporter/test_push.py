@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 from typing import Any
 
 import pytest
 
 import celestialflow.reporter.core_push as push_module
 from celestialflow.observer import GraphEndEvent, GraphStartEvent, TaskFailEvent
-from celestialflow.reporter.core_push import (
+from celestialflow.reporter import (
+    GraphEndRecord,
+    GraphStartRecord,
     NullPushSpout,
     PushInlet,
-    PushRecord,
+    PushObserver,
     PushSpout,
+    TaskFailRecord,
 )
 from celestialflow.runtime.util_errors import ReporterError
 from conftest import wait_until
@@ -82,23 +87,21 @@ def _end_event() -> GraphEndEvent:
     return GraphEndEvent(graph="g1", end_time=456.0, elapsed=1.5)
 
 
-def _dequeue(spout: PushSpout) -> PushRecord:
-    """取出 spout 队列中的单条记录。"""
-    record = spout.get_queue().get()
-    assert isinstance(record, PushRecord)
-    return record
+def _dequeue(observer: PushObserver) -> Any:
+    """取出推送观察者内部 spout 队列中的单条记录。"""
+    return observer._spout.get_queue().get()
 
 
-def test_inlet_maps_task_fail_event() -> None:
-    """失败事件会被映射为 ``kind="task_fail"`` 的推送记录。"""
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
+def test_observer_maps_task_fail_event() -> None:
+    """失败事件会被映射为 ``TaskFailRecord`` 推送记录。"""
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
 
-    inlet.on_event(_fail_event(error_id=7, node="s2", task={"value": 1},
-                                   exc=TypeError("bad")))
+    observer.on_event(
+        _fail_event(error_id=7, node="s2", task={"value": 1}, exc=TypeError("bad"))
+    )
 
-    record = _dequeue(spout)
-    assert record.kind == "task_fail"
+    record = _dequeue(observer)
+    assert isinstance(record, TaskFailRecord)
     assert record.event_id == 7
     assert record.node == "s2"
     assert record.task_json == {"value": 1}
@@ -107,15 +110,14 @@ def test_inlet_maps_task_fail_event() -> None:
     assert record.ts > 0
 
 
-def test_inlet_maps_graph_start_event() -> None:
-    """图启动事件会被映射为 ``kind="graph_start"`` 的推送记录。"""
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
+def test_observer_maps_graph_start_event() -> None:
+    """图启动事件会被映射为 ``GraphStartRecord`` 推送记录。"""
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
 
-    inlet.on_event(_start_event())
+    observer.on_event(_start_event())
 
-    record = _dequeue(spout)
-    assert record.kind == "graph_start"
+    record = _dequeue(observer)
+    assert isinstance(record, GraphStartRecord)
     assert record.graph == "g1"
     assert record.graph_mode == "thread"
     assert record.start_time == 123.0
@@ -126,18 +128,13 @@ def test_inlet_maps_graph_start_event() -> None:
     assert record.node_meta["s1"]["max_workers"] == 2
 
 
-def test_inlet_maps_graph_end_event() -> None:
-    """图结束事件会被映射为 ``kind="graph_end"`` 的推送记录。"""
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
+def test_observer_maps_graph_end_event() -> None:
+    """图结束事件会被映射为 ``GraphEndRecord`` 推送记录。"""
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
 
-    inlet.on_event(_end_event())
+    observer.on_event(_end_event())
 
-    record = _dequeue(spout)
-    assert record.kind == "graph_end"
-    assert record.graph == "g1"
-    assert record.end_time == 456.0
-    assert record.elapsed == 1.5
+    assert isinstance(_dequeue(observer), GraphEndRecord)
 
 
 def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
@@ -145,10 +142,17 @@ def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
-    inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_event(_fail_event(error_id=7, node="s2"))
-    spout._handle_record(_dequeue(spout))
+    spout._handle_record(
+        TaskFailRecord(
+            event_id=7,
+            node="s2",
+            task_json="data1",
+            error_type="ValueError",
+            error_message="oops",
+            ts=12.5,
+        )
+    )
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
@@ -158,7 +162,7 @@ def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
     assert payload["node"] == "s2"
     assert payload["error_type"] == "ValueError"
     assert payload["error_message"] == "oops"
-    assert payload["ts"] > 0
+    assert payload["ts"] == 12.5
 
 
 def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
@@ -166,10 +170,19 @@ def test_spout_pushes_graph_start_to_graph_meta_endpoint() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
-    inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_event(_start_event())
-    spout._handle_record(_dequeue(spout))
+    spout._handle_record(
+        GraphStartRecord(
+            graph="g1",
+            graph_mode="thread",
+            start_time=123.0,
+            is_dag=True,
+            nodes=["s1", "s2"],
+            edges={"s1": ["s2"], "s2": []},
+            source_nodes=["s1"],
+            node_meta={"s1": {"max_workers": 2}},
+        )
+    )
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
@@ -187,10 +200,8 @@ def test_spout_pushes_graph_end_to_shutdown_endpoint() -> None:
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
-    inlet = PushInlet().bind_spout(spout)
 
-    inlet.on_event(_end_event())
-    spout._handle_record(_dequeue(spout))
+    spout._handle_record(GraphEndRecord())
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
@@ -204,27 +215,35 @@ def test_handle_record_raises_reporter_error_on_failure() -> None:
     spout._session = FakePushSession(ok=False)
 
     with pytest.raises(ReporterError):
-        spout._handle_record(PushRecord(kind="task_fail", event_id=1))
+        spout._handle_record(
+            TaskFailRecord(
+                event_id=1,
+                node="s1",
+                task_json=None,
+                error_type="E",
+                error_message="m",
+                ts=0.0,
+            )
+        )
 
 
-def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
+def test_observer_thread_drains_records_and_closes_session(monkeypatch) -> None:
     """后台线程启动后，入队的记录会被推送并在 stop 时关闭会话。"""
     session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
-
-    spout.start()
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer.start()
     try:
-        inlet.on_event(_fail_event(error_id=7))
-        inlet.on_event(_start_event())
+        observer.on_event(_fail_event(error_id=7))
+        observer.on_event(_start_event())
         wait_until(
-            lambda: len(session.posts) == 2 and spout.get_pending_count() == 0,
+            lambda: len(session.posts) == 2
+            and observer._spout.get_pending_count() == 0,
             message="records were not pushed in time",
         )
     finally:
-        spout.stop()
+        observer.stop()
 
     assert session.closed
     assert {url for url, _payload, _timeout in session.posts} == {
@@ -233,23 +252,21 @@ def test_spout_thread_drains_records_and_closes_session(monkeypatch) -> None:
     }
 
 
-def test_spout_thread_survives_push_failure(monkeypatch) -> None:
+def test_observer_thread_survives_push_failure(monkeypatch) -> None:
     """单条推送失败不致死线程：记录被消费完后线程仍能正常 stop。"""
     session = FakePushSession(ok=False)
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
-
-    spout.start()
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer.start()
     try:
-        inlet.on_event(_fail_event(error_id=7))
+        observer.on_event(_fail_event(error_id=7))
         wait_until(
-            lambda: spout.get_pending_count() == 0,
+            lambda: observer._spout.get_pending_count() == 0,
             message="record was not consumed in time",
         )
     finally:
-        spout.stop()
+        observer.stop()
 
     assert session.closed
 
@@ -266,8 +283,26 @@ def test_null_spout_discards_records(monkeypatch) -> None:
 
     spout.start()
     try:
-        inlet.on_event(_fail_event())
-        inlet.on_event(_start_event())
+        inlet.send(
+            TaskFailRecord(
+                event_id=1,
+                node="s1",
+                task_json=None,
+                error_type="E",
+                error_message="m",
+                ts=0.0,
+            )
+        )
+        inlet.send(
+            TaskFailRecord(
+                event_id=2,
+                node="s1",
+                task_json=None,
+                error_type="E",
+                error_message="m",
+                ts=0.0,
+            )
+        )
         wait_until(
             lambda: spout.get_pending_count() == 0,
             message="null spout did not drain records in time",

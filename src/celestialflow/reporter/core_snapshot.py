@@ -2,12 +2,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Protocol
 
 from ..observer import Event, GraphEndEvent, Observer
 from ..runtime.util_types import MetricsView, NodeMetrics
 from ..ticker import TickEvent, TickHandler
-from .core_push import PushInlet
+
+
+class SnapshotSink(Protocol):
+    """快照写入目标协议。
+
+    只暴露快照入队语义，不暴露推送通道与 spout 细节，从而让快照处理器与具体
+    上报实现解耦。:class:`~celestialflow.reporter.core_push.PushObserver` 满足本协议。
+    """
+
+    def push_snapshot(self, snapshot: dict[str, dict[str, Any]]) -> None: ...
 
 
 def to_status_snapshot(
@@ -43,7 +52,7 @@ class PushSnapshotHandler(TickHandler, Observer):
     按拍（:class:`~celestialflow.ticker.core_handler.TickHandler`）从
     :class:`~celestialflow.runtime.util_types.MetricsView` 读取整图指标，经
     :func:`to_status_snapshot` 投影为状态载荷后写入
-    :class:`~celestialflow.reporter.core_push.PushInlet`，由推送 spout 异步发送。
+    :class:`~celestialflow.reporter.core_push.PushObserver`，由推送 spout 异步发送。
 
     同时作为 :class:`~celestialflow.observer.Observer` 监听图结束事件：快照只在
     节拍上产生，而图收尾会立即停止节拍器，末拍与图结束之间的终态（全部节点
@@ -52,15 +61,16 @@ class PushSnapshotHandler(TickHandler, Observer):
     网络 IO。
     """
 
-    def __init__(self, metrics_view: MetricsView, inlet: PushInlet) -> None:
+    def __init__(self, metrics_view: MetricsView, sink: SnapshotSink) -> None:
         """
         初始化快照推送处理器。
 
         :param metrics_view: 指标只读视图
-        :param inlet: 已绑定推送 spout 的推送 inlet
+        :param sink: 快照写入目标，通常是已绑定推送 spout 的
+            :class:`~celestialflow.reporter.core_push.PushObserver`
         """
         self._metrics_view = metrics_view
-        self._inlet = inlet
+        self._sink = sink
 
     def on_tick(self, event: TickEvent) -> None:
         """
@@ -89,4 +99,4 @@ class PushSnapshotHandler(TickHandler, Observer):
     def _push_snapshot(self) -> None:
         """读取整图指标并投影入队为一条状态快照记录。"""
         snapshot = to_status_snapshot(self._metrics_view.get_graph_metrics())
-        self._inlet.push_snapshot(snapshot)
+        self._sink.push_snapshot(snapshot)

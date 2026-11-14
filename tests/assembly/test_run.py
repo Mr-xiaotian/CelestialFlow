@@ -5,7 +5,7 @@ from celestialflow.assembly.core_run import run_local_resources, run_reporting_r
 from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleObserver
 from celestialflow.persist.core_log import LogObserver
-from celestialflow.reporter import PushInlet, PushSnapshotHandler, PushSpout
+from celestialflow.reporter import PushObserver, PushSnapshotHandler
 from celestialflow.runtime.core_config import DEFAULT_REPORT_URL, ReportConfig
 from celestialflow.runtime.util_errors import InvalidOptionError
 from celestialflow.ticker import Ticker
@@ -40,12 +40,12 @@ def _patch_recording_observers(monkeypatch, stopped: list[str]) -> None:
     monkeypatch.setattr(core_run, 'LogObserver', _RecordingLogObserver)
 
 
-def _patch_recording_push_spouts(
+def _patch_recording_push_observers(
     monkeypatch, used: list[str], urls: list[str] | None = None
 ) -> None:
-    """将上报入口引用的推送 spout 替换为记录构造与停止调用的子类。"""
+    """将上报入口引用的推送观察者替换为记录构造与停止调用的子类。"""
 
-    class _RecordingPushSpout(PushSpout):
+    class _RecordingPushObserver(PushObserver):
         def __init__(self, session_id, base_url, timeout=3.0) -> None:
             super().__init__(session_id, base_url, timeout)
             used.append('push')
@@ -56,7 +56,7 @@ def _patch_recording_push_spouts(
             super().stop()
             used.append('push-stop')
 
-    monkeypatch.setattr(core_run, 'PushSpout', _RecordingPushSpout)
+    monkeypatch.setattr(core_run, 'PushObserver', _RecordingPushObserver)
 
 
 def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
@@ -85,7 +85,7 @@ class TestReportingResources:
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
-            # 指标观察者 + lifecycle + log + 快照处理器 + PushInlet
+            # 指标观察者 + lifecycle + log + 快照处理器 + PushObserver
             assert len(observers._snapshot()) == 5
 
     def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
@@ -119,12 +119,12 @@ class TestReportingResources:
 
         assert set(stopped) == {'lifecycle', 'log'}
 
-    def test_uses_report_url_for_push_spout(self, tmp_path, monkeypatch):
-        """推送通道应采用 ``ReportConfig`` 中给定的地址。"""
+    def test_uses_report_url_for_push_observer(self, tmp_path, monkeypatch):
+        """推送观察者应采用 ``ReportConfig`` 中给定的地址。"""
         monkeypatch.chdir(tmp_path)
         used: list[str] = []
         urls: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, used, urls)
+        _patch_recording_push_observers(monkeypatch, used, urls)
 
         with run_reporting_resources(
             ObserverHub(),
@@ -137,10 +137,10 @@ class TestReportingResources:
         assert urls == ['http://127.0.0.1:9000']
 
     def test_uses_default_url_when_report_has_no_url(self, tmp_path, monkeypatch):
-        """``ReportConfig()`` 使用默认地址构建 ``PushSpout``。"""
+        """``ReportConfig()`` 使用默认地址构建 ``PushObserver``。"""
         monkeypatch.chdir(tmp_path)
         urls: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, [], urls)
+        _patch_recording_push_observers(monkeypatch, [], urls)
 
         with run_reporting_resources(
             ObserverHub(),
@@ -151,8 +151,10 @@ class TestReportingResources:
 
         assert urls == [DEFAULT_REPORT_URL]
 
-    def test_registers_snapshot_handler_before_push_inlet(self, tmp_path, monkeypatch):
-        """快照处理器应注册在 PushInlet 之前，保证终态快照先于下线通知入队。"""
+    def test_registers_snapshot_handler_before_push_observer(
+        self, tmp_path, monkeypatch
+    ):
+        """快照处理器应注册在 PushObserver 之前，保证终态快照先于下线通知入队。"""
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
@@ -165,14 +167,14 @@ class TestReportingResources:
 
         kinds = [type(observer).__name__ for observer in snapshot]
         assert isinstance(snapshot[kinds.index('PushSnapshotHandler')], PushSnapshotHandler)
-        assert isinstance(snapshot[kinds.index('PushInlet')], PushInlet)
-        assert kinds.index('PushSnapshotHandler') < kinds.index('PushInlet')
+        assert isinstance(snapshot[kinds.index('PushObserver')], PushObserver)
+        assert kinds.index('PushSnapshotHandler') < kinds.index('PushObserver')
 
-    def test_ticker_stops_before_push_spout(self, tmp_path, monkeypatch):
-        """退出时应先停节拍器再停推送通道，避免其在会话关闭后继续发请求。"""
+    def test_ticker_stops_before_push_observer(self, tmp_path, monkeypatch):
+        """退出时应先停节拍器再停推送观察者，避免其在会话关闭后继续发请求。"""
         monkeypatch.chdir(tmp_path)
         events: list[str] = []
-        _patch_recording_push_spouts(monkeypatch, events)
+        _patch_recording_push_observers(monkeypatch, events)
         _patch_recording_ticker(monkeypatch, events)
 
         with run_reporting_resources(

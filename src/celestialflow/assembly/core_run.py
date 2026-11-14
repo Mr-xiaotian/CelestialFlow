@@ -10,9 +10,8 @@ from ..persist import LifecycleObserver, LogObserver
 from ..reporter import (
     InjectionHandler,
     InjectionTarget,
-    PushInlet,
+    PushObserver,
     PushSnapshotHandler,
-    PushSpout,
 )
 from ..runtime import ReportConfig
 from ..runtime.util_log_level import DEFAULT_LOG_LEVEL, normalize_log_level
@@ -36,14 +35,14 @@ def run_reporting_resources(
 
     指标写模型由本入口创建并注册到 ``observers``，其只读视图交给
     :class:`LogObserver` 与快照处理器。本入口自行生成一个不透明的上报会话标识，
-    注册 :class:`PushInlet` 与 :class:`PushSnapshotHandler`，并通过
-    ``observers.start()`` 启动持久化观察者、启动 :class:`PushSpout`，随后启动一个
-    以 :data:`_TICK_INTERVAL` 为基准周期的节拍器，按拍把状态快照推送到
+    注册 :class:`PushObserver` 与 :class:`PushSnapshotHandler`，并通过
+    ``observers.start()`` 启动持久化观察者与推送通道，随后启动一个以
+    :data:`_TICK_INTERVAL` 为基准周期的节拍器，按拍把状态快照推送到
     ``report.url``（并在图结束时补推一次终态快照），同时按拍从远端拉取任务注入到
     ``injection_target``。节拍器会随其处理器一同启停注入处理器持有的 HTTP 会话。
 
     退出时先停节拍器（同时关闭注入会话），再通过 ``observers.stop()`` 逆序停止
-    持久化观察者，最后停止推送通道并关闭其会话，保证运行期即使抛出异常也能完成回收。
+    观察者（含推送通道，会先排空队列再关闭会话），保证运行期即使抛出异常也能完成回收。
 
     :param observers: 任务图自身的观察者 hub
     :param injection_target: 任务注入目标，通常是任务图自身
@@ -64,37 +63,34 @@ def run_reporting_resources(
     observers.add_observer(log)
 
     session_id = uuid.uuid4().hex
-    push_spout = PushSpout(session_id, report.url)
-    push_inlet = PushInlet().bind_spout(push_spout)
+    push_observer = PushObserver(session_id, report.url)
 
     hub = TickHub()
-    snapshot_handler = PushSnapshotHandler(metrics_view, push_inlet)
+    snapshot_handler = PushSnapshotHandler(metrics_view, push_observer)
     hub.add_handler(snapshot_handler)
     hub.add_handler(
         InjectionHandler(
-            push_spout.base_url,
+            report.url,
             session_id,
             injection_target,
         )
     )
     ticker = Ticker(_TICK_INTERVAL, hub, name="report")
 
-    # 快照处理器同时观察 GraphEndEvent 补推终态快照；注册在 PushInlet 之前，
+    # 快照处理器同时观察 GraphEndEvent 补推终态快照；注册在 PushObserver 之前，
     # 保证终态快照先于 shutdown_session 入队。
     observers.add_observer(snapshot_handler)
-    observers.add_observer(push_inlet)
+    observers.add_observer(push_observer)
 
     try:
         observers.start()
-        push_spout.start()
         ticker.start()
         yield None
     finally:
         # 先停节拍器（同时关闭注入会话），避免其在 HTTP 会话关闭后仍发起注入请求；
-        # 再停止观察者，最后停止推送通道。
+        # 再逆序停止观察者（含推送通道，会先排空队列再关闭会话）。
         ticker.stop()
         observers.stop()
-        push_spout.stop()
 
 
 @contextmanager

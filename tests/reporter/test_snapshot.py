@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import Any
 
 from celestialflow.observer import GraphEndEvent
-from celestialflow.reporter import PushSnapshotHandler, PushSpout
-from celestialflow.reporter.core_push import PushInlet, PushRecord
+from celestialflow.reporter import (
+    PushObserver,
+    PushSnapshotHandler,
+    PushSpout,
+    SnapshotRecord,
+)
 from celestialflow.reporter.core_snapshot import to_status_snapshot
 from celestialflow.runtime.util_types import NodeMetrics, NodeStatus
 from celestialflow.ticker import TickEvent
@@ -104,46 +108,43 @@ def test_to_status_snapshot_projects_node_metrics() -> None:
 
 
 def test_handler_enqueues_snapshot_record() -> None:
-    """处理器被唤醒时应把当前快照入队为 ``kind="snapshot"`` 记录。"""
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
+    """处理器被唤醒时应把当前快照入队为 ``SnapshotRecord``。"""
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=2)})
-    handler = PushSnapshotHandler(view, inlet)
+    handler = PushSnapshotHandler(view, observer)
 
     handler.on_tick(make_event())
 
-    record = spout.get_queue().get()
-    assert isinstance(record, PushRecord)
-    assert record.kind == "snapshot"
+    record = observer._spout.get_queue().get()
+    assert isinstance(record, SnapshotRecord)
     assert record.snapshot["s1"]["tasks_succeeded"] == 2
     assert view.graph_calls == 1
 
 
 def test_handler_pushes_final_snapshot_on_graph_end() -> None:
     """图结束时处理器应补推一次终态快照，覆盖末拍与图结束之间的终态。"""
-    spout = PushSpout(session_id="g1", base_url="http://host:1")
-    inlet = PushInlet().bind_spout(spout)
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=5)})
-    handler = PushSnapshotHandler(view, inlet)
+    handler = PushSnapshotHandler(view, observer)
 
     handler.on_event(GraphEndEvent(graph="g1", end_time=2.0, elapsed=1.0))
 
-    record = spout.get_queue().get()
-    assert isinstance(record, PushRecord)
-    assert record.kind == "snapshot"
+    record = observer._spout.get_queue().get()
+    assert isinstance(record, SnapshotRecord)
     assert record.snapshot["s1"]["tasks_succeeded"] == 5
     assert view.graph_calls == 1
 
 
 def test_spout_pushes_snapshot_to_push_snapshot_endpoint() -> None:
     """快照记录会被推送到 ``/api/push_snapshot``，载荷携带会话与状态。"""
+    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer.push_snapshot({"s1": {"status": 1}})
+    record = observer._spout.get_queue().get()
+
     spout = PushSpout(session_id="g1", base_url="http://host:1")
     session = FakePushSession()
     spout._session = session
-    inlet = PushInlet().bind_spout(spout)
-
-    inlet.push_snapshot({"s1": {"status": 1}})
-    spout._handle_record(spout.get_queue().get())
+    spout._handle_record(record)
 
     assert len(session.posts) == 1
     url, payload, _timeout = session.posts[0]
