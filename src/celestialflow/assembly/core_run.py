@@ -53,44 +53,41 @@ def run_reporting_resources(
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
     """
     log_level = normalize_log_level(log_level)
+    session_id = uuid.uuid4().hex
 
-    metrics_view = MetricsObserver()
+    metrics = MetricsObserver()
     lifecycle = LifecycleObserver()
-    log = LogObserver(metrics_view, log_level)
+    log = LogObserver(metrics, log_level)
+    push = PushObserver(session_id, report.url, metrics)
 
-    observers.add_observer(metrics_view)
+    observers.add_observer(metrics)
     observers.add_observer(lifecycle)
     observers.add_observer(log)
-
-    session_id = uuid.uuid4().hex
-    push_observer = PushObserver(session_id, report.url)
+    observers.add_observer(push)
 
     hub = TickHub()
-    snapshot_handler = PushSnapshotHandler(metrics_view, push_observer)
-    hub.add_handler(snapshot_handler)
-    hub.add_handler(
-        InjectionHandler(
-            report.url,
-            session_id,
-            injection_target,
-        )
+    snapshot = PushSnapshotHandler(metrics, push)
+    injection = InjectionHandler(
+        report.url,
+        session_id,
+        injection_target,
     )
+    hub.add_handler(snapshot)
+    hub.add_handler(injection)
     ticker = Ticker(_TICK_INTERVAL, hub, name="report")
-
-    # 快照处理器同时观察 GraphEndEvent 补推终态快照；注册在 PushObserver 之前，
-    # 保证终态快照先于 shutdown_session 入队。
-    observers.add_observer(snapshot_handler)
-    observers.add_observer(push_observer)
 
     try:
         observers.start()
         ticker.start()
         yield None
     finally:
-        # 先停节拍器（同时关闭注入会话），避免其在 HTTP 会话关闭后仍发起注入请求；
-        # 再逆序停止观察者（含推送通道，会先排空队列再关闭会话）。
-        ticker.stop()
-        observers.stop()
+        # 先停节拍器（同时补推终态快照、关闭注入会话），避免其在 HTTP 会话关闭后
+        # 仍发起注入请求；无论节拍器是否失败，都要继续停止观察者（含推送通道，
+        # 会先给会话入队下线通知、排空队列，再关闭会话）。
+        try:
+            ticker.stop()
+        finally:
+            observers.stop()
 
 
 @contextmanager

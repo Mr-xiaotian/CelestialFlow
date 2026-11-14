@@ -13,9 +13,11 @@ from celestialflow.reporter import (
     PushInlet,
     PushObserver,
     PushSpout,
+    SnapshotRecord,
     TaskFailRecord,
 )
 from celestialflow.runtime.util_errors import ReporterError
+from celestialflow.runtime.util_types import NodeMetrics
 from conftest import wait_until
 
 
@@ -43,6 +45,21 @@ class FakePushSession:
     def close(self) -> None:
         """标记会话已关闭。"""
         self.closed = True
+
+
+class FakeMetricsView:
+    """提供空图级指标的 ``MetricsView`` 替身。"""
+
+    def __init__(self, metrics: dict[str, NodeMetrics] | None = None) -> None:
+        self._metrics = metrics or {}
+
+    def get_node_metrics(self, node: str) -> NodeMetrics | None:
+        """返回指定节点的指标快照。"""
+        return self._metrics.get(node)
+
+    def get_graph_metrics(self) -> dict[str, NodeMetrics]:
+        """返回整图指标快照。"""
+        return dict(self._metrics)
 
 
 def _fail_event(
@@ -82,11 +99,6 @@ def _start_event() -> GraphStartEvent:
     )
 
 
-def _end_event() -> GraphEndEvent:
-    """构造一个任务图结束事件。"""
-    return GraphEndEvent(graph="g1", end_time=456.0, elapsed=1.5)
-
-
 def _dequeue(observer: PushObserver) -> Any:
     """取出推送观察者内部 spout 队列中的单条记录。"""
     return observer._spout.get_queue().get()
@@ -94,7 +106,9 @@ def _dequeue(observer: PushObserver) -> Any:
 
 def test_observer_maps_task_fail_event() -> None:
     """失败事件会被映射为 ``TaskFailRecord`` 推送记录。"""
-    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer = PushObserver(
+        session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView()
+    )
 
     observer.on_event(
         _fail_event(error_id=7, node="s2", task={"value": 1}, exc=TypeError("bad"))
@@ -112,7 +126,9 @@ def test_observer_maps_task_fail_event() -> None:
 
 def test_observer_maps_graph_start_event() -> None:
     """图启动事件会被映射为 ``GraphStartRecord`` 推送记录。"""
-    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer = PushObserver(
+        session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView()
+    )
 
     observer.on_event(_start_event())
 
@@ -128,13 +144,19 @@ def test_observer_maps_graph_start_event() -> None:
     assert record.node_meta["s1"]["max_workers"] == 2
 
 
-def test_observer_maps_graph_end_event() -> None:
-    """图结束事件会被映射为 ``GraphEndRecord`` 推送记录。"""
-    observer = PushObserver(session_id="g1", base_url="http://host:1")
+def test_observer_maps_graph_end_event_to_snapshot_then_shutdown() -> None:
+    """图结束事件应先在快照之后入队会话下线通知。"""
+    observer = PushObserver(
+        session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView()
+    )
 
-    observer.on_event(_end_event())
+    observer.on_event(GraphEndEvent(graph="g1", end_time=456.0, elapsed=1.5))
 
-    assert isinstance(_dequeue(observer), GraphEndRecord)
+    first = _dequeue(observer)
+    second = _dequeue(observer)
+    assert isinstance(first, SnapshotRecord)
+    assert first.snapshot == {}
+    assert isinstance(second, GraphEndRecord)
 
 
 def test_spout_pushes_task_fail_to_push_error_endpoint() -> None:
@@ -232,7 +254,9 @@ def test_observer_thread_drains_records_and_closes_session(monkeypatch) -> None:
     session = FakePushSession()
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer = PushObserver(
+        session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView()
+    )
     observer.start()
     try:
         observer.on_event(_fail_event(error_id=7))
@@ -257,7 +281,9 @@ def test_observer_thread_survives_push_failure(monkeypatch) -> None:
     session = FakePushSession(ok=False)
     monkeypatch.setattr(push_module.requests, "Session", lambda: session)
 
-    observer = PushObserver(session_id="g1", base_url="http://host:1")
+    observer = PushObserver(
+        session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView()
+    )
     observer.start()
     try:
         observer.on_event(_fail_event(error_id=7))

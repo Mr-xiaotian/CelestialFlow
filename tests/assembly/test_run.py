@@ -5,7 +5,7 @@ from celestialflow.assembly.core_run import run_local_resources, run_reporting_r
 from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleObserver
 from celestialflow.persist.core_log import LogObserver
-from celestialflow.reporter import PushObserver, PushSnapshotHandler
+from celestialflow.reporter import PushObserver
 from celestialflow.runtime.core_config import DEFAULT_REPORT_URL, ReportConfig
 from celestialflow.runtime.util_errors import InvalidOptionError
 from celestialflow.ticker import Ticker
@@ -46,8 +46,8 @@ def _patch_recording_push_observers(
     """将上报入口引用的推送观察者替换为记录构造与停止调用的子类。"""
 
     class _RecordingPushObserver(PushObserver):
-        def __init__(self, session_id, base_url, timeout=3.0) -> None:
-            super().__init__(session_id, base_url, timeout)
+        def __init__(self, session_id, base_url, metrics_view, timeout=3.0) -> None:
+            super().__init__(session_id, base_url, metrics_view, timeout)
             used.append('push')
             if urls is not None:
                 urls.append(base_url)
@@ -85,8 +85,8 @@ class TestReportingResources:
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
-            # 指标观察者 + lifecycle + log + 快照处理器 + PushObserver
-            assert len(observers._snapshot()) == 5
+            # 指标观察者 + lifecycle + log + PushObserver
+            assert len(observers._snapshot()) == 4
 
     def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
         """上报入口退出时应停止 lifecycle / log 持久化观察者。"""
@@ -150,25 +150,6 @@ class TestReportingResources:
             pass
 
         assert urls == [DEFAULT_REPORT_URL]
-
-    def test_registers_snapshot_handler_before_push_observer(
-        self, tmp_path, monkeypatch
-    ):
-        """快照处理器应注册在 PushObserver 之前，保证终态快照先于下线通知入队。"""
-        monkeypatch.chdir(tmp_path)
-        observers = ObserverHub()
-
-        with run_reporting_resources(
-            observers,
-            _InjectionTarget(),
-            report=ReportConfig(url='http://127.0.0.1:9000'),
-        ):
-            snapshot = observers._snapshot()
-
-        kinds = [type(observer).__name__ for observer in snapshot]
-        assert isinstance(snapshot[kinds.index('PushSnapshotHandler')], PushSnapshotHandler)
-        assert isinstance(snapshot[kinds.index('PushObserver')], PushObserver)
-        assert kinds.index('PushSnapshotHandler') < kinds.index('PushObserver')
 
     def test_ticker_stops_before_push_observer(self, tmp_path, monkeypatch):
         """退出时应先停节拍器再停推送观察者，避免其在会话关闭后继续发请求。"""
