@@ -1,6 +1,7 @@
 # ticker/core_hub.py
 from __future__ import annotations
 
+from contextlib import suppress
 from threading import Lock
 
 from ..runtime.util_errors import ConfigurationError
@@ -81,6 +82,40 @@ class TickHub(TickHandler):
             stack.extend(
                 child for child in hub._snapshot() if isinstance(child, TickHub)
             )
+
+    # ==== 生命周期 ====
+
+    def start(self) -> None:
+        """按注册顺序启动所有处理器持有的资源。
+
+        若某个处理器的 ``start`` 抛出异常，则按逆序回滚已启动的处理器后，将原异常
+        重新抛出；尚未启动的处理器不会被处理。
+        """
+        started: list[TickHandler] = []
+        try:
+            for handler in self._snapshot():
+                handler.start()
+                started.append(handler)
+        except Exception:
+            for handler in reversed(started):
+                with suppress(Exception):
+                    handler.stop()
+            raise
+
+    def stop(self) -> None:
+        """按注册顺序的逆序停止所有处理器持有的资源。
+
+        单个处理器 ``stop`` 抛出的异常不会中断其余处理器的回收；全部处理完成后，
+        若存在异常则汇总为 :class:`ExceptionGroup` 抛出。
+        """
+        exceptions: list[Exception] = []
+        for handler in reversed(self._snapshot()):
+            try:
+                handler.stop()
+            except Exception as exception:
+                exceptions.append(exception)
+        if exceptions:
+            raise ExceptionGroup("failed to stop handlers", exceptions)
 
     # ==== 分发 ====
 

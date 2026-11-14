@@ -25,6 +25,12 @@ class Ticker:
     处理器实现为写入队列、由独立消费者处理的形态。节拍器本身不依赖 ``funnel``，
     两者可在使用处按需组合。
 
+    节拍器同时管理处理器的生命周期：启动后台线程前调用
+    :meth:`~celestialflow.ticker.core_handler.TickHandler.start`，线程结束后调用
+    :meth:`~celestialflow.ticker.core_handler.TickHandler.stop`。因此以
+    :class:`~celestialflow.ticker.core_hub.TickHub` 作为根处理器时，其子处理器的
+    资源会随节拍器一同启停。
+
     失败隔离分两层：处理器
     :meth:`~celestialflow.ticker.core_handler.TickHandler.on_tick` 抛出的异常交由
     该处理器自身的
@@ -68,17 +74,33 @@ class Ticker:
     # ==== 生命周期 ====
 
     def start(self) -> None:
-        """启动后台节拍线程（若未运行）。"""
+        """启动处理器与后台节拍线程（若未运行）。
+
+        先调用 :meth:`~celestialflow.ticker.core_handler.TickHandler.start` 获取
+        处理器资源，再启动后台线程；若处理器启动失败，则回滚 ``_before_start``
+        的副作用并将异常抛出，不会留下运行中的线程。
+        """
+        if self._thread is not None and self._thread.is_alive():
+            return
+
         self._before_start()
-        if self._thread is None or not self._thread.is_alive():
-            with self._cond:
-                self._stopped = False
-            self._thread = Thread(target=self._run, name=self._name, daemon=True)
-            self._thread.start()
+        try:
+            self._handler.start()
+        except Exception:
+            self._after_stop()
+            raise
+
+        with self._cond:
+            self._stopped = False
+        self._thread = Thread(target=self._run, name=self._name, daemon=True)
+        self._thread.start()
 
     def stop(self) -> None:
-        """
-        停止后台节拍线程并等待其结束。
+        """停止后台节拍线程并释放处理器资源。
+
+        先停止并等待后台线程结束，再调用
+        :meth:`~celestialflow.ticker.core_handler.TickHandler.stop` 释放资源，
+        最后执行 ``_after_stop``。
 
         :raises RuntimeStateError: 线程未能在超时时间内退出
         """
@@ -97,7 +119,10 @@ class Ticker:
             )
 
         self._thread = None
-        self._after_stop()
+        try:
+            self._handler.stop()
+        finally:
+            self._after_stop()
 
     def is_running(self) -> bool:
         """

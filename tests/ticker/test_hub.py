@@ -142,3 +142,74 @@ def test_hub_isolates_handler_exceptions() -> None:
 
     assert len(failing.errors) == 1
     assert ok.seqs == [1]
+
+
+class LifecycleHandler(TickHandler):
+    """记录启停调用并可选择性失败的处理器。"""
+
+    def __init__(
+        self,
+        log: list[str],
+        name: str,
+        *,
+        fail_on_start: bool = False,
+        fail_on_stop: bool = False,
+    ) -> None:
+        self._log = log
+        self._name = name
+        self._fail_on_start = fail_on_start
+        self._fail_on_stop = fail_on_stop
+
+    def start(self) -> None:
+        """记录启动或抛出预设异常。"""
+        if self._fail_on_start:
+            raise RuntimeError(f"{self._name} start")
+        self._log.append(f"start:{self._name}")
+
+    def stop(self) -> None:
+        """记录停止或抛出预设异常。"""
+        if self._fail_on_stop:
+            raise RuntimeError(f"{self._name} stop")
+        self._log.append(f"stop:{self._name}")
+
+
+def test_hub_starts_in_order_and_stops_in_reverse() -> None:
+    """hub 应按注册顺序启动，按逆序停止。"""
+    log: list[str] = []
+    hub = TickHub()
+    hub.add_handler(LifecycleHandler(log, "a"))
+    hub.add_handler(LifecycleHandler(log, "b"))
+
+    hub.start()
+    assert log == ["start:a", "start:b"]
+
+    log.clear()
+    hub.stop()
+    assert log == ["stop:b", "stop:a"]
+
+
+def test_hub_rolls_back_started_handlers_on_start_failure() -> None:
+    """启动失败时应逆序回滚已启动的处理器，不再启动后续处理器。"""
+    log: list[str] = []
+    hub = TickHub()
+    hub.add_handler(LifecycleHandler(log, "a"))
+    hub.add_handler(LifecycleHandler(log, "b", fail_on_start=True))
+    hub.add_handler(LifecycleHandler(log, "c"))
+
+    with pytest.raises(RuntimeError, match="b start"):
+        hub.start()
+
+    assert log == ["start:a", "stop:a"]
+
+
+def test_hub_stop_aggregates_failures_and_keeps_stopping() -> None:
+    """单个处理器停止失败不应中断其余处理器，异常最终聚合抛出。"""
+    log: list[str] = []
+    hub = TickHub()
+    hub.add_handler(LifecycleHandler(log, "a"))
+    hub.add_handler(LifecycleHandler(log, "b", fail_on_stop=True))
+
+    with pytest.raises(ExceptionGroup):
+        hub.stop()
+
+    assert log == ["stop:a"]

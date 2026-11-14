@@ -187,3 +187,44 @@ def test_ticker_rejects_non_positive_interval() -> None:
     ticker = Ticker(0.1, handler)
     with pytest.raises(ConfigurationError):
         ticker.set_interval(-1.0)
+
+
+def test_ticker_drives_handler_lifecycle() -> None:
+    """节拍器应在启动/停止时同步启停处理器。"""
+    log: list[str] = []
+
+    class LifecycleHandler(TickHandler):
+        """记录启停调用的处理器。"""
+
+        def start(self) -> None:
+            log.append("start")
+
+        def stop(self) -> None:
+            log.append("stop")
+
+        def on_tick(self, event: TickEvent) -> None:
+            return None
+
+    ticker = Ticker(0.02, LifecycleHandler())
+    ticker.start()
+    assert log == ["start"]
+
+    ticker.stop()
+    assert log == ["start", "stop"]
+
+
+def test_ticker_start_failure_leaves_no_thread() -> None:
+    """处理器启动失败时不应留下运行中的后台线程。"""
+
+    class FailingHandler(TickHandler):
+        """启动即抛异常的处理器。"""
+
+        def start(self) -> None:
+            raise RuntimeError("boom")
+
+    ticker = Ticker(0.02, FailingHandler())
+
+    with pytest.raises(RuntimeError, match="boom"):
+        ticker.start()
+
+    assert not ticker.is_running()

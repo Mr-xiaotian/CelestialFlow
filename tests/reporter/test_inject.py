@@ -6,7 +6,8 @@ from typing import Any
 import pytest
 
 from celestialflow.reporter import InjectionHandler
-from celestialflow.runtime.util_errors import ReporterError
+from celestialflow.reporter import core_inject as inject_module
+from celestialflow.runtime.util_errors import InitializationError, ReporterError
 from celestialflow.ticker import TickEvent
 
 
@@ -40,6 +41,7 @@ class FakeSession:
     def __init__(self, response: Any) -> None:
         self._response = response
         self.gets: list[tuple[str, dict[str, Any], float]] = []
+        self.closed = False
 
     def get(
         self, url: str, params: dict[str, Any] | None = None, timeout: float = 0.0
@@ -47,6 +49,10 @@ class FakeSession:
         """记录拉取目标与参数并返回预设响应。"""
         self.gets.append((url, params or {}, timeout))
         return self._response
+
+    def close(self) -> None:
+        """标记会话已关闭。"""
+        self.closed = True
 
 
 class FakeTarget:
@@ -89,7 +95,8 @@ def test_injection_handler_pulls_and_injects() -> None:
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1, 2]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target, session)
+    handler = InjectionHandler("http://host:1", "g1", target)
+    handler._session = session
 
     handler.on_tick(make_event())
 
@@ -104,7 +111,8 @@ def test_injection_handler_raises_on_pull_failure() -> None:
     """拉取失败时应抛出 ``ReporterError`` 且不注入任何内容。"""
     target = FakeTarget()
     session = FakeSession(FakeFailResponse())
-    handler = InjectionHandler("http://host:1", "g1", target, session)
+    handler = InjectionHandler("http://host:1", "g1", target)
+    handler._session = session
 
     with pytest.raises(ReporterError):
         handler.on_tick(make_event())
@@ -127,7 +135,8 @@ def test_injection_handler_propagates_inject_failure() -> None:
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target, session)
+    handler = InjectionHandler("http://host:1", "g1", target)
+    handler._session = session
 
     with pytest.raises(RuntimeError, match="unknown node"):
         handler.on_tick(make_event())
@@ -137,11 +146,58 @@ def test_injection_handler_propagates_inject_failure() -> None:
 
 def test_injection_handler_tick_period_is_five() -> None:
     """处理器以 5 拍为周期触发（基准周期 1 秒时即每 5 秒）。"""
-    handler = InjectionHandler(
-        "http://host:1", "g1", FakeTarget(), FakeSession(FakeResponse({}))
-    )
+    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
 
     assert handler.tick_period == 5
     assert [
         seq for seq in range(1, 12) if handler.should_tick(make_event(seq))
     ] == [1, 6, 11]
+
+
+def test_start_creates_session_idempotently(monkeypatch) -> None:
+    """``start`` 应建立会话，重复调用不会重复建立。"""
+    created: list[FakeSession] = []
+
+    class RecordingSession(FakeSession):
+        """记录被创建的会话。"""
+
+        def __init__(self) -> None:
+            super().__init__(FakeResponse({}))
+            created.append(self)
+
+    monkeypatch.setattr(inject_module.requests, "Session", RecordingSession)
+    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+
+    handler.start()
+    handler.start()
+
+    assert len(created) == 1
+
+
+def test_stop_closes_session_idempotently(monkeypatch) -> None:
+    """``stop`` 应关闭会话，重复调用不会报错。"""
+    created: list[FakeSession] = []
+
+    class RecordingSession(FakeSession):
+        """记录被创建的会话。"""
+
+        def __init__(self) -> None:
+            super().__init__(FakeResponse({}))
+            created.append(self)
+
+    monkeypatch.setattr(inject_module.requests, "Session", RecordingSession)
+    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+
+    handler.start()
+    handler.stop()
+    handler.stop()
+
+    assert created[0].closed is True
+
+
+def test_on_tick_without_start_raises() -> None:
+    """未 ``start`` 时调用 ``on_tick`` 应抛出初始化错误。"""
+    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+
+    with pytest.raises(InitializationError):
+        handler.on_tick(make_event())

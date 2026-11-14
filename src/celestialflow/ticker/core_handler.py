@@ -68,6 +68,28 @@ class TickHandler:
         """
         ...
 
+    # ==== 生命周期 ====
+
+    def start(self) -> None:
+        """获取并启动处理器持有的资源。
+
+        默认实现不持有资源，什么都不做。子类可覆写以建立连接、打开文件等。
+        :class:`~celestialflow.ticker.core_ticker.Ticker` 在启动后台线程前调用
+        本方法；:class:`~celestialflow.ticker.core_hub.TickHub` 则按注册顺序转发
+        给子处理器。实现必须是幂等的，且在失败时不残留半初始化状态。
+        """
+        ...
+
+    def stop(self) -> None:
+        """释放并关闭处理器持有的资源。
+
+        默认实现不持有资源，什么都不做。子类可覆写以关闭连接或文件。
+        :class:`~celestialflow.ticker.core_ticker.Ticker` 在后台线程结束后调用
+        本方法；:class:`~celestialflow.ticker.core_hub.TickHub` 则按注册顺序
+        **逆序**转发给子处理器。实现必须是幂等的。
+        """
+        ...
+
     def handle_exception(self, exception: Exception) -> None:
         """
         节拍回调自身抛出异常时的处理回调。

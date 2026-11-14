@@ -35,6 +35,32 @@ class Observer:
         """
         ...
 
+    # ==== 生命周期 ====
+
+    def start(self) -> None:
+        """获取并启动观察者持有的资源。
+
+        默认实现不持有资源，什么都不做。子类可覆写以开启后台线程、打开文件或
+        建立连接。
+
+        :class:`~celestialflow.observer.core_hub.ObserverHub` 在其
+        :meth:`~celestialflow.observer.core_hub.ObserverHub.start` 中按注册顺序
+        调用本方法，因此实现必须是幂等的：重复调用不应重复获取资源。若启动失败，
+        应抛出异常且不残留半初始化状态。
+        """
+        ...
+
+    def stop(self) -> None:
+        """释放并关闭观察者持有的资源。
+
+        默认实现不持有资源，什么都不做。子类可覆写以关闭后台线程、文件或连接。
+
+        :class:`~celestialflow.observer.core_hub.ObserverHub` 在其
+        :meth:`~celestialflow.observer.core_hub.ObserverHub.stop` 中按注册顺序
+        **逆序**调用本方法，因此实现必须是幂等的：重复调用不应报错。
+        """
+        ...
+
     def handle_exception(self, exception: Exception) -> None:
         """
         观察者回调自身抛出异常时的处理回调。

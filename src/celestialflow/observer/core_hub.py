@@ -1,6 +1,7 @@
 # observer/core_hub.py
 from __future__ import annotations
 
+from contextlib import suppress
 from threading import Lock
 
 from ..runtime.util_errors import ConfigurationError
@@ -79,6 +80,40 @@ class ObserverHub(Observer):
             stack.extend(
                 child for child in hub._snapshot() if isinstance(child, ObserverHub)
             )
+
+    # ==== 生命周期 ====
+
+    def start(self) -> None:
+        """按注册顺序启动所有观察者持有的资源。
+
+        若某个观察者的 ``start`` 抛出异常，则按逆序回滚已启动的观察者后，将原异常
+        重新抛出；尚未启动的观察者不会被处理。
+        """
+        started: list[Observer] = []
+        try:
+            for observer in self._snapshot():
+                observer.start()
+                started.append(observer)
+        except Exception:
+            for observer in reversed(started):
+                with suppress(Exception):
+                    observer.stop()
+            raise
+
+    def stop(self) -> None:
+        """按注册顺序的逆序停止所有观察者持有的资源。
+
+        单个观察者 ``stop`` 抛出的异常不会中断其余观察者的回收；全部处理完成后，
+        若存在异常则汇总为 :class:`ExceptionGroup` 抛出。
+        """
+        exceptions: list[Exception] = []
+        for observer in reversed(self._snapshot()):
+            try:
+                observer.stop()
+            except Exception as exception:
+                exceptions.append(exception)
+        if exceptions:
+            raise ExceptionGroup("failed to stop observers", exceptions)
 
     # ==== 查询 ====
 
