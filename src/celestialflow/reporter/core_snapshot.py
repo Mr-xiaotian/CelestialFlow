@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from ..runtime.util_types import MetricsView
-from ..ticker import TickEvent, TickHandler
+from ..ticker import Ticker, TickEvent
 from .util_snapshot import to_status_snapshot
 
 
@@ -18,10 +18,10 @@ class SnapshotSink(Protocol):
     def push_snapshot(self, snapshot: dict[str, dict[str, Any]]) -> None: ...
 
 
-class PushSnapshotHandler(TickHandler):
-    """按拍把图级状态快照交给推送通道的处理器。
+class SnapshotTicker(Ticker):
+    """按拍把图级状态快照交给推送通道的定时器。
 
-    按拍（:class:`~celestialflow.ticker.core_handler.TickHandler`）从
+    按拍（:class:`~celestialflow.ticker.core_ticker.Ticker`）从
     :class:`~celestialflow.runtime.util_types.MetricsView` 读取整图指标，经
     :func:`~celestialflow.reporter.util_snapshot.to_status_snapshot` 投影为状态载荷后
     写入 :class:`~celestialflow.reporter.core_push.PushObserver`，由推送 spout 异步发送。

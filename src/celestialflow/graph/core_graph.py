@@ -31,6 +31,7 @@ from ..runtime.util_errors import (
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
 from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
+from ..ticker import Ticker, TickHub
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 
 
@@ -43,6 +44,8 @@ class TaskGraph:
       节点对象。
     - 构建期方法（``set_nodes`` / ``connect`` / ``set_graph_mode`` / ``set_node_execution_mode`` 等）
       在启动前可多次调用，图分析缓存会随之按需重建（``_analysis_dirty`` 标记）。
+    - 图与节点各自持有观察者 hub（``observers``）与节拍 hub（``tickers``）；
+      运行期图级 hub 会收纳每个节点的节拍 hub，并由图级时钟统一驱动。
     """
 
     # ==== 类级类型注解 ====
@@ -54,6 +57,7 @@ class TaskGraph:
     _source_names: list[str]
     order_graph: OrderGraph
     observers: ObserverHub
+    tickers: TickHub
     ctree_client: EventClient
     _is_dag: bool
     _layers_dict: dict[int, list[str]]
@@ -102,6 +106,9 @@ class TaskGraph:
 
         # 用于保存观察者
         self.observers = ObserverHub()
+
+        # 用于保存节拍 ticker；运行期由装配层注入时钟
+        self.tickers = TickHub()
 
     # ==== 建图 ====
 
@@ -217,6 +224,42 @@ class TaskGraph:
         for node in self.node_dict.values():
             node.observers.add_observer(self.observers)
 
+    # ==== 节拍 ====
+
+    def add_ticker(self, ticker: Ticker) -> None:
+        """
+        注册图级 ticker。
+
+        图级 ticker 会收到整个图运行期间的节拍；该 hub 还会在 :meth:`run` /
+        :meth:`run_async` 中收纳每个节点自身的 hub，因此图级 :meth:`get_tickers`
+        可以递归找到节点级 ticker。
+
+        :param ticker: 要注册的 ticker 实例
+        """
+        self.tickers.add_ticker(ticker)
+
+    def get_tickers(self) -> TickHub:
+        """
+        获取图级节拍 hub。
+
+        运行期该 hub 包含图级 ticker 与每个节点的 hub，可用 ``find`` 递归查找。
+
+        :return: 图级节拍 hub
+        """
+        return self.tickers
+
+    def _inject_tickers(self) -> None:
+        """
+        将每个节点的节拍 hub 收进图级 hub。
+
+        注入的是 hub 对象本身，因此运行期往节点 hub 增删 ticker 会立即被图级时钟
+        覆盖。重复调用是幂等的：已注册的节点 hub 不会被再次加入，避免同一拍被
+        重复分发。
+        """
+        for node in self.node_dict.values():
+            if node.tickers not in self.tickers:
+                self.tickers.add_ticker(node.tickers)
+
     # ==== 分析图 ====
 
     def _build_analysis(self) -> None:
@@ -253,16 +296,22 @@ class TaskGraph:
         按是否持有上报配置选择运行期资源入口。
 
         ``report is None`` 时装配本地资源；否则装配带上报的资源，并以图自身
-        作为远程任务注入目标。
+        作为远程任务注入目标。两个入口都会一并启动图级节拍 hub 与时钟，并把
+        上报 ticker 注册进该 hub。
 
         :param log_level: :class:`LogObserver` 的日志过滤级别
         :param report: 远程上报配置；``None`` 表示不上报
         :return: 可直接用于 ``with`` 的运行期资源上下文
         """
         if report is None:
-            return run_local_resources(self.observers, log_level=log_level)
+            return run_local_resources(
+                self.observers,
+                self.tickers,
+                log_level=log_level,
+            )
         return run_reporting_resources(
             self.observers,
+            self.tickers,
             self,
             log_level=log_level,
             report=report,
@@ -293,6 +342,7 @@ class TaskGraph:
         """
         self._build_analysis()
         self._inject_observers()
+        self._inject_tickers()
 
         error_list: list[Exception] = []
 
@@ -332,6 +382,7 @@ class TaskGraph:
         """
         self._build_analysis()
         self._inject_observers()
+        self._inject_tickers()
 
         error_list: list[Exception] = []
 

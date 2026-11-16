@@ -1,6 +1,7 @@
 """Tests for :mod:`celestialflow.node.core_nodes`."""
 
 import sqlite3
+import time
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,7 @@ from typing import Any
 import pytest
 
 from celestialflow import TaskExecutor, TaskGraph, TaskRouter, TaskSplitter
+from celestialflow.assembly import core_run
 from celestialflow.persist.util_sqlite import (
     connect_db,
     insert_record,
@@ -20,6 +22,7 @@ from celestialflow.runtime.util_errors import (
     PersistedError,
 )
 from celestialflow.runtime.util_types import CTreeEvent
+from celestialflow.ticker import TickClock, TickEvent, Ticker
 from conftest import lifecycle_db_of, metrics_of
 
 
@@ -823,3 +826,40 @@ class TestTaskRouter:
 
         assert set(router.yield_queue.get_target_names()) == {"target1"}
         assert target.task_queue.source_names == ["Router"]
+
+
+def _patch_fast_clock(monkeypatch) -> None:
+    """把资源入口的时钟替换为 0.01 秒基准周期，便于测试观察多次触发。"""
+    monkeypatch.setattr(
+        core_run,
+        "TickClock",
+        lambda interval, root, *, name="ticker": TickClock(0.01, root, name=name),
+    )
+
+
+class _RecordingTicker(Ticker):
+    """记录命中的节拍序号。"""
+
+    def __init__(self) -> None:
+        self.seqs: list[int] = []
+
+    def on_tick(self, event: TickEvent) -> None:
+        """记录节拍序号。
+
+        :param event: 当前节拍事件
+        """
+        self.seqs.append(event.seq)
+
+
+class TestNodeTickers:
+    def test_node_ticker_ticks_when_run_standalone(self, monkeypatch):
+        """节点脱离图运行时，应自行启动时钟驱动自己的 ticker。"""
+        _patch_fast_clock(monkeypatch)
+        node = TaskExecutor("solo", lambda _: time.sleep(0.1))
+        ticker = _RecordingTicker()
+        node.add_ticker(ticker)
+
+        node.run([1])
+
+        assert ticker.seqs
+        assert node.get_tickers().find(_RecordingTicker) is ticker

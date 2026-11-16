@@ -25,7 +25,7 @@ from .persist.util_sqlite import load_tasks_grouped_by_node
 from .runtime import ReportConfig
 from .runtime.util_format import format_table
 from .runtime.util_types import TerminationSignal
-from .ticker import Ticker, TickEvent, TickHandler, TickHub
+from .ticker import TickClock, Ticker, TickEvent, TickHub
 
 __all__ = [
     "BaseInlet",
@@ -45,8 +45,8 @@ __all__ = [
     "TaskSplitter",
     "TaskWheel",
     "TerminationSignal",
+    "TickClock",
     "TickEvent",
-    "TickHandler",
     "TickHub",
     "Ticker",
     "benchmark_executor",

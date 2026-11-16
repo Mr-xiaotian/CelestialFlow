@@ -44,6 +44,7 @@ from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
 )
+from ..ticker import Ticker, TickHub
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
@@ -60,6 +61,9 @@ class BaseTaskNode[T, R, Y]:
       ``LifecycleObserver`` / ``LogObserver`` 的装配与启停，独立运行时由
       :func:`~celestialflow.assembly.run_local_resources` 统一负责，参与图调度时
       由图级观察者统一维护。BaseTaskNode 自身不直接持有持久化观察者实例。
+    - 节点持有自己的节拍 hub（:attr:`tickers`）：独立运行时由
+      :func:`~celestialflow.assembly.run_local_resources` 连同时钟一起启动；参与图
+      调度时该 hub 会被图级 hub 收纳，随图级时钟一同驱动。
     """
 
     # ==== 类级类型注解 ====
@@ -77,6 +81,7 @@ class BaseTaskNode[T, R, Y]:
     skip_func: Callable[[T], bool] | None
     ctree_client: EventClient
     observers: ObserverHub
+    tickers: TickHub
 
     # ==== 初始化 ====
 
@@ -135,6 +140,7 @@ class BaseTaskNode[T, R, Y]:
             in_name=self.get_name(),
         )
         self.observers = ObserverHub()
+        self.tickers = TickHub()
 
     # ==== 观察者 ====
     def add_observer(self, observer: Observer) -> None:
@@ -144,6 +150,25 @@ class BaseTaskNode[T, R, Y]:
         :param observer: 要注册的观察者实例
         """
         self.observers.add_observer(observer)
+
+    # ==== 节拍 ====
+    def add_ticker(self, ticker: Ticker) -> None:
+        """
+        注册节点级 ticker。
+
+        独立运行时由节点自己的时钟驱动；参与图调度时随图级时钟一同驱动。
+
+        :param ticker: 要注册的 ticker 实例
+        """
+        self.tickers.add_ticker(ticker)
+
+    def get_tickers(self) -> TickHub:
+        """
+        获取节点自身的节拍 hub。
+
+        :return: 节点节拍 hub
+        """
+        return self.tickers
 
     # ==== 配置 ====
 
@@ -451,8 +476,9 @@ class BaseTaskNode[T, R, Y]:
         执行任务。
 
         本方法通过 :func:`~celestialflow.assembly.run_local_resources` 装配单节点
-        运行期资源（指标观察者、全局 funnel 观察者与 ``lifecycle`` / ``log``
-        spout），注入任务后交由 :meth:`start` 处理，最后统一收尾。
+        运行期资源（指标观察者、全局 funnel 观察者、``lifecycle`` / ``log``
+        spout，以及驱动节点 ticker hub 的时钟）；任务注入后交由 :meth:`start`
+        处理，最后统一收尾。
 
         :param task_source: 任务源
         :param if_put_signal: 是否注入终止信号，默认 True
@@ -465,6 +491,7 @@ class BaseTaskNode[T, R, Y]:
         try:
             with run_local_resources(
                 self.observers,
+                self.tickers,
                 log_level=log_level,
             ):
                 for task in task_source:
@@ -501,6 +528,7 @@ class BaseTaskNode[T, R, Y]:
         try:
             with run_local_resources(
                 self.observers,
+                self.tickers,
                 log_level=log_level,
             ):
                 for task in task_source:

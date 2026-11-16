@@ -1,14 +1,17 @@
 import pytest
 
 from celestialflow.assembly import core_run
-from celestialflow.assembly.core_run import run_local_resources, run_reporting_resources
+from celestialflow.assembly.core_run import (
+    run_local_resources,
+    run_reporting_resources,
+)
 from celestialflow.observer import MetricsObserver, ObserverHub
 from celestialflow.persist.core_lifecycle import LifecycleObserver
 from celestialflow.persist.core_log import LogObserver
-from celestialflow.reporter import PushObserver
+from celestialflow.reporter import InjectionTicker, PushObserver, SnapshotTicker
 from celestialflow.runtime.core_config import DEFAULT_REPORT_URL, ReportConfig
 from celestialflow.runtime.util_errors import InvalidOptionError
-from celestialflow.ticker import Ticker
+from celestialflow.ticker import TickClock, Ticker, TickEvent, TickHub
 
 
 class _InjectionTarget:
@@ -59,19 +62,62 @@ def _patch_recording_push_observers(
     monkeypatch.setattr(core_run, 'PushObserver', _RecordingPushObserver)
 
 
-def _patch_recording_ticker(monkeypatch, events: list[str]) -> None:
-    """将上报入口引用的 ticker 替换为记录启停调用的子类。"""
+def _patch_recording_clock(monkeypatch, events: list[str]) -> None:
+    """将节拍资源引用的时钟替换为记录启停调用的子类。"""
 
-    class _RecordingTicker(Ticker):
+    class _RecordingClock(TickClock):
         def start(self) -> None:
             super().start()
-            events.append('ticker-start')
+            events.append('clock-start')
 
         def stop(self) -> None:
             super().stop()
-            events.append('ticker-stop')
+            events.append('clock-stop')
 
-    monkeypatch.setattr(core_run, 'Ticker', _RecordingTicker)
+    monkeypatch.setattr(core_run, 'TickClock', _RecordingClock)
+
+
+class _LoggingTicker(Ticker):
+    """启动/停止时写入共享日志的 ticker。"""
+
+    def __init__(self, log: list[str], name: str) -> None:
+        self._log = log
+        self._name = name
+
+    def start(self) -> None:
+        self._log.append(f'{self._name}-start')
+
+    def stop(self) -> None:
+        self._log.append(f'{self._name}-stop')
+
+    def on_tick(self, event: TickEvent) -> None:
+        return None
+
+
+class TestTickResources:
+    def test_starts_tickers_before_clock_and_stops_in_reverse(self, monkeypatch):
+        """应先启动 ticker 资源再起钟，退出时先停钟再停 ticker。"""
+        events: list[str] = []
+        hub = TickHub()
+        hub.add_ticker(_LoggingTicker(events, 'ticker'))
+        _patch_recording_clock(monkeypatch, events)
+
+        with run_local_resources(ObserverHub(), hub):
+            assert events == ['ticker-start', 'clock-start']
+
+        assert events == ['ticker-start', 'clock-start', 'clock-stop', 'ticker-stop']
+
+    def test_add_ticker_while_running_starts_it(self, monkeypatch):
+        """运行期加入的 ticker 应立即就绪。"""
+        events: list[str] = []
+        hub = TickHub()
+        _patch_recording_clock(monkeypatch, events)
+
+        with run_local_resources(ObserverHub(), hub):
+            hub.add_ticker(_LoggingTicker(events, 'late'))
+            assert events == ['clock-start', 'late-start']
+
+        assert events == ['clock-start', 'late-start', 'clock-stop', 'late-stop']
 
 
 class TestReportingResources:
@@ -82,11 +128,52 @@ class TestReportingResources:
 
         with run_reporting_resources(
             observers,
+            TickHub(),
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
             # 指标观察者 + lifecycle + log + PushObserver
             assert len(observers._snapshot()) == 4
+
+    def test_registers_report_tickers(self, tmp_path, monkeypatch):
+        """上报入口应把快照与注入 ticker 注册到传入的 hub。"""
+        monkeypatch.chdir(tmp_path)
+        tickers = TickHub()
+
+        with run_reporting_resources(
+            ObserverHub(),
+            tickers,
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
+            assert isinstance(tickers.find(SnapshotTicker), SnapshotTicker)
+            assert isinstance(tickers.find(InjectionTicker), InjectionTicker)
+
+    def test_tick_resources_stop_before_observers(self, tmp_path, monkeypatch):
+        """节拍资源应先于观察者停止，避免推送通道关闭后仍有快照入队。"""
+        monkeypatch.chdir(tmp_path)
+        events: list[str] = []
+        _patch_recording_push_observers(monkeypatch, events)
+        _patch_recording_clock(monkeypatch, events)
+        tickers = TickHub()
+        tickers.add_ticker(_LoggingTicker(events, 'ticker'))
+
+        with run_reporting_resources(
+            ObserverHub(),
+            tickers,
+            _InjectionTarget(),
+            report=ReportConfig(url='http://127.0.0.1:9000'),
+        ):
+            pass
+
+        assert events == [
+            'push',
+            'ticker-start',
+            'clock-start',
+            'clock-stop',
+            'ticker-stop',
+            'push-stop',
+        ]
 
     def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
         """上报入口退出时应停止 lifecycle / log 持久化观察者。"""
@@ -96,6 +183,7 @@ class TestReportingResources:
 
         with run_reporting_resources(
             ObserverHub(),
+            TickHub(),
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
@@ -112,6 +200,7 @@ class TestReportingResources:
         with pytest.raises(RuntimeError, match='boom'):
             with run_reporting_resources(
                 ObserverHub(),
+                TickHub(),
                 _InjectionTarget(),
                 report=ReportConfig(url='http://127.0.0.1:9000'),
             ):
@@ -128,6 +217,7 @@ class TestReportingResources:
 
         with run_reporting_resources(
             ObserverHub(),
+            TickHub(),
             _InjectionTarget(),
             report=ReportConfig(url='http://127.0.0.1:9000'),
         ):
@@ -144,28 +234,13 @@ class TestReportingResources:
 
         with run_reporting_resources(
             ObserverHub(),
+            TickHub(),
             _InjectionTarget(),
             report=ReportConfig(),
         ):
             pass
 
         assert urls == [DEFAULT_REPORT_URL]
-
-    def test_ticker_stops_before_push_observer(self, tmp_path, monkeypatch):
-        """退出时应先停节拍器再停推送观察者，避免其在会话关闭后继续发请求。"""
-        monkeypatch.chdir(tmp_path)
-        events: list[str] = []
-        _patch_recording_push_observers(monkeypatch, events)
-        _patch_recording_ticker(monkeypatch, events)
-
-        with run_reporting_resources(
-            ObserverHub(),
-            _InjectionTarget(),
-            report=ReportConfig(url='http://127.0.0.1:9000'),
-        ):
-            pass
-
-        assert events == ['push', 'ticker-start', 'ticker-stop', 'push-stop']
 
     def test_log_level_argument(self, tmp_path, monkeypatch):
         """上报入口应按 ``log_level`` 参数构造 ``LogObserver``，并规范化为大写。"""
@@ -174,6 +249,7 @@ class TestReportingResources:
 
         with run_reporting_resources(
             observers,
+            TickHub(),
             _InjectionTarget(),
             log_level='error',
             report=ReportConfig(url='http://127.0.0.1:9000'),
@@ -194,6 +270,7 @@ class TestReportingResources:
         with pytest.raises(InvalidOptionError):
             with run_reporting_resources(
                 ObserverHub(),
+                TickHub(),
                 _InjectionTarget(),
                 log_level='VERBOSE',
                 report=ReportConfig(url='http://127.0.0.1:9000'),
@@ -207,7 +284,7 @@ class TestLocalResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_local_resources(observers):
+        with run_local_resources(observers, TickHub()):
             snapshot = observers._snapshot()
             # 指标观察者 + lifecycle + log
             assert len(snapshot) == 3
@@ -218,7 +295,7 @@ class TestLocalResources:
         monkeypatch.chdir(tmp_path)
         observers = ObserverHub()
 
-        with run_local_resources(observers, log_level='error'):
+        with run_local_resources(observers, TickHub(), log_level='error'):
             log_observers = [
                 observer
                 for observer in observers._snapshot()
@@ -232,7 +309,7 @@ class TestLocalResources:
         monkeypatch.chdir(tmp_path)
 
         with pytest.raises(InvalidOptionError):
-            with run_local_resources(ObserverHub(), log_level='VERBOSE'):
+            with run_local_resources(ObserverHub(), TickHub(), log_level='VERBOSE'):
                 pass
 
     def test_stops_persistence_on_exit(self, tmp_path, monkeypatch):
@@ -241,7 +318,7 @@ class TestLocalResources:
         stopped: list[str] = []
         _patch_recording_observers(monkeypatch, stopped)
 
-        with run_local_resources(ObserverHub()):
+        with run_local_resources(ObserverHub(), TickHub()):
             pass
 
         assert set(stopped) == {'lifecycle', 'log'}

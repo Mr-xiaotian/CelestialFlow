@@ -2,9 +2,9 @@ from typing import Any
 
 from celestialflow.reporter import (
     PushObserver,
-    PushSnapshotHandler,
     PushSpout,
     SnapshotRecord,
+    SnapshotTicker,
 )
 from celestialflow.reporter.util_snapshot import to_status_snapshot
 from celestialflow.runtime.util_types import NodeMetrics, NodeStatus
@@ -78,15 +78,7 @@ def make_event(seq: int = 1) -> TickEvent:
     :param seq: 节拍序号
     :return: 节拍事件
     """
-    return TickEvent(
-        seq=seq,
-        interval=1.0,
-        scheduled_at=0.0,
-        fired_at=0.0,
-        wall_time=0.0,
-        drift=0.0,
-        skipped=0,
-    )
+    return TickEvent(seq=seq, fired_at=0.0, wall_time=0.0)
 
 
 def test_to_status_snapshot_projects_node_metrics() -> None:
@@ -110,7 +102,7 @@ def test_handler_enqueues_snapshot_record() -> None:
         session_id="g1", base_url="http://host:1", metrics_view=FakeMetricsView({})
     )
     view = FakeMetricsView({"s1": make_metrics("s1", succeeded=2)})
-    handler = PushSnapshotHandler(view, observer)
+    handler = SnapshotTicker(view, observer)
 
     handler.on_tick(make_event())
 

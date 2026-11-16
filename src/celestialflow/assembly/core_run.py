@@ -8,47 +8,46 @@ from contextlib import contextmanager
 from ..observer import MetricsObserver, ObserverHub
 from ..persist import LifecycleObserver, LogObserver
 from ..reporter import (
-    InjectionHandler,
     InjectionTarget,
+    InjectionTicker,
     PushObserver,
-    PushSnapshotHandler,
+    SnapshotTicker,
 )
 from ..runtime import ReportConfig
 from ..runtime.util_log_level import DEFAULT_LOG_LEVEL, normalize_log_level
-from ..ticker import Ticker, TickHub
-
-_TICK_INTERVAL: float = 1.0
-"""节拍器基准周期（秒）。各处理器以自己的 ``tick_period`` 缩放出实际周期。"""
+from ..ticker import DEFAULT_TICK_INTERVAL, TickClock, TickHub
 
 
 @contextmanager
 def run_reporting_resources(
     observers: ObserverHub,
+    tickers: TickHub,
     injection_target: InjectionTarget,
     *,
     log_level: str = DEFAULT_LOG_LEVEL,
     report: ReportConfig,
+    interval: float = DEFAULT_TICK_INTERVAL,
 ) -> Generator[None, None, None]:
     """
     带远程上报的任务图运行期资源：``metrics`` + ``lifecycle`` + ``log``，
-    外加 ``report`` 驱动的状态快照上报与任务注入。
+    外加 ``report`` 驱动的状态快照上报、任务注入与节拍时钟。
 
     指标写模型由本入口创建并注册到 ``observers``，其只读视图交给
-    :class:`LogObserver` 与快照处理器。本入口自行生成一个不透明的上报会话标识，
-    注册 :class:`PushObserver` 与 :class:`PushSnapshotHandler`，并通过
-    ``observers.start()`` 启动持久化观察者与推送通道，随后启动一个以
-    :data:`_TICK_INTERVAL` 为基准周期的节拍器，按拍把状态快照推送到
-    ``report.url``（并在图结束时补推一次终态快照），同时按拍从远端拉取任务注入到
-    ``injection_target``。节拍器会随其处理器一同启停注入处理器持有的 HTTP 会话。
+    :class:`LogObserver` 与快照 ticker。本入口自行生成一个不透明的上报会话标识，
+    注册 :class:`PushObserver`，并把 :class:`SnapshotTicker` 与
+    :class:`InjectionTicker` 注册进 ``tickers``。
 
-    退出时先停节拍器（同时关闭注入会话），再通过 ``observers.stop()`` 逆序停止
-    观察者（含推送通道，会先排空队列再关闭会话），保证运行期即使抛出异常也能完成回收。
+    进入时依次启动观察者、ticker 资源与时钟，保证第一拍到达时上报通道与各 ticker
+    均已就绪；退出时按 ``clock.stop()`` → ``tickers.stop()`` → ``observers.stop()``
+    的逆序回收，避免推送通道关闭后仍有快照入队。
 
-    :param observers: 任务图自身的观察者 hub
+    :param observers: 运行主体自身的观察者 hub
+    :param tickers: 运行主体自身的节拍 hub，上报用的 ticker 会注册到这里
     :param injection_target: 任务注入目标，通常是任务图自身
     :param log_level: :class:`LogObserver` 的日志过滤级别，默认
         ``DEFAULT_LOG_LEVEL``
     :param report: 远程上报配置，必填
+    :param interval: 时钟基准周期（秒），各 ticker 以 ``tick_period`` 缩放
     :return: ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
     """
@@ -65,48 +64,53 @@ def run_reporting_resources(
     observers.add_observer(log)
     observers.add_observer(push)
 
-    hub = TickHub()
-    snapshot = PushSnapshotHandler(metrics, push)
-    injection = InjectionHandler(
-        report.url,
-        session_id,
-        injection_target,
+    tickers.add_ticker(SnapshotTicker(metrics, push))
+    tickers.add_ticker(
+        InjectionTicker(
+            report.url,
+            session_id,
+            injection_target,
+        )
     )
-    hub.add_handler(snapshot)
-    hub.add_handler(injection)
-    ticker = Ticker(_TICK_INTERVAL, hub, name="report")
 
+    clock = TickClock(interval, tickers)
     try:
         observers.start()
-        ticker.start()
+        tickers.start()
+        clock.start()
         yield None
     finally:
-        # 先停节拍器（同时补推终态快照、关闭注入会话），避免其在 HTTP 会话关闭后
-        # 仍发起注入请求；无论节拍器是否失败，都要继续停止观察者（含推送通道，
-        # 会先给会话入队下线通知、排空队列，再关闭会话）。
         try:
-            ticker.stop()
+            clock.stop()
         finally:
-            observers.stop()
+            try:
+                tickers.stop()
+            finally:
+                observers.stop()
 
 
 @contextmanager
 def run_local_resources(
     observers: ObserverHub,
+    tickers: TickHub,
     *,
     log_level: str = DEFAULT_LOG_LEVEL,
+    interval: float = DEFAULT_TICK_INTERVAL,
 ) -> Generator[None, None, None]:
     """
-    本地运行期资源：内部创建并注册指标观察者，仅装配 ``lifecycle`` + ``log``。
+    本地运行期资源：内部创建并注册指标观察者，仅装配 ``lifecycle`` + ``log``，
+    并驱动运行主体自身的节拍 hub。
 
     适用于独立运行的节点与未启用上报的任务图：这类运行不产生跨进程上报，
-    因此本入口既不接收上报配置，也不装配推送通道、节拍器或注入目标；指标观察者
-    由本入口创建并注册，运行结束后无需外部持有。进入时通过 ``observers.start()``
-    启动观察者，退出时逆序停止，保证运行期即使抛出异常也能完成回收。
+    因此本入口既不接收上报配置，也不装配推送通道或注入目标；指标观察者
+    由本入口创建并注册，运行结束后无需外部持有。节拍部分与上报入口一致：
+    启动 ticker 资源后由时钟驱动，退出时逆序回收。
 
     :param observers: 运行主体自身的观察者 hub
+    :param tickers: 运行主体自身的节拍 hub
     :param log_level: :class:`LogObserver` 的日志过滤级别，默认
         ``DEFAULT_LOG_LEVEL``
+    :param interval: 时钟基准周期（秒），各 ticker 以 ``tick_period`` 缩放
     :return: ``None``
     :raises InvalidOptionError: ``log_level`` 不在允许的级别集合中时
     """
@@ -120,8 +124,17 @@ def run_local_resources(
     observers.add_observer(lifecycle)
     observers.add_observer(log)
 
+    clock = TickClock(interval, tickers)
     try:
         observers.start()
+        tickers.start()
+        clock.start()
         yield None
     finally:
-        observers.stop()
+        try:
+            clock.stop()
+        finally:
+            try:
+                tickers.stop()
+            finally:
+                observers.stop()

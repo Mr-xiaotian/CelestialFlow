@@ -1,4 +1,5 @@
 import sqlite3
+import time
 from types import MappingProxyType
 
 import pytest
@@ -10,6 +11,7 @@ from celestialflow import (
     TaskGrid,
     TaskExecutor,
 )
+from celestialflow.assembly import core_run
 from celestialflow.observer import (
     Event,
     Observer,
@@ -22,6 +24,7 @@ from celestialflow.runtime.util_errors import (
     UnknownNodeError,
 )
 from celestialflow.runtime.util_event import LocalEventClient
+from celestialflow.ticker import TickClock, TickHub, TickEvent, Ticker
 from conftest import metrics_of
 
 
@@ -1133,3 +1136,86 @@ class TestTaskGraphReporterCapabilities:
             graph.inject_terminations(["s1", "missing"])
 
         assert terminated == ["s1"]
+
+
+def _patch_fast_clock(monkeypatch) -> None:
+    """把资源入口的时钟替换为 0.01 秒基准周期，便于测试观察多次触发。"""
+    monkeypatch.setattr(
+        core_run,
+        "TickClock",
+        lambda interval, root, *, name="ticker": TickClock(0.01, root, name=name),
+    )
+
+
+class _RecordingTicker(Ticker):
+    """记录命中的节拍序号。"""
+
+    def __init__(self) -> None:
+        self.seqs: list[int] = []
+
+    def on_tick(self, event: TickEvent) -> None:
+        """记录节拍序号。
+
+        :param event: 当前节拍事件
+        """
+        self.seqs.append(event.seq)
+
+
+class TestGraphTickers:
+    def test_graph_and_node_tickers_tick_during_run(self, monkeypatch):
+        """图级与节点级 ticker 都应由图级时钟驱动。"""
+        _patch_fast_clock(monkeypatch)
+        graph = TaskGraph("graph_ticker")
+        node = TaskExecutor("only", lambda _: time.sleep(0.1))
+        graph.set_nodes([node])
+        graph_ticker = _RecordingTicker()
+        node_ticker = _RecordingTicker()
+        graph.add_ticker(graph_ticker)
+        node.add_ticker(node_ticker)
+
+        graph.run({"only": [1]})
+
+        assert graph_ticker.seqs
+        assert node_ticker.seqs
+
+    def test_find_sees_graph_and_node_tickers(self, monkeypatch):
+        """图级 hub 的 ``find`` 应能递归到节点级 ticker，且本层注册优先。"""
+        _patch_fast_clock(monkeypatch)
+        graph = TaskGraph("graph_ticker_find")
+        node = TaskExecutor("only", lambda _: time.sleep(0.05))
+        graph.set_nodes([node])
+        graph_ticker = _RecordingTicker()
+        node_ticker = _RecordingTicker()
+        graph.add_ticker(graph_ticker)
+        node.add_ticker(node_ticker)
+
+        graph.run({"only": [1]})
+
+        assert graph.get_tickers().find(_RecordingTicker) is graph_ticker
+        assert node.get_tickers().find(_RecordingTicker) is node_ticker
+
+    def test_inject_tickers_is_idempotent_across_runs(self):
+        """多次注入不会重复加入节点 hub，避免同一拍被重复分发。"""
+        graph = TaskGraph("graph_ticker_idempotent")
+        node = TaskExecutor("only", lambda _: None)
+        graph.set_nodes([node])
+
+        graph._inject_tickers()
+        graph._inject_tickers()
+
+        nested = [
+            ticker
+            for ticker in graph.get_tickers()._snapshot()
+            if isinstance(ticker, TickHub)
+        ]
+        assert nested == [node.get_tickers()]
+
+    def test_graph_rejects_ticker_cycle_with_node_hub(self):
+        """图级 hub 已收纳节点 hub 后，反向注册应因循环引用而失败。"""
+        graph = TaskGraph("graph_ticker_cycle")
+        node = TaskExecutor("only", lambda _: None)
+        graph.set_nodes([node])
+        graph.add_ticker(node.get_tickers())
+
+        with pytest.raises(ConfigurationError):
+            node.add_ticker(graph.get_tickers())

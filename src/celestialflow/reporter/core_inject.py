@@ -7,7 +7,7 @@ from typing import Any, Protocol
 import requests
 
 from ..runtime.util_errors import InitializationError, ReporterError
-from ..ticker import TickEvent, TickHandler
+from ..ticker import Ticker, TickEvent
 
 _PULL_TIMEOUT: float = 3.0
 """拉取注入请求的超时时间（秒）。"""
@@ -24,12 +24,12 @@ class InjectionTarget(Protocol):
     def inject_terminations(self, nodes: Sequence[str]) -> None: ...
 
 
-class InjectionHandler(TickHandler):
-    """按拍从远程服务拉取注入信息并交给任务图处理的节拍处理器。
+class InjectionTicker(Ticker):
+    """按拍从远程服务拉取注入信息并交给任务图处理的定时器。
 
     每拍 GET ``/api/pull_injection``，把返回的任务与终止符依次交给
-    :class:`InjectionTarget` 注入。拉取失败或注入失败都会抛出异常，交由节拍器的
-    处理器异常隔离机制处理（默认打印），不影响后续节拍。
+    :class:`InjectionTarget` 注入。拉取失败或注入失败都会抛出异常，交由节拍 hub 的
+    异常隔离机制处理（默认打印），不影响后续节拍。
 
     处理器自持 HTTP 会话：在 :meth:`start` 中建立，在 :meth:`stop` 中关闭，
     调用方无需再管理会话。

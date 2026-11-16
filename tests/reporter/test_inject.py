@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from celestialflow.reporter import InjectionHandler
+from celestialflow.reporter import InjectionTicker
 from celestialflow.reporter import core_inject as inject_module
 from celestialflow.runtime.util_errors import InitializationError, ReporterError
 from celestialflow.ticker import TickEvent
@@ -78,15 +78,7 @@ def make_event(seq: int = 1) -> TickEvent:
     :param seq: 节拍序号
     :return: 节拍事件
     """
-    return TickEvent(
-        seq=seq,
-        interval=1.0,
-        scheduled_at=0.0,
-        fired_at=0.0,
-        wall_time=0.0,
-        drift=0.0,
-        skipped=0,
-    )
+    return TickEvent(seq=seq, fired_at=0.0, wall_time=0.0)
 
 
 def test_injection_handler_pulls_and_injects() -> None:
@@ -95,7 +87,7 @@ def test_injection_handler_pulls_and_injects() -> None:
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1, 2]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target)
+    handler = InjectionTicker("http://host:1", "g1", target)
     handler._session = session
 
     handler.on_tick(make_event())
@@ -111,7 +103,7 @@ def test_injection_handler_raises_on_pull_failure() -> None:
     """拉取失败时应抛出 ``ReporterError`` 且不注入任何内容。"""
     target = FakeTarget()
     session = FakeSession(FakeFailResponse())
-    handler = InjectionHandler("http://host:1", "g1", target)
+    handler = InjectionTicker("http://host:1", "g1", target)
     handler._session = session
 
     with pytest.raises(ReporterError):
@@ -135,7 +127,7 @@ def test_injection_handler_propagates_inject_failure() -> None:
     session = FakeSession(
         FakeResponse({"tasks": {"StageA": [1]}, "terminations": ["StageB"]})
     )
-    handler = InjectionHandler("http://host:1", "g1", target)
+    handler = InjectionTicker("http://host:1", "g1", target)
     handler._session = session
 
     with pytest.raises(RuntimeError, match="unknown node"):
@@ -146,7 +138,7 @@ def test_injection_handler_propagates_inject_failure() -> None:
 
 def test_injection_handler_tick_period_is_five() -> None:
     """处理器以 5 拍为周期触发（基准周期 1 秒时即每 5 秒）。"""
-    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+    handler = InjectionTicker("http://host:1", "g1", FakeTarget())
 
     assert handler.tick_period == 5
     assert [
@@ -166,7 +158,7 @@ def test_start_creates_session_idempotently(monkeypatch) -> None:
             created.append(self)
 
     monkeypatch.setattr(inject_module.requests, "Session", RecordingSession)
-    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+    handler = InjectionTicker("http://host:1", "g1", FakeTarget())
 
     handler.start()
     handler.start()
@@ -186,7 +178,7 @@ def test_stop_closes_session_idempotently(monkeypatch) -> None:
             created.append(self)
 
     monkeypatch.setattr(inject_module.requests, "Session", RecordingSession)
-    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+    handler = InjectionTicker("http://host:1", "g1", FakeTarget())
 
     handler.start()
     handler.stop()
@@ -197,7 +189,7 @@ def test_stop_closes_session_idempotently(monkeypatch) -> None:
 
 def test_on_tick_without_start_raises() -> None:
     """未 ``start`` 时调用 ``on_tick`` 应抛出初始化错误。"""
-    handler = InjectionHandler("http://host:1", "g1", FakeTarget())
+    handler = InjectionTicker("http://host:1", "g1", FakeTarget())
 
     with pytest.raises(InitializationError):
         handler.on_tick(make_event())
