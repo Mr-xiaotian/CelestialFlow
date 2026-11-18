@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from itertools import zip_longest
-from typing import Any
+from typing import Any, cast
+
+from .util_errors import ConfigurationError
 
 
 # ==== 格式化函数 ====
@@ -40,13 +42,14 @@ def format_table(
     """
     格式化表格数据为字符串(CelestialVault.TextTools中同名函数的简化版)。
 
-    :param data: 二维列表，表格数据
+    :param data: 二维列表，表格数据；每一行都必须是非字符串可迭代对象
     :param row_names: 行名列表（可选），默认 None
     :param column_names: 列名列表（可选），默认 None
     :param index_header: 行号列标题（默认 "#"）
     :param fill_value: 空值填充字符串（默认 "N/A"）
-    :param align: 对齐方式（"left" 或 "right"，默认 "left"）
+    :param align: 对齐方式（"left"、"right" 或 "center"，默认 "left"）
     :return: 格式化后的表格字符串
+    :raises ConfigurationError: ``data`` 不是二维表格数据
     """
 
     def _generate_excel_column_names(n: int, start_index: int = 0) -> list[str]:
@@ -73,8 +76,16 @@ def format_table(
     if not data:
         return "表格数据为空！"
 
+    normalized_data: list[list[Any]] = []
+    for row in data:
+        if isinstance(row, str | bytes) or not isinstance(row, Iterable):
+            raise ConfigurationError(
+                "format_table() data must be a 2D list where each row is a non-string iterable"
+            )
+        normalized_data.append(list(cast(Iterable[Any], row)))
+
     # 计算列数
-    max_cols: int = max(map(len, data))
+    max_cols: int = max(map(len, normalized_data))
 
     # 生成列名
     if column_names is None:
@@ -97,7 +108,7 @@ def format_table(
 
     # 处理行号
     formatted_data: list[list[Any]] = []
-    for i, row in enumerate(data):
+    for i, row in enumerate(normalized_data):
         row_label: Any = row_names[i] if row_names else i
         formatted_data.append([row_label, *list(row)])
 

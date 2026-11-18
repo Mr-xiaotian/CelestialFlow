@@ -1,4 +1,7 @@
+import pytest
+
 from celestialflow.runtime.util_format import format_repr, format_table
+from celestialflow.runtime.util_errors import ConfigurationError
 
 class TestUtilFormat:
     def test_format_repr_no_truncation(self):
@@ -90,3 +93,13 @@ class TestUtilFormat:
             "+---+----+-----+"
         )
         assert format_table(data, align="left") == expected_left
+
+    def test_format_table_rejects_one_dimensional_data(self):
+        """一维列表不应被当作二维表格数据。"""
+        with pytest.raises(ConfigurationError, match="2D list"):
+            format_table([1, 2, 3])
+
+    def test_format_table_rejects_string_rows(self):
+        """字符串行不应被拆成字符表格。"""
+        with pytest.raises(ConfigurationError, match="non-string iterable"):
+            format_table(["ab", "cd"])
