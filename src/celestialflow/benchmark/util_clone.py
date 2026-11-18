@@ -1,47 +1,80 @@
 # benchmark/util_clone.py
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, cast, overload
 
 from ..graph import TaskGraph
-from ..node import TaskExecutor
+from ..node import TaskExecutor, TaskRouter, TaskSplitter
 from ..node.util_types import AnyTaskNode
 from ..runtime.util_errors import ConfigurationError
 from ..runtime.util_event import clone_event_client
 
+type CloneableTaskNode = (
+    TaskExecutor[Any, Any] | TaskSplitter[Any, Any] | TaskRouter[Any, Any]
+)
 
-def _get_clone_init_kwargs[T, R](
-    executor: TaskExecutor[T, R],
+
+def _get_clone_init_kwargs(
+    node: CloneableTaskNode,
 ) -> dict[str, Any]:
     """
-    获取克隆执行器的初始化参数
+    获取克隆节点的初始化参数。
 
-    :param executor: 要克隆的执行器
-    :return: 克隆执行器的初始化参数
+    :param node: 要克隆的节点
+    :return: 克隆节点的初始化参数
     """
     return {
-        "name": executor.get_name(),
-        "func": executor.func,
-        "execution_mode": executor.execution_mode,
-        "max_workers": executor.max_workers,
-        "max_retries": executor.max_retries,
-        "max_queue_size": executor.max_queue_size,
-        "max_info": executor.max_info,
-        "skip_func": executor.skip_func,
+        "name": node.get_name(),
+        "func": node.func,
+        "execution_mode": node.execution_mode,
+        "max_workers": node.max_workers,
+        "max_retries": node.max_retries,
+        "max_queue_size": node.max_queue_size,
+        "max_info": node.max_info,
+        "skip_func": node.skip_func,
     }
 
 
-def clone_executor[T, R](
-    executor: TaskExecutor[T, R],
-) -> TaskExecutor[T, R]:
-    """
-    克隆执行器
+@overload
+def clone_node[T, R](
+    node: TaskExecutor[T, R],
+) -> TaskExecutor[T, R]: ...
 
-    :param executor: 要克隆的执行器
-    :return: 克隆执行器
+
+@overload
+def clone_node[T, RItem](
+    node: TaskSplitter[T, RItem],
+) -> TaskSplitter[T, RItem]: ...
+
+
+@overload
+def clone_node[T, Y](
+    node: TaskRouter[T, Y],
+) -> TaskRouter[T, Y]: ...
+
+
+def clone_node(
+    node: CloneableTaskNode,
+) -> CloneableTaskNode:
     """
-    cloned = cast(TaskExecutor[T, R], TaskExecutor(**_get_clone_init_kwargs(executor)))
-    cloned.set_retry_exceptions(*executor.retry_exceptions)
+    克隆内置任务节点。
+
+    benchmark 场景仅支持框架内置的 ``TaskExecutor`` / ``TaskSplitter`` /
+    ``TaskRouter``。克隆体不会复用原节点的观察者、队列与事件客户端。
+
+    :param node: 要克隆的节点
+    :return: 克隆节点
+    :raises ConfigurationError: 节点类型不在支持范围内
+    """
+    kwargs = _get_clone_init_kwargs(node)
+    if isinstance(node, TaskExecutor):
+        cloned = cast(CloneableTaskNode, TaskExecutor(**kwargs))
+    elif isinstance(node, TaskSplitter):
+        cloned = cast(CloneableTaskNode, TaskSplitter(**kwargs))
+    else:
+        cloned = cast(CloneableTaskNode, TaskRouter(**kwargs))
+
+    cloned.set_retry_exceptions(*node.retry_exceptions)
     return cloned
 
 
@@ -49,30 +82,32 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     """
     克隆任务图
 
-    该工具仅用于 benchmark 场景，因此只支持由 ``TaskExecutor`` 组成的任务图，
-    并直接复用 :func:`clone_executor` 克隆所有节点。克隆会覆盖图中已注册的全部节点，
-    因此非连通分量与无源环图也能被完整复制。
+    该工具仅用于 benchmark 场景，因此只支持由内置节点
+    ``TaskExecutor`` / ``TaskSplitter`` / ``TaskRouter`` 组成的任务图，并直接复用
+    :func:`clone_node` 克隆所有节点。克隆会覆盖图中已注册的全部节点，因此非连通
+    分量与无源环图也能被完整复制。
 
-    克隆体不携带原图 / 原节点的观察者：``clone_executor`` 会创建全新实例，
-    共享带计数器的观察者会导致重复计数。
+    克隆体不携带原图 / 原节点的观察者：``clone_node`` 会创建全新实例，共享带
+    计数器的观察者会导致重复计数。
 
     :param graph: 要克隆的任务图
     :return: 克隆任务图
-    :raises ConfigurationError: 图中包含非 ``TaskExecutor`` 节点时抛出
+    :raises ConfigurationError: 图中包含不受支持的节点类型时抛出
     """
-    ordered_nodes: list[TaskExecutor[Any, Any]] = []
+    ordered_nodes: list[CloneableTaskNode] = []
     for node_name in graph.get_nodes():
         node: AnyTaskNode = graph.node_dict[node_name]
-        if not isinstance(node, TaskExecutor):
+        if not isinstance(node, TaskExecutor | TaskSplitter | TaskRouter):
             raise ConfigurationError(
-                "clone_graph() only supports graphs composed of TaskExecutor nodes"
+                "clone_graph() only supports graphs composed of TaskExecutor, "
+                "TaskSplitter, and TaskRouter nodes"
             )
         ordered_nodes.append(node)
 
     # 建立原节点名到克隆节点的映射
-    name_map: dict[str, TaskExecutor[Any, Any]] = {}
+    name_map: dict[str, CloneableTaskNode] = {}
     for node in ordered_nodes:
-        name_map[node.get_name()] = clone_executor(node)
+        name_map[node.get_name()] = clone_node(node)
 
     # 构建新的任务图
     all_cloned_nodes: list[AnyTaskNode] = list(name_map.values())

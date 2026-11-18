@@ -9,7 +9,7 @@ from typing import Any
 from ..graph import TaskGraph
 from ..node import TaskExecutor
 from ..runtime.util_format import format_table
-from .util_clone import clone_executor, clone_graph
+from .util_clone import clone_graph, clone_node
 
 type AnyTaskExecutor = TaskExecutor[Any, Any]
 
@@ -35,9 +35,9 @@ async def benchmark_executor(
     use_time: list[list[float]] = []
     for mode in execution_modes:
         if mode == "async":
-            cloned_executor = clone_executor(async_executor)
+            cloned_executor = clone_node(async_executor)
         else:
-            cloned_executor = clone_executor(sync_executor)
+            cloned_executor = clone_node(sync_executor)
         cloned_executor.set_execution_mode(mode)
 
         start_perf = time.perf_counter()

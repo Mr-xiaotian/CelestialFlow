@@ -1,58 +1,90 @@
 """Tests for util_clone module."""
 
-import pytest
-
 from celestialflow.graph import TaskGraph
-from celestialflow import TaskExecutor
+from celestialflow import TaskExecutor, TaskRouter, TaskSplitter
 from celestialflow.runtime.util_event import LocalEventClient
-from celestialflow.benchmark.util_clone import clone_executor, clone_graph
+from celestialflow.benchmark.util_clone import clone_graph, clone_node
 
 
 class TestUtilClone:
-    """Tests for clone utilities: clone_executor and clone_graph."""
+    """Tests for clone utilities: clone_node and clone_graph."""
 
-    # ── clone_executor ─────────────────────────────────────────────
+    # ── clone_node ─────────────────────────────────────────────────
 
-    def test_clone_executor_same_attributes(self):
+    def test_clone_node_executor_same_attributes(self):
         """克隆后 name / func / execution_mode 与原对象相同。"""
         executor = TaskExecutor(
             name="test_exec",
             func=lambda x: x,
             execution_mode="thread",
         )
-        cloned = clone_executor(executor)
+        cloned = clone_node(executor)
 
         assert cloned.get_name() == executor.get_name()
         assert cloned.func is executor.func
         assert cloned.execution_mode == executor.execution_mode
 
-    def test_clone_executor_different_object(self):
+    def test_clone_node_executor_different_object(self):
         """克隆返回的是不同对象。"""
         executor = TaskExecutor(name="test_exec", func=lambda x: x)
-        cloned = clone_executor(executor)
+        cloned = clone_node(executor)
 
         assert cloned is not executor
 
-    def test_clone_executor_independent(self):
+    def test_clone_node_executor_independent(self):
         """修改克隆的 execution_mode 不影响原对象。"""
         executor = TaskExecutor(
             name="test_exec",
             func=lambda x: x,
             execution_mode="serial",
         )
-        cloned = clone_executor(executor)
+        cloned = clone_node(executor)
 
         cloned.set_execution_mode("thread")
 
         assert executor.execution_mode == "serial"
         assert cloned.execution_mode == "thread"
 
-    # ── graph node cloning via clone_executor ────────────────────────
+    def test_clone_node_splitter_same_attributes(self):
+        """TaskSplitter 克隆后应保留核心属性与重试配置。"""
+        splitter = TaskSplitter(
+            name="splitter",
+            func=lambda task: [task, task + 1],
+            execution_mode="thread",
+        )
+        splitter.set_retry_exceptions(ValueError)
+
+        cloned = clone_node(splitter)
+
+        assert isinstance(cloned, TaskSplitter)
+        assert cloned.get_name() == splitter.get_name()
+        assert cloned.func is splitter.func
+        assert cloned.execution_mode == splitter.execution_mode
+        assert cloned.retry_exceptions == splitter.retry_exceptions
+
+    def test_clone_node_router_same_attributes(self):
+        """TaskRouter 克隆后应保留核心属性与重试配置。"""
+        router = TaskRouter(
+            name="router",
+            func=lambda task: {"done": task},
+            execution_mode="thread",
+        )
+        router.set_retry_exceptions(RuntimeError)
+
+        cloned = clone_node(router)
+
+        assert isinstance(cloned, TaskRouter)
+        assert cloned.get_name() == router.get_name()
+        assert cloned.func is router.func
+        assert cloned.execution_mode == router.execution_mode
+        assert cloned.retry_exceptions == router.retry_exceptions
+
+    # ── graph node cloning via clone_node ────────────────────────────
 
     def test_clone_graph_node_same_attributes(self):
-        """作为图节点使用时，clone_executor 仍应保留核心属性。"""
+        """作为图节点使用时，clone_node 仍应保留核心属性。"""
         node = TaskExecutor(name="test_node", func=lambda x: x)
-        cloned = clone_executor(node)
+        cloned = clone_node(node)
 
         assert cloned.get_name() == node.get_name()
         assert cloned.func is node.func
@@ -61,7 +93,7 @@ class TestUtilClone:
     def test_clone_graph_node_different_object(self):
         """作为图节点使用时，克隆返回的仍应是独立对象。"""
         node = TaskExecutor(name="test_node", func=lambda x: x)
-        cloned = clone_executor(node)
+        cloned = clone_node(node)
 
         assert cloned is not node
 
@@ -72,7 +104,7 @@ class TestUtilClone:
             func=lambda x: x,
             execution_mode="serial",
         )
-        cloned = clone_executor(node)
+        cloned = clone_node(node)
 
         cloned.set_execution_mode("thread")
 
@@ -167,6 +199,34 @@ class TestUtilClone:
         assert cloned.graph_mode == "thread"
         assert set(cloned.get_nodes()) == {"A", "B"}
         assert cloned.get_edges() == {"A": ["B"], "B": ["A"]}
+
+    def test_clone_graph_keeps_builtin_node_types(self):
+        """混合内置节点类型的图应保留节点类别与结构。"""
+        splitter = TaskSplitter("splitter", lambda task: [task, task + 1])
+        router = TaskRouter(
+            "router",
+            lambda task: {"even": task} if task % 2 == 0 else {"odd": task},
+        )
+        even = TaskExecutor("even", lambda task: task)
+        odd = TaskExecutor("odd", lambda task: task)
+
+        graph = TaskGraph("test_clone_graph_builtin_nodes")
+        graph.set_nodes([splitter, router, even, odd])
+        graph.connect([splitter], [router])
+        graph.connect([router], [even, odd])
+
+        cloned = clone_graph(graph)
+
+        assert isinstance(cloned.node_dict["splitter"], TaskSplitter)
+        assert isinstance(cloned.node_dict["router"], TaskRouter)
+        assert isinstance(cloned.node_dict["even"], TaskExecutor)
+        assert isinstance(cloned.node_dict["odd"], TaskExecutor)
+        assert cloned.get_edges() == {
+            "splitter": ["router"],
+            "router": ["even", "odd"],
+            "even": [],
+            "odd": [],
+        }
 
 
 # 运行方式：
