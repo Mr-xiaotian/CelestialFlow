@@ -137,6 +137,37 @@ class TestUtilClone:
         assert isinstance(cloned.ctree_client, LocalEventClient)
         assert cloned.ctree_client is not graph.ctree_client
 
+    def test_clone_graph_keeps_disconnected_nodes(self):
+        """非连通节点也应被完整克隆。"""
+        node_a = TaskExecutor(name="A", func=lambda x: x)
+        node_b = TaskExecutor(name="B", func=lambda x: x)
+        node_c = TaskExecutor(name="C", func=lambda x: x)
+
+        graph = TaskGraph("test_clone_graph_disconnected")
+        graph.set_nodes([node_a, node_b, node_c])
+        graph.connect([node_a], [node_b])
+
+        cloned = clone_graph(graph)
+
+        assert set(cloned.get_nodes()) == {"A", "B", "C"}
+        assert cloned.get_edges() == {"A": ["B"], "B": [], "C": []}
+
+    def test_clone_graph_keeps_cycle_without_source_nodes(self):
+        """thread 模式下的无源环图也应能被克隆。"""
+        node_a = TaskExecutor(name="A", func=lambda x: x)
+        node_b = TaskExecutor(name="B", func=lambda x: x)
+
+        graph = TaskGraph("test_clone_graph_cycle", graph_mode="thread")
+        graph.set_nodes([node_a, node_b])
+        graph.connect([node_a], [node_b])
+        graph.connect([node_b], [node_a])
+
+        cloned = clone_graph(graph)
+
+        assert cloned.graph_mode == "thread"
+        assert set(cloned.get_nodes()) == {"A", "B"}
+        assert cloned.get_edges() == {"A": ["B"], "B": ["A"]}
+
 
 # 运行方式：
 #   python -m pytest tests/utils/test_utils_clone.py -v

@@ -1,7 +1,6 @@
 # benchmark/util_clone.py
 from __future__ import annotations
 
-from collections import deque
 from typing import Any, cast
 
 from ..graph import TaskGraph
@@ -51,7 +50,8 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     克隆任务图
 
     该工具仅用于 benchmark 场景，因此只支持由 ``TaskExecutor`` 组成的任务图，
-    并直接复用 :func:`clone_executor` 克隆所有节点。
+    并直接复用 :func:`clone_executor` 克隆所有节点。克隆会覆盖图中已注册的全部节点，
+    因此非连通分量与无源环图也能被完整复制。
 
     克隆体不携带原图 / 原节点的观察者：``clone_executor`` 会创建全新实例，
     共享带计数器的观察者会导致重复计数。
@@ -60,26 +60,14 @@ def clone_graph(graph: TaskGraph) -> TaskGraph:
     :return: 克隆任务图
     :raises ConfigurationError: 图中包含非 ``TaskExecutor`` 节点时抛出
     """
-    # 通过广度优先遍历收集所有节点（沿用任务图有序图的出边顺序）
-    visited: set[str] = set()
     ordered_nodes: list[TaskExecutor[Any, Any]] = []
-    queue: deque[AnyTaskNode] = deque(
-        graph.node_dict[source_name] for source_name in graph.get_source_nodes()
-    )
-    while queue:
-        node: AnyTaskNode = queue.popleft()
+    for node_name in graph.get_nodes():
+        node: AnyTaskNode = graph.node_dict[node_name]
         if not isinstance(node, TaskExecutor):
             raise ConfigurationError(
                 "clone_graph() only supports graphs composed of TaskExecutor nodes"
             )
-        node_name: str = node.get_name()
-        if node_name in visited:
-            continue
-        visited.add(node_name)
         ordered_nodes.append(node)
-        for next_node_name in graph.order_graph.out_edges.get(node_name, []):
-            next_node: AnyTaskNode = graph.node_dict[next_node_name]
-            queue.append(next_node)
 
     # 建立原节点名到克隆节点的映射
     name_map: dict[str, TaskExecutor[Any, Any]] = {}
