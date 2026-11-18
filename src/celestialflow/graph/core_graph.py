@@ -31,7 +31,7 @@ from ..runtime.util_errors import (
 from ..runtime.util_event import EventClient, LocalEventClient
 from ..runtime.util_format import cluster_by_value_sorted
 from ..runtime.util_log_level import DEFAULT_LOG_LEVEL
-from ..ticker import Ticker, TickHub
+from ..ticker import DEFAULT_TICK_INTERVAL, Ticker, TickHub
 from .util_order_graph import OrderGraph, compute_node_levels, is_dag, source_nodes
 
 
@@ -290,6 +290,7 @@ class TaskGraph:
     def _run_resources(
         self,
         log_level: str,
+        interval: float,
         report: ReportConfig | None,
     ) -> AbstractContextManager[None]:
         """
@@ -308,12 +309,14 @@ class TaskGraph:
                 self.observers,
                 self.tickers,
                 log_level=log_level,
+                interval=interval,
             )
         return run_reporting_resources(
             self.observers,
             self.tickers,
             self,
             log_level=log_level,
+            interval=interval,
             report=report,
         )
 
@@ -323,6 +326,7 @@ class TaskGraph:
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -347,7 +351,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with self._run_resources(log_level, report):
+            with self._run_resources(log_level, interval, report):
                 self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
                     self.inject_terminations(self._source_names)
@@ -364,6 +368,7 @@ class TaskGraph:
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -387,7 +392,7 @@ class TaskGraph:
         error_list: list[Exception] = []
 
         try:
-            with self._run_resources(log_level, report):
+            with self._run_resources(log_level, interval, report):
                 self.inject_tasks(init_tasks_dict)
                 if if_put_signal:
                     self.inject_terminations(self._source_names)
@@ -406,6 +411,7 @@ class TaskGraph:
         filter_by_error_type: bool = False,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
         report: ReportConfig | None = None,
     ) -> None:
         """
@@ -442,6 +448,7 @@ class TaskGraph:
             tasks,
             if_put_signal=if_put_signal,
             log_level=log_level,
+            interval=interval,
             report=report,
         )
 

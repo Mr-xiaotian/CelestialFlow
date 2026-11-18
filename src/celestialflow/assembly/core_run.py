@@ -14,8 +14,8 @@ from ..reporter import (
     SnapshotTicker,
 )
 from ..runtime import ReportConfig
-from ..runtime.util_log_level import DEFAULT_LOG_LEVEL, normalize_log_level
-from ..ticker import DEFAULT_TICK_INTERVAL, TickClock, TickHub
+from ..runtime.util_log_level import normalize_log_level
+from ..ticker import TickClock, TickHub
 
 
 @contextmanager
@@ -24,9 +24,9 @@ def run_reporting_resources(
     tickers: TickHub,
     injection_target: InjectionTarget,
     *,
-    log_level: str = DEFAULT_LOG_LEVEL,
+    log_level: str,
+    interval: float,
     report: ReportConfig,
-    interval: float = DEFAULT_TICK_INTERVAL,
 ) -> Generator[None, None, None]:
     """
     带远程上报的任务图运行期资源：``metrics`` + ``lifecycle`` + ``log``，
@@ -94,8 +94,8 @@ def run_local_resources(
     observers: ObserverHub,
     tickers: TickHub,
     *,
-    log_level: str = DEFAULT_LOG_LEVEL,
-    interval: float = DEFAULT_TICK_INTERVAL,
+    log_level: str,
+    interval: float,
 ) -> Generator[None, None, None]:
     """
     本地运行期资源：内部创建并注册指标观察者，仅装配 ``lifecycle`` + ``log``，

@@ -44,7 +44,7 @@ from ..runtime.util_types import (
     CTreeEvent,
     TerminationSignal,
 )
-from ..ticker import Ticker, TickHub
+from ..ticker import DEFAULT_TICK_INTERVAL, Ticker, TickHub
 from .core_dispatch import TaskDispatch
 from .util_callable import validate_executor_func_signature
 
@@ -471,6 +471,7 @@ class BaseTaskNode[T, R, Y]:
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
     ) -> None:
         """
         执行任务。
@@ -493,6 +494,7 @@ class BaseTaskNode[T, R, Y]:
                 self.observers,
                 self.tickers,
                 log_level=log_level,
+                interval=interval,
             ):
                 for task in task_source:
                     self.put_task(task)
@@ -511,6 +513,7 @@ class BaseTaskNode[T, R, Y]:
         *,
         if_put_signal: bool = True,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
     ) -> None:
         """
         异步启动任务节点。
@@ -530,6 +533,7 @@ class BaseTaskNode[T, R, Y]:
                 self.observers,
                 self.tickers,
                 log_level=log_level,
+                interval=interval,
             ):
                 for task in task_source:
                     self.put_task(task)
@@ -549,6 +553,7 @@ class BaseTaskNode[T, R, Y]:
         *,
         filter_by_error_type: bool = False,
         log_level: str = DEFAULT_LOG_LEVEL,
+        interval: float = DEFAULT_TICK_INTERVAL,
     ) -> None:
         """
         从 sqlite 持久化库中读取当前节点的任务并启动执行。
@@ -573,7 +578,7 @@ class BaseTaskNode[T, R, Y]:
             ]
         tasks = [cast(T, record["task_json"]) for record in records]
 
-        self.run(tasks, log_level=log_level)
+        self.run(tasks, log_level=log_level, interval=interval)
 
     # ==== 启动 ====
 
