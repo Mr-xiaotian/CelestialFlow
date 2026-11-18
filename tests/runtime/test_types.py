@@ -161,6 +161,7 @@ class TestUtilTypes:
         assert CTreeEvent.TASK_INPUT == "task.input"
         assert CTreeEvent.TASK_SUCCESS == "task.success"
         assert CTreeEvent.TASK_ERROR == "task.error"
+        assert CTreeEvent.TASK_RETRY == "task.retry"
         assert CTreeEvent.TASK_SKIP == "task.skip"
 
     def test_ctree_event_termination_values(self):

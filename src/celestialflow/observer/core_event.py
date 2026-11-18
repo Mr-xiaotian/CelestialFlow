@@ -142,6 +142,7 @@ class TaskRetryEvent(Event):
     :param exception: 导致重试的异常
     :param task_id: 任务输入事件 ID
     :param retry_times: 已重试次数
+    :param retry_id: 重试事件 ID；未分配时为 ``None``
     """
 
     node: str
@@ -150,6 +151,7 @@ class TaskRetryEvent(Event):
     exception: Exception
     task_id: int
     retry_times: int
+    retry_id: int
 
 
 @dataclass(frozen=True, slots=True)

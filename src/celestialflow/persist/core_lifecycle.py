@@ -16,11 +16,16 @@ from ..observer import (
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
 )
 from ..runtime.util_errors import InitializationError
+from ..runtime.util_types import CTreeEvent
 from .util_payload import to_persisted_payload
 from .util_sqlite import (
     connect_db,
+    insert_event,
+    insert_event_parents,
     insert_record,
     promote_record_to_failed_by_event_id,
     promote_record_to_skipped_by_event_id,
@@ -43,6 +48,7 @@ class InsertRecord:
     ts: float
     node: str
     task: Any
+    parent_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,12 +56,16 @@ class PromoteSuccessRecord:
     """将 pending 记录晋升为 success 并写入任务结果。
 
     :param event_id: 任务输入事件 ID
+    :param success_id: 成功事件 ID
     :param ts: 记录时间戳
+    :param node: 节点名称
     :param result: 任务结果的 JSON 友好载荷
     """
 
     event_id: int
+    success_id: int
     ts: float
+    node: str
     result: Any
 
 
@@ -73,6 +83,7 @@ class PromoteFailedRecord:
     event_id: int
     error_id: int
     ts: float
+    node: str
     error_type: str
     error_message: str
 
@@ -82,14 +93,18 @@ class UpdateRetryRecord:
     """更新 pending 记录的重试次数与最近一次失败信息。
 
     :param event_id: 任务输入事件 ID
+    :param retry_id: 重试事件 ID；为空时仅更新当前状态，不写事件账本
     :param ts: 记录时间戳
+    :param node: 节点名称
     :param retry_times: 已重试次数
     :param error_type: 最近一次异常类型名称
     :param error_message: 最近一次异常消息
     """
 
     event_id: int
+    retry_id: int | None
     ts: float
+    node: str
     retry_times: int
     error_type: str
     error_message: str
@@ -107,6 +122,26 @@ class PromoteSkippedRecord:
     event_id: int
     skip_id: int
     ts: float
+    node: str
+
+
+@dataclass(frozen=True, slots=True)
+class InsertTerminationInputRecord:
+    """写入一条外部终止信号输入事件。"""
+
+    termination_id: int
+    ts: float
+    node: str
+
+
+@dataclass(frozen=True, slots=True)
+class InsertTerminationMergeRecord:
+    """写入一条终止信号合并事件。"""
+
+    termination_id: int
+    ts: float
+    node: str
+    parent_ids: tuple[int, ...]
 
 
 # 生命周期记录联合类型，由 LifecycleSpout 按具体类型写入 sqlite。
@@ -116,6 +151,8 @@ type LifecycleRecord = (
     | PromoteFailedRecord
     | UpdateRetryRecord
     | PromoteSkippedRecord
+    | InsertTerminationInputRecord
+    | InsertTerminationMergeRecord
 )
 
 
@@ -155,52 +192,146 @@ class LifecycleSpout(BaseSpout):
         changed = False
         match record:
             case InsertRecord():
-                # 新任务进入某个 node，写入一条 pending 记录。
-                changed = insert_record(
+                changed = insert_event(
                     self._conn,
                     {
                         "event_id": record.event_id,
-                        "ts": record.ts,
+                        "event_type": CTreeEvent.TASK_INPUT,
                         "node": record.node,
-                        "status": "pending",
-                        "task_json": record.task,
+                        "ts": record.ts,
                     },
                 )
+                _ = insert_event_parents(self._conn, record.event_id, record.parent_ids)
+                # 新任务进入某个 node，写入一条 pending 记录。
+                changed = (
+                    insert_record(
+                        self._conn,
+                        {
+                            "event_id": record.event_id,
+                            "ts": record.ts,
+                            "node": record.node,
+                            "status": "pending",
+                            "task_json": record.task,
+                        },
+                    )
+                    or changed
+                )
             case PromoteSuccessRecord():
-                # 任务成功时，将 pending 记录晋升为 success 并写入结果。
-                changed = promote_record_to_success_by_event_id(
+                changed = insert_event(
                     self._conn,
-                    record.event_id,
-                    record.result,
-                    ts=record.ts,
+                    {
+                        "event_id": record.success_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TASK_SUCCESS,
+                    },
+                )
+                _ = insert_event_parents(self._conn, record.success_id, (record.event_id,))
+                # 任务成功时，将 pending 记录晋升为 success 并写入结果。
+                changed = (
+                    promote_record_to_success_by_event_id(
+                        self._conn,
+                        record.event_id,
+                        record.result,
+                        ts=record.ts,
+                    )
+                    or changed
                 )
             case PromoteFailedRecord():
-                # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
-                changed = promote_record_to_failed_by_event_id(
+                changed = insert_event(
                     self._conn,
-                    record.event_id,
-                    record.error_id,
-                    ts=record.ts,
-                    error_type=record.error_type,
-                    error_message=record.error_message,
+                    {
+                        "event_id": record.error_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TASK_ERROR,
+                    },
+                )
+                _ = insert_event_parents(self._conn, record.error_id, (record.event_id,))
+                # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
+                changed = (
+                    promote_record_to_failed_by_event_id(
+                        self._conn,
+                        record.event_id,
+                        record.error_id,
+                        ts=record.ts,
+                        error_type=record.error_type,
+                        error_message=record.error_message,
+                    )
+                    or changed
                 )
             case UpdateRetryRecord():
-                # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
-                changed = update_retry_by_event_id(
+                changed = insert_event(
                     self._conn,
-                    record.event_id,
-                    ts=record.ts,
-                    retry_times=record.retry_times,
-                    error_type=record.error_type,
-                    error_message=record.error_message,
+                    {
+                        "event_id": record.retry_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TASK_RETRY,
+                    },
+                )
+                _ = insert_event_parents(
+                    self._conn,
+                    record.retry_id,
+                    (record.event_id,),
+                )
+                # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
+                changed = (
+                    update_retry_by_event_id(
+                        self._conn,
+                        record.event_id,
+                        ts=record.ts,
+                        retry_times=record.retry_times,
+                        error_type=record.error_type,
+                        error_message=record.error_message,
+                    )
+                    or changed
                 )
             case PromoteSkippedRecord():
-                # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
-                changed = promote_record_to_skipped_by_event_id(
+                changed = insert_event(
                     self._conn,
-                    record.event_id,
-                    record.skip_id,
-                    ts=record.ts,
+                    {
+                        "event_id": record.skip_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TASK_SKIP,
+                    },
+                )
+                _ = insert_event_parents(self._conn, record.skip_id, (record.event_id,))
+                # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
+                changed = (
+                    promote_record_to_skipped_by_event_id(
+                        self._conn,
+                        record.event_id,
+                        record.skip_id,
+                        ts=record.ts,
+                    )
+                    or changed
+                )
+            case InsertTerminationInputRecord():
+                changed = insert_event(
+                    self._conn,
+                    {
+                        "event_id": record.termination_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TERMINATION_INPUT,
+                    },
+                )
+            case InsertTerminationMergeRecord():
+                changed = insert_event(
+                    self._conn,
+                    {
+                        "event_id": record.termination_id,
+                        "ts": record.ts,
+                        "node": record.node,
+                        "event_type": CTreeEvent.TERMINATION_MERGE,
+                    },
+                )
+                _ = insert_event_parents(
+                    self._conn,
+                    record.termination_id,
+                    record.parent_ids,
                 )
         if changed:
             self._conn.commit()
@@ -265,6 +396,7 @@ class LifecycleObserver(Observer):
         - ``TaskFailEvent``：将 pending 记录晋升为 failed，并绑定最终的 error_id；
         - ``TaskSkipEvent``：将 pending 记录晋升为 skipped；
         - ``TaskRetryEvent``：更新 pending 记录的重试次数与最近一次失败信息。
+        - ``TerminationInputEvent`` / ``TerminationMergeEvent``：仅写入事件账本。
 
         :param event: 任意观测事件
         """
@@ -276,13 +408,16 @@ class LifecycleObserver(Observer):
                         ts=datetime.now().timestamp(),
                         node=event.node,
                         task=to_persisted_payload(event.task),
+                        parent_ids=event.parent_ids,
                     )
                 )
             case TaskSuccessEvent():
                 self._inlet.send(
                     PromoteSuccessRecord(
                         event_id=event.task_id,
+                        success_id=event.success_id,
                         ts=datetime.now().timestamp(),
+                        node=event.node,
                         result=to_persisted_payload(event.result),
                     )
                 )
@@ -293,6 +428,7 @@ class LifecycleObserver(Observer):
                         event_id=event.task_id,
                         error_id=event.error_id,
                         ts=datetime.now().timestamp(),
+                        node=event.node,
                         error_type=type(error).__name__,
                         error_message=str(error),
                     )
@@ -303,6 +439,7 @@ class LifecycleObserver(Observer):
                         event_id=event.task_id,
                         skip_id=event.skip_id,
                         ts=datetime.now().timestamp(),
+                        node=event.node,
                     )
                 )
             case TaskRetryEvent():
@@ -310,10 +447,29 @@ class LifecycleObserver(Observer):
                 self._inlet.send(
                     UpdateRetryRecord(
                         event_id=event.task_id,
+                        retry_id=event.retry_id,
                         ts=datetime.now().timestamp(),
+                        node=event.node,
                         retry_times=event.retry_times,
                         error_type=type(error).__name__,
                         error_message=str(error),
+                    )
+                )
+            case TerminationInputEvent():
+                self._inlet.send(
+                    InsertTerminationInputRecord(
+                        termination_id=event.termination_id,
+                        ts=datetime.now().timestamp(),
+                        node=event.node,
+                    )
+                )
+            case TerminationMergeEvent():
+                self._inlet.send(
+                    InsertTerminationMergeRecord(
+                        termination_id=event.termination_id,
+                        ts=datetime.now().timestamp(),
+                        node=event.node,
+                        parent_ids=tuple(event.parent_ids),
                     )
                 )
             case _:

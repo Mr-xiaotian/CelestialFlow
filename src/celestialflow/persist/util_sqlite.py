@@ -35,12 +35,12 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
     """
-    在给定连接上确保记录表与索引存在。
+    在给定连接上确保记录表、事件表与索引存在。
 
     :param conn: 已建立的 sqlite 连接
     :return: None
     """
-    # 创建错误主表。
+    # 当前状态快照表：供 restore_db 与结果查询使用。
     _ = conn.execute(
         """
         CREATE TABLE IF NOT EXISTS records (
@@ -54,6 +54,29 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
             task_json TEXT NOT NULL,
             result_json TEXT NOT NULL DEFAULT 'null',
             retry_times INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    # 不可变事件账本：保存全部生命周期事件本身。
+    _ = conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS events (
+            event_id INTEGER PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            node TEXT NOT NULL,
+            ts REAL NOT NULL
+        )
+        """
+    )
+    # 事件父边表：保存事件间的因果关系。
+    _ = conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS event_parents (
+            event_id INTEGER NOT NULL,
+            parent_id INTEGER NOT NULL,
+            PRIMARY KEY (event_id, parent_id),
+            FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
+            FOREIGN KEY (parent_id) REFERENCES events(event_id) ON DELETE CASCADE
         )
         """
     )
@@ -72,6 +95,15 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
     )
     _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_records_status_id ON records(status, id)"
+    )
+    _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events(event_type, ts)"
+    )
+    _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_events_node_ts ON events(node, ts)"
+    )
+    _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_event_parents_parent_id ON event_parents(parent_id)"
     )
     conn.commit()
 
@@ -129,6 +161,44 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+def normalize_event_record(record: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    将事件记录归一化为 sqlite 可写格式。
+
+    非业务记录会返回 ``None``。业务记录必须显式提供 ``event_type`` 与 ``node``。
+
+    :param record: 原始事件记录字典
+    :return: 可直接写入 sqlite 的参数字典，或 ``None``
+    :rtype: dict[str, Any] | None
+    """
+    event_id = record.get("event_id")
+    if event_id is None:
+        return None
+
+    return {
+        "event_id": int(event_id),
+        "event_type": str(record["event_type"]),
+        "node": str(record["node"]),
+        "ts": float(record.get("ts", 0.0) or 0.0),
+    }
+
+
+def row_to_event_dict(row: sqlite3.Row) -> dict[str, Any]:
+    """
+    将 sqlite 事件行转换为对外事件字典。
+
+    :param row: sqlite 查询结果中的事件行
+    :return: 面向上层调用方的事件字典
+    :rtype: dict[str, Any]
+    """
+    return {
+        "event_id": int(row["event_id"]),
+        "event_type": str(row["event_type"]),
+        "node": str(row["node"]),
+        "ts": float(row["ts"]),
+    }
+
+
 # ==== 复用已有连接的写操作 ====
 
 
@@ -162,6 +232,70 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
         normalized,
     )
     return True
+
+
+def insert_event(conn: sqlite3.Connection, event: dict[str, Any]) -> bool:
+    """
+    在给定连接上插入单条生命周期事件。
+
+    非业务记录会被忽略。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event: 原始事件记录字典
+    :return: 是否实际插入了一条事件
+    :rtype: bool
+    """
+    normalized = normalize_event_record(event)
+    if normalized is None:
+        return False
+
+    _ = conn.execute(
+        """
+        INSERT INTO events (event_id, event_type, node, ts)
+        VALUES (:event_id, :event_type, :node, :ts)
+        """,
+        normalized,
+    )
+    return True
+
+
+def insert_event_parents(
+    conn: sqlite3.Connection,
+    event_id: int,
+    parent_ids: Iterable[int],
+) -> int:
+    """
+    在给定连接上写入一条事件的全部父边。
+
+    :param conn: 已建立的 sqlite 连接
+    :param event_id: 子事件 ID
+    :param parent_ids: 父事件 ID 列表
+    仅为数据库中已存在的父事件写边，缺失父事件会被跳过。
+
+    :return: 实际插入的父边数量
+    :rtype: int
+    """
+    inserted = 0
+    for parent_id in parent_ids:
+        exists = conn.execute(
+            """
+            SELECT 1
+            FROM events
+            WHERE event_id = ?
+            """,
+            [int(parent_id)],
+        ).fetchone()
+        if exists is None:
+            continue
+        _ = conn.execute(
+            """
+            INSERT INTO event_parents (event_id, parent_id)
+            VALUES (?, ?)
+            """,
+            [int(event_id), int(parent_id)],
+        )
+        inserted += 1
+    return inserted
 
 
 def promote_record_to_failed_by_event_id(
@@ -300,6 +434,63 @@ def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
         [int(event_id)],
     )
     return cursor.rowcount > 0
+
+
+def load_event_record(
+    db_path: str | Path,
+    event_id: int,
+) -> dict[str, Any] | None:
+    """
+    自行创建并关闭连接，读取指定 event_id 的事件记录。
+
+    :param db_path: sqlite 数据库文件路径
+    :param event_id: 待读取的事件 ID
+    :return: 事件记录字典；不存在时返回 ``None``
+    :rtype: dict[str, Any] | None
+    """
+    conn = connect_db(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT event_id, event_type, node, ts
+            FROM events
+            WHERE event_id = ?
+            """,
+            [int(event_id)],
+        ).fetchone()
+        if row is None:
+            return None
+        return row_to_event_dict(row)
+    finally:
+        conn.close()
+
+
+def load_event_parent_ids(
+    db_path: str | Path,
+    event_id: int,
+) -> list[int]:
+    """
+    自行创建并关闭连接，读取指定 event_id 的全部父事件 ID。
+
+    :param db_path: sqlite 数据库文件路径
+    :param event_id: 待读取的事件 ID
+    :return: 父事件 ID 列表，按升序排列
+    :rtype: list[int]
+    """
+    conn = connect_db(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT parent_id
+            FROM event_parents
+            WHERE event_id = ?
+            ORDER BY parent_id ASC
+            """,
+            [int(event_id)],
+        ).fetchall()
+        return [int(row["parent_id"]) for row in rows]
+    finally:
+        conn.close()
 
 
 def load_tasks_grouped_by_node(

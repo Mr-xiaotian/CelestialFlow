@@ -452,6 +452,10 @@ class BaseTaskNode[T, R, Y]:
         """
         task = task_envelope.get_task()
         task_id = task_envelope.get_id()
+        retry_id = self.ctree_client.emit(
+            CTreeEvent.TASK_RETRY,
+            parents=[task_id],
+        )
 
         self.observers.on_event(
             TaskRetryEvent(
@@ -461,6 +465,7 @@ class BaseTaskNode[T, R, Y]:
                 exception=exception,
                 task_id=task_id,
                 retry_times=fail_times,
+                retry_id=retry_id,
             )
         )
 

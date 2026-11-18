@@ -6,12 +6,18 @@ import pytest
 from celestialflow.persist.util_sqlite import (
     connect_db,
     delete_record_by_event_id,
+    insert_event,
+    insert_event_parents,
     insert_record,
+    load_event_parent_ids,
+    load_event_record,
     load_task_error_records,
     load_task_result_records,
+    normalize_event_record,
     normalize_record,
     promote_record_to_failed_by_event_id,
     promote_record_to_success_by_event_id,
+    row_to_event_dict,
     row_to_record_dict,
     update_retry_by_event_id,
 )
@@ -113,12 +119,18 @@ class TestSpliteUtils:
             }
             index_list = conn.execute("PRAGMA index_list(records)").fetchall()
             result_info = conn.execute("PRAGMA table_info(records)").fetchall()
+            event_info = conn.execute("PRAGMA table_info(events)").fetchall()
         finally:
             conn.close()
 
         assert "records" in table_names
+        assert "events" in table_names
+        assert "event_parents" in table_names
         assert "idx_records_event_id" in index_names
         assert "idx_records_status_id" in index_names
+        assert "idx_events_type_ts" in index_names
+        assert "idx_events_node_ts" in index_names
+        assert "idx_event_parents_parent_id" in index_names
         assert any(row[1] == "idx_records_event_id" and row[2] == 1 for row in index_list)
         assert [row[1] for row in result_info] == [
             "id",
@@ -131,6 +143,12 @@ class TestSpliteUtils:
             "task_json",
             "result_json",
             "retry_times",
+        ]
+        assert [row[1] for row in event_info] == [
+            "event_id",
+            "event_type",
+            "node",
+            "ts",
         ]
         assert any(row[1] == "result_json" for row in result_info)
 
@@ -158,6 +176,35 @@ class TestSpliteUtils:
         with pytest.raises(KeyError, match="status"):
             normalize_record({"event_id": 1, "node": "s1", "task_json": {}})
 
+    def test_normalize_event_record(self):
+        """测试事件记录会被归一化为 sqlite 可写格式。"""
+        assert normalize_event_record({"meta": "only"}) is None
+
+        normalized = normalize_event_record(
+            {
+                "event_id": 7,
+                "event_type": "task.success",
+                "node": "s1",
+                "ts": 7.5,
+            }
+        )
+
+        assert normalized is not None
+        assert normalized == {
+            "event_id": 7,
+            "event_type": "task.success",
+            "node": "s1",
+            "ts": 7.5,
+        }
+
+    def test_normalize_event_record_requires_event_type_and_node(self):
+        """测试事件记录必须显式提供 event_type 与 node。"""
+        with pytest.raises(KeyError, match="event_type"):
+            normalize_event_record({"event_id": 1, "node": "s1"})
+
+        with pytest.raises(KeyError, match="node"):
+            normalize_event_record({"event_id": 1, "event_type": "task.input"})
+
     def test_insert_and_load_records(self, sqlite_path, sample_errors):
         """测试单条插入会忽略元信息，并能正常读回错误记录。"""
         conn = connect_db(sqlite_path)
@@ -180,6 +227,90 @@ class TestSpliteUtils:
         assert records[1]["ts"] == 2.0
         assert records[1]["task_json"] == ["A", "B"]
         assert records[1]["result_json"] is None
+
+    def test_insert_and_load_events(self, sqlite_path):
+        """测试单条事件插入与父边读取。"""
+        conn = connect_db(sqlite_path)
+        try:
+            assert insert_event(conn, {"meta": "only"}) is False
+            assert (
+                insert_event(
+                    conn,
+                    {
+                        "event_id": 1,
+                        "event_type": "task.input",
+                        "node": "s1",
+                        "ts": 1.0,
+                    },
+                )
+                is True
+            )
+            assert (
+                insert_event(
+                    conn,
+                    {
+                        "event_id": 2,
+                        "event_type": "task.success",
+                        "node": "s1",
+                        "ts": 2.0,
+                    },
+                )
+                is True
+            )
+            assert insert_event_parents(conn, 2, [1]) == 1
+            conn.commit()
+            row = conn.execute(
+                """
+                SELECT event_id, event_type, node, ts
+                FROM events
+                WHERE event_id = 2
+                """
+            ).fetchone()
+        finally:
+            conn.close()
+
+        assert row is not None
+        assert row_to_event_dict(row) == {
+            "event_id": 2,
+            "event_type": "task.success",
+            "node": "s1",
+            "ts": 2.0,
+        }
+        assert load_event_record(sqlite_path, 2) == {
+            "event_id": 2,
+            "event_type": "task.success",
+            "node": "s1",
+            "ts": 2.0,
+        }
+        assert load_event_parent_ids(sqlite_path, 2) == [1]
+
+    def test_load_missing_event_record(self, sqlite_path):
+        """测试读取不存在的事件时返回 None。"""
+        assert load_event_record(sqlite_path, 999) is None
+        assert load_event_parent_ids(sqlite_path, 999) == []
+
+    def test_insert_event_parents_skips_missing_parent_events(self, sqlite_path):
+        """测试缺失父事件时应跳过该父边，而不是触发外键错误。"""
+        conn = connect_db(sqlite_path)
+        try:
+            assert (
+                insert_event(
+                    conn,
+                    {
+                        "event_id": 2,
+                        "event_type": "termination.merge",
+                        "node": "s1",
+                        "ts": 2.0,
+                    },
+                )
+                is True
+            )
+            assert insert_event_parents(conn, 2, [1, 3]) == 0
+            conn.commit()
+        finally:
+            conn.close()
+
+        assert load_event_parent_ids(sqlite_path, 2) == []
 
     def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
         """测试按 event_id 更新记录状态与错误信息。"""

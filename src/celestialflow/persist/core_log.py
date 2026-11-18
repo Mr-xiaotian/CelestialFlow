@@ -251,7 +251,7 @@ class LogObserver(Observer):
                     f"In '{event.node}', Task {event.task_repr} failed "
                     + f"{event.retry_times} times and will retry: "
                     + f"({type(event.exception).__name__}). "
-                    + f"[{event.task_id}*]",
+                    + f"[{event.task_id}*->{event.retry_id}]",
                 )
             case TerminationInputEvent():
                 self._log(

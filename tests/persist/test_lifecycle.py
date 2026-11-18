@@ -6,9 +6,13 @@ from celestialflow.observer import (
     TaskRetryEvent,
     TaskSkipEvent,
     TaskSuccessEvent,
+    TerminationInputEvent,
+    TerminationMergeEvent,
 )
 from celestialflow.persist.core_lifecycle import LifecycleObserver
 from celestialflow.persist.util_sqlite import (
+    load_event_parent_ids,
+    load_event_record,
     load_task_error_records,
     load_task_result_records,
 )
@@ -49,6 +53,27 @@ class TestLifecyclePersistence:
         assert len(pairs) == 1
         assert pairs[0][0] == "data1"
         assert pairs[0][1] == ("ValueError", "oops")
+        assert load_event_record(observer.db_path, 1) == {
+            "event_id": 1,
+            "event_type": "task.input",
+            "node": "s1",
+            "ts": load_event_record(observer.db_path, 1)["ts"],
+        }
+        assert load_event_parent_ids(observer.db_path, 1) == []
+        assert load_event_record(observer.db_path, 21) == {
+            "event_id": 21,
+            "event_type": "task.error",
+            "node": "s1",
+            "ts": load_event_record(observer.db_path, 21)["ts"],
+        }
+        assert load_event_parent_ids(observer.db_path, 21) == [1]
+        assert load_event_record(observer.db_path, 3) == {
+            "event_id": 3,
+            "event_type": "task.success",
+            "node": "s2",
+            "ts": load_event_record(observer.db_path, 3)["ts"],
+        }
+        assert load_event_parent_ids(observer.db_path, 3) == [2]
 
         conn = sqlite3.connect(observer.db_path)
         try:
@@ -84,10 +109,10 @@ class TestLifecyclePersistence:
                 TaskSuccessEvent("s1", "task1", "(task1)", 100, "(100)", 0.0, 1, 2)
             )
             observer.on_event(
-                TaskInputEvent("s2", "task2", "(task2)", 2)
+                TaskInputEvent("s2", "task2", "(task2)", 3)
             )
             observer.on_event(
-                TaskSuccessEvent("s2", "task2", "(task2)", 200, "(200)", 0.0, 2, 3)
+                TaskSuccessEvent("s2", "task2", "(task2)", 200, "(200)", 0.0, 3, 4)
             )
         finally:
             observer.stop()
@@ -107,10 +132,26 @@ class TestLifecyclePersistence:
                 TaskInputEvent("s1", "retry_ok", "(retry_ok)", 1)
             )
             observer.on_event(
-                TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 1"), 1, 1)
+                TaskRetryEvent(
+                    "s1",
+                    "retry_ok",
+                    "(retry_ok)",
+                    ValueError("try 1"),
+                    1,
+                    1,
+                    retry_id=11,
+                )
             )
             observer.on_event(
-                TaskRetryEvent("s1", "retry_ok", "(retry_ok)", ValueError("try 2"), 1, 2)
+                TaskRetryEvent(
+                    "s1",
+                    "retry_ok",
+                    "(retry_ok)",
+                    ValueError("try 2"),
+                    1,
+                    2,
+                    retry_id=12,
+                )
             )
             observer.on_event(
                 TaskSuccessEvent(
@@ -125,11 +166,13 @@ class TestLifecyclePersistence:
             observer.on_event(
                 TaskRetryEvent(
                     "s2", "retry_fail", "(retry_fail)", ValueError("try 1"), 2, 1
+                    , retry_id=13
                 )
             )
             observer.on_event(
                 TaskRetryEvent(
                     "s2", "retry_fail", "(retry_fail)", ValueError("try 2"), 2, 2
+                    , retry_id=14
                 )
             )
             observer.on_event(
@@ -146,6 +189,12 @@ class TestLifecyclePersistence:
             observer.stop()
 
         assert observer.db_path is not None
+        assert load_event_parent_ids(observer.db_path, 11) == [1]
+        assert load_event_parent_ids(observer.db_path, 12) == [1]
+        assert load_event_parent_ids(observer.db_path, 13) == [2]
+        assert load_event_parent_ids(observer.db_path, 14) == [2]
+        assert load_event_parent_ids(observer.db_path, 3) == [1]
+        assert load_event_parent_ids(observer.db_path, 22) == [2]
         conn = sqlite3.connect(observer.db_path)
         try:
             rows = conn.execute(
@@ -204,6 +253,27 @@ class TestLifecyclePersistence:
 
         assert [(row[0], row[1]) for row in rows] == [(31, "skipped"), (2, "success")]
         assert rows[0][2:6] == ("", "", '"skip_me"', "null")
+
+    def test_termination_events_persist_to_event_tables(self, tmp_path, monkeypatch):
+        """终止相关事件应写入事件账本及其父边。"""
+        monkeypatch.chdir(tmp_path)
+        observer = LifecycleObserver()
+
+        observer.start()
+        try:
+            observer.on_event(TerminationInputEvent("s1", 41))
+            observer.on_event(TerminationInputEvent("s1", 42))
+            observer.on_event(TerminationMergeEvent("s2", [41, 42], 50))
+        finally:
+            observer.stop()
+
+        assert observer.db_path is not None
+        assert load_event_record(observer.db_path, 41) is not None
+        assert load_event_record(observer.db_path, 41)["event_type"] == "termination.input"
+        assert load_event_parent_ids(observer.db_path, 41) == []
+        assert load_event_record(observer.db_path, 50) is not None
+        assert load_event_record(observer.db_path, 50)["event_type"] == "termination.merge"
+        assert load_event_parent_ids(observer.db_path, 50) == [41, 42]
 
     def test_old_db_gets_retry_times_column(self, tmp_path, monkeypatch):
         """旧库缺 retry_times 列时，`connect_db` 应自动 ALTER 补列。"""

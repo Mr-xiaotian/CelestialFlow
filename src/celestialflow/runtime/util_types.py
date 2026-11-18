@@ -112,6 +112,7 @@ class CTreeEvent:
     TASK_INPUT: str = "task.input"
     TASK_SUCCESS: str = "task.success"
     TASK_ERROR: str = "task.error"
+    TASK_RETRY: str = "task.retry"
     TASK_SKIP: str = "task.skip"
     TERMINATION_INPUT: str = "termination.input"
     TERMINATION_MERGE: str = "termination.merge"
