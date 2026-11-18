@@ -35,17 +35,27 @@ def connect_db(db_path: str | Path) -> sqlite3.Connection:
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
     """
-    在给定连接上确保记录表、事件表与索引存在。
+    在给定连接上确保状态表、事件表与索引存在。
 
     :param conn: 已建立的 sqlite 连接
     :return: None
     """
+    table_names = {
+        str(row["name"])
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    if "records" in table_names and "status" not in table_names:
+        _ = conn.execute("ALTER TABLE records RENAME TO status")
+
     # 当前状态快照表：供 restore_db 与结果查询使用。
     _ = conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS records (
+        CREATE TABLE IF NOT EXISTS status (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_id INTEGER NOT NULL,
+            input_event_id INTEGER NOT NULL,
+            current_event_id INTEGER NOT NULL,
             ts REAL,
             node TEXT NOT NULL,
             status TEXT NOT NULL,
@@ -83,18 +93,37 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
     # 兼容旧库：为缺少 retry_times 列的历史表补充默认列。
     columns = {
         str(row["name"])
-        for row in conn.execute("PRAGMA table_info(records)").fetchall()
+        for row in conn.execute("PRAGMA table_info(status)").fetchall()
     }
+    if "input_event_id" not in columns:
+        _ = conn.execute("ALTER TABLE status ADD COLUMN input_event_id INTEGER")
+    if "current_event_id" not in columns:
+        _ = conn.execute("ALTER TABLE status ADD COLUMN current_event_id INTEGER")
     if "retry_times" not in columns:
         _ = conn.execute(
-            "ALTER TABLE records ADD COLUMN retry_times INTEGER NOT NULL DEFAULT 0"
+            "ALTER TABLE status ADD COLUMN retry_times INTEGER NOT NULL DEFAULT 0"
+        )
+    columns = {
+        str(row["name"])
+        for row in conn.execute("PRAGMA table_info(status)").fetchall()
+    }
+    if "event_id" in columns:
+        _ = conn.execute(
+            """
+            UPDATE status
+            SET input_event_id = COALESCE(input_event_id, event_id),
+                current_event_id = COALESCE(current_event_id, event_id)
+            """
         )
     # 为常用查询条件建立索引，减少筛选和排序开销。
     _ = conn.execute(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_records_event_id ON records(event_id)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_status_input_event_id ON status(input_event_id)"
     )
     _ = conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_records_status_id ON records(status, id)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_status_current_event_id ON status(current_event_id)"
+    )
+    _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_status_status_id ON status(status, id)"
     )
     _ = conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_events_type_ts ON events(event_type, ts)"
@@ -113,21 +142,24 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
 def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
     """
-    将记录归一化为 sqlite 可写格式。
+    将状态快照归一化为 sqlite 可写格式。
 
     非业务记录会返回 ``None``。业务记录必须显式提供 ``node`` 与
-    ``status``，由调用方保证写入语义完整。
+    ``status``。``input_event_id`` 缺失时会兼容读取旧字段 ``event_id``；
+    ``current_event_id`` 缺失时默认与 ``input_event_id`` 相同。
 
-    :param record: 原始记录字典
+    :param record: 原始状态字典
     :return: 可直接写入 sqlite 的参数字典，或 ``None``
     :rtype: dict[str, Any] | None
     """
-    event_id = record.get("event_id")
-    if event_id is None:
+    input_event_id = record.get("input_event_id", record.get("event_id"))
+    if input_event_id is None:
         return None
+    current_event_id = record.get("current_event_id", input_event_id)
 
     return {
-        "event_id": int(event_id),
+        "input_event_id": int(input_event_id),
+        "current_event_id": int(current_event_id),
         "node": str(record["node"]),
         "status": str(record["status"]),
         "error_type": str(record.get("error_type", "") or ""),
@@ -141,7 +173,7 @@ def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
 
 def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
     """
-    将 sqlite 行转换为对外记录字典。
+    将 sqlite 状态行转换为对外字典。
 
     :param row: sqlite 查询结果中的单行
     :return: 面向上层调用方的记录字典
@@ -149,7 +181,8 @@ def row_to_record_dict(row: sqlite3.Row) -> dict[str, Any]:
     """
     return {
         "id": int(row["id"]),
-        "event_id": int(row["event_id"]),
+        "input_event_id": int(row["input_event_id"]),
+        "current_event_id": int(row["current_event_id"]),
         "ts": float(row["ts"]),
         "node": str(row["node"]),
         "status": str(row["status"]),
@@ -204,13 +237,13 @@ def row_to_event_dict(row: sqlite3.Row) -> dict[str, Any]:
 
 def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     """
-    在给定连接上插入单条记录。
+    在给定连接上插入单条状态快照。
 
     元信息记录会被忽略。
 
     :param conn: 已建立的 sqlite 连接
-    :param record: 原始错误记录字典
-    :return: 是否实际插入了一条记录
+    :param record: 原始状态字典
+    :return: 是否实际插入了一条状态
     :rtype: bool
     """
     normalized = normalize_record(record)
@@ -220,13 +253,13 @@ def insert_record(conn: sqlite3.Connection, record: dict[str, Any]) -> bool:
     # 插入单条归一化后的记录。
     _ = conn.execute(
         """
-        INSERT INTO records (
-            event_id, ts, node, status, error_type, error_message, task_json, result_json
-            , retry_times
+        INSERT INTO status (
+            input_event_id, current_event_id, ts, node, status, error_type, error_message,
+            task_json, result_json, retry_times
         )
         VALUES (
-            :event_id, :ts, :node, :status, :error_type, :error_message, :task_json, :result_json
-            , :retry_times
+            :input_event_id, :current_event_id, :ts, :node, :status, :error_type,
+            :error_message, :task_json, :result_json, :retry_times
         )
         """,
         normalized,
@@ -298,21 +331,21 @@ def insert_event_parents(
     return inserted
 
 
-def promote_record_to_failed_by_event_id(
+def promote_record_to_failed_by_input_event_id(
     conn: sqlite3.Connection,
-    event_id: int,
-    new_event_id: int,
+    input_event_id: int,
+    current_event_id: int,
     *,
     ts: float,
     error_type: str = "",
     error_message: str = "",
 ) -> bool:
     """
-    在给定连接上按 ``event_id`` 将记录晋升为 failed，并切换到新的事件 ID。
+    在给定连接上按 ``input_event_id`` 将状态晋升为 failed，并推进当前事件指针。
 
     :param conn: 已建立的 sqlite 连接
-    :param event_id: 当前事件 ID
-    :param new_event_id: 晋升 failed 后的新事件 ID
+    :param input_event_id: 任务输入事件 ID
+    :param current_event_id: 当前状态对应的事件 ID
     :param ts: 生命周期更新时间戳
     :param error_type: 错误类型，默认空字符串
     :param error_message: 错误消息，默认空字符串
@@ -321,27 +354,29 @@ def promote_record_to_failed_by_event_id(
     """
     cursor = conn.execute(
         """
-        UPDATE records
-        SET event_id = ?, ts = ?, status = 'failed', error_type = ?, error_message = ?
-        WHERE event_id = ?
+        UPDATE status
+        SET current_event_id = ?, ts = ?, status = 'failed', error_type = ?, error_message = ?
+        WHERE input_event_id = ?
         """,
-        [int(new_event_id), ts, error_type, error_message, int(event_id)],
+        [int(current_event_id), ts, error_type, error_message, int(input_event_id)],
     )
     return cursor.rowcount > 0
 
 
-def promote_record_to_success_by_event_id(
+def promote_record_to_success_by_input_event_id(
     conn: sqlite3.Connection,
-    event_id: int,
+    input_event_id: int,
+    current_event_id: int,
     result: Any,
     *,
     ts: float,
 ) -> bool:
     """
-    在给定连接上按 ``event_id`` 将记录晋升为 success，并写入结果。
+    在给定连接上按 ``input_event_id`` 将状态晋升为 success，并写入结果。
 
     :param conn: 已建立的 sqlite 连接
-    :param event_id: 当前事件 ID
+    :param input_event_id: 任务输入事件 ID
+    :param current_event_id: 当前状态对应的事件 ID
     :param result: 任务结果
     :param ts: 生命周期更新时间戳
     :return: 是否更新到记录
@@ -349,46 +384,52 @@ def promote_record_to_success_by_event_id(
     """
     cursor = conn.execute(
         """
-        UPDATE records
-        SET status = 'success', ts = ?, result_json = ?, error_type = '', error_message = ''
-        WHERE event_id = ?
+        UPDATE status
+        SET current_event_id = ?, status = 'success', ts = ?, result_json = ?, error_type = '', error_message = ''
+        WHERE input_event_id = ?
         """,
-        [ts, json.dumps(result, ensure_ascii=False), int(event_id)],
+        [
+            int(current_event_id),
+            ts,
+            json.dumps(result, ensure_ascii=False),
+            int(input_event_id),
+        ],
     )
     return cursor.rowcount > 0
 
 
-def promote_record_to_skipped_by_event_id(
+def promote_record_to_skipped_by_input_event_id(
     conn: sqlite3.Connection,
-    event_id: int,
-    new_event_id: int,
+    input_event_id: int,
+    current_event_id: int,
     *,
     ts: float,
 ) -> bool:
     """
-    在给定连接上按 ``event_id`` 将记录晋升为 skipped，并切换到新的事件 ID。
+    在给定连接上按 ``input_event_id`` 将状态晋升为 skipped，并推进当前事件指针。
 
     :param conn: 已建立的 sqlite 连接
-    :param event_id: 当前事件 ID
-    :param new_event_id: 晋升 skipped 后的新事件 ID
+    :param input_event_id: 任务输入事件 ID
+    :param current_event_id: 晋升 skipped 后的当前事件 ID
     :param ts: 生命周期更新时间戳
     :return: 是否更新到记录
     :rtype: bool
     """
     cursor = conn.execute(
         """
-        UPDATE records
-        SET event_id = ?, ts = ?, status = 'skipped', error_type = '', error_message = ''
-        WHERE event_id = ?
+        UPDATE status
+        SET current_event_id = ?, ts = ?, status = 'skipped', error_type = '', error_message = ''
+        WHERE input_event_id = ?
         """,
-        [int(new_event_id), ts, int(event_id)],
+        [int(current_event_id), ts, int(input_event_id)],
     )
     return cursor.rowcount > 0
 
 
-def update_retry_by_event_id(
+def update_retry_by_input_event_id(
     conn: sqlite3.Connection,
-    event_id: int,
+    input_event_id: int,
+    current_event_id: int,
     *,
     ts: float,
     retry_times: int,
@@ -396,12 +437,13 @@ def update_retry_by_event_id(
     error_message: str = "",
 ) -> bool:
     """
-    在给定连接上按 ``event_id`` 更新 pending 记录的重试信息。
+    在给定连接上按 ``input_event_id`` 更新 pending 状态的重试信息。
 
     记录保持 pending 状态不变，仅更新重试次数与最近一次失败的错误信息。
 
     :param conn: 已建立的 sqlite 连接
-    :param event_id: 当前事件 ID
+    :param input_event_id: 任务输入事件 ID
+    :param current_event_id: 当前状态对应的最新事件 ID
     :param ts: 生命周期更新时间戳
     :param retry_times: 已重试次数
     :param error_type: 最近一次失败的错误类型，默认空字符串
@@ -411,27 +453,37 @@ def update_retry_by_event_id(
     """
     cursor = conn.execute(
         """
-        UPDATE records
-        SET retry_times = ?, ts = ?, error_type = ?, error_message = ?
-        WHERE event_id = ?
+        UPDATE status
+        SET current_event_id = ?, retry_times = ?, ts = ?, error_type = ?, error_message = ?
+        WHERE input_event_id = ?
         """,
-        [int(retry_times), ts, error_type, error_message, int(event_id)],
+        [
+            int(current_event_id),
+            int(retry_times),
+            ts,
+            error_type,
+            error_message,
+            int(input_event_id),
+        ],
     )
     return cursor.rowcount > 0
 
 
-def delete_record_by_event_id(conn: sqlite3.Connection, event_id: int) -> bool:
+def delete_record_by_input_event_id(
+    conn: sqlite3.Connection,
+    input_event_id: int,
+) -> bool:
     """
-    在给定连接上按 ``event_id`` 删除记录。
+    在给定连接上按 ``input_event_id`` 删除状态。
 
     :param conn: 已建立的 sqlite 连接
-    :param event_id: 待删除的事件 ID
-    :return: 是否删除到记录
+    :param input_event_id: 待删除的任务输入事件 ID
+    :return: 是否删除到状态
     :rtype: bool
     """
     cursor = conn.execute(
-        "DELETE FROM records WHERE event_id = ?",
-        [int(event_id)],
+        "DELETE FROM status WHERE input_event_id = ?",
+        [int(input_event_id)],
     )
     return cursor.rowcount > 0
 
@@ -514,7 +566,7 @@ def load_tasks_grouped_by_node(
         rows = conn.execute(
             f"""
             SELECT node, task_json, error_type, status
-            FROM records
+            FROM status
             WHERE status IN ({placeholders})
             ORDER BY node ASC, id ASC
             """,
@@ -558,7 +610,7 @@ def load_task_error_records(
         rows = conn.execute(
             """
             SELECT error_type, error_message, task_json
-            FROM records
+            FROM status
             WHERE status = 'failed' AND node = ?
             ORDER BY id ASC
             """,
@@ -589,7 +641,7 @@ def load_task_result_records(db_path: str | Path, node: str) -> list[tuple[Any, 
         rows = conn.execute(
             """
             SELECT task_json, result_json
-            FROM records
+            FROM status
             WHERE status = 'success' AND node = ?
             ORDER BY id ASC
             """,

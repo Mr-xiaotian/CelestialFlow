@@ -27,24 +27,24 @@ from .util_sqlite import (
     insert_event,
     insert_event_parents,
     insert_record,
-    promote_record_to_failed_by_event_id,
-    promote_record_to_skipped_by_event_id,
-    promote_record_to_success_by_event_id,
-    update_retry_by_event_id,
+    promote_record_to_failed_by_input_event_id,
+    promote_record_to_skipped_by_input_event_id,
+    promote_record_to_success_by_input_event_id,
+    update_retry_by_input_event_id,
 )
 
 
 @dataclass(frozen=True, slots=True)
 class InsertRecord:
-    """新任务进入节点时写入的 pending 记录。
+    """新任务进入节点时写入的 pending 状态。
 
-    :param event_id: 任务输入事件 ID
+    :param input_event_id: 任务输入事件 ID
     :param ts: 记录时间戳
     :param node: 节点名称
     :param task: 任务的 JSON 友好载荷
     """
 
-    event_id: int
+    input_event_id: int
     ts: float
     node: str
     task: Any
@@ -53,16 +53,16 @@ class InsertRecord:
 
 @dataclass(frozen=True, slots=True)
 class PromoteSuccessRecord:
-    """将 pending 记录晋升为 success 并写入任务结果。
+    """将 pending 状态晋升为 success 并写入任务结果。
 
-    :param event_id: 任务输入事件 ID
+    :param input_event_id: 任务输入事件 ID
     :param success_id: 成功事件 ID
     :param ts: 记录时间戳
     :param node: 节点名称
     :param result: 任务结果的 JSON 友好载荷
     """
 
-    event_id: int
+    input_event_id: int
     success_id: int
     ts: float
     node: str
@@ -71,16 +71,16 @@ class PromoteSuccessRecord:
 
 @dataclass(frozen=True, slots=True)
 class PromoteFailedRecord:
-    """将 pending 记录晋升为 failed。
+    """将 pending 状态晋升为 failed。
 
-    :param event_id: 任务输入事件 ID
+    :param input_event_id: 任务输入事件 ID
     :param error_id: 最终失败事件 ID
     :param ts: 记录时间戳
     :param error_type: 异常类型名称
     :param error_message: 异常消息
     """
 
-    event_id: int
+    input_event_id: int
     error_id: int
     ts: float
     node: str
@@ -90,10 +90,10 @@ class PromoteFailedRecord:
 
 @dataclass(frozen=True, slots=True)
 class UpdateRetryRecord:
-    """更新 pending 记录的重试次数与最近一次失败信息。
+    """更新 pending 状态的重试次数与最近一次失败信息。
 
-    :param event_id: 任务输入事件 ID
-    :param retry_id: 重试事件 ID；为空时仅更新当前状态，不写事件账本
+    :param input_event_id: 任务输入事件 ID
+    :param retry_id: 重试事件 ID
     :param ts: 记录时间戳
     :param node: 节点名称
     :param retry_times: 已重试次数
@@ -101,8 +101,8 @@ class UpdateRetryRecord:
     :param error_message: 最近一次异常消息
     """
 
-    event_id: int
-    retry_id: int | None
+    input_event_id: int
+    retry_id: int
     ts: float
     node: str
     retry_times: int
@@ -112,14 +112,14 @@ class UpdateRetryRecord:
 
 @dataclass(frozen=True, slots=True)
 class PromoteSkippedRecord:
-    """将 pending 记录晋升为 skipped。
+    """将 pending 状态晋升为 skipped。
 
-    :param event_id: 任务输入事件 ID
+    :param input_event_id: 任务输入事件 ID
     :param skip_id: 跳过事件 ID
     :param ts: 记录时间戳
     """
 
-    event_id: int
+    input_event_id: int
     skip_id: int
     ts: float
     node: str
@@ -195,19 +195,24 @@ class LifecycleSpout(BaseSpout):
                 changed = insert_event(
                     self._conn,
                     {
-                        "event_id": record.event_id,
+                        "event_id": record.input_event_id,
                         "event_type": CTreeEvent.TASK_INPUT,
                         "node": record.node,
                         "ts": record.ts,
                     },
                 )
-                _ = insert_event_parents(self._conn, record.event_id, record.parent_ids)
-                # 新任务进入某个 node，写入一条 pending 记录。
+                _ = insert_event_parents(
+                    self._conn,
+                    record.input_event_id,
+                    record.parent_ids,
+                )
+                # 新任务进入某个 node，写入一条 pending 状态。
                 changed = (
                     insert_record(
                         self._conn,
                         {
-                            "event_id": record.event_id,
+                            "input_event_id": record.input_event_id,
+                            "current_event_id": record.input_event_id,
                             "ts": record.ts,
                             "node": record.node,
                             "status": "pending",
@@ -226,12 +231,17 @@ class LifecycleSpout(BaseSpout):
                         "event_type": CTreeEvent.TASK_SUCCESS,
                     },
                 )
-                _ = insert_event_parents(self._conn, record.success_id, (record.event_id,))
-                # 任务成功时，将 pending 记录晋升为 success 并写入结果。
+                _ = insert_event_parents(
+                    self._conn,
+                    record.success_id,
+                    (record.input_event_id,),
+                )
+                # 任务成功时，将 pending 状态晋升为 success 并写入结果。
                 changed = (
-                    promote_record_to_success_by_event_id(
+                    promote_record_to_success_by_input_event_id(
                         self._conn,
-                        record.event_id,
+                        record.input_event_id,
+                        record.success_id,
                         record.result,
                         ts=record.ts,
                     )
@@ -247,12 +257,16 @@ class LifecycleSpout(BaseSpout):
                         "event_type": CTreeEvent.TASK_ERROR,
                     },
                 )
-                _ = insert_event_parents(self._conn, record.error_id, (record.event_id,))
-                # 任务最终失败时，将 pending 记录晋升为 failed 并补齐错误信息。
+                _ = insert_event_parents(
+                    self._conn,
+                    record.error_id,
+                    (record.input_event_id,),
+                )
+                # 任务最终失败时，将 pending 状态晋升为 failed 并补齐错误信息。
                 changed = (
-                    promote_record_to_failed_by_event_id(
+                    promote_record_to_failed_by_input_event_id(
                         self._conn,
-                        record.event_id,
+                        record.input_event_id,
                         record.error_id,
                         ts=record.ts,
                         error_type=record.error_type,
@@ -273,13 +287,14 @@ class LifecycleSpout(BaseSpout):
                 _ = insert_event_parents(
                     self._conn,
                     record.retry_id,
-                    (record.event_id,),
+                    (record.input_event_id,),
                 )
-                # 任务重试时，更新 pending 记录的重试次数与最近一次错误信息。
+                # 任务重试时，更新 pending 状态的重试次数与最近一次错误信息。
                 changed = (
-                    update_retry_by_event_id(
+                    update_retry_by_input_event_id(
                         self._conn,
-                        record.event_id,
+                        record.input_event_id,
+                        record.retry_id,
                         ts=record.ts,
                         retry_times=record.retry_times,
                         error_type=record.error_type,
@@ -297,12 +312,16 @@ class LifecycleSpout(BaseSpout):
                         "event_type": CTreeEvent.TASK_SKIP,
                     },
                 )
-                _ = insert_event_parents(self._conn, record.skip_id, (record.event_id,))
-                # 任务被跳过时，将 pending 记录晋升为 skipped 并切换到跳过事件 ID。
+                _ = insert_event_parents(
+                    self._conn,
+                    record.skip_id,
+                    (record.input_event_id,),
+                )
+                # 任务被跳过时，将 pending 状态晋升为 skipped 并切换到跳过事件 ID。
                 changed = (
-                    promote_record_to_skipped_by_event_id(
+                    promote_record_to_skipped_by_input_event_id(
                         self._conn,
-                        record.event_id,
+                        record.input_event_id,
                         record.skip_id,
                         ts=record.ts,
                     )
@@ -391,11 +410,11 @@ class LifecycleObserver(Observer):
         """
         接收并处理观测事件，按事件类型写入生命周期记录。
 
-        - ``TaskInputEvent``：写入一条 pending 记录，表示任务已进入某个 node；
-        - ``TaskSuccessEvent``：将 pending 记录晋升为 success 并写入结果；
-        - ``TaskFailEvent``：将 pending 记录晋升为 failed，并绑定最终的 error_id；
-        - ``TaskSkipEvent``：将 pending 记录晋升为 skipped；
-        - ``TaskRetryEvent``：更新 pending 记录的重试次数与最近一次失败信息。
+        - ``TaskInputEvent``：写入一条 pending 状态，表示任务已进入某个 node；
+        - ``TaskSuccessEvent``：将 pending 状态晋升为 success 并写入结果；
+        - ``TaskFailEvent``：将 pending 状态晋升为 failed，并绑定最终的 error_id；
+        - ``TaskSkipEvent``：将 pending 状态晋升为 skipped；
+        - ``TaskRetryEvent``：更新 pending 状态的重试次数与最近一次失败信息。
         - ``TerminationInputEvent`` / ``TerminationMergeEvent``：仅写入事件账本。
 
         :param event: 任意观测事件
@@ -404,7 +423,7 @@ class LifecycleObserver(Observer):
             case TaskInputEvent():
                 self._inlet.send(
                     InsertRecord(
-                        event_id=event.input_id,
+                        input_event_id=event.input_id,
                         ts=datetime.now().timestamp(),
                         node=event.node,
                         task=to_persisted_payload(event.task),
@@ -414,7 +433,7 @@ class LifecycleObserver(Observer):
             case TaskSuccessEvent():
                 self._inlet.send(
                     PromoteSuccessRecord(
-                        event_id=event.task_id,
+                        input_event_id=event.task_id,
                         success_id=event.success_id,
                         ts=datetime.now().timestamp(),
                         node=event.node,
@@ -425,7 +444,7 @@ class LifecycleObserver(Observer):
                 error = event.exception
                 self._inlet.send(
                     PromoteFailedRecord(
-                        event_id=event.task_id,
+                        input_event_id=event.task_id,
                         error_id=event.error_id,
                         ts=datetime.now().timestamp(),
                         node=event.node,
@@ -436,7 +455,7 @@ class LifecycleObserver(Observer):
             case TaskSkipEvent():
                 self._inlet.send(
                     PromoteSkippedRecord(
-                        event_id=event.task_id,
+                        input_event_id=event.task_id,
                         skip_id=event.skip_id,
                         ts=datetime.now().timestamp(),
                         node=event.node,
@@ -446,7 +465,7 @@ class LifecycleObserver(Observer):
                 error = event.exception
                 self._inlet.send(
                     UpdateRetryRecord(
-                        event_id=event.task_id,
+                        input_event_id=event.task_id,
                         retry_id=event.retry_id,
                         ts=datetime.now().timestamp(),
                         node=event.node,

@@ -5,7 +5,7 @@ import pytest
 
 from celestialflow.persist.util_sqlite import (
     connect_db,
-    delete_record_by_event_id,
+    delete_record_by_input_event_id,
     insert_event,
     insert_event_parents,
     insert_record,
@@ -15,16 +15,16 @@ from celestialflow.persist.util_sqlite import (
     load_task_result_records,
     normalize_event_record,
     normalize_record,
-    promote_record_to_failed_by_event_id,
-    promote_record_to_success_by_event_id,
+    promote_record_to_failed_by_input_event_id,
+    promote_record_to_success_by_input_event_id,
     row_to_event_dict,
     row_to_record_dict,
-    update_retry_by_event_id,
+    update_retry_by_input_event_id,
 )
 
 
 def _insert_records(sqlite_path, records: list[dict[str, object]]) -> int:
-    """测试辅助：直接向 sqlite 追加记录，重复 event_id 时跳过。"""
+    """测试辅助：直接向 sqlite 追加状态，重复 input_event_id 时跳过。"""
     conn = connect_db(sqlite_path)
     try:
         inserted = 0
@@ -41,14 +41,14 @@ def _insert_records(sqlite_path, records: list[dict[str, object]]) -> int:
 
 
 def _fetch_records(sqlite_path, status: str = "failed") -> list[dict[str, object]]:
-    """测试辅助：按状态读取当前 sqlite 中的记录。"""
+    """测试辅助：按状态读取当前 sqlite 中的状态快照。"""
     conn = connect_db(sqlite_path)
     try:
         rows = conn.execute(
             """
-            SELECT id, event_id, ts, node, status, error_type, error_message, task_json
+            SELECT id, input_event_id, current_event_id, ts, node, status, error_type, error_message, task_json
                  , result_json, retry_times
-            FROM records
+            FROM status
             WHERE status = ?
             ORDER BY id ASC
             """,
@@ -97,12 +97,12 @@ def sample_errors():
 @pytest.fixture
 def sqlite_path(tmp_path):
     """创建临时 sqlite 文件路径。"""
-    return tmp_path / "records.sqlite3"
+    return tmp_path / "status.sqlite3"
 
 
 class TestSpliteUtils:
     def test_connect_db_creates_table_and_indices(self, sqlite_path):
-        """测试建立连接时会自动创建 records 表和必要索引。"""
+        """测试建立连接时会自动创建 status 表和必要索引。"""
         conn = connect_db(sqlite_path)
         try:
             table_names = {
@@ -117,24 +117,29 @@ class TestSpliteUtils:
                     "SELECT name FROM sqlite_master WHERE type='index'"
                 ).fetchall()
             }
-            index_list = conn.execute("PRAGMA index_list(records)").fetchall()
-            result_info = conn.execute("PRAGMA table_info(records)").fetchall()
+            index_list = conn.execute("PRAGMA index_list(status)").fetchall()
+            result_info = conn.execute("PRAGMA table_info(status)").fetchall()
             event_info = conn.execute("PRAGMA table_info(events)").fetchall()
         finally:
             conn.close()
 
-        assert "records" in table_names
+        assert "status" in table_names
         assert "events" in table_names
         assert "event_parents" in table_names
-        assert "idx_records_event_id" in index_names
-        assert "idx_records_status_id" in index_names
+        assert "idx_status_input_event_id" in index_names
+        assert "idx_status_current_event_id" in index_names
+        assert "idx_status_status_id" in index_names
         assert "idx_events_type_ts" in index_names
         assert "idx_events_node_ts" in index_names
         assert "idx_event_parents_parent_id" in index_names
-        assert any(row[1] == "idx_records_event_id" and row[2] == 1 for row in index_list)
+        assert any(
+            row[1] == "idx_status_input_event_id" and row[2] == 1
+            for row in index_list
+        )
         assert [row[1] for row in result_info] == [
             "id",
-            "event_id",
+            "input_event_id",
+            "current_event_id",
             "ts",
             "node",
             "status",
@@ -159,7 +164,8 @@ class TestSpliteUtils:
         normalized = normalize_record(sample_errors[1])
 
         assert normalized is not None
-        assert normalized["event_id"] == 1
+        assert normalized["input_event_id"] == 1
+        assert normalized["current_event_id"] == 1
         assert normalized["node"] == "s1"
         assert normalized["status"] == "failed"
         assert normalized["error_type"] == "ValueError"
@@ -220,10 +226,14 @@ class TestSpliteUtils:
 
         assert len(records) == 2
         assert records[0]["id"] == 1
+        assert records[0]["input_event_id"] == 1
+        assert records[0]["current_event_id"] == 1
         assert records[0]["ts"] == 1.0
         assert records[0]["task_json"] == {"id": 1, "label": "TaskOne"}
         assert records[0]["result_json"] is None
         assert records[1]["id"] == 2
+        assert records[1]["input_event_id"] == 2
+        assert records[1]["current_event_id"] == 2
         assert records[1]["ts"] == 2.0
         assert records[1]["task_json"] == ["A", "B"]
         assert records[1]["result_json"] is None
@@ -312,8 +322,8 @@ class TestSpliteUtils:
 
         assert load_event_parent_ids(sqlite_path, 2) == []
 
-    def test_promote_record_to_failed_by_event_id(self, sqlite_path, sample_errors):
-        """测试按 event_id 更新记录状态与错误信息。"""
+    def test_promote_record_to_failed_by_input_event_id(self, sqlite_path, sample_errors):
+        """测试按 input_event_id 更新状态与错误信息。"""
         waiting_record = {
             "event_id": 9,
             "node": "s9",
@@ -325,7 +335,7 @@ class TestSpliteUtils:
 
         conn = connect_db(sqlite_path)
         try:
-            updated = promote_record_to_failed_by_event_id(
+            updated = promote_record_to_failed_by_input_event_id(
                 conn,
                 9,
                 19,
@@ -340,14 +350,15 @@ class TestSpliteUtils:
         assert updated is True
         failed_records = _fetch_records(sqlite_path, "failed")
         assert len(failed_records) == 1
-        assert failed_records[0]["event_id"] == 19
+        assert failed_records[0]["input_event_id"] == 9
+        assert failed_records[0]["current_event_id"] == 19
         assert failed_records[0]["status"] == "failed"
         assert failed_records[0]["ts"] == 9.5
         assert failed_records[0]["error_type"] == "RuntimeError"
         assert failed_records[0]["error_message"] == "boom"
 
-    def test_promote_record_to_success_by_event_id(self, sqlite_path):
-        """测试按 event_id 将记录晋升为 success 并写入结果。"""
+    def test_promote_record_to_success_by_input_event_id(self, sqlite_path):
+        """测试按 input_event_id 将状态晋升为 success 并写入结果。"""
         pending_record = {
             "event_id": 8,
             "node": "s8",
@@ -359,9 +370,10 @@ class TestSpliteUtils:
 
         conn = connect_db(sqlite_path)
         try:
-            updated = promote_record_to_success_by_event_id(
+            updated = promote_record_to_success_by_input_event_id(
                 conn,
                 8,
+                18,
                 {"ok": True, "value": [1, 2, 3]},
                 ts=8.5,
             )
@@ -372,14 +384,15 @@ class TestSpliteUtils:
         assert updated is True
         success_records = _fetch_records(sqlite_path, "success")
         assert len(success_records) == 1
-        assert success_records[0]["event_id"] == 8
+        assert success_records[0]["input_event_id"] == 8
+        assert success_records[0]["current_event_id"] == 18
         assert success_records[0]["status"] == "success"
         assert success_records[0]["ts"] == 8.5
         assert success_records[0]["result_json"] == {"ok": True, "value": [1, 2, 3]}
         assert success_records[0]["task_json"] == {"value": 8}
 
-    def test_update_retry_by_event_id(self, sqlite_path):
-        """测试按 event_id 更新 pending 记录的重试信息，状态保持不变。"""
+    def test_update_retry_by_input_event_id(self, sqlite_path):
+        """测试按 input_event_id 更新 pending 状态的重试信息，状态保持不变。"""
         pending_record = {
             "event_id": 7,
             "node": "s7",
@@ -391,9 +404,10 @@ class TestSpliteUtils:
 
         conn = connect_db(sqlite_path)
         try:
-            updated = update_retry_by_event_id(
+            updated = update_retry_by_input_event_id(
                 conn,
                 7,
+                17,
                 ts=7.5,
                 retry_times=2,
                 error_type="ValueError",
@@ -407,18 +421,21 @@ class TestSpliteUtils:
         pending_records = _fetch_records(sqlite_path, "pending")
         assert len(pending_records) == 1
         assert pending_records[0]["status"] == "pending"
+        assert pending_records[0]["input_event_id"] == 7
+        assert pending_records[0]["current_event_id"] == 17
         assert pending_records[0]["retry_times"] == 2
         assert pending_records[0]["error_type"] == "ValueError"
         assert pending_records[0]["error_message"] == "try failed"
         assert pending_records[0]["ts"] == 7.5
 
-    def test_update_retry_by_event_id_missing_record(self, sqlite_path):
-        """测试更新不存在的 event_id 时应返回 False。"""
+    def test_update_retry_by_input_event_id_missing_record(self, sqlite_path):
+        """测试更新不存在的 input_event_id 时应返回 False。"""
         conn = connect_db(sqlite_path)
         try:
-            updated = update_retry_by_event_id(
+            updated = update_retry_by_input_event_id(
                 conn,
                 999,
+                1999,
                 ts=1.0,
                 retry_times=1,
                 error_type="ValueError",
@@ -430,20 +447,20 @@ class TestSpliteUtils:
 
         assert updated is False
 
-    def test_delete_record_by_event_id(self, sqlite_path, sample_errors):
-        """测试按 event_id 删除记录。"""
+    def test_delete_record_by_input_event_id(self, sqlite_path, sample_errors):
+        """测试按 input_event_id 删除状态。"""
         appended = _insert_records(sqlite_path, sample_errors[1:])
         assert appended == 3
 
         conn = connect_db(sqlite_path)
         try:
-            deleted = delete_record_by_event_id(conn, 2)
+            deleted = delete_record_by_input_event_id(conn, 2)
             conn.commit()
         finally:
             conn.close()
 
         assert deleted is True
-        assert [item["event_id"] for item in _fetch_records(sqlite_path)] == [1, 3]
+        assert [item["input_event_id"] for item in _fetch_records(sqlite_path)] == [1, 3]
 
     def test_load_task_error_records_and_grouping(self, sqlite_path, sample_errors):
         """测试任务-错误配对读取以及按 node 聚合。"""
@@ -470,9 +487,10 @@ class TestSpliteUtils:
 
         conn = connect_db(sqlite_path)
         try:
-            updated = promote_record_to_success_by_event_id(
+            updated = promote_record_to_success_by_input_event_id(
                 conn,
                 8,
+                18,
                 {"ok": True, "value": [1, 2, 3]},
                 ts=8.5,
             )

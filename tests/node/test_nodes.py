@@ -619,7 +619,7 @@ class TestTaskSkip:
             statuses = [
                 str(row[0])
                 for row in conn.execute(
-                    "SELECT status FROM records WHERE node = 'SkipChain' ORDER BY id ASC"
+                    "SELECT status FROM status WHERE node = 'SkipChain' ORDER BY id ASC"
                 ).fetchall()
             ]
         finally:

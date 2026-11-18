@@ -20,7 +20,7 @@ from celestialflow.persist.util_sqlite import (
 
 class TestLifecyclePersistence:
     def test_lifecycle_persistence(self, tmp_path, monkeypatch):
-        """`LifecycleObserver` 应按生命周期维护 sqlite 记录。"""
+        """`LifecycleObserver` 应按生命周期维护 sqlite 状态与事件。"""
         monkeypatch.chdir(tmp_path)
 
         observer = LifecycleObserver()
@@ -79,21 +79,21 @@ class TestLifecyclePersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, ts, node, status, error_type, error_message, task_json, result_json
-                FROM records
+                SELECT input_event_id, current_event_id, ts, node, status, error_type, error_message, task_json, result_json
+                FROM status
                 ORDER BY id ASC
                 """
             ).fetchall()
         finally:
             conn.close()
 
-        assert [row[0] for row in rows] == [21, 2]
-        assert [row[2:] for row in rows] == [
+        assert [(row[0], row[1]) for row in rows] == [(1, 21), (2, 3)]
+        assert [row[3:] for row in rows] == [
             ("s1", "failed", "ValueError", "oops", '"data1"', 'null'),
             ("s2", "success", "", "", '"data2"', '"ok2"'),
         ]
-        assert rows[0][1] > 0
-        assert rows[1][1] > 0
+        assert rows[0][2] > 0
+        assert rows[1][2] > 0
 
     def test_success_persistence(self, tmp_path, monkeypatch):
         """`LifecycleObserver` 应持久化 success 结果并可读回 task-result 对。"""
@@ -199,22 +199,22 @@ class TestLifecyclePersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, status, error_type, error_message, task_json, result_json
+                SELECT input_event_id, current_event_id, status, error_type, error_message, task_json, result_json
                      , retry_times
-                FROM records
+                FROM status
                 ORDER BY id ASC
                 """
             ).fetchall()
         finally:
             conn.close()
 
-        assert [(row[0], row[1], row[6]) for row in rows] == [
-            (1, "success", 2),
-            (22, "failed", 2),
+        assert [(row[0], row[1], row[7]) for row in rows] == [
+            (1, 3, 2),
+            (2, 22, 2),
         ]
         # 成功记录不携带错误信息，失败记录保留最终错误
-        assert rows[0][2:6] == ("", "", '"retry_ok"', '"ok"')
-        assert rows[1][2:6] == ("ValueError", "final boom", '"retry_fail"', "null")
+        assert rows[0][2:7] == ("success", "", "", '"retry_ok"', '"ok"')
+        assert rows[1][2:7] == ("failed", "ValueError", "final boom", '"retry_fail"', "null")
 
     def test_skip_persistence(self, tmp_path, monkeypatch):
         """`LifecycleObserver` 收到跳过事件时应把 pending 记录晋升为 skipped 并切换事件 ID。"""
@@ -243,16 +243,16 @@ class TestLifecyclePersistence:
         try:
             rows = conn.execute(
                 """
-                SELECT event_id, status, error_type, error_message, task_json, result_json
-                FROM records
+                SELECT input_event_id, current_event_id, status, error_type, error_message, task_json, result_json
+                FROM status
                 ORDER BY id ASC
                 """
             ).fetchall()
         finally:
             conn.close()
 
-        assert [(row[0], row[1]) for row in rows] == [(31, "skipped"), (2, "success")]
-        assert rows[0][2:6] == ("", "", '"skip_me"', "null")
+        assert [(row[0], row[1], row[2]) for row in rows] == [(1, 31, "skipped"), (2, 3, "success")]
+        assert rows[0][3:7] == ("", "", '"skip_me"', "null")
 
     def test_termination_events_persist_to_event_tables(self, tmp_path, monkeypatch):
         """终止相关事件应写入事件账本及其父边。"""
@@ -304,8 +304,17 @@ class TestLifecyclePersistence:
         try:
             columns = [
                 row[1]
-                for row in conn.execute("PRAGMA table_info(records)").fetchall()
+                for row in conn.execute("PRAGMA table_info(status)").fetchall()
             ]
+            table_names = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            assert "status" in table_names
             assert "retry_times" in columns
+            assert "input_event_id" in columns
+            assert "current_event_id" in columns
         finally:
             conn.close()
