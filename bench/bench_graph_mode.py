@@ -6,6 +6,8 @@ from typing import Any
 from celestialflow import (
     TaskGraph,
     TaskExecutor,
+    TaskRouter,
+    TaskSplitter,
     benchmark_graph,
 )
 
@@ -125,6 +127,26 @@ def multiply_two(x: int) -> int:
 
 async def async_multiply_two(x: int) -> int:
     return x * 2
+
+
+def split_pair(x: int) -> list[int]:
+    """将单个整数拆为两个分支任务。"""
+    return [x, x + 1]
+
+
+async def async_split_pair(x: int) -> list[int]:
+    """异步版拆分函数。"""
+    return [x, x + 1]
+
+
+def route_by_parity(x: int) -> dict[str, int]:
+    """按奇偶将任务路由到不同下游。"""
+    return {"even": x} if x % 2 == 0 else {"odd": x}
+
+
+async def async_route_by_parity(x: int) -> dict[str, int]:
+    """异步版路由函数。"""
+    return route_by_parity(x)
 
 
 async def bench_graph_0() -> None:
@@ -254,10 +276,61 @@ async def bench_graph_2() -> None:
     await benchmark_graph(graph, async_graph, input_tasks)
 
 
+async def bench_graph_3() -> None:
+    """混合 TaskSplitter / TaskRouter / TaskExecutor 的图 benchmark。"""
+    splitter = TaskSplitter("NodeA", split_pair, max_workers=12)
+    router = TaskRouter("NodeB", route_by_parity, max_workers=12)
+    even = TaskExecutor("NodeEven", add_one, max_workers=12)
+    odd = TaskExecutor("NodeOdd", multiply_two, max_workers=12)
+
+    graph = TaskGraph("bench_graph_3")
+    graph.set_nodes(nodes=[splitter, router, even, odd])
+    graph.connect([splitter], [router])
+    graph.connect([router], [even, odd])
+
+    async_splitter = TaskSplitter(
+        "NodeA",
+        async_split_pair,
+        max_workers=12,
+        execution_mode="async",
+    )
+    async_router = TaskRouter(
+        "NodeB",
+        async_route_by_parity,
+        max_workers=12,
+        execution_mode="async",
+    )
+    async_even = TaskExecutor(
+        "NodeEven",
+        async_add_one,
+        max_workers=12,
+        execution_mode="async",
+    )
+    async_odd = TaskExecutor(
+        "NodeOdd",
+        async_multiply_two,
+        max_workers=12,
+        execution_mode="async",
+    )
+
+    async_graph = TaskGraph("bench_graph_3_async", graph_mode="async")
+    async_graph.set_nodes(nodes=[async_splitter, async_router, async_even, async_odd])
+    async_graph.connect([async_splitter], [async_router])
+    async_graph.connect([async_router], [async_even, async_odd])
+
+    input_tasks = {
+        "NodeA": range(5_000),
+    }
+
+    print("==== bench_graph_3 ====")
+    await benchmark_graph(graph, async_graph, input_tasks)
+
+
 async def main_async() -> None:
     await bench_graph_0()
     await bench_graph_1()
     await bench_graph_2()
+    await bench_graph_3()
 
 
 if __name__ == "__main__":
