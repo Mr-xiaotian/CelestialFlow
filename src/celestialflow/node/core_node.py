@@ -330,6 +330,7 @@ class BaseTaskNode[T, R, Y]:
                 task=task,
                 task_repr=task_repr,
                 input_id=input_id,
+                parent_ids=(),
             )
         )
 

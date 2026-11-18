@@ -110,6 +110,7 @@ class TestExecutorObserver:
         assert starts[0].start_time > 0
         assert ends[0].end_time > 0
         assert all(event.from_node is None for event in inputs)
+        assert all(event.parent_ids == () for event in inputs)
         assert observer.events[-1] is ends[0]
 
     def test_task_success_event_carries_payload_and_ids(self):
@@ -241,9 +242,16 @@ class TestExecutorObserver:
 
         inputs = _only(observer.events, TaskInputEvent)
         upstream_inputs = [event for event in inputs if event.from_node is not None]
+        successes = {
+            event.success_id: event
+            for event in _only(observer.events, TaskSuccessEvent)
+            if event.node == "up"
+        }
         assert len(upstream_inputs) == 2
         assert all(event.node == "down" for event in upstream_inputs)
         assert all(event.from_node == "up" for event in upstream_inputs)
+        assert all(len(event.parent_ids) == 1 for event in upstream_inputs)
+        assert {event.parent_ids[0] for event in upstream_inputs} == set(successes)
 
 
 class TestExtendedObserver:

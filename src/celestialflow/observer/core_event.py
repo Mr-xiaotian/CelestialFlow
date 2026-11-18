@@ -58,6 +58,7 @@ class TaskInputEvent(Event):
     :param task: 原始任务数据
     :param task_repr: 任务的可读表示
     :param input_id: 当前输入事件 ID
+    :param parent_ids: 父事件 ID 列表；外部直接注入时为空
     :param from_node: 上游来源节点名称；``None`` 表示由外部直接注入
     """
 
@@ -65,6 +66,7 @@ class TaskInputEvent(Event):
     task: Any
     task_repr: str
     input_id: int
+    parent_ids: tuple[int, ...] = ()
     from_node: str | None = None
 
 

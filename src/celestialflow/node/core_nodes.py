@@ -74,6 +74,7 @@ class TaskExecutor[T, R](BaseTaskNode[T, R, R]):
                     task=result,
                     task_repr=result_repr,
                     input_id=downstream_input_id,
+                    parent_ids=(result_id,),
                     from_node=self.get_name(),
                 )
             )
@@ -143,6 +144,7 @@ class TaskSplitter[T, RItem](BaseTaskNode[T, Iterable[RItem], RItem]):
                         task=item,
                         task_repr=item_repr,
                         input_id=downstream_input_id,
+                        parent_ids=(result_id,),
                         from_node=self.get_name(),
                     )
                 )
@@ -212,6 +214,7 @@ class TaskRouter[T, Y](BaseTaskNode[T, dict[str, Y], Y]):
                     task=yie,
                     task_repr=yie_repr,
                     input_id=downstream_input_id,
+                    parent_ids=(result_id,),
                     from_node=self.get_name(),
                 )
             )

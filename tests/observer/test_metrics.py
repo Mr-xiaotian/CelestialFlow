@@ -14,7 +14,13 @@ from celestialflow.runtime.util_types import NodeStatus
 
 def _external_input(node: str) -> TaskInputEvent:
     """构造外部注入任务输入事件。"""
-    return TaskInputEvent(node=node, task=1, task_repr="(1)", input_id=1)
+    return TaskInputEvent(
+        node=node,
+        task=1,
+        task_repr="(1)",
+        input_id=1,
+        parent_ids=(),
+    )
 
 
 def _upstream_input(node: str, from_node: str) -> TaskInputEvent:
@@ -24,6 +30,7 @@ def _upstream_input(node: str, from_node: str) -> TaskInputEvent:
         task=1,
         task_repr="(1)",
         input_id=2,
+        parent_ids=(1,),
         from_node=from_node,
     )
 
